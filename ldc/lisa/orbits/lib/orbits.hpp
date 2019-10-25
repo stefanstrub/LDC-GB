@@ -1,3 +1,6 @@
+#ifndef ORBITS_H
+#define ORBITS_H
+
 #include <array>
 #include <vector>
 #include <cmath>
@@ -42,3 +45,4 @@ public:
   
 };
 
+#endif
