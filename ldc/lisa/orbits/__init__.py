@@ -1,2 +1,2 @@
 name = 'orbits'
-from orbits import Orbits
+from .orbits import Orbits
