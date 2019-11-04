@@ -15,7 +15,7 @@ double dot_product(array<double, 3> v1, array<double, 3> v2){
 double travel_time(array<double, 3> r_i, array<double, 3> r_j, array<double, 3> v_j, int order) {
   array<double, 3> r_ij;
   for (int i=0; i < 3; i+= 1)
-    r_ij[i] = r_i[i] - r_j[i];
+    r_ij[i] = r_j[i] - r_i[i];
 
   double n = norm(r_ij);
   double tt = n / CLIGHT;
