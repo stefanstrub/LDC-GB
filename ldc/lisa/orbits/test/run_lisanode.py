@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 def run_lisanode(case="Reforbits", duration=3600*24*365):
-    flags = '-I../nodes  -I../lib -L../lib -L. -lorbits -lhdf5_serial -lhdf5_cpp'
+    flags = '-I../nodes  -I../lib -L../lib -lorbits'
     os.system("lisanode run -o %s --flags='%s' graph.py:%s -d %d"%(case, flags, case,duration))
 
 if __name__ == "__main__":
