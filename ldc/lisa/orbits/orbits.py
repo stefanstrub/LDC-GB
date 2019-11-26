@@ -10,10 +10,7 @@ from ldc.common import constants
 
 C = constants.Nature
 AU_IN_M = C.ASTRONOMICALUNIT_METER
-# ASTRONOMICAL_YEAR = C.SIDEREALYEAR_J2000DAY*60*60*24
-# POST_NEWTONIAN_CONSTANT = 1.0
-# HALF_SCHWARZSCHILD_RADIUS = 1.47664E3
-# BARYCENTER_ANGULAR_VELOCITY = 2. * np.pi / ASTRONOMICAL_YEAR
+
 
 class Orbits(ABC):
     """ This abstract base class is the gateway to the LISA set of orbits functions """
