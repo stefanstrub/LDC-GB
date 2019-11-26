@@ -1,6 +1,8 @@
 src = orbits.cc common.cc 
 obj = $(src:.cc=.o)
 headers = $(src:.cc=.hpp)
+flags = -I../../../common/constants/
+
 
 #PREFIX is environment variable, but if it is not set, then set default value
 ifeq ($(PREFIX),)
@@ -13,7 +15,7 @@ liborbits.a:$(obj)
 	ar rcs $@ $^
 
 %.o: %.cc
-	g++ -c $^ -o $@
+	g++ $(flags) -c $^ -o $@
 
 clean:
 	rm -f $(obj) liborbits.a
