@@ -1,7 +1,13 @@
-from setuptools import setup, find_namespace_packages, Command
+from setuptools import setup, Command
 from distutils.core import Extension
 from Cython.Distutils import build_ext
 import os
+
+try:
+    from setuptools import find_namespace_packages
+except ImportError:
+    raise("setuptools>=41.0.0 is required")
+
 
 class build_liborbits(Command):
     def run(self):
@@ -14,7 +20,7 @@ try:
 except ImportError:
     USE_CYTHON = False
 
-if USE_CYTHON:
+if 1:#USE_CYTHON:
     sources = ["ldc/lisa/orbits/lib/pyorbits.pyx",
                "ldc/lisa/orbits/lib/orbits.cc",
                "ldc/lisa/orbits/lib/common.cc"]
