@@ -19,7 +19,7 @@ import math
 # TODO:
 # orbits: use ldc.orbits in fastbinary.cc
 # arrays: use standard arrays
-# parameters: check pycbc convetions
+# parameters: check pycbc conventions
 
 
 year = constants.Nature.SIDEREALYEAR_J2000DAY*24*60*60
@@ -36,7 +36,7 @@ cdef class pyFastBinary:
     def __cinit__(self, orbits=None, template=None, T=6.2914560e7, delta_t=15, f0=None,
                   fdot=None, ampl=None, theta=None, phi=None,
                   psi=None, incl=None, phi0=None, oversample=1, method="mldc"):
-        """ Check that orbits are compatible
+        """ Define C++ FastBinary dimensions and check that orbits are compatible. 
         """
         if orbits is not None:
             if not isinstance(orbits, "AnalyticOrbits"):
@@ -49,19 +49,18 @@ cdef class pyFastBinary:
             self.arm_length = 2.5e9
 
         if template is not None:
-            f0, fdot, ampl, theta, phi, psi, incl, phi0 = self._parse_template(template)
+            self._parse_template(template)
+        else:
+            self.f0, self.fdot, self.ampl = f0, fdot, ampl
+            self.theta, self.phi = theta, phi
+            self.psi, self.incl, self.phi0 = psi, incl, phi0
             
-        M,N = self.buffersize(T, delta_t, f0, fdot, ampl, method, oversample=oversample)
+        M,N = self.buffersize(T, delta_t, method, oversample=oversample)
         self.FB = new FastBinary(long(N), T, delta_t)
         self.M, self.N = M, N
-        self.f0, self.fdot, self.ampl = f0, fdot, ampl
         self.T, self.delta_t = T, delta_t
         self.oversample = oversample
         self.method = method
-        self.theta, self.phi = theta, phi
-        self.psi, self.incl, self.phi0 = psi, incl, phi0
-        
-        
         
     def __dealloc__(self):
         del self.FB
@@ -88,19 +87,18 @@ cdef class pyFastBinary:
             N = 64*mult
         else:
             N = 32*mult
-            
         return mult, N
     
-    def buffersize(self, T, dt, f, fdot, A, method, oversample):
+    def buffersize(self, T, dt, method, oversample):
         """
         """
         if method in ['legacy', 'mldc']:
-            mult, N = self._set_mult(T, f)
+            mult, N = self._set_mult(T, self.f0)
 
             # new logic for high-frequency chirping binaries (r1164 lisatools:Fast_Response.c)
             if method == 'mldc':
                 try:
-                    chirp = int(math.pow(2.0,math.ceil(math.log(fdot*T*T)/math.log(2.0))))
+                    chirp = int(math.pow(2.0,math.ceil(math.log(self.fdot*T*T)/math.log(2.0))))
                 except ValueError:
                     chirp = 0
 
@@ -128,14 +126,14 @@ cdef class pyFastBinary:
         elif method=="lisasolve":  
             # LISA response bandwidth for Doppler v/c = 1e-4
             # on both sides, and frequency evolution
-            deltaf = fdot * T + 2.0e-4 * f
+            deltaf = self.fdot * T + 2.0e-4 * self.f0
             # bins, rounded to next-highest power of two;
             # make sure we have enough for sidebands
             bins = 8 + deltaf*T
             N = int(2**math.ceil(math.log(bins,2)))
 
             # approximate source SNR
-            f0 = f + 0.5 * fdot * T
+            f0 = self.f0 + 0.5 * self.fdot * T
             SNR = 10 #tdi.simplesnr(f0, A, years=T/year)
 
             # bandwidth for carrier frequency, off bin, worst case dx = 0.5 (accept 0.1 +- SNR)
@@ -143,14 +141,14 @@ cdef class pyFastBinary:
             M = int(2**math.ceil(math.log(bins,2)))
             M = N = max(M,N)
         else:
-            self._check_method(method=method)
+            self._check_method(method)
             
         M *= oversample; N *= oversample
         return M,N
 
-    def _check_method(self, **kwargs):
-        if not kwargs.get("method") in ["legacy", "mldc", "lisasolve"]:
-            raise ""
+    def _check_method(self, method):
+        if not method in ["legacy", "mldc", "lisasolve"]:
+            raise ValueError('Fastbinary method should be in [legacy, mldc, lisasolve]')
 
     def _parse_template(self, template):
         """ TODO: 
@@ -159,19 +157,17 @@ cdef class pyFastBinary:
         - should also parse a vector ?
         
         """
-        f0 = template["Frequency"]
-        fdot = template["FrequencyDerivative"]
-        theta = 0.5*np.pi-template['EclipticLatitude']
-        phi = template['EclipticLongitude']
-        ampl = template['Amplitude']
-        incl = template['Inclination']
-        psi = template['Polarization']
-        phi0 = template['InitialPhase']
-        return f0, fdot, ampl, theta, phi, psi, incl, phi0 
+        self.f0 = template["Frequency"]
+        self.fdot = template["FrequencyDerivative"]
+        self.theta = 0.5*np.pi-template['EclipticLatitude']
+        self.phi = template['EclipticLongitude']
+        self.ampl = template['Amplitude']
+        self.incl = template['Inclination']
+        self.psi = template['Polarization']
+        self.phi0 = template['InitialPhase']
         
     def get_fd_tdixyz(self):
-        """Source parameter can be given through template argument as a dict
-        or using keywords arguments. 
+        """
         """
 
         cdef np.ndarray[np.double_t, ndim=1, mode="c"] xls = np.zeros(2*self.M)
