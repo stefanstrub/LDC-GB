@@ -19,9 +19,7 @@ import math
 # TODO:
 # orbits: use ldc.orbits in fastbinary.cc
 # arrays: use standard arrays
-# parameters: check pycbc conventions, give info on expected units, getter/setter tools
-# time domain
-# noise
+# parameters: check pycbc conventions
 
 
 year = constants.Nature.SIDEREALYEAR_J2000DAY*24*60*60
@@ -66,7 +64,7 @@ cdef class pyFastBinary:
         
     def __dealloc__(self):
         del self.FB
-
+        
     def _set_mult(self, T, f):
         if T/year <= 1.0:
             mult = 1
@@ -190,6 +188,4 @@ cdef class pyFastBinary:
         return fX,fY,fZ
 
     def get_td_tdixyz(self):
-        fX, fY, fZ = self.get_fd_tdi()
-        # todo compute inverse fft
-        
+        pass
