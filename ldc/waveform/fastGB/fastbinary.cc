@@ -8,71 +8,96 @@ extern "C" {
     #include "arrays.h"
 }
 
+// LISA -- e = L / (2 AU sqrt(3)); fstar = c / (2 pi L)
+//double L = 5.0e9;             // armlength
+double L = 2.5e9;             // armlength
+//double fstar = 0.00954269032; // transfer frequency
+//double ec = 0.009648370435;   // eccentricity
 
-FastBinary::FastBinary(long Nreq,double Treq, double dtreq){
-  
-  N = Nreq; M = Nreq; T = Treq; dt = dtreq;
-  u = dvector(1,3); v = dvector(1,3); k = dvector(1,3);
-  
-  kdotx = dvector(1,3); kdotr = dmatrix(1,3,1,3);
-  
-  xi = dvector(1,3); fonfs = dvector(1,3);
-  
-  eplus  = dmatrix(1,3,1,3); ecross = dmatrix(1,3,1,3);
-  dplus  = dmatrix(1,3,1,3); dcross = dmatrix(1,3,1,3);
-  
-  x = dvector(1,3); y = dvector(1,3); z = dvector(1,3);
-  
-  r12 = dvector(1,3); r21 = dvector(1,3); r31 = dvector(1,3);
-  r13 = dvector(1,3); r23 = dvector(1,3); r32 = dvector(1,3);
-  
-  TR = dmatrix(1,3,1,3); TI = dmatrix(1,3,1,3);
-  
-  // these are the long vectors...
-  data12 = dvector(1,2*N); data21 = dvector(1,2*N); data31 = dvector(1,2*N);
-  data13 = dvector(1,2*N); data23 = dvector(1,2*N); data32 = dvector(1,2*N);
-  
-  b = dvector(1,2*M);
-  
-  c12 = dvector(1,2*M); c21 = dvector(1,2*M); c31 = dvector(1,2*M);
-  c13 = dvector(1,2*M); c23 = dvector(1,2*M); c32 = dvector(1,2*M);
-  
-  in  = (fftw_complex *)fftw_malloc(sizeof(fftw_complex) * N);
-  out = (fftw_complex *)fftw_malloc(sizeof(fftw_complex) * N);
-  
-  plan_forward  = fftw_plan_dft_1d(N, in, out, FFTW_FORWARD,  FFTW_ESTIMATE);
-  plan_backward = fftw_plan_dft_1d(N, in, out, FFTW_BACKWARD, FFTW_ESTIMATE);
-  
-  X = dvector(1,2*M);  Y = dvector(1,2*M);  Z = dvector(1,2*M);
+
+
+// Assuming analytical orbit.
+double fstar = clight/(2.0*pi*L);
+double ec = L/(2.0*AU*sqrt(3.0));
+
+void setL(double l) {
+    L = l;
+
+    ec = L / (2.0 * AU * sq3);
+    fstar = clight / (2.0 * pi * L);
+}
+FastBinary::FastBinary(){} //nullary constructor for cython
+
+FastBinary::FastBinary(long Nreq,double Treq,double dtreq) : N(Nreq), M(Nreq), T(Treq), dt(dtreq) {
+    u = dvector(1,3); v = dvector(1,3); k = dvector(1,3);
+
+    kdotx = dvector(1,3); kdotr = dmatrix(1,3,1,3);
+
+    xi = dvector(1,3); fonfs = dvector(1,3);
+
+    eplus  = dmatrix(1,3,1,3); ecross = dmatrix(1,3,1,3);
+    dplus  = dmatrix(1,3,1,3); dcross = dmatrix(1,3,1,3);
+
+    x = dvector(1,3); y = dvector(1,3); z = dvector(1,3);
+
+    r12 = dvector(1,3); r21 = dvector(1,3); r31 = dvector(1,3);
+    r13 = dvector(1,3); r23 = dvector(1,3); r32 = dvector(1,3);
+
+    TR = dmatrix(1,3,1,3); TI = dmatrix(1,3,1,3);
+
+    // these are the long vectors...
+
+    data12 = dvector(1,2*N); data21 = dvector(1,2*N); data31 = dvector(1,2*N);
+    data13 = dvector(1,2*N); data23 = dvector(1,2*N); data32 = dvector(1,2*N);
+
+    b = dvector(1,2*M);
+
+    c12 = dvector(1,2*M); c21 = dvector(1,2*M); c31 = dvector(1,2*M);
+    c13 = dvector(1,2*M); c23 = dvector(1,2*M); c32 = dvector(1,2*M);
+
+    in  = (fftw_complex *)fftw_malloc(sizeof(fftw_complex) * N);
+    out = (fftw_complex *)fftw_malloc(sizeof(fftw_complex) * N);
+
+    plan_forward  = fftw_plan_dft_1d(N, in, out, FFTW_FORWARD,  FFTW_ESTIMATE);
+    plan_backward = fftw_plan_dft_1d(N, in, out, FFTW_BACKWARD, FFTW_ESTIMATE);
+
+    X = dvector(1,2*M);  Y = dvector(1,2*M);  Z = dvector(1,2*M);
 };
 
 FastBinary::~FastBinary() {
+    fftw_destroy_plan(plan_backward);
+    fftw_destroy_plan(plan_forward);
 
-  fftw_destroy_plan(plan_backward);
-  fftw_destroy_plan(plan_forward);
-  fftw_free(in); fftw_free(out);
-  free_dvector(u,1,3); free_dvector(v,1,3); free_dvector(k,1,3);
-  free_dvector(kdotx,1,3); free_dmatrix(kdotr,1,3,1,3);
-  free_dvector(xi,1,3);
-  free_dvector(fonfs,1,3);
-  free_dmatrix(eplus,1,3,1,3); free_dmatrix(ecross,1,3,1,3);
-  free_dmatrix(dplus,1,3,1,3); free_dmatrix(dcross,1,3,1,3);
-  free_dvector(x,1,3); free_dvector(y,1,3); free_dvector(z,1,3);
-  free_dvector(r12,1,3); free_dvector(r21,1,3); free_dvector(r31,1,3);
-  free_dvector(r13,1,3); free_dvector(r23,1,3); free_dvector(r32,1,3);
-  free_dmatrix(TR,1,3,1,3); free_dmatrix(TI,1,3,1,3);
-  free_dvector(data12,1,2*N); free_dvector(data21,1,2*N); free_dvector(data31,1,2*N);
-  free_dvector(data13,1,2*N); free_dvector(data23,1,2*N); free_dvector(data32,1,2*N);
-  free_dvector(b,1,2*M+2);
-  free_dvector(c12,1,2*M+2); free_dvector(c21,1,2*M+2); free_dvector(c31,1,2*M+2);
-  free_dvector(c13,1,2*M+2); free_dvector(c23,1,2*M+2); free_dvector(c32,1,2*M+2);
-  free_dvector(X,1,2*M);  free_dvector(Y,1,2*M);  free_dvector(Z,1,2*M);
-};
+    fftw_free(in); fftw_free(out);
 
-void FastBinary::setL(double l) {
-    L = l;
-    ec = L / (2.0 * AU * sq3);
-    fstar = clight / (2.0 * pi * L);
+    free_dvector(u,1,3); free_dvector(v,1,3); free_dvector(k,1,3);
+
+    free_dvector(kdotx,1,3); free_dmatrix(kdotr,1,3,1,3);
+
+    free_dvector(xi,1,3);
+
+    free_dvector(fonfs,1,3);
+
+    free_dmatrix(eplus,1,3,1,3); free_dmatrix(ecross,1,3,1,3);
+
+    free_dmatrix(dplus,1,3,1,3); free_dmatrix(dcross,1,3,1,3);
+
+    free_dvector(x,1,3); free_dvector(y,1,3); free_dvector(z,1,3);
+
+    free_dvector(r12,1,3); free_dvector(r21,1,3); free_dvector(r31,1,3);
+    free_dvector(r13,1,3); free_dvector(r23,1,3); free_dvector(r32,1,3);
+
+    free_dmatrix(TR,1,3,1,3); free_dmatrix(TI,1,3,1,3);
+
+    free_dvector(data12,1,2*N); free_dvector(data21,1,2*N); free_dvector(data31,1,2*N);
+    free_dvector(data13,1,2*N); free_dvector(data23,1,2*N); free_dvector(data32,1,2*N);
+
+    free_dvector(b,1,2*M+2);
+
+    free_dvector(c12,1,2*M+2); free_dvector(c21,1,2*M+2); free_dvector(c31,1,2*M+2);
+    free_dvector(c13,1,2*M+2); free_dvector(c23,1,2*M+2); free_dvector(c32,1,2*M+2);
+
+    free_dvector(X,1,2*M);  free_dvector(Y,1,2*M);  free_dvector(Z,1,2*M);
 };
 
 // note that this works only if M == N, appropriate for algorithm=='legacy'/method==0
