@@ -2,6 +2,7 @@ from setuptools import setup, Command
 from distutils.core import Extension
 from Cython.Distutils import build_ext
 import os
+import numpy
 
 try:
     from setuptools import find_namespace_packages
@@ -21,17 +22,26 @@ except ImportError:
     USE_CYTHON = False
 
 if 1:#USE_CYTHON:
-    sources = ["ldc/lisa/orbits/lib/pyorbits.pyx",
-               "ldc/lisa/orbits/lib/orbits.cc",
-               "ldc/lisa/orbits/lib/common.cc"]
+    orbits_sources = ["ldc/lisa/orbits/lib/pyorbits.pyx",
+                      "ldc/lisa/orbits/lib/orbits.cc",
+                      "ldc/lisa/orbits/lib/common.cc"]
 else:
-    sources = ["ldc/lisa/orbits/lib/pyorbits.cpp"]
+    orbits_sources = ["ldc/lisa/orbits/lib/pyorbits.cpp"]
 
-import numpy
 orbits_ext = Extension("_orbits",
-                       sources=sources,
+                       sources=orbits_sources,
                        language="c++",
-                       include_dirs=[numpy.get_include()],
+                       include_dirs=[numpy.get_include(), "ldc/common/constants"],
+                       extra_compile_args=["-std=gnu++11"])
+
+fastGB_sources = ["ldc/waveform/fastGB/pyfastbinary.pyx",
+                  "ldc/waveform/fastGB/fastbinary.cc", "ldc/waveform/fastGB/arrays.c"]
+
+fastGB_ext = Extension("fastGB",
+                       sources=fastGB_sources,
+                       language="c++",
+                       include_dirs=[numpy.get_include(), "ldc/common/constants"],
+                       libraries=['fftw3'],
                        extra_compile_args=["-std=gnu++11"])
 
 
@@ -43,10 +53,10 @@ setup(
     author='ldc-dev',
     author_email='ldc-dev@lisamission.org',
     cmdclass={'build_ext': build_ext, "build_liborbits": build_liborbits}, 
-    packages=find_namespace_packages(include=['ldc.lisa.*','ldc.common.*']),
+    packages=find_namespace_packages(include=['ldc.lisa.*','ldc.common.*','ldc.waveform.*']),
     zip_safe=False,
     install_requires=['numpy'],
-    ext_modules=[orbits_ext],
+    ext_modules=[orbits_ext, fastGB_ext],
 
 )
 
