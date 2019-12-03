@@ -4,11 +4,11 @@
 
 cdef extern from "fastbinary.hpp":
     cdef cppclass FastBinary:
-        FastBinary() except +
         FastBinary(long, double, double) except +
         void response(double, double, double, double, double, double, double, double,
                       double*, double*, double*, double*, double*, double*, long, int)
         void XYZ(double, long, double*, double*, double*, double*, double*, double*)
+        void setL(double)
 
         
 import numpy as np
@@ -17,19 +17,55 @@ from ldc.common import constants
 import math
 
 # TODO:
-# orbits: how to build c++ object from c++ using python argument
-# arrays...
+# orbits: use ldc.orbits in fastbinary.cc
+# arrays: use standard arrays
+# parameters: check pycbc convetions
+
+
 year = constants.Nature.SIDEREALYEAR_J2000DAY*24*60*60
 
 cdef class pyFastBinary:
-    cdef FastBinary FB
+    cdef FastBinary* FB
     cdef public double arm_length
-
-    def __init__(self, orbits=None):
+    cdef public long M,N
+    cdef public double f0,fdot,ampl,theta,phi,psi,incl,phi0
+    cdef public double T, delta_t
+    cdef public int oversample
+    cdef public str method
+    
+    def __cinit__(self, orbits=None, template=None, T=6.2914560e7, delta_t=15, f0=None,
+                  fdot=None, ampl=None, theta=None, phi=None,
+                  psi=None, incl=None, phi0=None, oversample=1, method="mldc"):
         """ Check that orbits are compatible
         """
-        pass
+        if orbits is not None:
+            if not isinstance(orbits, "AnalyticOrbits"):
+                raise TypeError('Fastbinary approximation requires analytic orbits')
+            else:
+                self.arm_length = orbits.arm_length
+                if orbits.initial_rotation !=0 or orbits.initial_position !=0:
+                    raise ValueError('Fastbinary approximation requires null initial rotation and position')
+        else:
+            self.arm_length = 2.5e9
 
+        if template is not None:
+            f0, fdot, ampl, theta, phi, psi, incl, phi0 = self._parse_template(template)
+            
+        M,N = self.buffersize(T, delta_t, f0, fdot, ampl, method, oversample=oversample)
+        self.FB = new FastBinary(long(N), T, delta_t)
+        self.M, self.N = M, N
+        self.f0, self.fdot, self.ampl = f0, fdot, ampl
+        self.T, self.delta_t = T, delta_t
+        self.oversample = oversample
+        self.method = method
+        self.theta, self.phi = theta, phi
+        self.psi, self.incl, self.phi0 = psi, incl, phi0
+        
+        
+        
+    def __dealloc__(self):
+        del self.FB
+        
     def _set_mult(self, T, f):
         if T/year <= 1.0:
             mult = 1
@@ -59,7 +95,7 @@ cdef class pyFastBinary:
         """
         """
         if method in ['legacy', 'mldc']:
-            mult, N = self._set_mult(T)
+            mult, N = self._set_mult(T, f)
 
             # new logic for high-frequency chirping binaries (r1164 lisatools:Fast_Response.c)
             if method == 'mldc':
@@ -133,36 +169,26 @@ cdef class pyFastBinary:
         phi0 = template['InitialPhase']
         return f0, fdot, ampl, theta, phi, psi, incl, phi0 
         
-    def get_fd_tdixyz(self, template=None, T=6.2914560e7, delta_t=15, f0=None,
-                      fdot=None, ampl=None, theta=None,
-                      psi=None, incl=None, phi0=None, oversample=1, method="mldc"):
+    def get_fd_tdixyz(self):
         """Source parameter can be given through template argument as a dict
         or using keywords arguments. 
         """
 
-        if template is not None:
-            f0, fdot, ampl, theta, phi, psi, incl, phi0 = self._parse_template(template)
-            
-        M,N = self.buffersize(T, delta_t, f0, fdot, ampl, method, oversample=oversample)
-
-        if not hasattr(self, "FB"): # use cache object
-            self.FB = FastBinary(N, T, delta_t)
-
-        cdef np.ndarray[np.double_t, ndim=1, mode="c"] xls = np.zeros(2*M)
-        cdef np.ndarray[np.double_t, ndim=1, mode="c"] xsl = np.zeros(2*M)
-        cdef np.ndarray[np.double_t, ndim=1, mode="c"] yls = np.zeros(2*M)
-        cdef np.ndarray[np.double_t, ndim=1, mode="c"] ysl = np.zeros(2*M)
-        cdef np.ndarray[np.double_t, ndim=1, mode="c"] zls = np.zeros(2*M)
-        cdef np.ndarray[np.double_t, ndim=1, mode="c"] zsl = np.zeros(2*M)
+        cdef np.ndarray[np.double_t, ndim=1, mode="c"] xls = np.zeros(2*self.M)
+        cdef np.ndarray[np.double_t, ndim=1, mode="c"] xsl = np.zeros(2*self.M)
+        cdef np.ndarray[np.double_t, ndim=1, mode="c"] yls = np.zeros(2*self.M)
+        cdef np.ndarray[np.double_t, ndim=1, mode="c"] ysl = np.zeros(2*self.M)
+        cdef np.ndarray[np.double_t, ndim=1, mode="c"] zls = np.zeros(2*self.M)
+        cdef np.ndarray[np.double_t, ndim=1, mode="c"] zsl = np.zeros(2*self.M)
         # TODO change to complex dtype
         
-        self.FB.response(f0, fdot, theta, phi, ampl, incl, psi, phi0, 
-                         &xls[0], &xsl[0], &yls[0], &ysl[0], &zls[0], &zsl[0], 2*M,
-                         0 if method == 'legacy' else 1)
+        self.FB.response(self.f0, self.fdot, self.theta, self.phi, self.ampl, self.incl,
+                         self.psi, self.phi0, 
+                         &xls[0], &xsl[0], &yls[0], &ysl[0], &zls[0], &zsl[0], 2*self.M,
+                         0 if self.method == 'legacy' else 1)
 
         fX,fY,fZ = [np.array(a[::2] + 1.j* a[1::2], dtype=np.complex128) for a in [xls, yls, zls]]
         # TODO convert to freq. array
-        
         return fX,fY,fZ
 
     def get_td_tdixyz(self):

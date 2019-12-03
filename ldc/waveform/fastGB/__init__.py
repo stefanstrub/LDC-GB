@@ -1,1 +1,2 @@
-from fastGB import pyFastBinary
+from fastGB import pyFastBinary as FastGB
+

@@ -14,20 +14,11 @@ const double fm = 1.0/year;
 
 const double kappa = 0.0;           // initial azimuthal position of the guiding center
 const double lambda = 0.0;          // initial orientation of the LISA constellation
-extern double L, fstar, ec; // definitions in FastBinary.cpp
-
-//const double Sps = 4.0e-22;         // photon shot noise power (Neil's value)
-//const double Sacc = 9.0e-30;        // acceleration noise power (Neil's value)
-
-/* #include <complex>
-   typedef std::complex<double> cdouble; */
 
 extern "C" {
     #include <fftw3.h>
 }
 
-//double AEnoise(double f); not used
-void setL(double l);
 
 class FastBinary {
   private:
@@ -56,6 +47,10 @@ class FastBinary {
     double *ReA, *ImA, *ReB, *ImB, *ReC, *ImC;
     double *X, *Y, *Z;
 
+  double L = 2.5e9;   // Assuming analytical orbit.
+  double fstar = clight/(2.0*pi*L);
+  double ec = L/(2.0*AU*sqrt(3.0));
+  
     fftw_complex *in, *out;
     fftw_plan plan_forward, plan_backward;
 
@@ -67,16 +62,16 @@ class FastBinary {
 	     double *YLS, double *YSL, double *ZLS, double *ZSL);
 
   public:
-  FastBinary();
   FastBinary(long Nreq,double Treq,double dtreq);
   ~FastBinary();
-
   void response(double f0,double fdot,double theta,double phi,
 		double A,double iota,double psi,double phio,
 		double *XLS, double *XSL,
 		double *YLS, double *YSL,
 		double *ZLS, double *ZSL, long len,
 		int method);
+
+  void setL(double l);
 };
 
 #define FASTBINARY_H
