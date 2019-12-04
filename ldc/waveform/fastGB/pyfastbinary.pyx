@@ -14,14 +14,18 @@ cdef extern from "fastbinary.hpp":
 import numpy as np
 cimport numpy as np
 from ldc.common import constants
+from ldc.lisa.noise import simple_snr
 import math
+
 
 # TODO:
 # orbits: use ldc.orbits in fastbinary.cc
 # arrays: use standard arrays
 # parameters: check pycbc conventions, give info on expected units, getter/setter tools
+# parameters for multiple sources and sum on TDI ?
 # time domain
 # noise
+# output as frequency array
 
 
 year = constants.Nature.SIDEREALYEAR_J2000DAY*24*60*60
@@ -109,7 +113,7 @@ cdef class pyFastBinary:
                 elif 4*chirp > N:
                     N = N * 2
 
-            Acut = 10 #tdi.simplesnr(f, A, years=T/year)
+            Acut = simple_snr(self.f0, self.ampl, years=T/year)
 
             # this is [2^(1+[log_2 SNR])];
             # remember that the response of the sinc is bound by 1/(delta bin #)
@@ -136,7 +140,7 @@ cdef class pyFastBinary:
 
             # approximate source SNR
             f0 = self.f0 + 0.5 * self.fdot * T
-            SNR = 10 #tdi.simplesnr(f0, A, years=T/year)
+            SNR = simple_snr(f0, self.ampl, years=T/year)
 
             # bandwidth for carrier frequency, off bin, worst case dx = 0.5 (accept 0.1 +- SNR)
             bins = max(1,2*2*SNR)
