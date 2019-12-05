@@ -34,15 +34,15 @@ orbits_ext = Extension("_orbits",
                        include_dirs=[numpy.get_include(), "ldc/common/constants"],
                        extra_compile_args=["-std=gnu++11"])
 
-fastGB_sources = ["ldc/waveform/fastGB/pyfastbinary.pyx",
-                  "ldc/waveform/fastGB/fastbinary.cc", "ldc/waveform/fastGB/arrays.c"]
+fastGB_sources = ["ldc/waveform/fastGB/pyGB.pyx",
+                  "ldc/waveform/fastGB/GB.c", "ldc/waveform/fastGB/LISA.c"]
 
 fastGB_ext = Extension("fastGB",
                        sources=fastGB_sources,
-                       language="c++",
+                       language="c",
                        include_dirs=[numpy.get_include(), "ldc/common/constants"],
-                       libraries=['fftw3'],
-                       extra_compile_args=["-std=gnu++11"])
+                       libraries=['fftw3', 'gsl'])#,
+#extra_compile_args=["-std=gnu++11"])
 
 
 setup(
