@@ -40,7 +40,7 @@ class AnalyticNoise():
     """
     
     def __init__(self, frq, model="SciRDv1"):
-        
+
         Sloc = (1.7e-12)**2 # m^2/Hz
         Ssci = (8.9e-12)**2 # m^2/Hz
         Soth = (2.e-12)**2  # m^2/Hz
@@ -65,7 +65,9 @@ class AnalyticNoise():
         Soms_nu = self.Soms_d*(2.0*np.pi*frq/CLIGHT)**2 # In relative frequency unit
         self.Sop =  Soms_nu
         self.freq = frq
-
+        self.model = model
+        
+        
     @property
     def arm_length(self):
         return  2.5e9 # LISA's arm meters
@@ -94,7 +96,54 @@ class AnalyticNoise():
             Sgal = GalNoise(self.freq, includewd*year).galshape()
             Sens += Sgal
         return Sens
-    
+
+    def psd(self, option="X", includewd=0):
+        """ option can be X, X2, XY, AE, T
+        """
+        if includewd and option in ["X2", "T"]:
+            raise NotImplementedError
+        
+        lisaLT = self.arm_length/CLIGHT
+        x = 2.0 * np.pi * lisaLT * self.freq
+        if option=="X":
+            S = 16.0 * np.sin(x)**2 * (2.0 * (1.0 + np.cos(x)**2) * self.Spm + self.Sop)
+            if includewd:
+                S += self.WDconfusionX(includewd)
+        elif option=="X2":
+            S = 64.0 * np.sin(x)**2 * np.sin(2*x)**2 * self.Sop # TODO Check the acc. noise term
+            S += 256.0 * (3 + np.cos(2*x)) * np.cos(x)**2 * np.sin(x)**4 * self.Spm
+        elif option=="XY":
+            S = -4.0 * np.sin(2*x) * np.sin(x) * (self.Sop + 4.0*self.Spm)
+            if includewd:
+                S += -0.5 * self.WDconfusionX(includewd)
+        elif option=="AE":
+            S = 8.0 * np.sin(x)**2 * (2.0 * self.Spm * (3.0 + 2.0*np.cos(x) + np.cos(2*x)) +\
+                                      self.Sop * (2.0 + np.cos(x)))
+        elif option=="T":
+            S = 16.0 * self.Sop * (1.0 - np.cos(x)) * np.sin(x)**2 +\
+                128.0 * self.Spm * np.sin(x)**2 * np.sin(0.5*x)**4
+        else:
+            print("PSD option should be in [X, X2, XY, AE, T] (%s)"%option)
+            return None
+        return S
+
+    def WDconfusion(self, duration, option="X"):
+        """ option can be X or AE
+        """
+        day = 24.*60*60
+        if ((duration < day/year) or (duration > 10.0)):
+            raise NotImplementedError
+        lisaLT = self.arm_length/CLIGHT
+        x = 2.0 * np.pi * lisaLT * self.freq
+        t = 4.0 * x**2 * np.sin(x)**2
+        Sg_sens = GalNoise(self.freq, duration*year).galshape()
+        Sgx = t*Sg_sens
+        if option=="AE":
+            return 1.5*SgX
+        else:
+            return SgX
+        
+
 
 class MLDCNoise(AnalyticNoise):
     """
@@ -186,3 +235,5 @@ class GalNoise():
         res = self.Amp*np.exp(-(self.freq**self.alpha)*self.sl1) *\
               (self.freq**(-7./3.))*0.5*(1.0 + np.tanh(-(self.freq-self.kn)*self.sl2) )
         return res
+
+        
