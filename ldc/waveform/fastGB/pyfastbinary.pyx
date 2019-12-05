@@ -190,8 +190,12 @@ cdef class pyFastBinary:
                          0 if self.method == 'legacy' else 1)
 
         fX,fY,fZ = [np.array(a[::2] + 1.j* a[1::2], dtype=np.complex128) for a in [xls, yls, zls]]
+        kmin = int(self.f0*self.T) - self.M/2
+        df = 1.0/self.T
+        freq = np.linspace(kmin*df,(kmin + len(fX)-1)*df, len(fX))
+        
         # TODO convert to freq. array
-        return fX,fY,fZ
+        return freq,fX,fY,fZ
 
     def get_td_tdixyz(self):
         fX, fY, fZ = self.get_fd_tdi()
