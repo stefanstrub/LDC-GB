@@ -6,7 +6,6 @@
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_fft_complex.h>
 
-#include "Constants.h"
 #include "LISA.h"
 #include "GB.h"
 
@@ -558,7 +557,7 @@ void get_transfer(struct Waveform *wfm, double t)
  	if (wfm->NP > 8) d2fdt2_0 = wfm->params[8]/wfm->T/wfm->T/wfm->T;
 
 	q  = wfm->q;
-	df = PI2*(((double)q)/wfm->T);
+	df = M_PI*2*(((double)q)/wfm->T);
 
 	for(i=0; i<3; i++)
 	{
@@ -572,7 +571,7 @@ void get_transfer(struct Waveform *wfm, double t)
 				arg1 = 0.5*wfm->fonfs[i]*(1. + wfm->kdotr[i][j]);
 
 				//Argument of complex exponentials
-				arg2 = PI2*f0*wfm->xi[i] + phi0 - df*t;
+				arg2 =  M_PI*2*f0*wfm->xi[i] + phi0 - df*t;
 
 				if (wfm->NP > 7) arg2 += M_PI*dfdt_0*wfm->xi[i]*wfm->xi[i];
 				if (wfm->NP > 8) arg2 += M_PI*d2fdt2_0*wfm->xi[i]*wfm->xi[i]*wfm->xi[i]/3.0 ;
@@ -619,7 +618,7 @@ void XYZ(double ***d, double f0, long q, long M, double dt, double Tobs, double 
 	// YLS = malloc(2*M*sizeof(double));
 	// ZLS = malloc(2*M*sizeof(double));
 
-	phiLS = PI2*f0*(dt/2.0-Larm/C);
+	phiLS = 2*M_PI*f0*(dt/2.0-Larm/C);
 
 	cLS = cos(phiLS);
 	sLS = sin(phiLS);

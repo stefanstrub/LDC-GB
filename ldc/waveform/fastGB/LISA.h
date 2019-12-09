@@ -1,6 +1,11 @@
 #ifndef LISA_h
 #define LISA_h
 
+#include "pdbParam.h"
+
+/* Astronomical unit (meters) */
+#define AU Nature_ASTRONOMICALUNIT_METER
+#define SQ3   1.73205080757
 
 /* Photon shot noise power */
 #define Sps 8.321000e-23

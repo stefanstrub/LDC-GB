@@ -1,6 +1,10 @@
 #ifndef GB_h
 #define GB_h
 
+#include "pdbParam.h"
+
+#define YEAR Nature_SIDEREALYEAR_J2000DAY*24*60*60 /* Number of seconds in a year */
+#define C Nature_VELOCITYOFLIGHT_CONSTANT_VACUUM /* Speed of light (m/s) */
 
 struct GB
 {
