@@ -19,7 +19,7 @@ import math
 # parameters for multiple sources and sum on TDI ?
 # time domain
 # output as frequency array
-# constants
+
 
 
 YEAR = constants.Nature.SIDEREALYEAR_J2000DAY*24*60*60
