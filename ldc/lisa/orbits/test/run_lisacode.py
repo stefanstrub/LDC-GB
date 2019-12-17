@@ -61,10 +61,10 @@ if __name__ == "__main__":
         run_lisacode(case, tt_order=args.tt_order)
 
     LC_links= dict({1:(3,2), 2:(1,3), 3:(2,1), 4:(2,3), 5:(3,1), 6:(1,2)})
-    
+
     if args.tt:
         for case in cases:
-            for link in [1]:
+            for link in [1]:#, 2, 3, 4, 5, 6]:
                 plt.figure() # plot tt
                 plt.subplot(2,1,1)
                 nt = np.loadtxt("%s-Arm.txt"%(case))

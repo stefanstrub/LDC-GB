@@ -18,7 +18,7 @@ double travel_time(array<double, 3> r_i, array<double, 3> r_j, array<double, 3> 
     r_ij[i] = r_j[i] - r_i[i];
 
   double n = norm(r_ij);
-  double tt = n / CLIGHT;
+  double tt = n / (double)CLIGHT;
   
   if (order>0){
     for (int i=0; i < 3; i+= 1)
@@ -34,20 +34,17 @@ double travel_time(array<double, 3> r_i, array<double, 3> r_j, array<double, 3> 
 	dot_product(n_ij, r_j) / pow(dot_product(r_j, r_j), 1.5);
       
       double numerator = sqrt(pow(CLIGHT*tt + dot_product(n_ij, r_i), 2.0) + \
-			      pow(norm(r_i),2.0) + pow(dot_product(n_ij, r_i), 2.0)) + \
+			      dot_product(r_i, r_i) - pow(dot_product(r_i,n_ij), 2.0))+\
 	CLIGHT * tt + dot_product(n_ij, r_i);
-      double denominator = dot_product(n_ij, r_i) + norm(r_i);
+      double denominator = dot_product(n_ij, r_i) + sqrt(dot_product(r_i, r_i));
       
       double c_23 = (HALF_SCHWARZSCHILD_RADIUS / CLIGHT) *		\
 	(1.0 + POST_NEWTONIAN_CONSTANT) * log(numerator / denominator);
-
-      tt += c_21 + c_22 + c_23;
+      tt += (c_21 + c_22 + c_23) + tt*dot_product(n_ij, v_j);
     }
     else{
       tt *= (1 + dot_product(n_ij, v_j));
     }
-    
-
   }
   return tt;
 }

@@ -85,7 +85,7 @@ protected:
 					       y[spacecraft2][0],
 					       z[spacecraft2][0] };
 	array<double, 3> receiver_velocity = {
-	  vx[spacecraft2][0], vy[spacecraft2][1], vz[spacecraft2][2]};
+	  vx[spacecraft2][0], vy[spacecraft2][0], vz[spacecraft2][0]};
 
 	double tt = travel_time(emitter_position, receiver_position, receiver_velocity, order);
         return tt;
