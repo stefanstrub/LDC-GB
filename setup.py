@@ -31,7 +31,7 @@ import numpy
 orbits_ext = Extension("_orbits",
                        sources=sources,
                        language="c++",
-                       include_dirs=[numpy.get_include()],
+                       include_dirs=[numpy.get_include(), 'ldc/common/constants'],
                        extra_compile_args=["-std=gnu++11"])
 
 

@@ -10,7 +10,8 @@ ORBIT_SAMPLING_FREQ = 1/400.
 
 ARM_LENGTH =  2.5E9
 
-TT_ORDER = 2
+TT_ORDER = 0
+
 
 class RefOrbits(Graph):
 

@@ -7,7 +7,7 @@ plt.rcParams['axes.formatter.min_exponent'] = 2
 from graph import TT_ORDER
 
 def run_lisanode(case="Reforbits", duration=3600*24*365):
-    flags = '-I../nodes  -I../lib -L../lib -lorbits'
+    flags = '-I../nodes  -I../lib -L../lib -lorbits -I../../../common/constants'
     os.system("lisanode run -o %s --flags='%s' graph.py:%s -d %d"%(case, flags, case,duration))
 
 if __name__ == "__main__":
@@ -45,7 +45,7 @@ if __name__ == "__main__":
         plt.xlabel("Time [s]")
         plt.ylabel("Tt diff for link 1 [ns]")
         plt.legend()
-        plt.savefig("tt_order%s.png"%TT_ORDER)
+        #plt.savefig("tt_order%s.png"%TT_ORDER)
 
     if args.orbits:
         plt.figure() # plot x
@@ -58,7 +58,7 @@ if __name__ == "__main__":
                     plt.plot(nt[:,0], nt[:,1], label=label, color=color)
                     #print(nt)
         plt.legend()
-        plt.ylabel("Positions for link 1 [m]")
+        plt.ylabel("Positions for sc 1 [m]")
         
         #plt.figure() # plot x-x
         plt.subplot(2,1,2)
@@ -71,6 +71,7 @@ if __name__ == "__main__":
                 plt.plot(nts[0][:,0], np.abs(nts[1][:,1]-nts[0][:,1]), label=label, color=color)
 
         plt.legend()
-        plt.xlabel("Position [m]")
+        plt.xlabel("Time [s]")
         plt.ylabel("Pos abs diff for link 1 [m]")
-        plt.savefig("pos.png")
+        #plt.savefig("pos.png")
+

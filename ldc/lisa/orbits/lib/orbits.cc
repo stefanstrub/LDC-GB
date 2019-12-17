@@ -101,9 +101,9 @@ void AnalyticOrbits::get_travel_time(int emitter, int receiver, double* rec_time
   
   for (int t = 0; t < nt; t += 1) {
 
-    r_j = position(emitter, rec_time[t]);
-    r_i = position(receiver, rec_time[t]);
-    v_j = velocity(emitter, rec_time[t]);
+    r_i = position(emitter, rec_time[t]);
+    r_j = position(receiver, rec_time[t]);
+    v_j = velocity(receiver, rec_time[t]);
 
     tt[t] = travel_time(r_i, r_j, v_j, order);
     
