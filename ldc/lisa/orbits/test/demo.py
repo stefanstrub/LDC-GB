@@ -1,5 +1,6 @@
 from LISAhdf5 import ParsUnits
 from ldc.lisa import orbits
+import numpy as np
 
 # Instance of a configuration class
 lconfig = [('nominal_arm_length', 2.5e9, "m"),
