@@ -1881,7 +1881,7 @@ static PyObject *__pyx_pf_7_orbits_16pyAnalyticOrbits_10__setstate_cython__(CYTH
 static int __pyx_pf_5numpy_7ndarray___getbuffer__(PyArrayObject *__pyx_v_self, Py_buffer *__pyx_v_info, int __pyx_v_flags); /* proto */
 static void __pyx_pf_5numpy_7ndarray_2__releasebuffer__(PyArrayObject *__pyx_v_self, Py_buffer *__pyx_v_info); /* proto */
 static PyObject *__pyx_tp_new_7_orbits_pyAnalyticOrbits(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/
-static PyObject *__pyx_int_0;
+static PyObject *__pyx_int_2;
 static PyObject *__pyx_tuple_;
 static PyObject *__pyx_tuple__2;
 static PyObject *__pyx_tuple__3;
@@ -3150,7 +3150,7 @@ static PyObject *__pyx_pf_7_orbits_16pyAnalyticOrbits_4compute_velocity(struct _
  *         self.O.velocity_z(spacecraft_index, &time[0], &vz[0], len(time))
  *         return np.array([vx,vy,vz])             # <<<<<<<<<<<<<<
  * 
- *     def compute_travel_time(self, emitter, receiver, receiver_itime, order=0):
+ *     def compute_travel_time(self, emitter, receiver, receiver_itime, order=2):
  */
   __Pyx_XDECREF(__pyx_r);
   __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(1, 69, __pyx_L1_error)
@@ -3233,7 +3233,7 @@ static PyObject *__pyx_pf_7_orbits_16pyAnalyticOrbits_4compute_velocity(struct _
 /* "ldc/lisa/orbits/lib/pyorbits.pyx":71
  *         return np.array([vx,vy,vz])
  * 
- *     def compute_travel_time(self, emitter, receiver, receiver_itime, order=0):             # <<<<<<<<<<<<<<
+ *     def compute_travel_time(self, emitter, receiver, receiver_itime, order=2):             # <<<<<<<<<<<<<<
  *         """ Compute travel time between emitter and receiver at time receiver_time
  * 
  */
@@ -3252,7 +3252,7 @@ static PyObject *__pyx_pw_7_orbits_16pyAnalyticOrbits_7compute_travel_time(PyObj
   {
     static PyObject **__pyx_pyargnames[] = {&__pyx_n_s_emitter,&__pyx_n_s_receiver,&__pyx_n_s_receiver_itime,&__pyx_n_s_order,0};
     PyObject* values[4] = {0,0,0,0};
-    values[3] = ((PyObject *)__pyx_int_0);
+    values[3] = ((PyObject *)__pyx_int_2);
     if (unlikely(__pyx_kwds)) {
       Py_ssize_t kw_args;
       const Py_ssize_t pos_args = PyTuple_GET_SIZE(__pyx_args);
@@ -3487,7 +3487,7 @@ static PyObject *__pyx_pf_7_orbits_16pyAnalyticOrbits_6compute_travel_time(struc
   /* "ldc/lisa/orbits/lib/pyorbits.pyx":71
  *         return np.array([vx,vy,vz])
  * 
- *     def compute_travel_time(self, emitter, receiver, receiver_itime, order=0):             # <<<<<<<<<<<<<<
+ *     def compute_travel_time(self, emitter, receiver, receiver_itime, order=2):             # <<<<<<<<<<<<<<
  *         """ Compute travel time between emitter and receiver at time receiver_time
  * 
  */
@@ -6635,7 +6635,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
 
 static CYTHON_SMALL_CODE int __Pyx_InitGlobals(void) {
   if (__Pyx_InitStrings(__pyx_string_tab) < 0) __PYX_ERR(1, 1, __pyx_L1_error);
-  __pyx_int_0 = PyInt_FromLong(0); if (unlikely(!__pyx_int_0)) __PYX_ERR(1, 1, __pyx_L1_error)
+  __pyx_int_2 = PyInt_FromLong(2); if (unlikely(!__pyx_int_2)) __PYX_ERR(1, 1, __pyx_L1_error)
   return 0;
   __pyx_L1_error:;
   return -1;
