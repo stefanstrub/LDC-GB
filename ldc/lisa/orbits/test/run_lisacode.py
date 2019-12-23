@@ -44,7 +44,7 @@ if __name__ == "__main__":
     parser.add_argument('--pos', action="store_true", help="Plot position")
     parser.add_argument('--vel', action="store_true", help="Plot velocity")
     parser.add_argument('--tt', action="store_true", help="Plot travel times")
-    parser.add_argument('--tt-order', type=int, default=0,
+    parser.add_argument('--tt-order', type=int, default=2,
                         help="Travel time order in [0,1,2]")
     args = parser.parse_args()
 
