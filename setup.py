@@ -10,6 +10,14 @@ except ImportError:
 
 
 class build_liborbits(Command):
+    description = 'compile c++ orbits library'
+    user_options = []
+    def initialize_options(self):
+        pass
+    def finalize_options(self):
+        pass
+    def sub_commands(self):
+        pass
     def run(self):
         os.system("make -C ldc/lisa/orbits/lib")
         #os.system("make install")

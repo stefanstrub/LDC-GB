@@ -104,7 +104,9 @@ if __name__ == "__main__":
                 for j,(p,color) in enumerate(zip(["x", "y", "z"], ["b", "orange", "g"])):
                     plt.plot(nt[:,0],xyz_ldc[j,:]-nt[:,sc+j] , label=p, color=color)
                 plt.xlabel("Time [s]")
-                plt.xlabel("Position [m]")
-                plt.ylabel("Pos abs diff for sc %d [m]"%sc)
+                if args.pos:
+                    plt.ylabel("Pos abs diff for sc %d [m]"%sc)
+                else:
+                    plt.ylabel("Vel abs diff for link 1 [m]")
                 plt.legend()
                 #plt.savefig("tt_order%s.png"%TT_ORDER)
