@@ -68,7 +68,7 @@ cdef class pyAnalyticOrbits:
         self.O.velocity_z(spacecraft_index, &time[0], &vz[0], len(time))
         return np.array([vx,vy,vz])
 
-    def compute_travel_time(self, emitter, receiver, receiver_itime, order=0):
+    def compute_travel_time(self, emitter, receiver, receiver_itime, order=2):
         """ Compute travel time between emitter and receiver at time receiver_time 
         
         Spacecraft index goes from 1 to 3. 
