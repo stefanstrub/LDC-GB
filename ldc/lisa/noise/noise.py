@@ -30,11 +30,65 @@ def get_noise_model(frq, model):
     elif model=="newdrs":
         NoiseClass = globals()["NewRDSNoise"]
         return NoiseClass(frq)
+    elif os.path.exists(model):
+        NoiseClass = globals()["NumericNoise"]
+        return NoiseClass(frq, model)
     else:
         NoiseClass = globals()[model+"Noise"]
         return NoiseClass(frq)
 
-class AnalyticNoise():
+class Noise():
+    
+    def __init__(self, frq):
+        self.freq = frq
+
+    @property
+    def arm_length(self):
+        return  2.5e9 # LISA's arm meters
+ 
+    def WDconfusion(self, duration, option="X"):
+        """ option can be X or AE
+        """
+        day = 24.*60*60
+        if ((duration < day/year) or (duration > 10.0)):
+            raise NotImplementedError
+        lisaLT = self.arm_length/CLIGHT
+        x = 2.0 * np.pi * lisaLT * self.freq
+        t = 4.0 * x**2 * np.sin(x)**2
+        Sg_sens = GalNoise(self.freq, duration*year).galshape()
+        SgX = t*Sg_sens
+        if option=="AE":
+            return 1.5*SgX
+        else:
+            return SgX
+
+class NumericNoise(Noise):
+    """ PSD from file. 
+    """
+    def __init__(self, frq, filename):
+        self.freq = frq
+        self.filename = filename
+        self.load()
+        
+    def load(self):
+        psd = np.load(self.filename)
+        assert 'freq' in psd.dtype.names
+        assert 'X' in psd.dtype.names
+        assert 'XY' in psd.dtype.names
+        self.psd = np.empty_like(psd)
+        for k in ["X", "XY"]:
+            self._psd[k] = np.interp(self.freq, psd['freq'], psd[k])
+        self._psd['freq'] = freq
+            
+    def psd(self, option='X', includewd=0):
+        S = self._psd[option]
+        if includewd and option=="X":
+            S += self.WDconfusion(includewd)
+        elif includewd and option=="XY":
+            S -= 0.5*self.WDconfusion(includewd)
+        return S
+    
+class AnalyticNoise(Noise):
     """Analytic approximation of the two components of LISA noise:
     acceleration noise and optical metrology system (OMS) noise
     """
@@ -66,11 +120,6 @@ class AnalyticNoise():
         self.Sop =  Soms_nu
         self.freq = frq
         self.model = model
-        
-        
-    @property
-    def arm_length(self):
-        return  2.5e9 # LISA's arm meters
         
     def relative_freq(self):
         return self.Spm, self.Sop
@@ -108,14 +157,14 @@ class AnalyticNoise():
         if option=="X":
             S = 16.0 * np.sin(x)**2 * (2.0 * (1.0 + np.cos(x)**2) * self.Spm + self.Sop)
             if includewd:
-                S += self.WDconfusionX(includewd)
+                S += self.WDconfusion(includewd)
         elif option=="X2":
             S = 64.0 * np.sin(x)**2 * np.sin(2*x)**2 * self.Sop # TODO Check the acc. noise term
             S += 256.0 * (3 + np.cos(2*x)) * np.cos(x)**2 * np.sin(x)**4 * self.Spm
         elif option=="XY":
             S = -4.0 * np.sin(2*x) * np.sin(x) * (self.Sop + 4.0*self.Spm)
             if includewd:
-                S += -0.5 * self.WDconfusionX(includewd)
+                S += -0.5 * self.WDconfusion(includewd)
         elif option=="AE":
             S = 8.0 * np.sin(x)**2 * (2.0 * self.Spm * (3.0 + 2.0*np.cos(x) + np.cos(2*x)) +\
                                       self.Sop * (2.0 + np.cos(x)))
@@ -127,21 +176,7 @@ class AnalyticNoise():
             return None
         return S
 
-    def WDconfusion(self, duration, option="X"):
-        """ option can be X or AE
-        """
-        day = 24.*60*60
-        if ((duration < day/year) or (duration > 10.0)):
-            raise NotImplementedError
-        lisaLT = self.arm_length/CLIGHT
-        x = 2.0 * np.pi * lisaLT * self.freq
-        t = 4.0 * x**2 * np.sin(x)**2
-        Sg_sens = GalNoise(self.freq, duration*year).galshape()
-        Sgx = t*Sg_sens
-        if option=="AE":
-            return 1.5*SgX
-        else:
-            return SgX
+    
         
 
 

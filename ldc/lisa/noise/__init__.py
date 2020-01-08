@@ -1,1 +1,1 @@
-from .analyticnoise import *
+from .noise import *
