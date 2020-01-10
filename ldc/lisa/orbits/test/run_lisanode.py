@@ -22,7 +22,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    cases = ["RefOrbits", "TestingLDCOrbits", "TestingTravelTimes"]
+    cases = ["RefOrbits", "TestingLDCOrbits", "TestingTravelTimes_old", "TestingTravelTimes"]
     
     for case in cases:
         run_lisanode(case)
@@ -48,7 +48,7 @@ if __name__ == "__main__":
             emitter, receiver = LC_links[link+1]
             trange = nt[:,0]
             tt_ldc = orbits.compute_travel_time(emitter, receiver, trange,TT_ORDER)
-            #plt.plot(nt[:,0], tt_ldc, label="LDC")
+            plt.plot(nt[:,0], tt_ldc, label="LDC")
         plt.ylabel("Travel time for link 1 [s]")
         plt.legend()
         plt.subplot(2,1,2)
@@ -62,8 +62,8 @@ if __name__ == "__main__":
             emitter, receiver = LC_links[link+1]
             trange = nt[:,0]
             tt_ldc = orbits.compute_travel_time(emitter, receiver, trange,TT_ORDER)
-            #plt.plot(nts[0][:,0], 1e9*(nts[1][:,1]-tt_ldc), label="LISANode - LDC")
-            #plt.plot(nts[0][:,0], 1e9*(nts[0][:,1]-tt_ldc), label="LDC - LDC")
+            plt.plot(nts[0][:,0], 1e9*(nts[1][:,1]-tt_ldc), label="LISANode - LDC")
+            plt.plot(nts[0][:,0], 1e9*(nts[0][:,1]-tt_ldc), label="LDC - LDC")
         plt.xlabel("Time [s]")
         plt.ylabel("Tt diff for link 1 [ns]")
         plt.legend()
@@ -74,7 +74,7 @@ if __name__ == "__main__":
         plt.subplot(2,1,1)
         for link in range(1):
             for p, color in zip(["x", "y", "z"], ["b", "orange", "g"]):
-                for case in ["TestingTravelTimes", "TestingLDCOrbits"]:
+                for case in ["TestingTravelTimes_old", "TestingLDCOrbits"]:
                     suffix = "v" if args.vel else ""
                     nt = np.loadtxt("%s/Orbit%s%s%d.txt"%(case, suffix, p, link))
                     label= p if case=="TestingTravelTimes" else ""
@@ -91,7 +91,7 @@ if __name__ == "__main__":
         for link in range(1):
             for p, color in zip(["x", "y", "z"], ["b", "orange", "g"]):
                 nts = list()
-                for case in ["TestingTravelTimes", "TestingLDCOrbits"]:
+                for case in ["TestingTravelTimes_old", "TestingLDCOrbits"]:
                     suffix = "v" if args.vel else ""
                     nts.append(np.loadtxt("%s/Orbit%s%s%d.txt"%(case, suffix, p, link)))
                 label="LDC-LISANode" if p=="x" else ""
@@ -104,4 +104,5 @@ if __name__ == "__main__":
         else:
             plt.ylabel("Vel abs diff for link 1 [m]")
         #plt.savefig("pos.png")
+
 
