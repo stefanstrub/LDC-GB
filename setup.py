@@ -59,10 +59,10 @@ setup(
     author='ldc-dev',
     author_email='ldc-dev@lisamission.org',
     cmdclass={'build_ext': build_ext, "build_liborbits": build_liborbits}, 
-    packages=find_namespace_packages(include=['ldc.lisa.*','ldc.common.*']),
+    packages=find_namespace_packages(include=['ldc.lisa.*','ldc.common.*', 'ldc.waveform.*']),
     zip_safe=False,
     install_requires=['numpy'],
-    ext_modules=[orbits_ext],
+    ext_modules=[orbits_ext, fastGB_ext],
 
 )
 
