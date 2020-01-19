@@ -75,6 +75,7 @@ cdef class pyGB:
         - should be inherited from a general GB class
         - should check that keys exists
         - should also parse a vector ?
+        - should get unit and check them (but ParsUnit is not used so don't know how to do it)
         
         """
         f0 = template["Frequency"]
