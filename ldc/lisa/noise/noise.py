@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from ldc.common import constants
 import numpy as np
 from scipy import interpolate
+import os
 
 C = constants.Nature
 CLIGHT = C.VELOCITYOFLIGHT_CONSTANT_VACUUM
@@ -16,7 +17,7 @@ def simple_snr(f, h, i=None, years=1.0, noise_model='SciRDv1'):
     snr = h0 * np.sqrt(years * 365.25*24*3600) / np.sqrt(sens)
     return snr
 
-def get_noise_model(frq, model):
+def get_noise_model(model, frq=None):
     """Return the noise instance corresponding to model.
     
     model can be: "Proposal", "SciRDv1", "MRDv1", "mldc", "newdrs", "LCESAcall"
@@ -32,7 +33,7 @@ def get_noise_model(frq, model):
         return NoiseClass(frq)
     elif os.path.exists(model):
         NoiseClass = globals()["NumericNoise"]
-        return NoiseClass(frq, model)
+        return NumericNoise.from_file(model)#NoiseClass(frq, model)
     else:
         NoiseClass = globals()[model+"Noise"]
         return NoiseClass(frq)
@@ -62,26 +63,38 @@ class Noise():
         else:
             return SgX
 
+    def to_file(self, filename):
+        """ Save noise PSD to file
+        """
+        TDIn = np.rec.fromarrays([self.freq,
+                                  self.psd(option="X"),
+                                  self.psd(option="XY")], names=["freq", "X","XY"])
+        np.save(filename, TDIn)
+        
 class NumericNoise(Noise):
     """ PSD from file. 
     """
-    def __init__(self, frq, filename):
-        self.freq = frq
-        self.filename = filename
-        self.load()
-        
-    def load(self):
-        psd = np.load(self.filename)
+    def __init__(self, psdarray):
+        self._psd = np.empty_like(psdarray)
+        self.freq = psdarray["freq"]
+        for k in ["X", "XY"]:
+            self._psd[k] = psdarray[k]
+
+    @staticmethod
+    def from_file(filename):
+        psd = np.load(filename)
         assert 'freq' in psd.dtype.names
         assert 'X' in psd.dtype.names
         assert 'XY' in psd.dtype.names
-        self.psd = np.empty_like(psd)
-        for k in ["X", "XY"]:
-            self._psd[k] = np.interp(self.freq, psd['freq'], psd[k])
-        self._psd['freq'] = freq
-            
-    def psd(self, option='X', includewd=0):
-        S = self._psd[option]
+        N = NumericNoise(psd)
+        return N
+        
+    def psd(self, freq=None, option='X', includewd=0):
+        if freq is not None:
+            if np.isscalar(freq):
+                freq = np.array([freq])
+            S = np.interp(freq, self.freq, self._psd[option])
+        #S = self._psd[option]
         if includewd and option=="X":
             S += self.WDconfusion(includewd)
         elif includewd and option=="XY":
@@ -146,11 +159,14 @@ class AnalyticNoise(Noise):
             Sens += Sgal
         return Sens
 
-    def psd(self, option="X", includewd=0):
+    def psd(self, freq=None, option="X", includewd=0):
         """ option can be X, X2, XY, AE, T
         """
         if includewd and option in ["X2", "T"]:
             raise NotImplementedError
+
+        if freq is not None:
+            self.__init__(freq, model=self.model)
         
         lisaLT = self.arm_length/CLIGHT
         x = 2.0 * np.pi * lisaLT * self.freq
