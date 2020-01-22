@@ -12,13 +12,17 @@ year = C.SIDEREALYEAR_J2000DAY*24*60*60
 def get_noise_model(model, frq=None):
     """Return the noise instance corresponding to model.
     
-    model can be: "Proposal", "SciRDv1", "MRDv1", "mldc", "newdrs", "LCESAcall"
+    model can be: "Proposal", "SciRDv1", "SciRDdeg1", "MRDv1", 
+    "mldc", "newdrs", "LCESAcall"
     """
     if model in ["Proposal", "SciRDv1", "MRDv1"]:
         NoiseClass = globals()["AnalyticNoise"]
         return NoiseClass(frq, model)
     elif model=="mldc":
         NoiseClass = globals()[model.upper()+"Noise"]
+        return NoiseClass(frq)
+    elif model=="SciRDdeg1":
+        NoiseClass = globals()["SciRDdeg1Noise"]
         return NoiseClass(frq)
     elif model=="newdrs":
         NoiseClass = globals()["NewRDSNoise"]
@@ -186,7 +190,17 @@ class AnalyticNoise(Noise):
 
     
         
-
+class SciRDdeg1Noise(AnalyticNoise):
+    """
+    """
+    def __init__(self, frq, model="SciRDv1"):
+        
+        AnalyticNoise.__init__(self, frq, model)
+        Sa_a = self.DSa_a['SciRDv1'] * (1.0+(0.4e-3/frq)**2) * \
+               (1.0+(frq/8e-3)**4) * (1.0+(0.1e-3/frq)**2)
+        self.Sa_d = Sa_a*(2.*np.pi*frq)**(-4.)
+        Sa_nu = self.Sa_d*(2.0*np.pi*frq/CLIGHT)**2
+        self.Spm =  Sa_nu
 
 class MLDCNoise(AnalyticNoise):
     """
