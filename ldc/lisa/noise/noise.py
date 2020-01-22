@@ -66,6 +66,15 @@ class Noise():
                                   self.psd(option="X"),
                                   self.psd(option="XY")], names=["freq", "X","XY"])
         np.save(filename, TDIn)
+
+    def _XY2AET(self, X, XY, option='A'):
+        if option in ["A", "E", "AE"]:
+            return X-XY # = E
+        elif option in ["T"]:
+            return X+2*XY
+
+    
+    
         
 class NumericNoise(Noise):
     """ PSD from file. 
@@ -86,6 +95,11 @@ class NumericNoise(Noise):
         return N
         
     def psd(self, freq=None, option='X', includewd=0):
+        if option in ['AE', 'T']:
+            XX = self.psd(freq, option="X", includewd=includewd)
+            XY = self.psd(freq, option="XY", includewd=includewd)
+            return self._XY2AET(XX, XY, option)
+
         if freq is not None:
             if np.isscalar(freq):
                 freq = np.array([freq])
@@ -158,6 +172,11 @@ class AnalyticNoise(Noise):
     def psd(self, freq=None, option="X", includewd=0):
         """ option can be X, X2, XY, AE, T
         """
+        if option in ['AE', 'T']:
+            XX = self.psd(freq, option="X", includewd=includewd)
+            XY = self.psd(freq, option="XY", includewd=includewd)
+            return self._XY2AET(XX, XY, option)
+            
         if includewd and option in ["X2", "T"]:
             raise NotImplementedError
 
