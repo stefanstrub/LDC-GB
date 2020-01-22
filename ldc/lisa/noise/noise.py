@@ -9,12 +9,22 @@ CLIGHT = C.VELOCITYOFLIGHT_CONSTANT_VACUUM
 year = C.SIDEREALYEAR_J2000DAY*24*60*60
 
 
+def simple_snr(f, h, i=None, years=1.0, noise_model='SciRDv1'):
+    if not i:
+        h0 = h * np.sqrt(16.0/5.0)    # rms average over inclinations
+    else:
+        h0 = h * np.sqrt((1 + np.cos(i)**2)**2 + (2.*np.cos(i))**2)
+    sens = get_noise_model(noise_model,f).sensitivity(includewd=years)
+    snr = h0 * np.sqrt(years * 365.25*24*3600) / np.sqrt(sens)
+    return snr
+
+
 def get_noise_model(model, frq=None):
     """Return the noise instance corresponding to model.
     
     model can be: "Proposal", "SciRDv1", "MRDv1", "mldc", "newdrs", "LCESAcall"
     """
-    if model in ["Proposal", "SciRDv1", "MRDv1"]:
+    if model in ["Proposal", "SciRDv1", "MRDv1","SciRDdeg1","SciRDdeg2"]:
         NoiseClass = globals()["AnalyticNoise"]
         return NoiseClass(frq, model)
     elif model=="mldc":
