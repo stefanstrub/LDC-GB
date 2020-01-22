@@ -22,13 +22,17 @@ def simple_snr(f, h, i=None, years=1.0, noise_model='SciRDv1'):
 def get_noise_model(model, frq=None):
     """Return the noise instance corresponding to model.
     
-    model can be: "Proposal", "SciRDv1", "MRDv1", "mldc", "newdrs", "LCESAcall"
+    model can be: "Proposal", "SciRDv1", "SciRDdeg1", "MRDv1", 
+    "mldc", "newdrs", "LCESAcall"
     """
     if model in ["Proposal", "SciRDv1", "MRDv1","SciRDdeg1","SciRDdeg2"]:
         NoiseClass = globals()["AnalyticNoise"]
         return NoiseClass(frq, model)
     elif model=="mldc":
         NoiseClass = globals()[model.upper()+"Noise"]
+        return NoiseClass(frq)
+    elif model=="SciRDdeg1":
+        NoiseClass = globals()["SciRDdeg1Noise"]
         return NoiseClass(frq)
     elif model=="newdrs":
         NoiseClass = globals()["NewRDSNoise"]
@@ -72,6 +76,15 @@ class Noise():
                                   self.psd(option="X"),
                                   self.psd(option="XY")], names=["freq", "X","XY"])
         np.save(filename, TDIn)
+
+    def _XY2AET(self, X, XY, option='A'):
+        if option in ["A", "E", "AE"]:
+            return X-XY # = E
+        elif option in ["T"]:
+            return X+2*XY
+
+    
+    
         
 class NumericNoise(Noise):
     """ PSD from file. 
@@ -92,6 +105,11 @@ class NumericNoise(Noise):
         return N
         
     def psd(self, freq=None, option='X', includewd=0):
+        if option in ['AE', 'T']:
+            XX = self.psd(freq, option="X", includewd=includewd)
+            XY = self.psd(freq, option="XY", includewd=includewd)
+            return self._XY2AET(XX, XY, option)
+
         if freq is not None:
             if np.isscalar(freq):
                 freq = np.array([freq])
@@ -164,6 +182,11 @@ class AnalyticNoise(Noise):
     def psd(self, freq=None, option="X", includewd=0):
         """ option can be X, X2, XY, AE, T
         """
+        if option in ['AE', 'T']:
+            XX = self.psd(freq, option="X", includewd=includewd)
+            XY = self.psd(freq, option="XY", includewd=includewd)
+            return self._XY2AET(XX, XY, option)
+            
         if includewd and option in ["X2", "T"]:
             raise NotImplementedError
 
@@ -196,7 +219,17 @@ class AnalyticNoise(Noise):
 
     
         
-
+class SciRDdeg1Noise(AnalyticNoise):
+    """
+    """
+    def __init__(self, frq, model="SciRDv1"):
+        
+        AnalyticNoise.__init__(self, frq, model)
+        Sa_a = self.DSa_a['SciRDv1'] * (1.0+(0.4e-3/frq)**2) * \
+               (1.0+(frq/8e-3)**4) * (1.0+(0.1e-3/frq)**2)
+        self.Sa_d = Sa_a*(2.*np.pi*frq)**(-4.)
+        Sa_nu = self.Sa_d*(2.0*np.pi*frq/CLIGHT)**2
+        self.Spm =  Sa_nu
 
 class MLDCNoise(AnalyticNoise):
     """
