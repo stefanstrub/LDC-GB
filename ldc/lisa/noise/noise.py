@@ -300,42 +300,49 @@ class NewDRSNoise(AnalyticNoise):
     def displacement(self):
         raise NotImplementedError("")
 
+
 class GalNoise():
+    """
+    Here is an empirical fit for the Galactic confusion as a function of observation time
+    We have used SNR>5.0 and SNR>7 as removal criteria.
+    We use default to be 6 kinks, and used combined SNR. We also provide fits for 4 links
+    @Tobs duration of observation (in seconds) should be between 3 months and 10 years
+    """
     
-    def __init__(self, freq, Tobs):
+    def __init__(self, freq, Tobs, SNR=7.0, links=6):
 
-        day = 86400.0
-        month = day*30.5
-        self.Amp = 3.26651613e-44
-        self.alpha = 1.18300266e+00
-
-        Xobs = [1.0*day, 3.0*month, 6.0*month, 1.0*year, 2.0*year, 4.0*year, 10.0*year]
-        Slope1 = [9.41315118e+02,   1.36887568e+03, 1.68729474e+03,
-                  1.76327234e+03, 2.32678814e+03, 3.01430978e+03,\
-                  3.74970124e+03]
-        knee = [ 1.15120924e-02, 4.01884128e-03, 3.47302482e-03,
-                 2.77606177e-03, 2.41178384e-03, 2.09278117e-03,\
-                 1.57362626e-03]
-        Slope2 = [1.03239773e+02, 1.03351646e+03, 1.62204855e+03,
-                  1.68631844e+03, 2.06821665e+03, 2.95774596e+03,\
-                  3.15199454e+03]
-
-        Tmax = 10.0*year
-        if (Tobs > Tmax):
-            raise ValueError('I do not do extrapolation, Tobs > Tmax:', Tobs, Tmax)
-
-        # Interpolate
-        tck1 = interpolate.splrep(Xobs, Slope1, s=0, k=1)
-        tck2 = interpolate.splrep(Xobs, knee, s=0, k=1)
-        tck3 = interpolate.splrep(Xobs, Slope2, s=0, k=1)
-        self.sl1 = interpolate.splev(Tobs, tck1, der=0)
-        self.kn = interpolate.splev(Tobs, tck2, der=0)
-        self.sl2 = interpolate.splev(Tobs, tck3, der=0)
         self.freq = freq
-        
+        Tobs = Tobs/year
+
+        if (SNR != 5.0 and SNR != 7.0):
+            print ('We accept SNR to be 5.0 or 7.0', 'given', SNR)
+            raise NotImplementedError
+
+        self.Ampl, self.alpha, self.fr2, af1, bf1, afk, bfk = [ 1.28265531e-44, 1.62966700e+00,  4.81078093e-04, -2.23499956e-01,\
+                                                                -2.70408439e+00, -3.60976122e-01, -2.37822436e+00]
+        if (SNR == 5.0):
+            self.Ampl, self.alpha, self.fr2, af1, bf1, afk, bfk =  [ 1.28265531e-44,  1.57926625e+00,  3.84466946e-04, -2.32198526e-01,\
+                                                                    -2.77607250e+00, -2.78383832e-01, -2.51448127e+00]
+        if (links == 4):
+            self.Ampl, self.alpha, self.fr2, af1, bf1, afk, bfk =  [ 1.28265531e-44, 1.62966700e+00,  4.81078093e-04, -2.62516578e-01, \
+                                                                    -2.60291132e+00, -4.20352978e-01, -2.23847341e+00]
+            if (SNR == 5.0):
+                self.Ampl, self.alpha, self.fr2, af1, bf1, afk, bfk =  [ 1.28265531e-44,  1.57926625e+00,  3.84466946e-04, -2.39762426e-01, -2.70133615e+00,\
+                                                                        -3.49472046e-01, -2.37368814e+00]
+        Tmin = 0.25
+        Tmax = 10.0
+        if (Tobs<Tmin or Tobs>Tmax):
+            print ('Galaxy fit is valid between 3 months and 10 years, we do not extrapolate', Tobs, ' not in', Tmin, Tmax)
+            raise NotImplementedError("")
+
+        self.fr1 = 10.**(af1*np.log10(Tobs) + bf1)
+        self.fknee = 10.**(afk*np.log10(Tobs) + bfk)
+
+
     def galshape(self):
-        res = self.Amp*np.exp(-(self.freq**self.alpha)*self.sl1) *\
-              (self.freq**(-7./3.))*0.5*(1.0 + np.tanh(-(self.freq-self.kn)*self.sl2) )
+        res = self.Ampl*np.exp(-(self.freq/self.fr1)**self.alpha) *\
+              (self.freq**(-7./3.))*0.5*(1.0 + np.tanh(-(self.freq-self.fknee)/self.fr2))
         return res
 
+        
         
