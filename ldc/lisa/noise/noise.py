@@ -67,7 +67,7 @@ class Noise():
         t = 4.0 * x**2 * np.sin(x)**2
         Sg_sens = GalNoise(self.freq, duration*year).galshape()
         SgX = t*Sg_sens
-        if option=="AE":
+        if option=="A" or option=="E":
             return 1.5*SgX
         else:
             return SgX
@@ -81,7 +81,7 @@ class Noise():
         np.save(filename, TDIn)
 
     def _XY2AET(self, X, XY, option='A'):
-        if option in ["A", "E", "AE"]:
+        if option in ["A", "E"]:
             return X-XY # = E
         elif option in ["T"]:
             return X+2*XY
@@ -108,7 +108,7 @@ class NumericNoise(Noise):
         return N
         
     def psd(self, freq=None, option='X', includewd=0):
-        if option in ['AE', 'T']:
+        if option in ['A', 'E', 'T']:
             XX = self.psd(freq, option="X", includewd=includewd)
             XY = self.psd(freq, option="XY", includewd=includewd)
             return self._XY2AET(XX, XY, option)
@@ -183,9 +183,9 @@ class AnalyticNoise(Noise):
         return Sens
 
     def psd(self, freq=None, option="X", includewd=0):
-        """ option can be X, X2, XY, AE, T
+        """ option can be X, X2, XY, A, E, T
         """
-        if option in ['AE', 'T']:
+        if option in ['A', 'E', 'T']:
             XX = self.psd(freq, option="X", includewd=includewd)
             XY = self.psd(freq, option="XY", includewd=includewd)
             return self._XY2AET(XX, XY, option)
@@ -209,14 +209,14 @@ class AnalyticNoise(Noise):
             S = -4.0 * np.sin(2*x) * np.sin(x) * (self.Sop + 4.0*self.Spm)
             if includewd:
                 S += -0.5 * self.WDconfusion(includewd)
-        elif option=="AE":
+        elif option=="A" or option=="E":
             S = 8.0 * np.sin(x)**2 * (2.0 * self.Spm * (3.0 + 2.0*np.cos(x) + np.cos(2*x)) +\
                                       self.Sop * (2.0 + np.cos(x)))
         elif option=="T":
             S = 16.0 * self.Sop * (1.0 - np.cos(x)) * np.sin(x)**2 +\
                 128.0 * self.Spm * np.sin(x)**2 * np.sin(0.5*x)**4
         else:
-            print("PSD option should be in [X, X2, XY, AE, T] (%s)"%option)
+            print("PSD option should be in [X, X2, XY, A, E, T] (%s)"%option)
             return None
         return S
 
