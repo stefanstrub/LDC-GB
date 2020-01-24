@@ -108,6 +108,7 @@ class NumericNoise(Noise):
         self.freq = psdarray["freq"]
         for k in ["X", "XY"]:
             self._psd[k] = psdarray[k]
+        self.wd = 0
 
     @staticmethod
     def from_file(filename):
