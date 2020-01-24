@@ -63,16 +63,18 @@ class Noise():
     def arm_length(self):
         return  2.5e9 # LISA's arm meters
  
-    def WDconfusion(self, option="X"):
+    def WDconfusion(self, freq=None, option="X"):
         """ option can be X or AE
         """
+        if freq is None:
+            freq = self.freq
         duration = self.wd
         if duration==0:
             return 0
         lisaLT = self.arm_length/CLIGHT
-        x = 2.0 * np.pi * lisaLT * self.freq
+        x = 2.0 * np.pi * lisaLT * freq
         t = 4.0 * x**2 * np.sin(x)**2
-        Sg_sens = GalNoise(self.freq, duration*year).galshape()
+        Sg_sens = GalNoise(freq, duration*year).galshape()
         SgX = t*Sg_sens
         if option=="A" or option=="E":
             return 1.5*SgX
@@ -127,7 +129,7 @@ class NumericNoise(Noise):
                 freq = np.array([freq])
             S = np.interp(freq, self.freq, self._psd[option])
         if self.wd:
-            S += self.WDconfusion(option=option)
+            S += self.WDconfusion(freq=freq, option=option)
         return S
     
 class AnalyticNoise(Noise):
@@ -223,7 +225,7 @@ class AnalyticNoise(Noise):
             print("PSD option should be in [X, X2, XY, A, E, T] (%s)"%option)
             return None
         if self.wd:
-            S += self.WDconfusion(option=option)
+            S += self.WDconfusion(freq=freq, option=option)
         return S
 
     
