@@ -19,7 +19,7 @@ def simple_snr(f, h, i=None, years=1.0, noise_model='SciRDv1'):
     return snr
 
 
-def get_noise_model(model, frq=None):
+def get_noise_model(model, frq=None, **kwargs):
     """Return the noise instance corresponding to model.
     
     model can be: "Proposal", "SciRDv1", "SciRDdeg1", "MRDv1", 
@@ -27,31 +27,31 @@ def get_noise_model(model, frq=None):
     """
     if model in ["Proposal", "SciRDv1", "MRDv1"]:
         NoiseClass = globals()["AnalyticNoise"]
-        return NoiseClass(frq, model)
+        return NoiseClass(frq, model, **kwargs)
     elif model=="mldc":
         NoiseClass = globals()[model.upper()+"Noise"]
-        return NoiseClass(frq)
+        return NoiseClass(frq, **kwargs)
     elif model=="SciRDdeg1":
         NoiseClass = globals()["SciRDdeg1Noise"]
-        return NoiseClass(frq)
+        return NoiseClass(frq, **kwargs)
     elif model=="SciRDdeg2":
         NoiseClass = globals()["SciRDdeg2Noise"]
-        return NoiseClass(frq)
+        return NoiseClass(frq, **kwargs)
     elif model=="newdrs":
         NoiseClass = globals()["NewRDSNoise"]
-        return NoiseClass(frq)
+        return NoiseClass(frq, **kwargs)
     elif os.path.exists(model):
         NoiseClass = globals()["NumericNoise"]
         return NumericNoise.from_file(model)#NoiseClass(frq, model)
     else:
         NoiseClass = globals()[model+"Noise"]
-        return NoiseClass(frq)
+        return NoiseClass(frq, **kwargs)
 
 class Noise():
     
-    def __init__(self, frq, includewd=0):
+    def __init__(self, frq, wd=0):
         self.freq = frq
-        self.wd = includewd
+        self.wd = wd
 
     def set_wdconfusion(self, duration):
         day = 24.*60*60
@@ -135,8 +135,9 @@ class AnalyticNoise(Noise):
     acceleration noise and optical metrology system (OMS) noise
     """
     
-    def __init__(self, frq, model="SciRDv1"):
+    def __init__(self, frq, model="SciRDv1", wd=0):
 
+        Noise.__init__(self, frq, wd=wd)
         Sloc = (1.7e-12)**2 # m^2/Hz
         Ssci = (8.9e-12)**2 # m^2/Hz
         Soth = (2.e-12)**2  # m^2/Hz
@@ -230,9 +231,9 @@ class AnalyticNoise(Noise):
 class SciRDdeg1Noise(AnalyticNoise):
     """
     """
-    def __init__(self, frq, model="SciRDv1"):
+    def __init__(self, frq, model="SciRDv1", wd=0):
         
-        AnalyticNoise.__init__(self, frq, model)
+        AnalyticNoise.__init__(self, frq, model, wd=wd)
         Sa_a = self.DSa_a['SciRDv1'] * (1.0+(0.4e-3/frq)**2) * \
                (1.0+(frq/8e-3)**4) * (1.0+(0.1e-3/frq)**2)
         self.Sa_d = Sa_a*(2.*np.pi*frq)**(-4.)
@@ -243,9 +244,9 @@ class SciRDdeg1Noise(AnalyticNoise):
 class SciRDdeg2Noise(AnalyticNoise):
     """
     """
-    def __init__(self, frq, model="SciRDv1"):
+    def __init__(self, frq, model="SciRDv1", wd=0):
         
-        AnalyticNoise.__init__(self, frq, model)
+        AnalyticNoise.__init__(self, frq, model, wd=wd)
         Sa_a = self.DSa_a['SciRDv1'] * (1.0+(0.4e-3/frq)**2) * \
                (1.0+(frq/8e-3)**4) * (1.0+(0.1e-3/frq)**4)
         self.Sa_d = Sa_a*(2.*np.pi*frq)**(-4.)
@@ -255,8 +256,8 @@ class SciRDdeg2Noise(AnalyticNoise):
 class MLDCNoise(AnalyticNoise):
     """
     """
-    def __init__(self, f):
-        
+    def __init__(self, f, wd=0):
+        Noise.__init__(self, frq, wd=wd)
         self.Spm = 2.5e-48 * (1.0 + (f/1.0e-4)**-2) * f**(-2)
         defaultL = 16.6782
         lisaLT = self.arm_length/CLIGHT
@@ -269,8 +270,8 @@ class MLDCNoise(AnalyticNoise):
 class LCESAcallNoise(AnalyticNoise):
     """
     """
-    def __init__(self, frq):
-        AnalyticNoise.__init__(self, frq)
+    def __init__(self, frq, wd=0):
+        AnalyticNoise.__init__(self, frq, wd=wd)
         
         # Acceleration noise
         Sa_a = self.DSa_a['Proposal'] *(1.0 +(0.4e-3/frq)**2+(frq/9.3e-3)**4) # in acceleration
@@ -287,7 +288,8 @@ class LCESAcallNoise(AnalyticNoise):
 class NewDRSNoise(AnalyticNoise):
     """
     """
-    def __init__(self, f):
+    def __init__(self, f, wd=0):
+        AnalyticNoise.__init__(self, frq, wd=wd)
         self.Spm = 6.00314e-48 * f**(-2) # 4.6e-15 m/s^2/sqrt(Hz)
         defaultL = 16.6782
         defaultD = 0.4
