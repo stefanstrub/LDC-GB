@@ -204,7 +204,7 @@ class AnalyticNoise(Noise):
             raise NotImplementedError
 
         if freq is not None:
-            self.__init__(freq, model=self.model)
+            self.__init__(freq, model=self.model, wd=self.wd)
         
         lisaLT = self.arm_length/CLIGHT
         x = 2.0 * np.pi * lisaLT * self.freq
