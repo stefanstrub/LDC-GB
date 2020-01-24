@@ -49,19 +49,26 @@ def get_noise_model(model, frq=None):
 
 class Noise():
     
-    def __init__(self, frq):
+    def __init__(self, frq, includewd=0):
         self.freq = frq
+        self.wd = includewd
 
+    def set_wdconfusion(self, duration):
+        day = 24.*60*60
+        if ((duration!=0 and duration < day/year) or (duration > 10.0)):
+            raise NotImplementedError
+        self.wd = duration
+        
     @property
     def arm_length(self):
         return  2.5e9 # LISA's arm meters
  
-    def WDconfusion(self, duration, option="X"):
+    def WDconfusion(self, option="X"):
         """ option can be X or AE
         """
-        day = 24.*60*60
-        if ((duration < day/year) or (duration > 10.0)):
-            raise NotImplementedError
+        duration = self.wd
+        if duration==0:
+            return 0
         lisaLT = self.arm_length/CLIGHT
         x = 2.0 * np.pi * lisaLT * self.freq
         t = 4.0 * x**2 * np.sin(x)**2
@@ -69,6 +76,8 @@ class Noise():
         SgX = t*Sg_sens
         if option=="A" or option=="E":
             return 1.5*SgX
+        elif option=="XY":
+            return -0.5*SgX
         else:
             return SgX
 
@@ -107,7 +116,7 @@ class NumericNoise(Noise):
         N = NumericNoise(psd)
         return N
         
-    def psd(self, freq=None, option='X', includewd=0):
+    def psd(self, freq=None, option='X'):
         if option in ['A', 'E', 'T']:
             XX = self.psd(freq, option="X", includewd=includewd)
             XY = self.psd(freq, option="XY", includewd=includewd)
@@ -117,11 +126,8 @@ class NumericNoise(Noise):
             if np.isscalar(freq):
                 freq = np.array([freq])
             S = np.interp(freq, self.freq, self._psd[option])
-        #S = self._psd[option]
-        if includewd and option=="X":
-            S += self.WDconfusion(includewd)
-        elif includewd and option=="XY":
-            S -= 0.5*self.WDconfusion(includewd)
+        if self.wd:
+            S += self.WDconfusion(option=option)
         return S
     
 class AnalyticNoise(Noise):
@@ -163,7 +169,7 @@ class AnalyticNoise(Noise):
     def displacement(self):
         return self.Sa_d, self.Soms_d
 
-    def sensitivity(self, includewd=0):
+    def sensitivity(self):#, includewd=0):
         ALL_m = np.sqrt( 4.0*self.Sa_d + self.Sop)
         AvResp = np.sqrt(5)         ## Average the antenna response
         Proj = 2./np.sqrt(3)     ## Projection effect
@@ -174,15 +180,15 @@ class AnalyticNoise(Noise):
         T  = np.sqrt(1+(self.freq/(a*f0))**2)
         Sens = (AvResp * Proj * T * ALL_m/self.arm_length)**2
 
-        if (includewd):
+        if (self.wd):
             day = 86400.0
-            if ((includewd < day/year) or (includewd > 10.0)):
+            if ((self.wd < day/year) or (self.wd > 10.0)):
                 raise NotImplementedError
-            Sgal = GalNoise(self.freq, includewd*year).galshape()
+            Sgal = GalNoise(self.freq, self.wd*year).galshape()
             Sens += Sgal
         return Sens
 
-    def psd(self, freq=None, option="X", includewd=0):
+    def psd(self, freq=None, option="X"):#, includewd=0):
         """ option can be X, X2, XY, A, E, T
         """
         if option in ['A', 'E', 'T']:
@@ -190,7 +196,7 @@ class AnalyticNoise(Noise):
             XY = self.psd(freq, option="XY", includewd=includewd)
             return self._XY2AET(XX, XY, option)
             
-        if includewd and option in ["X2", "T"]:
+        if self.wd and option in ["X2", "T"]:
             raise NotImplementedError
 
         if freq is not None:
@@ -200,17 +206,14 @@ class AnalyticNoise(Noise):
         x = 2.0 * np.pi * lisaLT * self.freq
         if option=="X":
             S = 16.0 * np.sin(x)**2 * (2.0 * (1.0 + np.cos(x)**2) * self.Spm + self.Sop)
-            if includewd:
-                S += self.WDconfusion(includewd)
         elif option=="X2":
             S = 64.0 * np.sin(x)**2 * np.sin(2*x)**2 * self.Sop # TODO Check the acc. noise term
             S += 256.0 * (3 + np.cos(2*x)) * np.cos(x)**2 * np.sin(x)**4 * self.Spm
         elif option=="XY":
             S = -4.0 * np.sin(2*x) * np.sin(x) * (self.Sop + 4.0*self.Spm)
-            if includewd:
-                S += -0.5 * self.WDconfusion(includewd)
         elif option=="A" or option=="E":
-            S = 8.0 * np.sin(x)**2 * (2.0 * self.Spm * (3.0 + 2.0*np.cos(x) + np.cos(2*x)) +\
+            S = 8.0 * np.sin(x)**2 * (2.0 * self.Spm * (3.0 + 2.0*np.cos(x) +\
+                                                        np.cos(2*x)) +\
                                       self.Sop * (2.0 + np.cos(x)))
         elif option=="T":
             S = 16.0 * self.Sop * (1.0 - np.cos(x)) * np.sin(x)**2 +\
@@ -218,6 +221,8 @@ class AnalyticNoise(Noise):
         else:
             print("PSD option should be in [X, X2, XY, A, E, T] (%s)"%option)
             return None
+        if self.wd:
+            S += self.WDconfusion(option=option)
         return S
 
     
