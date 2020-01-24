@@ -118,8 +118,8 @@ class NumericNoise(Noise):
         
     def psd(self, freq=None, option='X'):
         if option in ['A', 'E', 'T']:
-            XX = self.psd(freq, option="X", includewd=includewd)
-            XY = self.psd(freq, option="XY", includewd=includewd)
+            XX = self.psd(freq, option="X")
+            XY = self.psd(freq, option="XY")
             return self._XY2AET(XX, XY, option)
 
         if freq is not None:
@@ -193,8 +193,8 @@ class AnalyticNoise(Noise):
         """ option can be X, X2, XY, A, E, T
         """
         if option in ['A', 'E', 'T']:
-            XX = self.psd(freq, option="X", includewd=includewd)
-            XY = self.psd(freq, option="XY", includewd=includewd)
+            XX = self.psd(freq, option="X")
+            XY = self.psd(freq, option="XY")
             return self._XY2AET(XX, XY, option)
             
         if self.wd and option in ["X2", "T"]:
