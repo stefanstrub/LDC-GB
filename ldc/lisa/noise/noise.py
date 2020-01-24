@@ -14,7 +14,7 @@ def simple_snr(f, h, i=None, years=1.0, noise_model='SciRDv1'):
         h0 = h * np.sqrt(16.0/5.0)    # rms average over inclinations
     else:
         h0 = h * np.sqrt((1 + np.cos(i)**2)**2 + (2.*np.cos(i))**2)
-    sens = get_noise_model(noise_model,f).sensitivity(includewd=years)
+    sens = get_noise_model(noise_model,f, wd=years).sensitivity()
     snr = h0 * np.sqrt(years * 365.25*24*3600) / np.sqrt(sens)
     return snr
 
