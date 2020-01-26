@@ -8,6 +8,7 @@ C = constants.Nature
 CLIGHT = C.VELOCITYOFLIGHT_CONSTANT_VACUUM
 year = C.SIDEREALYEAR_J2000DAY*24*60*60
 
+known_noise_config=["Proposal", "SciRDv1", "MRDv1", "mldc", "SciRDdeg1", "SciRDdeg2", "newdrs"]
 
 def simple_snr(f, h, i=None, years=1.0, noise_model='SciRDv1'):
     if not i:
