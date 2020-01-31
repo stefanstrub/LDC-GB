@@ -9,7 +9,7 @@ from ldc.lisa.orbits import Orbits
 
 def run_lisanode(case="Reforbits", duration=3600*24*365):
     flags = '-I../nodes  -I../lib -L../lib -lorbits -I../../../common/constants'
-    os.system("lisanode run -o %s --flags='%s' graph.py:%s -d %d"%(case, flags, case,duration))
+    os.system("lisanode run -o %s -f text --flags='%s' graph.py:%s -d %d"%(case, flags, case,duration))
 
 if __name__ == "__main__":
 
