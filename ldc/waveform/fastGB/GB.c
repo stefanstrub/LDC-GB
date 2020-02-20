@@ -45,12 +45,10 @@ void Fast_GB(double *params, long N, double Tobs, double dt, double *XLS, double
 	unpack_data(wfm);  // Unpack arrays from FFT and normalize
 
 
-	//printf("Stas, Tobs = %f \n", Tobs);
-	//printf("Stas0, q=%ld, f0=%f, check: %f, %f \n", wfm->q, wfm->params[0]/Tobs, wfm->q/Tobs, Tobs);
-	XYZ(wfm->d, wfm->params[0]/wfm->T, wfm->q, N, dt, Tobs, XLS, YLS, ZLS, XSL, YSL, ZSL);
+	XYZ(wfm->d, wfm->params[0]/wfm->T, wfm->q, N, dt, Tobs, XLS, YLS, ZLS, XSL, YSL, ZSL); 
 
 	free_waveform(wfm);  // Deallocate memory
-
+	free(wfm);
 	return;
 }
 
@@ -182,8 +180,8 @@ void alloc_waveform(struct Waveform *wfm)
 
 	for (i=0; i<3; i++)
 	{
-		for (j=0; j<3; j++) wfm->kdotr[i][j] = 0.;
-		wfm->kdotx[i] = 0.;
+	  for (j=0; j<3; j++) wfm->kdotr[i][j] = 0.;
+	  wfm->kdotx[i] = 0.;
 	}
 
 	wfm->xi    = malloc(3*sizeof(double));
@@ -307,17 +305,26 @@ void free_waveform(struct Waveform *wfm)
 {
 	long i, j;
 
+	free(wfm->k);
+	free(wfm->kdotx);
 	for (i=0; i<3; i++) free(wfm->kdotr[i]);
+	free(wfm->kdotr);
 
-	for (i=0; i<3; i++)
-	{
-		free(wfm->eplus[i]);
-		free(wfm->ecross[i]);
+	free(wfm->xi);
+	free(wfm->f);
+	free(wfm->fonfs);
 
-		free(wfm->dplus[i]);
-		free(wfm->dcross[i]);
+	for (i=0; i<3; i++){
+	  free(wfm->eplus[i]);
+	  free(wfm->ecross[i]);
+	  free(wfm->dplus[i]);
+	  free(wfm->dcross[i]);
 	}
-
+	free(wfm->eplus);
+	free(wfm->ecross);
+	free(wfm->dplus);
+	free(wfm->dcross);
+	
 	free(wfm->r12);
 	free(wfm->r21);
 	free(wfm->r31);
@@ -343,27 +350,21 @@ void free_waveform(struct Waveform *wfm)
 	free(wfm->y);
 	free(wfm->z);
 
-	for (i=0; i<3; i++)
-	{
-		free(wfm->TR[i]);
-		free(wfm->TI[i]);
+	for (i=0; i<3; i++){
+	  free(wfm->TR[i]);
+	  free(wfm->TI[i]);
 	}
+	free(wfm->TR);
+	free(wfm->TI);
 
 	for (i=0; i<3; i++)
-	{
-		for(j=0; j<3; j++)
-		{
-			free(wfm->d[i][j]);
-		}
-	}
+	  for(j=0; j<3; j++)
+	    free(wfm->d[i][j]);
 
-	free(wfm->k);
-	free(wfm->kdotx);
-
-	free(wfm->xi);
-	free(wfm->f);
-	free(wfm->fonfs);
-
+	for (i=0; i<3; i++)
+	  free(wfm->d[i]);
+	free(wfm->d);
+	
 	free(wfm->params);
 
 	return;
