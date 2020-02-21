@@ -2,6 +2,7 @@ from setuptools import setup, Command
 from distutils.core import Extension
 from Cython.Distutils import build_ext
 import os
+import subprocess
 
 try:
     from setuptools import find_namespace_packages
@@ -42,13 +43,16 @@ orbits_ext = Extension("_orbits",
                        include_dirs=[numpy.get_include(), 'ldc/common/constants'],
                        extra_compile_args=["-std=gnu++11"])
 
+GSL_CFLAGS = subprocess.check_output("gsl-config --cflags", shell=True)
+
+
 fastGB_sources = ["ldc/waveform/fastGB/pyGB.pyx",
                   "ldc/waveform/fastGB/GB.c", "ldc/waveform/fastGB/LISA.c"]
 
 fastGB_ext = Extension("fastGB",
                        sources=fastGB_sources,
                        language="c",
-                       include_dirs=[numpy.get_include(), "ldc/common/constants"],
+                       include_dirs=[numpy.get_include(), "ldc/common/constants", GSL_CFLAGS[2:]],
                        libraries=['fftw3', 'gsl'])#,
 
 setup(
