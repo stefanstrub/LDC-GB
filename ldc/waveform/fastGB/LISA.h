@@ -1,7 +1,10 @@
 #ifndef LISA_h
 #define LISA_h
 
+
 #include "pdbParam.h"
+
+#define M_PI Nature_PI_CONSTANT
 
 /* Astronomical unit (meters) */
 #define AU Nature_ASTRONOMICALUNIT_METER

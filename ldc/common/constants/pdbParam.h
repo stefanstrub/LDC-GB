@@ -16,8 +16,8 @@
  */
 #ifndef PDBPARAM_H
 #define PDBPARAM_H
-
-typedef enum { false=0, true } bool;
+#include <stdbool.h>
+//typedef enum { false=0, true } bool;
 
 static const char *const PdbParamDBVersion = "Live";
 
