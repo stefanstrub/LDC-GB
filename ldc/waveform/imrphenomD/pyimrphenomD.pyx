@@ -177,7 +177,7 @@ cdef class pyIMRPhenomD:
         hctilde = np.zeros_like(hptilde)
         hctilde = - 1j * cfac * hptilde
         hptilde *= pfac
-        return fHz,hptilde,hctilde
+        return fHz.copy(), hptilde, hctilde
                         
     
 cdef RealVector* ConvertNumpyArrayToRealVector(arr):
@@ -249,4 +249,4 @@ cdef class pyIMRPhenomDh22AmpPhase:
         amp = np.asarray(view_amp)
         phase = np.asarray(view_phase)
         
-        return self.freq, amp, phase
+        return self.freq.copy(), amp.copy(), phase.copy()

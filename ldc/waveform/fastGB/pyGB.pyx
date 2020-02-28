@@ -122,7 +122,8 @@ cdef class pyGB:
         freq = np.linspace(kmin*df,(kmin + len(fX)-1)*df, len(fX))
         
         # TODO convert to freq. array
-        return freq,fX/df,fY/df,fZ/df
+        #return freq,fX/df,fY/df,fZ/df
+        return freq,fX,fY,fZ
 
     def get_td_tdixyz(self):
         """  Return TDI X,Y,Z in time domain. 

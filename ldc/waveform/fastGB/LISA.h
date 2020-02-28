@@ -4,7 +4,7 @@
 
 #include "pdbParam.h"
 
-#define M_PI Nature_PI_CONSTANT
+#define PI Nature_PI_CONSTANT
 
 /* Astronomical unit (meters) */
 #define AU Nature_ASTRONOMICALUNIT_METER

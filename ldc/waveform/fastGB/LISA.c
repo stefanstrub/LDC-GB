@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "LISA.h"
-
+#include <math.h>
 
 void instrument_noise(double f, double *SAE, double *SXYZ)
 {
@@ -17,11 +17,11 @@ void instrument_noise(double f, double *SAE, double *SXYZ)
     
     *SAE = 16.0/3.0*trans*( (2.0+cos(f/fstar))*(Sps + Sloc) 
     					    +2.0*( 3.0 + 2.0*cos(f/fstar) + cos(2.0*f/fstar) )
-    					        *( Sloc/2.0 + Sacc/pow(2.0*M_PI*f,4.0)*(1.0+red) ) )
+    					        *( Sloc/2.0 + Sacc/pow(2.0*PI*f,4.0)*(1.0+red) ) )
     					  / pow(2.0*Larm,2.0);
     
     *SXYZ = 4.0*trans*( 4.0*(Sps+Sloc) 
-                      + 8.0*( 1.0+pow(cos(f/fstar),2.0) )*( Sloc/2.0 + Sacc/pow(2.0*M_PI*f,4.0)*(1.0+red) ) )
+                      + 8.0*( 1.0+pow(cos(f/fstar),2.0) )*( Sloc/2.0 + Sacc/pow(2.0*PI*f,4.0)*(1.0+red) ) )
                        / pow(2.0*Larm,2.0);
     
     return;
@@ -33,11 +33,11 @@ void spacecraft(double t, double *x, double *y, double *z)
 	double beta1, beta2, beta3;
 	double sa, sb, ca, cb;
 
-	alpha = 2.*M_PI*fm*t + kappa;
+	alpha = 2.*PI*fm*t + kappa;
 
 	beta1 = 0. + lambda;
-	beta2 = 2.*M_PI/3. + lambda;
-	beta3 = 4.*M_PI/3. + lambda;
+	beta2 = 2.*PI/3. + lambda;
+	beta3 = 4.*PI/3. + lambda;
 
 	sa = sin(alpha);
 	ca = cos(alpha);

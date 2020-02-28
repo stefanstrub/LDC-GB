@@ -1577,6 +1577,13 @@ static PyObject* __Pyx_PyFloat_AddCObj(PyObject *op1, PyObject *op2, double floa
     (inplace ? PyNumber_InPlaceAdd(op1, op2) : PyNumber_Add(op1, op2))
 #endif
 
+/* PyObjectCallNoArg.proto */
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func);
+#else
+#define __Pyx_PyObject_CallNoArg(func) __Pyx_PyObject_Call(func, __pyx_empty_tuple, NULL)
+#endif
+
 /* MemviewSliceInit.proto */
 #define __Pyx_BUF_MAX_NDIMS %(BUF_MAX_NDIMS)d
 #define __Pyx_MEMVIEW_DIRECT   1
@@ -3198,7 +3205,7 @@ static PyObject *__pyx_pf_12pyimrphenomD_12pyIMRPhenomD_4get_fd_waveform(struct 
  *         hctilde = np.zeros_like(hptilde)
  *         hctilde = - 1j * cfac * hptilde             # <<<<<<<<<<<<<<
  *         hptilde *= pfac
- *         return fHz,hptilde,hctilde
+ *         return fHz.copy(), hptilde, hctilde
  */
   __pyx_t_20 = __Pyx_c_neg_double(__pyx_t_double_complex_from_parts(0, 1.0));
   __pyx_t_14 = __pyx_PyComplex_FromComplex(__pyx_t_20); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 178, __pyx_L1_error)
@@ -3216,7 +3223,7 @@ static PyObject *__pyx_pf_12pyimrphenomD_12pyIMRPhenomD_4get_fd_waveform(struct 
  *         hctilde = np.zeros_like(hptilde)
  *         hctilde = - 1j * cfac * hptilde
  *         hptilde *= pfac             # <<<<<<<<<<<<<<
- *         return fHz,hptilde,hctilde
+ *         return fHz.copy(), hptilde, hctilde
  * 
  */
   __pyx_t_14 = PyNumber_InPlaceMultiply(__pyx_v_hptilde, __pyx_v_pfac); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 179, __pyx_L1_error)
@@ -3227,24 +3234,41 @@ static PyObject *__pyx_pf_12pyimrphenomD_12pyIMRPhenomD_4get_fd_waveform(struct 
   /* "pyimrphenomD.pyx":180
  *         hctilde = - 1j * cfac * hptilde
  *         hptilde *= pfac
- *         return fHz,hptilde,hctilde             # <<<<<<<<<<<<<<
+ *         return fHz.copy(), hptilde, hctilde             # <<<<<<<<<<<<<<
  * 
  * 
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_14 = PyTuple_New(3); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 180, __pyx_L1_error)
+  __pyx_t_15 = __Pyx_PyObject_GetAttrStr(__pyx_v_fHz, __pyx_n_s_copy); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 180, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_15);
+  __pyx_t_12 = NULL;
+  if (CYTHON_UNPACK_METHODS && likely(PyMethod_Check(__pyx_t_15))) {
+    __pyx_t_12 = PyMethod_GET_SELF(__pyx_t_15);
+    if (likely(__pyx_t_12)) {
+      PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_15);
+      __Pyx_INCREF(__pyx_t_12);
+      __Pyx_INCREF(function);
+      __Pyx_DECREF_SET(__pyx_t_15, function);
+    }
+  }
+  __pyx_t_14 = (__pyx_t_12) ? __Pyx_PyObject_CallOneArg(__pyx_t_15, __pyx_t_12) : __Pyx_PyObject_CallNoArg(__pyx_t_15);
+  __Pyx_XDECREF(__pyx_t_12); __pyx_t_12 = 0;
+  if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 180, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_14);
-  __Pyx_INCREF(__pyx_v_fHz);
-  __Pyx_GIVEREF(__pyx_v_fHz);
-  PyTuple_SET_ITEM(__pyx_t_14, 0, __pyx_v_fHz);
+  __Pyx_DECREF(__pyx_t_15); __pyx_t_15 = 0;
+  __pyx_t_15 = PyTuple_New(3); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 180, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_15);
+  __Pyx_GIVEREF(__pyx_t_14);
+  PyTuple_SET_ITEM(__pyx_t_15, 0, __pyx_t_14);
   __Pyx_INCREF(__pyx_v_hptilde);
   __Pyx_GIVEREF(__pyx_v_hptilde);
-  PyTuple_SET_ITEM(__pyx_t_14, 1, __pyx_v_hptilde);
+  PyTuple_SET_ITEM(__pyx_t_15, 1, __pyx_v_hptilde);
   __Pyx_INCREF(__pyx_v_hctilde);
   __Pyx_GIVEREF(__pyx_v_hctilde);
-  PyTuple_SET_ITEM(__pyx_t_14, 2, __pyx_v_hctilde);
-  __pyx_r = __pyx_t_14;
+  PyTuple_SET_ITEM(__pyx_t_15, 2, __pyx_v_hctilde);
   __pyx_t_14 = 0;
+  __pyx_r = __pyx_t_15;
+  __pyx_t_15 = 0;
   goto __pyx_L0;
 
   /* "pyimrphenomD.pyx":143
@@ -3860,6 +3884,7 @@ static PyObject *__pyx_pf_12pyimrphenomD_23pyIMRPhenomDh22AmpPhase_4get_fd_wavef
   __Pyx_memviewslice __pyx_t_14 = { 0, 0, { 0 }, { 0 }, { 0 } };
   PyObject *__pyx_t_15 = NULL;
   PyObject *__pyx_t_16 = NULL;
+  PyObject *__pyx_t_17 = NULL;
   __Pyx_RefNannySetupContext("get_fd_waveform", 0);
 
   /* "pyimrphenomD.pyx":236
@@ -4057,7 +4082,7 @@ static PyObject *__pyx_pf_12pyimrphenomD_23pyIMRPhenomDh22AmpPhase_4get_fd_wavef
  *         amp = np.asarray(view_amp)
  *         phase = np.asarray(view_phase)             # <<<<<<<<<<<<<<
  * 
- *         return self.freq, amp, phase
+ *         return self.freq.copy(), amp.copy(), phase.copy()
  */
   __Pyx_GetModuleGlobalName(__pyx_t_15, __pyx_n_s_np); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 250, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_15);
@@ -4088,22 +4113,73 @@ static PyObject *__pyx_pf_12pyimrphenomD_23pyIMRPhenomDh22AmpPhase_4get_fd_wavef
   /* "pyimrphenomD.pyx":252
  *         phase = np.asarray(view_phase)
  * 
- *         return self.freq, amp, phase             # <<<<<<<<<<<<<<
+ *         return self.freq.copy(), amp.copy(), phase.copy()             # <<<<<<<<<<<<<<
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = PyTuple_New(3); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 252, __pyx_L1_error)
+  __pyx_t_13 = __Pyx_PyObject_GetAttrStr(__pyx_v_self->freq, __pyx_n_s_copy); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 252, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_13);
+  __pyx_t_15 = NULL;
+  if (CYTHON_UNPACK_METHODS && likely(PyMethod_Check(__pyx_t_13))) {
+    __pyx_t_15 = PyMethod_GET_SELF(__pyx_t_13);
+    if (likely(__pyx_t_15)) {
+      PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_13);
+      __Pyx_INCREF(__pyx_t_15);
+      __Pyx_INCREF(function);
+      __Pyx_DECREF_SET(__pyx_t_13, function);
+    }
+  }
+  __pyx_t_1 = (__pyx_t_15) ? __Pyx_PyObject_CallOneArg(__pyx_t_13, __pyx_t_15) : __Pyx_PyObject_CallNoArg(__pyx_t_13);
+  __Pyx_XDECREF(__pyx_t_15); __pyx_t_15 = 0;
+  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 252, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __Pyx_INCREF(__pyx_v_self->freq);
-  __Pyx_GIVEREF(__pyx_v_self->freq);
-  PyTuple_SET_ITEM(__pyx_t_1, 0, __pyx_v_self->freq);
-  __Pyx_INCREF(__pyx_v_amp);
-  __Pyx_GIVEREF(__pyx_v_amp);
-  PyTuple_SET_ITEM(__pyx_t_1, 1, __pyx_v_amp);
-  __Pyx_INCREF(__pyx_v_phase);
-  __Pyx_GIVEREF(__pyx_v_phase);
-  PyTuple_SET_ITEM(__pyx_t_1, 2, __pyx_v_phase);
-  __pyx_r = __pyx_t_1;
+  __Pyx_DECREF(__pyx_t_13); __pyx_t_13 = 0;
+  __pyx_t_15 = __Pyx_PyObject_GetAttrStr(__pyx_v_amp, __pyx_n_s_copy); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 252, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_15);
+  __pyx_t_16 = NULL;
+  if (CYTHON_UNPACK_METHODS && likely(PyMethod_Check(__pyx_t_15))) {
+    __pyx_t_16 = PyMethod_GET_SELF(__pyx_t_15);
+    if (likely(__pyx_t_16)) {
+      PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_15);
+      __Pyx_INCREF(__pyx_t_16);
+      __Pyx_INCREF(function);
+      __Pyx_DECREF_SET(__pyx_t_15, function);
+    }
+  }
+  __pyx_t_13 = (__pyx_t_16) ? __Pyx_PyObject_CallOneArg(__pyx_t_15, __pyx_t_16) : __Pyx_PyObject_CallNoArg(__pyx_t_15);
+  __Pyx_XDECREF(__pyx_t_16); __pyx_t_16 = 0;
+  if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 252, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_13);
+  __Pyx_DECREF(__pyx_t_15); __pyx_t_15 = 0;
+  __pyx_t_16 = __Pyx_PyObject_GetAttrStr(__pyx_v_phase, __pyx_n_s_copy); if (unlikely(!__pyx_t_16)) __PYX_ERR(0, 252, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_16);
+  __pyx_t_17 = NULL;
+  if (CYTHON_UNPACK_METHODS && likely(PyMethod_Check(__pyx_t_16))) {
+    __pyx_t_17 = PyMethod_GET_SELF(__pyx_t_16);
+    if (likely(__pyx_t_17)) {
+      PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_16);
+      __Pyx_INCREF(__pyx_t_17);
+      __Pyx_INCREF(function);
+      __Pyx_DECREF_SET(__pyx_t_16, function);
+    }
+  }
+  __pyx_t_15 = (__pyx_t_17) ? __Pyx_PyObject_CallOneArg(__pyx_t_16, __pyx_t_17) : __Pyx_PyObject_CallNoArg(__pyx_t_16);
+  __Pyx_XDECREF(__pyx_t_17); __pyx_t_17 = 0;
+  if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 252, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_15);
+  __Pyx_DECREF(__pyx_t_16); __pyx_t_16 = 0;
+  __pyx_t_16 = PyTuple_New(3); if (unlikely(!__pyx_t_16)) __PYX_ERR(0, 252, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_16);
+  __Pyx_GIVEREF(__pyx_t_1);
+  PyTuple_SET_ITEM(__pyx_t_16, 0, __pyx_t_1);
+  __Pyx_GIVEREF(__pyx_t_13);
+  PyTuple_SET_ITEM(__pyx_t_16, 1, __pyx_t_13);
+  __Pyx_GIVEREF(__pyx_t_15);
+  PyTuple_SET_ITEM(__pyx_t_16, 2, __pyx_t_15);
   __pyx_t_1 = 0;
+  __pyx_t_13 = 0;
+  __pyx_t_15 = 0;
+  __pyx_r = __pyx_t_16;
+  __pyx_t_16 = 0;
   goto __pyx_L0;
 
   /* "pyimrphenomD.pyx":223
@@ -4122,6 +4198,7 @@ static PyObject *__pyx_pf_12pyimrphenomD_23pyIMRPhenomDh22AmpPhase_4get_fd_wavef
   __PYX_XDEC_MEMVIEW(&__pyx_t_14, 1);
   __Pyx_XDECREF(__pyx_t_15);
   __Pyx_XDECREF(__pyx_t_16);
+  __Pyx_XDECREF(__pyx_t_17);
   __Pyx_AddTraceback("pyimrphenomD.pyIMRPhenomDh22AmpPhase.get_fd_waveform", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
@@ -22696,6 +22773,28 @@ static PyObject* __Pyx_PyFloat_AddCObj(PyObject *op1, PyObject *op2, double floa
         result = a + b;
         PyFPE_END_PROTECT(result)
         return PyFloat_FromDouble(result);
+}
+#endif
+
+/* PyObjectCallNoArg */
+  #if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
+#if CYTHON_FAST_PYCALL
+    if (PyFunction_Check(func)) {
+        return __Pyx_PyFunction_FastCall(func, NULL, 0);
+    }
+#endif
+#ifdef __Pyx_CyFunction_USED
+    if (likely(PyCFunction_Check(func) || __Pyx_CyFunction_Check(func)))
+#else
+    if (likely(PyCFunction_Check(func)))
+#endif
+    {
+        if (likely(PyCFunction_GET_FLAGS(func) & METH_NOARGS)) {
+            return __Pyx_PyObject_CallMethO(func, NULL);
+        }
+    }
+    return __Pyx_PyObject_Call(func, __pyx_empty_tuple, NULL);
 }
 #endif
 
