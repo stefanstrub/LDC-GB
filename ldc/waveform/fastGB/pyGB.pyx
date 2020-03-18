@@ -28,7 +28,7 @@ cdef class pyGB:
     cdef public double f0,fdot,ampl,theta,phi,psi,incl,phi0
     cdef public double T, delta_t
     cdef public int oversample
-
+    cdef public int kmin
     
     def __cinit__(self, orbits=None, T=6.2914560e7, delta_t=15):
         """ Define C++ FastBinary dimensions and check that orbits are
@@ -120,13 +120,26 @@ cdef class pyGB:
         kmin = int(f0*self.T) - M/2
         df = 1.0/self.T
         freq = np.linspace(kmin*df,(kmin + len(fX)-1)*df, len(fX))
-        
+        self.kmin = kmin
         # TODO convert to freq. array
         return freq,fX/df,fY/df,fZ/df #return freq,fX,fY,fZ
 
-    def get_td_tdixyz(self):
+    def get_td_tdixyz(self, **kwargs):
         """  Return TDI X,Y,Z in time domain. 
         """
-        fX, fY, fZ = self.get_fd_tdi()
-        # todo compute inverse fft
+        freq, fX, fY, fZ = self.get_fd_tdixyz(**kwargs)
+        df = 1.0/self.T
+        kmin = self.kmin#int(freq[0]/df)
+        n = int(1.0/(self.delta_t*df))
+        ret = np.zeros(int(n/2+1),dtype='complex128')
+        ret[kmin:kmin+len(fX)] = fX*df*n; Xt = np.fft.irfft(ret)
+        ret[kmin:kmin+len(fX)] = fY*df*n; Yt = np.fft.irfft(ret)
+        ret[kmin:kmin+len(fX)] = fZ*df*n; Zt = np.fft.irfft(ret)
+
+        trange = np.arange(len(Xt))*self.delta_t
+        if self.T<trange[-1]:
+            i_end =  np.argwhere(trange > self.T)[0][0]
+        else:
+            i_end = None
+        return trange[:i_end], Xt[:i_end], Yt[:i_end], Zt[:i_end]
         
