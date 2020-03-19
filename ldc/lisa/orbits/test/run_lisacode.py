@@ -1,9 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import xml.dom.minidom
-from LISAhdf5 import ParsUnits
 from ldc.lisa.orbits import Orbits
 import os
+
 ARM_LENGTH =  2.5E9
 
 def get_param(xml_content, name):
@@ -50,12 +50,10 @@ if __name__ == "__main__":
 
     cases = ["testorb"]
 
-    lconfig = [('nominal_arm_length', ARM_LENGTH, "m"), 
-               ('initial_rotation', 0, 'rad'), 
-               ('initial_position', 0, 'rad')]
-    config = ParsUnits(name='orbit_type', value='analytic')
-    for k,v,u in lconfig:
-        config.addPar(k,v,u)
+    config = dict({"nominal_arm_length":ARM_LENGTH,#meter
+                   "initial_rotation":0,      #rad
+                   "initial_position":0,      #rad
+                   "orbit_type":"analytic"})
     orbits = Orbits.type(config)
     for case in cases:
         run_lisacode(case, tt_order=args.tt_order)

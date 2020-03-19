@@ -16,9 +16,6 @@ cdef extern from "orbits.hpp":
 
 import numpy as np
 cimport numpy as np
-from LISAhdf5 import ParsUnits
-import LISAConstants as LC
-
 
 cdef class pyAnalyticOrbits:
     cdef AnalyticOrbits O
@@ -26,16 +23,13 @@ cdef class pyAnalyticOrbits:
     cdef public double initial_position
     cdef public double arm_length
 
-    def __init__(self, config):
-
-        if not isinstance(config, ParsUnits):
-            raise "Configuration should be a ParsUnit object"
+    def __init__(self, armlength_meter=2.5e9, irotation_rad=0, ipos_rad=0):
+        """ Set instrumental configuration for orbits. 
+        """
         
-        orbit_type = config.get('orbit_type')
-        assert orbit_type=="analytic"
-        self.arm_length = config.getConvert('nominal_arm_length', LC.convDistance, "m")
-        self.initial_rotation = config.getConvert('initial_rotation', LC.convAngle, "radian")
-        self.initial_position = config.getConvert('initial_position', LC.convAngle, 'radian') 
+        self.arm_length = armlength_meter
+        self.initial_rotation = irotation_rad
+        self.initial_position = ipos_rad
         self.O = AnalyticOrbits(self.arm_length, self.initial_position, self.initial_rotation)
 
 

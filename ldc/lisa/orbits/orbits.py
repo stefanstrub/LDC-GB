@@ -3,20 +3,28 @@
 from abc import ABC, abstractmethod
 import numpy as np
 from itertools import permutations
-from LISAhdf5 import ParsUnits 
-import LISAConstants as LC 
 from _orbits import pyAnalyticOrbits
 from ldc.common import constants
 
 C = constants.Nature
 AU_IN_M = C.ASTRONOMICALUNIT_METER
 
+def check_units(config):
+    """ Check that parameters are given in expected units. 
+    
+    TODO: 
+    - nominal_arm_length in meter
+    - initial_rotation in radian
+    - initial_position in radian
+    """
+    pass
+    
 
 class Orbits(ABC):
     """ This abstract base class is the gateway to the LISA set of orbits functions """
     
     def __init__(self, config):
-        """Initialize orbits from a configuration, given as ParsUnits object.
+        """Initialize orbits from a configuration. 
         
         Configuration should include:
         - orbit type in ['analytic', 'file']
@@ -25,14 +33,11 @@ class Orbits(ABC):
         Orbits are given in SSB reference frame. 
         >>> X = Orbits.type(config)
         """
-        if not isinstance(config, ParsUnits):
-            raise "Configuration should be a ParsUnit object"
-        
         self.orbit_type = config.get('orbit_type')
         self.reference_frame = 'SSB'
         self.number_of_spacecraft = 3
         self.number_of_arms = 6
-        self.arm_length = config.getConvert('nominal_arm_length', LC.convDistance, "m")
+        self.arm_length = config['nominal_arm_length']
         self.eccentricity = self.arm_length/(2*np.sqrt(3)*AU_IN_M)
         self.tt = None
 
@@ -84,9 +89,16 @@ class AnalyticOrbits(pyAnalyticOrbits, Orbits):
     """
     
     def __init__(self, config):
-        pyAnalyticOrbits.__init__(self, config)
+        """ Set instrumental configuration for orbits. 
+        """ 
+        arm_length_meter = config["nominal_arm_length"]
+        irot_rad = config["initial_rotation"]
+        ipos_ard = config["initial_position"]
+        pyAnalyticOrbits.__init__(self, arm_length_meter, irot_rad, ipos_ard)
         Orbits.__init__(self, config)
 
+        
+        
 class OrbitsFromFile(Orbits):
     """ Computes the orbits from an orbits file """
     
@@ -107,16 +119,10 @@ class OrbitsFromFile(Orbits):
         return "To be implemented."
 
 
-
-
 if __name__ == "__main__":
-    from LISAhdf5 import ParsUnits
     import doctest
-
-    lconfig = [('nominal_arm_length', 2.5e9, "m"), 
-               ('initial_rotation', 0, 'rad'), 
-               ('initial_position', 0, 'rad')]
-    config = ParsUnits(name='orbit_type', value='analytic')
-    for k,v,u in lconfig:
-        config.addPar(k,v,u)
+    config = dict({"nominal_arm_length":2.5e9,#meter
+                   "initial_rotation":0,      #rad
+                   "initial_position":0,      #rad
+                   "orbit_type":"analytic"})
     doctest.testmod()

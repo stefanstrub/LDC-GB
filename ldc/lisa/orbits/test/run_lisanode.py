@@ -5,12 +5,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 plt.rcParams['axes.formatter.min_exponent'] = 2
 from graph import TT_ORDER, ARM_LENGTH
-from LISAhdf5 import ParsUnits
 from ldc.lisa.orbits import Orbits
 
 def run_lisanode(case="Reforbits", duration=3600*24*365):
     flags = '-I../nodes  -I../lib -L../lib -lorbits -I../../../common/constants'
-    os.system("lisanode run -o %s --flags='%s' graph.py:%s -d %d"%(case, flags, case,duration))
+    os.system("lisanode run -o %s -f text --flags='%s' graph.py:%s -d %d"%(case, flags, case,duration))
 
 if __name__ == "__main__":
 
@@ -22,17 +21,15 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    cases = ["RefOrbits", "TestingLDCOrbits", "TestingTravelTimes"]
+    cases = ["RefOrbits", "TestingLDCOrbits", "TestingTravelTimes_old", "TestingTravelTimes"]
     
     for case in cases:
         run_lisanode(case)
 
-    lconfig = [('nominal_arm_length', ARM_LENGTH, "m"), 
-               ('initial_rotation', 0, 'rad'), 
-               ('initial_position', 0, 'rad')]
-    config = ParsUnits(name='orbit_type', value='analytic')
-    for k,v,u in lconfig:
-        config.addPar(k,v,u)
+    config = dict({"nominal_arm_length":ARM_LENGTH,#meter
+                   "initial_rotation":0,      #rad
+                   "initial_position":0,      #rad
+                   "orbit_type":"analytic"})
     orbits = Orbits.type(config)
         
     LC_links= dict({1:(3,2), 2:(1,3), 3:(2,1), 4:(2,3), 5:(3,1), 6:(1,2)})
@@ -48,7 +45,7 @@ if __name__ == "__main__":
             emitter, receiver = LC_links[link+1]
             trange = nt[:,0]
             tt_ldc = orbits.compute_travel_time(emitter, receiver, trange,TT_ORDER)
-            #plt.plot(nt[:,0], tt_ldc, label="LDC")
+            plt.plot(nt[:,0], tt_ldc, label="LDC")
         plt.ylabel("Travel time for link 1 [s]")
         plt.legend()
         plt.subplot(2,1,2)
@@ -62,8 +59,8 @@ if __name__ == "__main__":
             emitter, receiver = LC_links[link+1]
             trange = nt[:,0]
             tt_ldc = orbits.compute_travel_time(emitter, receiver, trange,TT_ORDER)
-            #plt.plot(nts[0][:,0], 1e9*(nts[1][:,1]-tt_ldc), label="LISANode - LDC")
-            #plt.plot(nts[0][:,0], 1e9*(nts[0][:,1]-tt_ldc), label="LDC - LDC")
+            plt.plot(nts[0][:,0], 1e9*(nts[1][:,1]-tt_ldc), label="LISANode - LDC")
+            plt.plot(nts[0][:,0], 1e9*(nts[0][:,1]-tt_ldc), label="LDC - LDC")
         plt.xlabel("Time [s]")
         plt.ylabel("Tt diff for link 1 [ns]")
         plt.legend()
@@ -74,7 +71,7 @@ if __name__ == "__main__":
         plt.subplot(2,1,1)
         for link in range(1):
             for p, color in zip(["x", "y", "z"], ["b", "orange", "g"]):
-                for case in ["TestingTravelTimes", "TestingLDCOrbits"]:
+                for case in ["TestingTravelTimes_old", "TestingLDCOrbits"]:
                     suffix = "v" if args.vel else ""
                     nt = np.loadtxt("%s/Orbit%s%s%d.txt"%(case, suffix, p, link))
                     label= p if case=="TestingTravelTimes" else ""
@@ -91,7 +88,7 @@ if __name__ == "__main__":
         for link in range(1):
             for p, color in zip(["x", "y", "z"], ["b", "orange", "g"]):
                 nts = list()
-                for case in ["TestingTravelTimes", "TestingLDCOrbits"]:
+                for case in ["TestingTravelTimes_old", "TestingLDCOrbits"]:
                     suffix = "v" if args.vel else ""
                     nts.append(np.loadtxt("%s/Orbit%s%s%d.txt"%(case, suffix, p, link)))
                 label="LDC-LISANode" if p=="x" else ""
@@ -104,4 +101,5 @@ if __name__ == "__main__":
         else:
             plt.ylabel("Vel abs diff for link 1 [m]")
         #plt.savefig("pos.png")
+
 
