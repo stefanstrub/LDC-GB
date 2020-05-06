@@ -83,7 +83,7 @@ cdef class pyGB:
         ampl = template['Amplitude']
         incl = template['Inclination']
         psi = template['Polarization']
-        phi0 = template['InitialPhase']
+        phi0 = -template['InitialPhase']
         return [f0, fdot, ampl, theta, phi, psi, incl, phi0]
         
     def get_fd_tdixyz(self, template=None, f0=None, fdot=None, ampl=None,
