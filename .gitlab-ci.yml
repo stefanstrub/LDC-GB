@@ -1,7 +1,15 @@
 image: python:3.7-alpine
 
 stages:
+  - test
   - deploy
+
+pylint:
+  stage: test
+  script:
+  - pip install pylint
+  - ./pylint-monitor
+  
 
 pages:
   stage: deploy
@@ -15,4 +23,4 @@ pages:
     - public
   only:
   - master
-  - 30-documentation
+
