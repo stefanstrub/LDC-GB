@@ -11,7 +11,7 @@ pylint:
   - pip install --upgrade astroid
   - pip install pylint
   - python pylint-monitor
-  
+
 
 pages:
   stage: deploy
