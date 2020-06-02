@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 import copy
+import importlib
 
 import numpy as np
 import pyfftw
@@ -33,13 +34,17 @@ class HpHc(ABC):
     def type(cls, source_name, source_type, approximant):
         """ Return instance corresponding to source type. """
         if source_type == "MBHB" or (source_type is None and approximant == "IMRPhenomD"):
-            return HpHcMBHB(source_name, source_type, approximant)
+            module = importlib.import_module("ldc.waveform.waveform.bbh_imrphenomD")
+            return getattr(module, "BBH_IMRPhenomD")(source_name, source_type, approximant)
         elif source_type == "GB":
-            return HpHcGB(source_name, source_type, approximant)
+            module = importlib.import_module("ldc.waveform.waveform.gb_fdot")
+            return getattr(module, "GB_fdot")(source_name, source_type, approximant)
         elif source_type == "EMRI":
-            return HpHcEMRI(source_name, source_type, approximant)
+            module = importlib.import_module("ldc.waveform.waveform.emri_ak")
+            return getattr(module, "EMRI_AK")(source_name, source_type, approximant)
         elif source_type == "SOBBH":
-            return HpHcSOBBH(source_name, source_type, approximant)
+            module = importlib.import_module("ldc.waveform.waveform.sobbh_phenomD")
+            return getattr(module, "SOBBH_phenomD")(source_name, source_type, approximant)
         raise ValueError("Invalid source_type %s (approximant=%s)"%(source_type, approximant))
 
         
@@ -78,7 +83,7 @@ class HpHc(ABC):
         """Return a list of HpHc object, one for each set of parameter in
         current object.
         
-        >>> hphc = HpHcGB("demo", "GB", "None")
+        >>> hphc = HpHc.type("demo", "GB", "None")
         >>> hphc.set_param(pGBl)
         >>> print(hphc.eclLat)
         [0.312414 1.015463]
@@ -113,7 +118,7 @@ class HpHc(ABC):
         - a vector of values (alphabetical order is assumed)
         - a record array
 
-        >>> HpHc = HpHcGB("demo", "GB", "None")
+        >>> HpHc = HpHc.type("demo", "GB", "None")
         >>> HpHc.set_param(pGB)
         >>> HpHc.display()
         Source parameters:
@@ -262,187 +267,6 @@ class HpHc(ABC):
             else:
                 print(k, ":", self.source_parameters[k])
 
-
-class HpHcGB(HpHc):
-    """Compute waveforms h+ and hx of a galactic binary
-    
-    Vectorized sources are supported in this case, by setting vectors
-    for each parameter.
-    """
-    
-    def precomputation(self):
-        """ Additional precomputation. """
-        super().precomputation()
-        self.cosInc = np.cos(self.source_parameters['Inclination'])
-
-    def display(self):
-        """ Display the source and precomputed parameters. """
-        super().display()
-        print("Internal parameters:")
-        print('- phi0 = ', self.phi0, 'rad')
-        print('- f    = ', self.f, 'Hz')
-        print('- dfdt = ', self.dfdt, 'Hz/s')
-        print('- amplitude = ', self.phi0)
-        print('- cos(inc)  =', self.cosInc)
-        
-    @property
-    def amplitude(self):
-        return self.source_parameters['Amplitude']
-    @property
-    def phi0(self):
-        return self.source_parameters['InitialPhase']
-    @property
-    def f(self):
-        return np.array([self.source_parameters['Frequency']])
-    @property
-    def dfdt(self):
-        return np.array([self.source_parameters['FrequencyDerivative']])
-
-    from ._hphc_gb import info, check_param, compute_hphc_td
-
-class HpHcMBHB(HpHc):
-    """ Compute waveforms h+ and hx of a massive black hole binary. 
-
-    Vectorized sources are not supported in this case. 
-    """
-
-    @property
-    def redshift(self):
-        return self.source_parameters['Redshift']
-    @property
-    def phi0(self):
-        return self.source_parameters['PhaseAtCoalescence']
-    @property
-    def chi1s(self):
-        return self.source_parameters['Spin1']
-    @property
-    def chi2s(self):
-        return self.source_parameters['Spin2']
-    @property
-    def Stheta1s(self):
-        return self.source_parameters['PolarAngleOfSpin1']
-    @property
-    def Stheta2s(self):
-        return self.source_parameters['PolarAngleOfSpin2']
-    @property
-    def DL(self):
-        return self.source_parameters['Distance']*1e3 #Gpc -> Mpc
-    @property
-    def m1s(self):
-        return self.source_parameters['Mass1']
-    @property
-    def m2s(self):
-        return self.source_parameters['Mass2']
-    @property
-    def tc(self):
-        return self.source_parameters['CoalescenceTime']
-    @property
-    def dt(self):
-        return self.source_parameters['Cadence']
-    @property
-    def Tobs(self):
-        return self.source_parameters['ObservationDuration']
-    
-    def precomputation(self):
-        """ Load required parameters and convert them in expected units. """
-        super().precomputation()
-        p = self.source_parameters
-        theL = p['InitialPolarAngleL']
-        phiL = p['InitialAzimuthalAngleL']
-        self.pol, self.incl = tools.aziPolAngleL2PsiIncl(self.eclLat, self.eclLon, theL, phiL)
-        self.cos2Pol = np.cos(2.*self.pol)
-        self.sin2Pol = np.sin(2.*self.pol)
-        self.a1 = np.cos(self.Stheta1s)*self.chi1s # For PhenomD we will use projections
-        self.a2 = np.cos(self.Stheta2s)*self.chi2s
-        self.dist = self.DL*1e6*constants.Nature.PARSEC_METER
-        self.set_FD()
-        
-    from ._hphc_mbhb import info, check_param, set_FD, compute_hphc_td, IMRPhenomD_MBHB
-    from ._hphc_mbhb import _IMRPhenomD_waveform
-    
-class HpHcSOBBH(HpHc):
-    """ Compute waveforms h+ and hx of a stellar origin binary black hole. 
-
-    Vectorized sources are not supported in this case. 
-    """
-    @property
-    def dt(self):
-        return self.source_parameters['Cadence']
-    @property
-    def redshift(self):
-        return self.source_parameters['Redshift']
-    @property
-    def phi0(self):
-        return self.source_parameters['InitialPhase']
-    @property
-    def incl(self):
-        return self.source_parameters['Inclination']
-    @property
-    def m1s(self):
-        return self.source_parameters['Mass1']
-    @property
-    def m2s(self):
-        return self.source_parameters['Mass2']
-    @property
-    def chi1s(self):
-        return self.source_parameters['Spin1']
-    @property
-    def chi2s(self):
-        return self.source_parameters['Spin2']
-    @property
-    def Stheta1s(self):
-        return self.source_parameters['PolarAngleOfSpin1']
-    @property
-    def Stheta2s(self):
-        return self.source_parameters['PolarAngleOfSpin2']
-    @property
-    def DL(self):
-        return self.source_parameters['Distance']*1e3 #Gpc -> Mpc
-    @property
-    def fstart(self):
-        return self.source_parameters['InitialFrequency']
-    @property
-    def Tobs(self):
-        return self.source_parameters['ObservationDuration']
-
-    def precomputation(self):
-        """ Load required parameters and convert them in expected units. """
-        super().precomputation()
-        self.a1 = np.cos(self.Stheta1s)*self.chi1s # For PhenomD we will use projections
-        self.a2 = np.cos(self.Stheta2s)*self.chi2s
-        
-    from ._hphc_sobbh import info, check_param, phenomD_SOBBH, compute_hphc_td, set_FD
-
-class HpHcEMRI(HpHc):
-    """ Compute waveforms h+ and hx of an EMRI.
-
-    Vectorized sources are not supported in this case. 
-    """
-
-    def precomputation(self):
-        """ Load required parameters and convert them in expected units. """
-        import EMRI_AK
-        super().precomputation()
-        p = self.source_parameters
-        #self.dt = p.getConvert('Cadence',LC.convT,'sec')
-        self.wv = EMRI_AK.AK("zoom")
-        self.wv.EclipticLatitude =  p['EclipticLatitude']
-        self.wv.EclipticLongitude = p['EclipticLongitude']
-        self.wv.PolarAngleOfSpin = p['PolarAngleOfSpin']
-        self.wv.AzimuthalAngleOfSpin = p['AzimuthalAngleOfSpin']
-        self.wv.Spin = p['SMBHspin']
-        self.wv.MassOfCompactObject = p['MassOfCompactObject']
-        self.wv.MassOfSMBH = p['MassOfSMBH']
-        self.wv.InitialAzimuthalOrbitalFrequency = p['InitialAzimuthalOrbitalFrequency']
-        self.wv.InitialAzimuthalOrbitalPhase = p['InitialAzimuthalOrbitalPhase']
-        self.wv.InitialEccentricity = p['InitialEccentricity']
-        self.wv.InitialTildeGamma = p['InitialTildeGamma']
-        self.wv.InitialAlphaAngle = p['InitialAlphaAngle']
-        self.wv.LambdaAngle = p['LambdaAngle']
-        self.wv.Distance = p['Distance']*1.e9 # Gpc -> pc 
-
-        
-    from ._hphc_emri import info, check_param, compute_hphc_td
 
 if __name__ == "__main__":
     import numpy as np
