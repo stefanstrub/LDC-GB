@@ -12,6 +12,10 @@ pylint:
   - pip install pylint
   - python pylint-monitor
 
+doctest:
+  stage: test
+  script:
+  - python ldc/waveform/waveform/hphc.py
 
 pages:
   stage: deploy
