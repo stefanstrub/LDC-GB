@@ -118,11 +118,11 @@ class HpHc(ABC):
             GW.set_param(dict(pars))
         return GWS
 
-    def add_param(self, param, value, units='dimensionless'):
-        """ add or update parameter 
-        """
-        self.source_parameters[param] = value
-        self.units[param] = units
+    # def add_param(self, param, value, units='dimensionless'):
+    #     """ add or update parameter 
+    #     """
+    #     self.source_parameters[param] = value
+    #     self.units[param] = units
         
     
     def set_param(self, param, units='default'):
@@ -168,8 +168,10 @@ class HpHc(ABC):
         self.precomputation()
 
     def set_units(self, units='default'):
-        self.units = self.info() if units=='default' else units
-
+        if units!="default":
+            raise ValueError("Units can't be changed for now")
+        self.units = self.info()
+        
     @abstractmethod
     def check_param(self):
         """ Check parameters and their units
