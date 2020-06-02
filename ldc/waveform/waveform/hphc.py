@@ -5,13 +5,27 @@ import copy
 import importlib
 
 import numpy as np
-import pyfftw
 from scipy.interpolate import interp1d
 from scipy.interpolate import InterpolatedUnivariateSpline as spline
 
-from ldc.common import constants
-from ldc.common import tools
 #pylint:disable=C0103
+#pylint:disable=W0201
+
+def _interp(t, x, tnew, kind='spline', der=False, integr=False):
+    """ Perform the interpolation of hx, hp at time samples in t. """
+    if kind == 'spline':
+        if der:
+            splh = spline(t, x).derivative()
+        elif integr:
+            splh = spline(t, x).antiderivative()
+        else:
+            splh = spline(t, x)
+        return (splh(tnew), splh)
+    else:
+        #hp = np.interp(tnew, t, x)
+        itp = interp1d(t, x, kind=kind)
+        return itp(tnew), itp
+
 
 class HpHc(ABC):
     """Compute waveforms h+ and hx for all types of sources.
@@ -35,14 +49,14 @@ class HpHc(ABC):
             # this will throw the right exception if we don't have this attribute
             return self.__dict__[parname] #if isinstance(parname)
 
-    
+
     def __init__(self, source_name, source_type, approximant):
         """ Initialization common to all sources. """
         self.source_name = source_name
         self.source_type = source_type
         self.approximant = approximant
         self.reference_frame = "SSB" # default
-        
+
     @classmethod
     def type(cls, source_name, source_type, approximant):
         """ Return instance corresponding to source type. """
@@ -60,7 +74,7 @@ class HpHc(ABC):
             return getattr(module, "SOBBH_phenomD")(source_name, source_type, approximant)
         raise ValueError("Invalid source_type %s (approximant=%s)"%(source_type, approximant))
 
-        
+
     @staticmethod
     def from_file(filename, source_name=None, index=None):
         """Return the hxhp instance corresponding to source type read from
@@ -90,14 +104,15 @@ class HpHc(ABC):
     @property
     def pnames(self):
         """ Shortcut to parameter name """
-        return list(self.source_parameters.keys()) if isinstance(self.source_parameters, dict) else list(self.source_parameters.dtype.names)
+        if isinstance(self.source_parameters, dict):
+            return list(self.source_parameters.keys())
+        else:
+            return list(self.source_parameters.dtype.names)
 
-
-    
     def split(self):
         """Return a list of HpHc object, one for each set of parameter in
         current object.
-        
+
         >>> hphc = HpHc.type("demo", "GB", "None")
         >>> hphc.set_param(pGBl)
         >>> print(hphc.eclLat)
@@ -111,25 +126,25 @@ class HpHc(ABC):
               for k in self.pnames]
         ns = np.array(ns).max()
         GWS = [HpHc.type(self.source_name, self.source_type, self.approximant) for s in range(ns)]
-        for i,GW in enumerate(GWS):
-            pars = [(k,p[k][i]) if isinstance(p[k], np.ndarray) else (k,p[k])
+        for i, GW in enumerate(GWS):
+            pars = [(k, p[k][i]) if isinstance(p[k], np.ndarray) else (k, p[k])
                     for k in self.pnames]
             GW.source_parameters = copy.copy(self.source_parameters)
             GW.set_param(dict(pars))
         return GWS
 
     # def add_param(self, param, value, units='dimensionless'):
-    #     """ add or update parameter 
+    #     """ add or update parameter
     #     """
     #     self.source_parameters[param] = value
     #     self.units[param] = units
-        
-    
+
+
     def set_param(self, param, units='default'):
         """Set or update all source parameters
 
-        param can be 
-        - a dict 
+        param can be
+        - a dict
         - a vector of values (alphabetical order is assumed)
         - a record array
 
@@ -153,8 +168,10 @@ class HpHc(ABC):
         - cos(inc)  = 0.8660252915835662
         """
         if isinstance(param, dict):
-            self.source_parameters = param #np.rec.fromarrays(param.values(),names=list(param.keys()))
-        elif isinstance(param, np.recarray) or (isinstance(param, np.ndarray) and hasattr(param.dtype, 'names')):
+            self.source_parameters = param
+        elif (isinstance(param, np.recarray) or
+              (isinstance(param, np.ndarray) and
+               hasattr(param.dtype, 'names'))):
             self.source_parameters = param
         elif hasattr(param, "__len__"):
             names = sorted(self.source_parameters.keys())
@@ -168,72 +185,60 @@ class HpHc(ABC):
         self.precomputation()
 
     def set_units(self, units='default'):
-        if units!="default":
+        """ Set units to default value.
+        """
+        if units != "default":
             raise ValueError("Units can't be changed for now")
         self.units = self.info()
-        
+
     @abstractmethod
     def check_param(self):
         """ Check parameters and their units
-        """ 
+        """
         pass
-    
+
     @abstractmethod
     def compute_hphc_td(self, t, source_parameters=None, approx_t=False):
-           """Return hp,hx for a time samples in t and store t,hp,hx as
-           attributes.
-           
-           Source parameters can be updated at the same time.  if
-           approx_t is True, no interpolation is done, and actual time
-           range used might differ from the one given.
+        """Return hp,hx for a time samples in t and store t,hp,hx as
+        attributes.
 
-           """
-           pass
+        Source parameters can be updated at the same time.  if
+        approx_t is True, no interpolation is done, and actual time
+        range used might differ from the one given.
 
-    def interp_hphc(self, t, kind="spline"):
-        """ Interpolate hp,hx on a given time range. 
+        """
+        pass
 
-        A first call to compute_hphc_td is assumed here. 
+    def interp_hphc(self, t):
+        """ Interpolate hp,hx on a given time range.
+
+        A first call to compute_hphc_td is assumed here.
         """
         if hasattr(self, "i_hp"):
             return self.i_hp(t), self.i_hc(t)
         else:
-            hp, self.i_hp = self._interp(self.t, self.hp, t)
-            hc, self.i_hc = self._interp(self.t, self.hc, t)
+            hp, self.i_hp = _interp(self.t, self.hp, t)
+            hc, self.i_hc = _interp(self.t, self.hc, t)
             return hp, hc
 
     def _interp_hphc(self, tm, hp, hc, t, **kwargs):
-        """ Interpolate hp, hc and set them as attr. 
+        """ Interpolate hp, hc and set them as attr.
 
-        Extrapolation is a 0 padding. 
+        Extrapolation is a 0 padding.
         """
         t_start, t_end = max(tm[0], t[0]), min(tm[-1], t[-1])
-        i_st = np.argwhere(t>=t_start)[0][0]
-        i_en = np.argwhere(t>= t_end)[0][0]
+        i_st = np.argwhere(t >= t_start)[0][0]
+        i_en = np.argwhere(t >= t_end)[0][0]
         self.hp, self.hc = np.zeros(len(t)), np.zeros(len(t))
-        self.hp[i_st:i_en+1],self.i_hp = self._interp(tm, hp, t[i_st:i_en+1], **kwargs)
-        self.hc[i_st:i_en+1],self.i_hc = self._interp(tm, hc, t[i_st:i_en+1], **kwargs)
+        self.hp[i_st:i_en+1], self.i_hp = _interp(tm, hp, t[i_st:i_en+1], **kwargs)
+        self.hc[i_st:i_en+1], self.i_hc = _interp(tm, hc, t[i_st:i_en+1], **kwargs)
         self.t = t
-    
-    def _interp(self, t, x, tnew, kind='spline', der=False, integr=False):
-        """ Perform the interpolation of hx, hp at time samples in t. """
-        if kind=='spline':
-            if (der):
-                splh =  spline(t, x).derivative()
-            elif (integr):
-                splh = splins(t, x).antiderivative()
-            else:
-                splh = spline(t, x)
-            return (splh(tnew), splh)
-        else:
-            hp = np.interp(tnew, t, x)
-            itp = interp1d(t, x, kind=kind)
-            return itp(tnew), itp
+
 
 
     def precomputation(self):
-        """ """
-        
+        """ Precompute projectors
+        """
         p = self.source_parameters
         if 'Polarization' in self.pnames:
             self.pol = p['Polarization']
@@ -247,11 +252,14 @@ class HpHc(ABC):
         sin_l, cos_l = np.sin(self.eclLon), np.cos(self.eclLon)
         k = np.array([-cos_d * cos_l, -cos_d * sin_l, -sin_d])
         v = np.array([-sin_d * cos_l, -sin_d * sin_l, cos_d])
-        u = np.array([sin_l, -cos_l, np.zeros((len(sin_l)))]) if isinstance(sin_d, np.ndarray) else np.array([sin_l, -cos_l, 0])
-        self.basis = k,v,u
+        if isinstance(sin_d, np.ndarray):
+            u = np.array([sin_l, -cos_l, np.zeros((len(sin_l)))])
+        else:
+            u = np.array([sin_l, -cos_l, 0])
+        self.basis = k, v, u
 
     def to_file(self, filename):
-        """ Save hp, hx, t and source type and parameters to file. 
+        """ Save hp, hx, t and source type and parameters to file.
 
         TODO: remove dependancy to MLDC
         """
@@ -259,16 +267,16 @@ class HpHc(ABC):
         h5 = LISAhdf5(filename)
         from LISAhdf5 import ParsUnits
         units = self.source_parameters.copy()
-        for k,v in self.units.items():
+        for k, v in self.units.items():
             units[k] = v
         pu = ParsUnits(pars_i=self.source_parameters, units_i=units)
         h5.addSource(self.source_name, pu,
                      overwrite=True, hphcData=np.vstack([self.t, self.hp, self.hc]).T)
-            
+
 
     def source2SSB(self, hSp, hSc):
         """ Convert h+, hx from source frame to Solar System Barycenter.
-            Convention defined in the LDC documentation. 
+            Convention defined in the LDC documentation.
         """
         hp = hSp * self.cos2Pol - hSc * self.sin2Pol
         hc = hSp * self.sin2Pol + hSc * self.cos2Pol
@@ -286,25 +294,24 @@ class HpHc(ABC):
 
 
 if __name__ == "__main__":
-    import numpy as np
     import doctest
 
-    pGB = dict({'Amplitude': 1.07345e-22,#, "strain"), 
+    pGB = dict({'Amplitude': 1.07345e-22,#, "strain"),
                 'EclipticLatitude': 0.312414,#, "radian"),
-                'EclipticLongitude': -2.75291,# "radian"), 
+                'EclipticLongitude': -2.75291,# "radian"),
                 'Frequency': 0.00135962,# "Hz"),
-                'FrequencyDerivative': 8.94581279e-19,# "Hz^2"), 
-                'Inclination': 0.523599 ,# "radian"), 
-                'InitialPhase': 3.0581565,# "radian"), 
+                'FrequencyDerivative': 8.94581279e-19,# "Hz^2"),
+                'Inclination': 0.523599,# "radian"),
+                'InitialPhase': 3.0581565,# "radian"),
                 'Polarization': 3.5621656})#,# "radian")})
-    
-    pGBl = dict({'Amplitude': np.array([1.07345e-22, 1.0125e-22]), #"strain"), 
+
+    pGBl = dict({'Amplitude': np.array([1.07345e-22, 1.0125e-22]), #"strain"),
                  'EclipticLatitude': np.array([0.312414, 1.015463]),# "radian"),
-                 'EclipticLongitude': np.array([-2.75291, 0.512364]),# "radian"), 
+                 'EclipticLongitude': np.array([-2.75291, 0.512364]),# "radian"),
                  'Frequency': np.array([0.00135962, 0.0005478]), #"Hz"),
-                 'FrequencyDerivative': np.array([8.94581279e-19, 8.45279e-19]), #"Hz^2"), 
-                 'Inclination': np.array([0.523599, 0.15548 ]), #"radian"), 
-                 'InitialPhase': np.array([3.0581565, 3.546841]),# "radian"), 
+                 'FrequencyDerivative': np.array([8.94581279e-19, 8.45279e-19]), #"Hz^2"),
+                 'Inclination': np.array([0.523599, 0.15548]), #"radian"),
+                 'InitialPhase': np.array([3.0581565, 3.546841]),# "radian"),
                  'Polarization': np.array([3.5621656, 3.124485])})#, "Radian"),
 
     doctest.testmod()
