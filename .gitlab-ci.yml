@@ -1,0 +1,28 @@
+image: python:3.7-alpine
+
+stages:
+  - test
+  - deploy
+
+pylint:
+  stage: test
+  script:
+  - python3 -c 'import sys; f = open("/usr/local/lib/python3.7/site-packages/_manylinux.py", "w"); f.write("manylinux1_compatible = True"); f.close()'
+  - pip install --upgrade astroid
+  - pip install pylint
+  - python pylint-monitor
+
+
+pages:
+  stage: deploy
+  script:
+  - pip install -U sphinx
+  - pip install -U sphinx_rtd_theme
+  - cd doc
+  - sphinx-build -b html . ../public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+
