@@ -1,55 +1,59 @@
+""" Compute waveforms h+ and hx for SOBBH using phenomD approximant. """
+
 import numpy as np
 import pyfftw
 from scipy.interpolate import InterpolatedUnivariateSpline as spline
 from ldc.waveform.waveform.hphc import HpHc
 
-class SOBBH_phenomD(HpHc):
-    """ Compute waveforms h+ and hx of a stellar origin binary black hole. 
+#pylint:disable=E1101
+#pylint:disable=C0103
 
-    Vectorized sources are not supported in this case. 
+class SOBBH_phenomD(HpHc):
+    """ Compute waveforms h+ and hx of a stellar origin binary black hole.
+
+    Vectorized sources are not supported in this case.
     """
-    parameter_map = {'dt': 'Cadence', 
+    parameter_map = {'dt': 'Cadence',
                      'redshift': 'Redshift',
                      'phi0': 'InitialPhase',
-                     'incl': 'Inclination', 
+                     'incl': 'Inclination',
                      'chi1s': 'Spin1',
                      'chi2s': 'Spin2',
                      'Stheta1s': 'PolarAngleOfSpin1',
                      'Stheta2s': 'PolarAngleOfSpin2',
                      'm1s': 'Mass1',
                      'm2s': 'Mass2',
-                     'Tobs': 'ObservationDuration', 
+                     'Tobs': 'ObservationDuration',
                      'DL': lambda p: p['Distance']*1e3, #Gpc -> Mpc
-                     'fstart': 'InitialFrequency',
-    }
+                     'fstart': 'InitialFrequency'}
 
     def precomputation(self):
         """ Load required parameters and convert them in expected units. """
         super().precomputation()
         self.a1 = np.cos(self.Stheta1s)*self.chi1s # For PhenomD we will use projections
         self.a2 = np.cos(self.Stheta2s)*self.chi2s
-        
-
 
     def info(self):
-        SOBBHunits = { "AzimuthalAngleOfSpin1": "Radian", 
-                       "AzimuthalAngleOfSpin2": "Radian", 
-                       "Distance": "Gpc", 
-                       "EclipticLatitude": "Radian", 
-                       "EclipticLongitude": "Radian", 
-                       "Inclination": 'Radian', 
-                       "InitialFrequency": 'Hz', 
-                       "InitialPhase": 'Radian', 
-                       "Mass1": 'SolarMass', 
-                       "Mass2": 'SolarMass', 
-                       "PolarAngleOfSpin1": "Radian", 
-                       "PolarAngleOfSpin2": "Radian", 
-                       "Polarization": "Radian", 
-                       "Redshift": 'dimensionless', 
-                       "Spin1": "MassSquared", 
-                       "Spin2": "MassSquared",
-                       'Cadence': 'Seconds',
-                       'ObservationDuration': 'Seconds'}
+        """ Return default units.
+        """
+        SOBBHunits = {"AzimuthalAngleOfSpin1": "Radian",
+                      "AzimuthalAngleOfSpin2": "Radian",
+                      "Distance": "Gpc",
+                      "EclipticLatitude": "Radian",
+                      "EclipticLongitude": "Radian",
+                      "Inclination": 'Radian',
+                      "InitialFrequency": 'Hz',
+                      "InitialPhase": 'Radian',
+                      "Mass1": 'SolarMass',
+                      "Mass2": 'SolarMass',
+                      "PolarAngleOfSpin1": "Radian",
+                      "PolarAngleOfSpin2": "Radian",
+                      "Polarization": "Radian",
+                      "Redshift": 'dimensionless',
+                      "Spin1": "MassSquared",
+                      "Spin2": "MassSquared",
+                      'Cadence': 'Seconds',
+                      'ObservationDuration': 'Seconds'}
         return SOBBHunits
 
     def check_param(self):
@@ -69,7 +73,7 @@ class SOBBH_phenomD(HpHc):
         """ Set Fourier domain parameters
         """
         if fny is None:
-            self.fny = 1.0/factor/self.dt      
+            self.fny = 1.0/factor/self.dt
         else:
             self.fny = fny
 
@@ -80,18 +84,18 @@ class SOBBH_phenomD(HpHc):
     def compute_hphc_td(self, t, source_parameters=None, approx_t=False):
         """ Return hp, hx for a time samples in t.
 
-        Source parameters can be updated at the same time. 
+        Source parameters can be updated at the same time.
 
         >>> GW = HpHc.type("my-sobbh", "SOBBH", "PhenomD")
         >>> hp,hc = GW.compute_hphc_td(np.arange(0,100,10), pSOBBH)
         >>> print(hp[0:3], hc[0:3] )
         [8.85674586e-22 1.48253757e-22 5.07077540e-22] [2.02727972e-21 2.16522345e-21 2.77731207e-21]
         """
-        if source_parameters != None:
+        if source_parameters is not None:
             self.set_param(source_parameters)
 
         # Check the approximant and call appropriate function
-        if (self.approximant == 'PhenomD'):
+        if self.approximant == 'PhenomD':
             self.set_FD()
             tm, hpS, hcS = self.phenomD_SOBBH()
         else:
@@ -104,19 +108,19 @@ class SOBBH_phenomD(HpHc):
         return (self.hp, self.hc)
 
     def phenomD_SOBBH(self, phi_ref=0., tRef=0., tobs=0., nptmin=1000):
-        """ Return hp,hc in the source frame. 
+        """ Return hp,hc in the source frame.
 
         """
         import pyFDresponse as FreqResp
         w_fr, w_amp, w_ph = FreqResp.GenerateResamplePhenomD(phi_ref, self.fstart,
                                                              self.m1s, self.m2s, self.a1, self.a2,
                                                              self.DL, self.incl,
-                                                             minf=self.fstart, maxf=self.fny, 
+                                                             minf=self.fstart, maxf=self.fny,
                                                              settRefAtfRef=True, tRef=tRef,
                                                              tobs=tobs, nptmin=nptmin)
 
         # get rid of possibly huge constant in the phase before interpolating
-        tfspline = spline(w_fr, 1/(2.*np.pi)*(w_ph-w_ph[0])).derivative() 
+        tfspline = spline(w_fr, 1/(2.*np.pi)*(w_ph-w_ph[0])).derivative()
         tfvec = tfspline(w_fr)
         fspl = spline(tfvec, w_fr)
         fend = fspl(self.Tobs)
@@ -130,8 +134,8 @@ class SOBBH_phenomD(HpHc):
         hctilde = np.conjugate(hctilde)
         fbeg, fend = max(freq[0], w_fr[0]), freq[-1]# TODO fend=w_fr[0] ?? min(freq[-1], fend)
         ibeg, iend = int((fbeg - freq[0])/df), int((fend - freq[0])/df)
-        hptilde[:ibeg],hctilde[:ibeg] = 0j, 0j
-        hptilde[iend:],hctilde[iend:] = 0j, 0j
+        hptilde[:ibeg], hctilde[:ibeg] = 0j, 0j
+        hptilde[iend:], hctilde[iend:] = 0j, 0j
         del freq, w_fr, w_amp, w_ph
 
         #hp = np.fft.irfft(hptilde)*(1.0/self.dt)
@@ -157,38 +161,31 @@ class SOBBH_phenomD(HpHc):
         MfCUT_PhenomD = 0.2 - 1e-7
 
         # Check args
-        if minf>=maxf:
-            raise ValueError("Error in GenerateResamplePhenomDStartTime: incompatible minf and maxf.")
-        if minf<=0 and tobs<=0:
-            raise ValueError("Error in GenerateResamplePhenomDStartTime: both minf and tobs set to 0 and ignored, does not know where to start !")
-
+        if minf >= maxf:
+            raise ValueError("Incompatible minf and maxf.")
+        if minf <= 0 and tobs <= 0:
+            raise ValueError("Both minf and tobs set to 0, where to start ?")
         ## TODO : import from pyFDresponse
 
-    
 
-
-    
 if __name__ == "__main__":
     import doctest
-    import numpy as np
-
-    pSOBBH = dict({"AzimuthalAngleOfSpin1": 0.0,# "Radian"), 
-                   "AzimuthalAngleOfSpin2": 0.0,# "Radian"), 
-                   "Distance": 0.8217407069275701,# "Gpc"), 
-                   "EclipticLatitude": 0.23339632679489664,# "Radian"), 
-                   "EclipticLongitude": 1.1798,# "Radian"), 
-                   "Inclination": 1.1508,# 'Radian'), 
-                   "InitialFrequency": 0.0074076, #'Hz'), 
-                   "InitialPhase": 1.2622, #'Radian'), 
-                   "Mass1": 31.033,# 'SolarMass'), 
-                   "Mass2": 19.918,# 'SolarMass'), 
-                   "PolarAngleOfSpin1": 2.7329, #"Radian"), 
-                   "PolarAngleOfSpin2": 2.2947, #"Radian"), 
-                   "Polarization": 3.7217, #"Radian"), 
-                   "Redshift": 0.16454, #'unitless'), 
-                   "Spin1": 0.4684,# "MassSquared"), 
+    pSOBBH = dict({"AzimuthalAngleOfSpin1": 0.0,# "Radian"),
+                   "AzimuthalAngleOfSpin2": 0.0,# "Radian"),
+                   "Distance": 0.8217407069275701,# "Gpc"),
+                   "EclipticLatitude": 0.23339632679489664,# "Radian"),
+                   "EclipticLongitude": 1.1798,# "Radian"),
+                   "Inclination": 1.1508,# 'Radian'),
+                   "InitialFrequency": 0.0074076, #'Hz'),
+                   "InitialPhase": 1.2622, #'Radian'),
+                   "Mass1": 31.033,# 'SolarMass'),
+                   "Mass2": 19.918,# 'SolarMass'),
+                   "PolarAngleOfSpin1": 2.7329, #"Radian"),
+                   "PolarAngleOfSpin2": 2.2947, #"Radian"),
+                   "Polarization": 3.7217, #"Radian"),
+                   "Redshift": 0.16454, #'unitless'),
+                   "Spin1": 0.4684,# "MassSquared"),
                    "Spin2": 0.979,# "MassSquared"),
                    'Cadence': 5.,# 's')})
                    'ObservationDuration': 95.}) # 'Seconds'
-    
     doctest.testmod()

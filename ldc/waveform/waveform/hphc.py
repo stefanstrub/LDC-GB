@@ -198,7 +198,7 @@ class HpHc(ABC):
         pass
 
     @abstractmethod
-    def compute_hphc_td(self, t, source_parameters=None, approx_t=False):
+    def compute_hphc_td(self, t, source_parameters=None, approx_t=False, set_attr=False):
         """Return hp,hx for a time samples in t and store t,hp,hx as
         attributes.
 

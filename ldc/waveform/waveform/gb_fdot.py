@@ -1,10 +1,15 @@
+""" Compute waveforms h+ and hx for galactic binaries in time domain. """
+
+
 import numpy as np
 from ldc.waveform.waveform.hphc import HpHc
 
 
+#pylint:disable=E1101
+
 class GB_fdot(HpHc):
     """Compute waveforms h+ and hx of a galactic binary
-    
+
     Vectorized sources are supported in this case, by setting vectors
     for each parameter.
     """
@@ -17,7 +22,7 @@ class GB_fdot(HpHc):
     def precomputation(self):
         """ Additional precomputation. """
         super().precomputation()
-        self.cosInc = np.cos(self.source_parameters['Inclination'])
+        self.cos_inc = np.cos(self.source_parameters['Inclination'])
 
     def display(self):
         """ Display the source and precomputed parameters. """
@@ -27,8 +32,8 @@ class GB_fdot(HpHc):
         print('- f    = ', self.f, 'Hz')
         print('- dfdt = ', self.dfdt, 'Hz/s')
         print('- amplitude = ', self.phi0)
-        print('- cos(inc)  =', self.cosInc)
-        
+        print('- cos(inc)  =', self.cos_inc)
+
     def info(self):
         """ Return GB parameter names and units
         """
@@ -58,15 +63,15 @@ class GB_fdot(HpHc):
     def compute_hphc_td(self, t, source_parameters=None, approx_t=False, set_attr=False):
         """ Return hp,hx for a time samples in t.
 
-        Source parameters can be updated at the same time. 
-        Keyword approx_t is ignore for here. 
+        Source parameters can be updated at the same time.
+        Keyword approx_t is ignore for here.
 
         >>> GB = HpHc.type("my-galactic-binary", "GB", "TD_fdot")
         >>> hp,hc = GB.compute_hphc_td(np.arange(0,100,10), pGB)
         >>> print(hp[0:3], hc[0:3] )
         [1.13239259e-22 1.00151885e-22 8.63340609e-23] [1.49869582e-22 1.58865610e-22 1.66702965e-22]
         """
-        if source_parameters != None:
+        if source_parameters is not None:
             self.set_param(source_parameters)
 
         # Check the approximant and call appropriate function
@@ -74,14 +79,14 @@ class GB_fdot(HpHc):
             phase = -self.phi0 + np.pi*(2.*t[:, None]*self.f[None, :] \
                                         + (t*t)[:, None]*self.dfdt[None, :])
             phase = phase.squeeze()
-            hSp = -np.cos(phase)*self.amplitude * (1 + self.cosInc * self.cosInc)
-            hSc = -np.sin(phase)*2.*self.amplitude * self.cosInc
+            hSp = -np.cos(phase)*self.amplitude * (1 + self.cos_inc * self.cos_inc)
+            hSc = -np.sin(phase)*2.*self.amplitude * self.cos_inc
         else:
             raise NotImplementedError
 
         hp, hc = self.source2SSB(hSp, hSc) # Convert to SSB
         if not set_attr:
-            return hp,hc
+            return hp, hc
         else:
             self.hp, self.hc = hp, hc
             self.t = t
@@ -91,12 +96,12 @@ class GB_fdot(HpHc):
 if __name__ == "__main__":
     import doctest
 
-    pGB = dict({'Amplitude': 1.07345e-22,#, "strain"), 
+    pGB = dict({'Amplitude': 1.07345e-22,#, "strain"),
                 'EclipticLatitude': 0.312414,#, "radian"),
-                'EclipticLongitude': -2.75291,# "radian"), 
+                'EclipticLongitude': -2.75291,# "radian"),
                 'Frequency': 0.00135962,# "Hz"),
-                'FrequencyDerivative': 8.94581279e-19,# "Hz^2"), 
-                'Inclination': 0.523599 ,# "radian"), 
-                'InitialPhase': 3.0581565,# "radian"), 
+                'FrequencyDerivative': 8.94581279e-19,# "Hz^2"),
+                'Inclination': 0.523599,# "radian"),
+                'InitialPhase': 3.0581565,# "radian"),
                 'Polarization': 3.5621656})#,# "radian")})
     doctest.testmod()
