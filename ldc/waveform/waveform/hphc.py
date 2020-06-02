@@ -23,6 +23,19 @@ class HpHc(ABC):
 
     The set of parameters depends on the approximant and the source type.
     """
+
+    parameter_map = {}
+
+    def __getattr__(self, parname):
+        if parname in self.parameter_map:
+            parmapping = self.parameter_map[parname]
+            return (self.source_parameters[parmapping] if isinstance(parmapping, str)
+                    else parmapping(self.source_parameters))
+        else:
+            # this will throw the right exception if we don't have this attribute
+            return self.__dict__[parname] #if isinstance(parname)
+
+    
     def __init__(self, source_name, source_type, approximant):
         """ Initialization common to all sources. """
         self.source_name = source_name
@@ -78,6 +91,8 @@ class HpHc(ABC):
     def pnames(self):
         """ Shortcut to parameter name """
         return list(self.source_parameters.keys()) if isinstance(self.source_parameters, dict) else list(self.source_parameters.dtype.names)
+
+
     
     def split(self):
         """Return a list of HpHc object, one for each set of parameter in

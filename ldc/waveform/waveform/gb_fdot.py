@@ -9,6 +9,11 @@ class GB_fdot(HpHc):
     for each parameter.
     """
 
+    parameter_map = {'amplitude': 'Amplitude',
+                     'phi0': 'InitialPhase',
+                     'f': lambda p: np.array([p['Frequency']]),
+                     'dfdt': lambda p: np.array([p['FrequencyDerivative']])}
+
     def precomputation(self):
         """ Additional precomputation. """
         super().precomputation()
@@ -23,21 +28,6 @@ class GB_fdot(HpHc):
         print('- dfdt = ', self.dfdt, 'Hz/s')
         print('- amplitude = ', self.phi0)
         print('- cos(inc)  =', self.cosInc)
-        
-    @property
-    def amplitude(self):
-        return self.source_parameters['Amplitude']
-    @property
-    def phi0(self):
-        return self.source_parameters['InitialPhase']
-    @property
-    def f(self):
-        return np.array([self.source_parameters['Frequency']])
-    @property
-    def dfdt(self):
-        return np.array([self.source_parameters['FrequencyDerivative']])
-    
-
         
     def info(self):
         """ Return GB parameter names and units
@@ -100,8 +90,6 @@ class GB_fdot(HpHc):
 
 if __name__ == "__main__":
     import doctest
-    import numpy as np
-
 
     pGB = dict({'Amplitude': 1.07345e-22,#, "strain"), 
                 'EclipticLatitude': 0.312414,#, "radian"),
@@ -111,6 +99,4 @@ if __name__ == "__main__":
                 'Inclination': 0.523599 ,# "radian"), 
                 'InitialPhase': 3.0581565,# "radian"), 
                 'Polarization': 3.5621656})#,# "radian")})
-
-    
     doctest.testmod()

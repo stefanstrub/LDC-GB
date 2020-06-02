@@ -1,5 +1,5 @@
 import numpy as np
-from .hphc import HpHc
+from ldc.waveform.waveform.hphc import HpHc
 
 
 class HpHcEMRI(HpHc):
@@ -29,9 +29,6 @@ class HpHcEMRI(HpHc):
         self.wv.InitialAlphaAngle = p['InitialAlphaAngle']
         self.wv.LambdaAngle = p['LambdaAngle']
         self.wv.Distance = p['Distance']*1.e9 # Gpc -> pc 
-
-        
-
 
     def info(self):
         EMRIunits = dict({"AzimuthalAngleOfSpin": 'Radian', 

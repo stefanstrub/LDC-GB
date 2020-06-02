@@ -8,45 +8,20 @@ class SOBBH_phenomD(HpHc):
 
     Vectorized sources are not supported in this case. 
     """
-    @property
-    def dt(self):
-        return self.source_parameters['Cadence']
-    @property
-    def redshift(self):
-        return self.source_parameters['Redshift']
-    @property
-    def phi0(self):
-        return self.source_parameters['InitialPhase']
-    @property
-    def incl(self):
-        return self.source_parameters['Inclination']
-    @property
-    def m1s(self):
-        return self.source_parameters['Mass1']
-    @property
-    def m2s(self):
-        return self.source_parameters['Mass2']
-    @property
-    def chi1s(self):
-        return self.source_parameters['Spin1']
-    @property
-    def chi2s(self):
-        return self.source_parameters['Spin2']
-    @property
-    def Stheta1s(self):
-        return self.source_parameters['PolarAngleOfSpin1']
-    @property
-    def Stheta2s(self):
-        return self.source_parameters['PolarAngleOfSpin2']
-    @property
-    def DL(self):
-        return self.source_parameters['Distance']*1e3 #Gpc -> Mpc
-    @property
-    def fstart(self):
-        return self.source_parameters['InitialFrequency']
-    @property
-    def Tobs(self):
-        return self.source_parameters['ObservationDuration']
+    parameter_map = {'dt': 'Cadence', 
+                     'redshift': 'Redshift',
+                     'phi0': 'InitialPhase',
+                     'incl': 'Inclination', 
+                     'chi1s': 'Spin1',
+                     'chi2s': 'Spin2',
+                     'Stheta1s': 'PolarAngleOfSpin1',
+                     'Stheta2s': 'PolarAngleOfSpin2',
+                     'm1s': 'Mass1',
+                     'm2s': 'Mass2',
+                     'Tobs': 'ObservationDuration', 
+                     'DL': lambda p: p['Distance']*1e3, #Gpc -> Mpc
+                     'fstart': 'InitialFrequency',
+    }
 
     def precomputation(self):
         """ Load required parameters and convert them in expected units. """
