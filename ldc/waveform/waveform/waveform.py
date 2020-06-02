@@ -1,6 +1,8 @@
-from .hphc import HpHc
+""" High level waveforms and TDI functions. 
+"""
 import numpy as np
 import ldc.waveform.fastGB as FB
+from .hphc import HpHc
 
 def get_td_waveform(delta_t, start_time, duration, source_type,
                     approximant, name="", **kwargs):

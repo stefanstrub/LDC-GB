@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 import sys
 from io import StringIO
+import glob
 from pylint.lint import Run
 
+
+
 for source in ['ldc/lisa/noise/noise.py',
-               'ldc/common/constants/cosmology.py']:
+               'ldc/common/constants/cosmology.py']+glob.glob("ldc/waveform/waveform/*.py"):
     stdout = sys.stdout
     sys.stdout = StringIO()
 
