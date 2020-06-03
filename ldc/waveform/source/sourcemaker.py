@@ -199,7 +199,7 @@ class MBHBMaker(SourceMaker, BBH_IMRPhenomD):
         if hasattr(self, 'catalogs'):
             C = [load_mbhb_catalog(cat) for cat in self.catalogs]
             if nsource<0:
-                nsource = np.random.choice([len(c) for c in C])
+                nsource = np.random.choice([c.size for c in C])
                 self.logger.info("number of source is %d"%(nsource))
             C = np.hstack(C)
             self.logger.info("Input catalog has %d sources"%len(C))
