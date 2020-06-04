@@ -356,7 +356,7 @@ int IMRPhenomDGenerateFD_internal(
 
   //time shift so that peak amplitude is approximately at t=0
   //For details see https://www.lsc-group.phys.uwm.edu/ligovirgo/cbcnote/WaveformsReview/IMRPhenomDCodeReview/timPD_EDOMain
-  const double t0 = DPhiMRD(pAmp->fmaxCalc, pPhi);
+  const double t0 = DPhiMRD(pAmp->fmaxCalc, pPhi) + pPhi->C2MRD;
 
   AmpInsPrefactors amp_prefactors;
   status = init_amp_ins_prefactors(&amp_prefactors, pAmp);
@@ -505,7 +505,7 @@ int IMRPhenomDGenerateh22FDAmpPhase_internal(
 
   //time shift so that peak amplitude is approximately at t=0
   //For details see https://www.lsc-group.phys.uwm.edu/ligovirgo/cbcnote/WaveformsReview/IMRPhenomDCodeReview/timPD_EDOMain
-  const double t0 = DPhiMRD(pAmp->fmaxCalc, pPhi);
+  const double t0 = DPhiMRD(pAmp->fmaxCalc, pPhi) + pPhi->C2MRD;
 
   AmpInsPrefactors amp_prefactors;
   status = init_amp_ins_prefactors(&amp_prefactors, pAmp);
