@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 import sys
 from io import StringIO
+import glob
 from pylint.lint import Run
 
 for source in ['ldc/lisa/noise/noise.py',
-               'ldc/common/constants/cosmology.py']:
+               'ldc/common/constants/cosmology.py',
+               'ldc/common/tools/trigo.py'] + \
+               glob.glob("ldc/waveform/waveform/*.py"):
     stdout = sys.stdout
     sys.stdout = StringIO()
 
@@ -14,7 +17,7 @@ for source in ['ldc/lisa/noise/noise.py',
     sys.stdout.close()
     sys.stdout = stdout
     
-    print (out)
+    print(out)
 
     score = float(out.split("Your code has been rated at ")[-1].split("/")[0])
     print(score)
