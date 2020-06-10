@@ -3,15 +3,22 @@
 import h5py
 import numpy as np
 
-def str_encode(string):
-    """ Encode str to HDF5 file. 
+def str_encode(value):
+    """ Encode value to ascii if string 
     """
-    return string.encode("ascii", "ignore")
+    if isinstance(v, str) or isinstance(v, bytes):
+        return value.encode("ascii", "ignore")
+    else:
+        return value
 
-def str_decode(string):
+def str_decode(value):
+    """ Decode value if string 
     """
-    """
-    return string.decode()
+    if isinstance(v, str) or isinstance(v, bytes):
+        return value.decode()
+    else:
+        return value
+    
 
 class HDF5:
     """Provides a suite of I/O routine to load and save any quantities in
@@ -34,11 +41,7 @@ class HDF5:
             dset = fid.create_dataset(name, data=arr, chunks=True,
                                     maxshape=(arr.shape[0], None))
             for k,v in kwargs.items():
-                if isinstance(v, str):
-                    fid[name].attrs.create(k, str_encode(v))
-                else:
-                    fid[name].attrs.create(k, v)
-                    
+                fid[name].attrs.create(k, str_encode(v))
 
     def append_array(self, arr, column_index, name="data"):
         """ Append array to existing file and data set. 
@@ -55,10 +58,7 @@ class HDF5:
             dset = fid.get(name)
             attr = {}
             for k,v in dset.attrs.items():
-                if isinstance(v, str):
-                    attr[k] = str_decode(v)
-                else:
-                    attr[k] = v
+                attr[k] = str_decode(v)
             if full_output:
                 return np.array(dset), attr
             else:
@@ -71,9 +71,24 @@ class HDF5:
             dset = fid.get(name)
             attr = {}
             for k,v in dset.attrs.items():
-                if isinstance(v, str):
-                    attr[k] = str_decode(v)
-                else:
-                    attr[k] = v
+                attr[k] = str_decode(v)
             return attr
         
+    def save_config(self, cfg, name="config"):
+        """ Save configuration file in dedicated group.
+        """
+        with h5py.File(self.filename, "a") as fid:
+            fid.create_group(name)
+            for k,v in cfg.items():
+                fid[name].attrs.create(k, str_encode(v))
+
+    
+    def load_config(self, name="config"):
+        """ Load configuration from dedicated group. 
+        """
+        with h5py.File(self.filename, "r") as fid:
+            gp = fid.get(name)
+            attr = dict()
+            for k,v in gp.attrs.items():
+                attr[k] = str_decode(v)
+        return attr
