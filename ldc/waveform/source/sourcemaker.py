@@ -95,7 +95,10 @@ class SourceMaker(ABC):
             self.set_logger()
         else:
             self.logger = logger
+        self.logger.info("Source type is %s"%self.__class__)
+                
 
+            
     @classmethod
     def type(cls, source_type, approximant, **kwargs):
         """ Return instance corresponding to source type. 
@@ -108,7 +111,7 @@ class SourceMaker(ABC):
             raise ValueError("Invalid source_type %s"%source_type)
 
     @abstractmethod
-    def make_cat(self, nsource, **kwargs):
+    def choose_from_cat(self, nsource, **kwargs):
         """Generate a catalog of nsource sources randomly chosen from
         catalogs.
         """
@@ -160,8 +163,11 @@ class MBHBMaker(SourceMaker, BBH_IMRPhenomD):
         # Tobs[Tobs>base_Tobs] = base_Tobs
         return dt,Tobs
     
-    def make_random(self, n=1):
-        """ Build a completely random catalog.
+    def draw_random_catalog(self, n=1):
+        """Build a completely random catalog.
+
+        TODO: give the possibility to tune the interval for each
+        parameter. 
         """
         
         names = list(self.info().keys())
@@ -183,7 +189,7 @@ class MBHBMaker(SourceMaker, BBH_IMRPhenomD):
         d['InitialAzimuthalAngleL'] = np.random.uniform(0.0, 2.0*np.pi,size=n)
         
     
-    def make_cat(self, nsource, mass_ratio=(1,10), spin1=(0.01,0.99),
+    def choose_from_cat(self, nsource, mass_ratio=(1,10), spin1=(0.01,0.99),
                  spin2=(0.01,0.99), coalescence_time=(0.0001,10), 
                  mass_total=(2,8), **kwargs):
         """Make a random selection of sources.
@@ -207,7 +213,7 @@ class MBHBMaker(SourceMaker, BBH_IMRPhenomD):
                 self.logger.error("Number of sources in catalogs (%d) is smaller than requested (%d)"%(len(C), nsource))
                 raise ValueError
         else:
-            C = self.make_random(nsource)
+            raise AttributeError("Missing catalogs attributes")
 
         # apply selection criteria
         mratio = C["Mass1"]/C["Mass2"] # mass ratio cut
@@ -249,7 +255,7 @@ class GBMaker(SourceMaker, GB_fdot):
         SourceMaker.__init__(self, source_type, approximant, **kwargs)
         GB_fdot.__init__(self, "catalog", source_type, approximant)
     
-    def make_cat(self, nsource, **kwargs):
+    def choose_from_cat(self, nsource, **kwargs):
         """ Make a random selection of sources.
         """
         C = np.hstack([load_gb_catalog(cat) for cat in self.catalogs])

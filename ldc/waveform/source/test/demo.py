@@ -21,7 +21,7 @@ for cfg in [cfg_mbhb, cfg_gb]:
     source_maker = SourceMaker.type(cfg["source_type"],
                                     cfg["approximant"],
                                     catalogs=[cfg["catalogs"]]) 
-    cat = source_maker.make_cat(**cfg)
+    cat = source_maker.choose_from_cat(**cfg)
 
     source_maker.close_logger()
     print(cat)
