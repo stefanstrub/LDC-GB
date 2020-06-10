@@ -49,7 +49,7 @@ class HDF5:
 
 
     def load_array(self, name="data", full_output=True):
-        """ Load array from hdf5 file with all its data set attributes
+        """ Return array and its attributes from hdf5 file.
         """
         with h5py.File(self.filename, "r") as fid:
             dset = fid.get(name)
@@ -65,6 +65,8 @@ class HDF5:
                 return np.array(dset)
 
     def load_attributes(self, name="data"):
+        """ Return attributes from data set. 
+        """
         with h5py.File(self.filename, "r") as fid:
             dset = fid.get(name)
             attr = {}
