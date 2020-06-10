@@ -25,7 +25,10 @@ class YML:
     def save_config(self, cfg, name="config"):
         """ Write config to yml file
         """
-        pass
+        if name in cfg.keys():
+            cfg = cfg[name]
+        yaml.dump(cfg, open(self.filename, "a"), default_flow_style=False)
+        
 
     def load_config(self, name="config"):
         """ Load config from yml file

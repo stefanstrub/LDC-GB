@@ -1,12 +1,13 @@
 """ HDF5 generic I/O 
 """
+import os
 import h5py
 import numpy as np
 
 def str_encode(value):
     """ Encode value to ascii if string 
     """
-    if isinstance(v, str) or isinstance(v, bytes):
+    if isinstance(value, str) or isinstance(value, bytes):
         return value.encode("ascii", "ignore")
     else:
         return value
@@ -14,7 +15,7 @@ def str_encode(value):
 def str_decode(value):
     """ Decode value if string 
     """
-    if isinstance(v, str) or isinstance(v, bytes):
+    if isinstance(value, str) or isinstance(value, bytes):
         return value.decode()
     else:
         return value
@@ -25,9 +26,11 @@ class HDF5:
     HDF5 file format.
     """
 
-    def __init__(self, filename):
+    def __init__(self, filename, remove_if_exist=False):
         """ Initialize HDF5 I/O
         """
+        if os.path.exists(filename) and remove_if_exist:
+            os.remove(filename)
         self.filename = filename
 
         
@@ -60,9 +63,9 @@ class HDF5:
             for k,v in dset.attrs.items():
                 attr[k] = str_decode(v)
             if full_output:
-                return np.array(dset), attr
+                return np.array(dset).squeeze(), attr
             else:
-                return np.array(dset)
+                return np.array(dset).squeeze()
 
     def load_attributes(self, name="data"):
         """ Return attributes from data set. 
