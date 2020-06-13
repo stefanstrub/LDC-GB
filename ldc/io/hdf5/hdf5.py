@@ -8,6 +8,9 @@ import numpy as np
 
 def str_encode(value):
     """ Encode value to ascii if string 
+
+    >>> str_encode("hello")
+    b'hello'
     """
     if isinstance(value, str) or isinstance(value, bytes):
         return value.encode("ascii", "ignore")
@@ -16,6 +19,9 @@ def str_encode(value):
 
 def str_decode(value):
     """ Decode value if string 
+
+    >>> str_decode(b'hello')
+    'hello'
     """
     if isinstance(value, str) or isinstance(value, bytes):
         return value.decode()
@@ -27,6 +33,10 @@ def save_array(filename, arr, name="data", mode="a", **kwargs):
     """ Write numpy array to hdf5 file
 
     mode is 'a' (default) or 'w'
+
+    >>> save_array("test.h5", np.ones((5)), mode="w", author='me')
+    >>> print(load_array("test.h5"))
+    (array([1., 1., 1., 1., 1.]), {'author': 'me'})
     """
     with h5py.File(filename, mode) as fid:
         if len(arr.shape)==1:
@@ -39,14 +49,29 @@ def save_array(filename, arr, name="data", mode="a", **kwargs):
 
 def append_array(filename, arr, column_index, name="data"):
     """ Append array to existing file and data set. 
+    
+    >>> save_array("test.h5", np.ones((5)), mode="w")
+    >>> append_array("test.h5", np.ones((5)), column_index=1)
+    >>> print(load_array("test.h5"))
+    (array([[1., 1.],
+           [1., 1.],
+           [1., 1.],
+           [1., 1.],
+           [1., 1.]]), {})
     """
+    if column_index==0:
+        save_array(filename, arr, name=name)
     with h5py.File(filename, 'a') as fid:
         fid[name].resize(fid[name].shape[1]+1, axis=1)
-        f[name][:,-1] = arr
+        fid[name][:,-1] = arr
 
 
 def load_array(filename, name="data", full_output=True):
     """ Return array and its attributes from hdf5 file.
+
+    if full_output is True, return array and meta data as dict. 
+    Otherwise, return array only.
+
     """
     with h5py.File(filename, "r") as fid:
         dset = fid.get(name)
@@ -60,6 +85,8 @@ def load_array(filename, name="data", full_output=True):
 
 def load_attributes(filename, name="data"):
     """ Return attributes from data set. 
+
+    
     """
     with h5py.File(filename, "r") as fid:
         dset = fid.get(name)
@@ -86,3 +113,7 @@ def load_config(filename, name="config"):
         for k,v in gp.attrs.items():
             attr[k] = str_decode(v)
     return attr
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
