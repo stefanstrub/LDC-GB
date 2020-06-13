@@ -2,9 +2,8 @@
 
 import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline as spline
-import h5py
 from ldc.common import constants
-from ldc.io.hdf5 import HDF5
+import ldc.io.hdf5 as hdfio
 
 clight = constants.Nature.VELOCITYOFLIGHT_CONSTANT_VACUUM
 LIST_SEP = " , "
@@ -15,12 +14,11 @@ def from_file(hdf5_filename, nodata=False, ilink=None):
     if nodata is True, then only meta data are read.  ilink can be
     used to load a single link (index between 0 and 5)
     """
-    hdf5 = HDF5(hdf5_filename)
     if nodata:
-        attrs = hdf5.load_attributes(name="strain")
+        attrs = hdfio.load_attributes(hdf5_filename, name="strain")
         yArm = None
     else:
-        yArm, attrs = hdf5.load_array(name="strain")
+        yArm, attrs = hdfio.load_array(hdf5_filename, name="strain")
     source_names = source_names.split(LIST_SEP)
     links = attrs['links']
     links = links.split(LIST_SEP)
@@ -41,19 +39,18 @@ def to_file(hdf5_filename, yArm, source_names, links, t_min, t_max, dt, ilink=No
     written for ilink=0. 
 
     """
-    hdf5 = HDF5(hdf5_filename)
     if ilink is None or ilink==0:
         if len(source_names)>100:
             str_name = "-".join([source_names[0], source_names[-1]])
         else:
             str_name = LIST_SEP.join(source_names)
         str_link = LIST_SEP.join(links)
-        hdf5.save_array(yArm, name='strain', links=str_link, sourceNames=str_name,
-                        t_min=t_min, t_max=t_max, dt=dt)
+        hdfio.save_array(hdf5_filename, yArm, name='strain', mode='w', links=str_link,
+                        sourceNames=str_name, t_min=t_min, t_max=t_max, dt=dt)
     else:
-        hdf5.append_array(yArm, ilink, name='strain', links=str_link,
-                          sourceNames=str_name,
-                          t_min=t_min, t_max=t_max, dt=dt)
+        hdfio.append_array(hdf5_filename, yArm, ilink, name='strain', links=str_link,
+                           sourceNames=str_name,
+                           t_min=t_min, t_max=t_max, dt=dt)
         
         
 class ProjectedStrain(object):
