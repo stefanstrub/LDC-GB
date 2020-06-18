@@ -25,6 +25,36 @@ def str_decode(value):
         return value.decode()
     return value
 
+def split_utype(array, u_name):
+    """ Split the array into numeric and string lists
+
+    >>> arr = np.rec.fromarrays([["a", "b", "c"], [1, 2, 3]], names=["name", "val"])
+    >>> u_name = check_utype(arr)
+    >>> split_utype(arr, u_name)
+    (rec.array([(1,), (2,), (3,)],
+              dtype=[('val', '<i8')]), {'name': [b'a', b'b', b'c']})
+    """
+    num_array =  np.rec.fromarrays([array[n] for n in array.dtype.names
+                                    if n not in u_name],
+                                   names=[n for n in array.dtype.names
+                                          if n not in u_name])
+    dict_list = dict()
+    for name in u_name:
+        dict_list[name] = [str_encode(v) for v in array[name]]
+    return num_array, dict_list
+
+def check_utype(array):
+    """ Check if there is any utype column in numpy array. 
+
+    >>> check_utype(np.rec.fromarrays([["a", "b", "c"], [1, 2, 3]], names=["name", "val"]))
+    ['name']
+    >>> check_utype(np.ones((5)))
+    []
+    """
+    u_name = []
+    if array.dtype.fields:
+        u_name = [jk for jk,dt in array.dtype.fields.items() if dt[0].kind=="U"]
+    return u_name
 
 def save_array(filename, arr, name="data", mode="a", **kwargs):
     """ Write numpy array to hdf5 file
@@ -35,10 +65,17 @@ def save_array(filename, arr, name="data", mode="a", **kwargs):
     >>> print(load_array("test.h5"))
     (array([1., 1., 1., 1., 1.]), {'author': 'me'})
     """
+    u_name = check_utype(arr)
+    if u_name:
+        num_arr, dlist = split_utype(arr, u_name)
+        arr = num_arr
+        for k,v in dlist.items():
+            kwargs[k] = v
+    
     with h5py.File(filename, mode) as fid:
         if len(arr.shape) == 1:
             arr = arr.reshape(len(arr), 1)
-
+        
         fid.create_dataset(name, data=arr, chunks=True,
                            maxshape=(arr.shape[0], None))
         for k, v in kwargs.items():

@@ -3,6 +3,11 @@ Numpy file format.
 """
 import numpy as np
 
+def is_npy(filename):
+    """ npy or npz
+    """
+    return filename.split(".")[-1] == "npy"
+
 def decode(array):
     """Return float for 1-size array and str for U-type array.
 
@@ -32,9 +37,13 @@ def load_array(filename, name="data", full_output=True):
     """ Load array from hdf5 file with all its data set attributes
     """
     attr = dict()
-    with np.load(filename) as data:
-        arr = data[name]
-        attr = [(k, decode(v)) for k, v in data.items() if k != name]
+
+    if is_npy(filename):
+        arr = np.load(filename)
+    else:
+        with np.load(filename) as data:
+            arr = data[name]
+            attr = [(k, decode(v)) for k, v in data.items() if k != name]
     if full_output:
         return arr, dict(attr)
     return arr

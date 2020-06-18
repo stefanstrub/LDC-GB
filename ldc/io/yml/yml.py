@@ -10,6 +10,8 @@ def decode(value):
     >>> decode('1.0')
     1.0
     """
+    if isinstance(value, (dict, list)):
+        value = str(value)
     try:
         value = float(value) if "." in value else int(value)
     except ValueError:
