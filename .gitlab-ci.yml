@@ -16,7 +16,7 @@ pylint:
 doctest:
   stage: test
   script:
-  - apk add --no-cache --virtual .build-deps gcc musl-dev gsl fftw freetype-dev libpng-dev openblas-dev gfortran
+  - apk add --no-cache --virtual .build-deps gcc g++ fftw-dev gsl-dev musl-dev gsl fftw freetype-dev libpng-dev openblas-dev gfortran
   - pip install -r requirements.txt
   - python ldc/waveform/waveform/hphc.py
 
