@@ -25,38 +25,39 @@ def str_decode(value):
         return value.decode()
     return value
 
-def split_utype(array, u_name):
-    """ Split the array into numeric and string lists
+def encode_utype(array):
+    """ Replace utype column in numpy array by binary format. 
 
-    >>> arr = np.rec.fromarrays([["a", "b", "c"], [1, 2, 3]], names=["name", "val"])
-    >>> u_name = check_utype(arr)
-    >>> split_utype(arr, u_name)
-    (rec.array([(1,), (2,), (3,)],
-              dtype=[('val', '<i8')]), {'name': [b'a', b'b', b'c']})
+    >>> encode_utype(np.rec.fromarrays([["a", "b", "c"], [1, 2, 3]], names=["name", "val"]))
+    rec.array([(b'a', 1), (b'b', 2), (b'c', 3)],
+              dtype=[('name', 'S1'), ('val', '<i8')])
     """
-    num_array =  np.rec.fromarrays([array[n] for n in array.dtype.names
-                                    if n not in u_name],
-                                   names=[n for n in array.dtype.names
-                                          if n not in u_name])
-    dict_list = dict()
-    for name in u_name:
-        dict_list[name] = [str_encode(v) for v in array[name]]
-    return num_array, dict_list
-
-def check_utype(array):
-    """ Check if there is any utype column in numpy array. 
-
-    >>> check_utype(np.rec.fromarrays([["a", "b", "c"], [1, 2, 3]], names=["name", "val"]))
-    ['name']
-    >>> check_utype(np.ones((5)))
-    []
-    """
-    u_name = []
+    sizeof_numpy_unicode_char = np.dtype('U1').itemsize
+    
     if array.dtype.fields:
-        u_name = [jk for jk,dt in array.dtype.fields.items() if dt[0].kind=="U"]
-    return u_name
+        new_dtype = [(n,dt[0]) if dt[0].kind!="U" else (n,np.dtype('<S%d'%(dt[0].itemsize//sizeof_numpy_unicode_char)))
+                     for n,dt in array.dtype.fields.items() ]
+        array = array.astype(new_dtype)
+    return array
 
-def save_array(filename, arr, name="data", mode="a", **kwargs):
+def decode_utype(array):
+    """ Replace btype column in numpy array by unicode format. 
+
+    >>> decode_utype(np.rec.fromarrays([[b"a", b"b", b"c"], [1, 2, 3]], names=["name", "val"]))
+    rec.array([('a', 1), ('b', 2), ('c', 3)],
+              dtype=[('name', '<U1'), ('val', '<i8')])
+    """
+    sizeof_numpy_unicode_char = np.dtype('S1').itemsize
+    
+    if array.dtype.fields:
+        new_dtype = [(n,dt[0]) if dt[0].kind!="S" else (n,np.dtype('<U%d'%(dt[0].itemsize//sizeof_numpy_unicode_char)))
+                     for n,dt in array.dtype.fields.items() ]
+        array = array.astype(new_dtype)
+    return array
+
+
+
+def save_array(filename, arr, name="data", mode="a", chunks=False, **kwargs):
     """ Write numpy array to hdf5 file
 
     mode is 'a' (default) or 'w'
@@ -65,26 +66,22 @@ def save_array(filename, arr, name="data", mode="a", **kwargs):
     >>> print(load_array("test.h5"))
     (array([1., 1., 1., 1., 1.]), {'author': 'me'})
     """
-    u_name = check_utype(arr)
-    if u_name:
-        num_arr, dlist = split_utype(arr, u_name)
-        arr = num_arr
-        for k,v in dlist.items():
-            kwargs[k] = v
-    
+    arr = encode_utype(arr)
     with h5py.File(filename, mode) as fid:
         if len(arr.shape) == 1:
             arr = arr.reshape(len(arr), 1)
-        
-        fid.create_dataset(name, data=arr, chunks=True,
-                           maxshape=(arr.shape[0], None))
+        if chunks:
+            fid.create_dataset(name, data=arr, chunks=chunks,
+                               maxshape=(arr.shape[0], None))
+        else:
+            fid.create_dataset(name, data=arr)
         for k, v in kwargs.items():
             fid[name].attrs.create(k, str_encode(v))
 
 def append_array(filename, arr, column_index, name="data"):
     """ Append array to existing file and data set.
 
-    >>> save_array("test.h5", np.ones((5)), mode="w")
+    >>> save_array("test.h5", np.ones((5)), mode="w", chunks=True)
     >>> append_array("test.h5", np.ones((5)), column_index=1)
     >>> print(load_array("test.h5"))
     (array([[1., 1.],
@@ -94,7 +91,7 @@ def append_array(filename, arr, column_index, name="data"):
            [1., 1.]]), {})
     """
     if column_index == 0:
-        save_array(filename, arr, name=name)
+        save_array(filename, arr, name=name, chunks=True)
     with h5py.File(filename, 'a') as fid:
         fid[name].resize(fid[name].shape[1]+1, axis=1)
         fid[name][:, -1] = arr
@@ -112,9 +109,10 @@ def load_array(filename, name="data", full_output=True):
         attr = {}
         for k, v in dset.attrs.items():
             attr[k] = str_decode(v)
+        arr = decode_utype(np.array(dset)).squeeze()
         if full_output:
-            return np.array(dset).squeeze(), attr
-        return np.array(dset).squeeze()
+            return arr, attr
+        return arr
 
 def load_attributes(filename, name="data"):
     """ Return attributes from data set.
