@@ -26,32 +26,34 @@ def str_decode(value):
     return value
 
 def encode_utype(array):
-    """ Replace utype column in numpy array by binary format. 
+    """ Replace utype column in numpy array by binary format.
 
     >>> encode_utype(np.rec.fromarrays([["a", "b", "c"], [1, 2, 3]], names=["name", "val"]))
     rec.array([(b'a', 1), (b'b', 2), (b'c', 3)],
               dtype=[('name', 'S1'), ('val', '<i8')])
     """
     sizeof_numpy_unicode_char = np.dtype('U1').itemsize
-    
+
     if array.dtype.fields:
-        new_dtype = [(n,dt[0]) if dt[0].kind!="U" else (n,np.dtype('<S%d'%(dt[0].itemsize//sizeof_numpy_unicode_char)))
-                     for n,dt in array.dtype.fields.items() ]
+        new_dtype = [(n, dt[0]) if dt[0].kind != "U"
+                     else (n, np.dtype('<S%d'%(dt[0].itemsize//sizeof_numpy_unicode_char)))
+                     for n, dt in array.dtype.fields.items()]
         array = array.astype(new_dtype)
     return array
 
 def decode_utype(array):
-    """ Replace btype column in numpy array by unicode format. 
+    """ Replace btype column in numpy array by unicode format.
 
     >>> decode_utype(np.rec.fromarrays([[b"a", b"b", b"c"], [1, 2, 3]], names=["name", "val"]))
     rec.array([('a', 1), ('b', 2), ('c', 3)],
               dtype=[('name', '<U1'), ('val', '<i8')])
     """
     sizeof_numpy_unicode_char = np.dtype('S1').itemsize
-    
+
     if array.dtype.fields:
-        new_dtype = [(n,dt[0]) if dt[0].kind!="S" else (n,np.dtype('<U%d'%(dt[0].itemsize//sizeof_numpy_unicode_char)))
-                     for n,dt in array.dtype.fields.items() ]
+        new_dtype = [(n, dt[0]) if dt[0].kind != "S"
+                     else (n, np.dtype('<U%d'%(dt[0].itemsize//sizeof_numpy_unicode_char)))
+                     for n, dt in array.dtype.fields.items()]
         array = array.astype(new_dtype)
     return array
 
