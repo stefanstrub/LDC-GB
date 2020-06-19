@@ -21,7 +21,7 @@ def str_decode(value):
     >>> str_decode(b'hello')
     'hello'
     """
-    if isinstance(value, (str, bytes)):
+    if isinstance(value, (bytes)):
         return value.decode()
     return value
 
@@ -99,7 +99,7 @@ def append_array(filename, arr, column_index, name="data"):
         fid[name][:, -1] = arr
 
 
-def load_array(filename, name="data", full_output=True):
+def load_array(filename, name="", full_output=True):
     """ Return array and its attributes from hdf5 file.
 
     if full_output is True, return array and meta data as dict.
@@ -107,11 +107,21 @@ def load_array(filename, name="data", full_output=True):
 
     """
     with h5py.File(filename, "r") as fid:
-        dset = fid.get(name)
+        names = [name] if name else list(fid.keys())
         attr = {}
-        for k, v in dset.attrs.items():
-            attr[k] = str_decode(v)
-        arr = decode_utype(np.array(dset)).squeeze()
+        arrs = []
+        for name in names:
+            dset = fid.get(name)
+            for k, v in dset.attrs.items():
+                attr[k] = str_decode(v)
+            arrs.append(decode_utype(np.array(dset)).squeeze())
+        if len(names)>1:
+            try: # make a rec array if all arrays share same size
+                arr = np.rec.fromarrays(arrs, names=names)
+            except ValueError: # make a dict otherwise
+                arr = dict(zip(names, arrs))
+        else:
+            arr = arrs[0]
         if full_output:
             return arr, attr
         return arr
