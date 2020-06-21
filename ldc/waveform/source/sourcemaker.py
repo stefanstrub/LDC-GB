@@ -6,6 +6,7 @@ import sys
 import h5py as h5
 import numpy as np
 import numpy.lib.recfunctions as recf
+import ephem
 
 from ldc.common import constants, tools
 from ldc.waveform.waveform import BBH_IMRPhenomD, GB_fdot
@@ -14,6 +15,7 @@ from ldc.waveform.waveform import BBH_IMRPhenomD, GB_fdot
 
 YRSID_SI = constants.Nature.SIDEREALYEAR_J2000DAY*24*60*60
 MTsun = constants.Nature.SUN_GM/constants.Nature.VELOCITYOFLIGHT_CONSTANT_VACUUM**3
+deg2rad = np.pi/180.
 
 def load_gb_catalog(catalog):
     """Load GB catalog either in h5 or npy format.
@@ -78,6 +80,117 @@ def load_mbhb_catalog(catalog):
                                    'Redshift', 'Distance']) 
     return cat
     
+
+
+def randomiseGaussian(x,randx,xmin,xmax,verbose=False):
+    xo = -1e30
+    i = 0
+    while not ( xmin<xo and xo<xmax ) and i < 1000 :
+        if randx == "0":
+            xo = x
+        elif randx[-7:] == 'percent':
+            xo = x * ( 1 + float(randx[9:-7])*np.random.randn() ) ## ex: "gaussian_0.01percent"
+        else:
+            xo = x  + float(randx[9:])*np.random.randn()
+        i += 1
+    if i == 1000:
+        print("ERROR in randomisation: more than 1000 tries:\n\t- x = ",x,"\n\t- randx = ",randx,"\n\t- xmin = ",xmin,"\n\t- xmax = ",xmax) 
+        sys.exit(1)
+    return xo
+
+
+def MakeOneGB(indIn,\
+              parsIn,\
+              indOut,\
+              parsOut,\
+              dfdtGW=False,\
+              randMass="0",\
+              randFreq="0",\
+              randInc="0",\
+              verbose=False):
+
+    ## Frequency
+    if "Period[days]" in parsIn.dtype.names:
+        P_s = parsIn["Period[days]"][indIn]*86400.
+    elif "Period[sec]" in parsIn.dtype.names:
+        P_s = parsIn["Period[sec]"][indIn]
+    else:
+        print("ERROR: Period not found in the parameters ( Period[days] or Period[sec] ).")
+
+    f = 2./P_s
+    f = randomiseGaussian(f,randFreq,1.e-6,1.,verbose)
+    
+
+    ## Amplitude
+    D_pc = parsIn["Distance[kpc]"][indIn]*1e3
+    DL  = D_pc*constants.Nature.PARSEC_METER/constants.Nature.VELOCITYOFLIGHT_CONSTANT_VACUUM
+    
+    m1_MSun = parsIn["Mass1[MSun]"][indIn]
+    m1_MSun = randomiseGaussian(m1_MSun,randMass,0.001,1e3,verbose)
+    m1 = m1_MSun*MTsun
+
+    m2_MSun = parsIn["Mass2[MSun]"][indIn]
+    m2_MSun = randomiseGaussian(m2_MSun,randMass,0.001,1e3,verbose)
+    m2 = m2_MSun*MTsun
+    
+    M  = m1+m2
+    eta= m1*m2/(M*M)
+    Mc = M*eta**(3./5.)
+
+    amplitude = 2*(M**(5./3.)*eta/DL)*(np.pi*f)**(2./3.)
+    
+    ## Frequency derivative
+    dfdt = ( (96./5.) * Mc**(5./3.) * np.pi**(8./3.) * f**(11./3.))
+    if "PeriodDerivative[sec/sec]" in parsIn.dtype.names:
+        dPdt = parsIn["PeriodDerivative[sec/sec]"][indIn]
+        dfdt = -2.0*dPdt/(P_s*P_s)
+    
+
+
+    # Compute sky position
+    sky_gal = ephem.Galactic(parsIn["GalacticLongitude[deg]"][indIn]*deg2rad, parsIn["GalacticLatitude[deg]"][indIn]*deg2rad, epoch='2000')
+    sky_ecl = ephem.Ecliptic(sky_gal)
+    b_ecl = float(sky_ecl.lat) # in radians
+    #t_ecl = np.pi/2. - b_ecl
+    l_ecl = float(sky_ecl.lon) # in radians
+    #print "gal lat", sky_gal.lat
+    #print "gal lon", sky_gal.lon
+    #print "ecl lat",sky_ecl.lat,b_ecl*180./np.pi
+    #print "ecl lon",sky_ecl.lon,360-l_ecl*180./np.pi
+
+    # Inclination
+    if "Inclination[rad]" in parsIn.dtype.names:
+        inc = parsIn["Inclination[rad]"][indIn]
+    elif randInc != "uniform":
+        print("ERROR: Inclination not specified: it should be either in the catalog or randInc=uniform (parsIn.dtype.names:",parsIn.dtype.names,", randInc:",randInc,")")
+        sys.exit(1)
+    if randInc == "uniform":
+        inc = np.arccos(np.random.uniform(-1.,1.))
+    else:
+        inc = randomiseGaussian(inc,randInc,0.0,np.pi,verbose)
+    
+
+    ## Polarisation and initial phase
+    psi  = np.random.uniform(0,2.*np.pi)
+    phi0 = np.random.uniform(0,2.*np.pi)
+
+    Name = indIn
+    if "ID[]" in parsIn.dtype.names:
+        Name = parsIn["ID[]"][indIn]
+
+    ## Output
+    parsOut["Name"][indOut] = Name
+    parsOut["Amplitude"][indOut] = amplitude
+    parsOut["EclipticLatitude"][indOut] = b_ecl
+    parsOut["EclipticLongitude"][indOut] = l_ecl
+    parsOut["Frequency"][indOut] = f
+    parsOut["FrequencyDerivative"][indOut] = dfdt
+    parsOut["Inclination"][indOut] = inc
+    parsOut["InitialPhase"][indOut] = phi0
+    parsOut["Polarization"][indOut] = psi
+
+
+
 class SourceMaker(ABC):
     """ Generate source catalogs. 
     
@@ -248,6 +361,10 @@ class MBHBMaker(SourceMaker, BBH_IMRPhenomD):
 
     
 class GBMaker(SourceMaker, GB_fdot):
+    """The parameters of an output source is: Name[], Amplitude[], EclipticLatitude[rad], 
+    EclipticLongitude[rad], Frequency[Hz], FrequencyDerivative[Hz/s], Inclination[rad], 
+    InitialPhase[rad], Polarization[rad]
+    """
 
     def __init__(self, source_type, approximant, **kwargs):
         """ Initialize object.
@@ -266,6 +383,27 @@ class GBMaker(SourceMaker, GB_fdot):
             np.random.seed(kwargs["seed"])
         ind = np.random.choice(len(C), nsource, replace=False)
         return C[ind]
+
+    def draw_random_catalog(self, nsource, **kwargs):
+        """ Make a list of sources randomizing parameters in the catalogs.
+        """
+        Craw = np.hstack([load_gb_catalog(cat) for cat in self.catalogs])
+        self.logger.info("Input catalog has %d sources"%len(Craw))
+        if len(Craw)<nsource:
+            self.logger.error("Number of sources in catalogs is smaller than requested")
+        if 'seed' in kwargs:
+            np.random.seed(kwargs["seed"])
+
+        ind = np.random.choice(len(Craw), nsource, replace=False)
+
+        C = np.zeros([nsource],dtype=[('Name', '<U24'), ('Amplitude', '<f8'), ('EclipticLatitude', '<f8'), ('EclipticLongitude', '<f8'), ('Frequency', '<f8'), ('FrequencyDerivative', '<f8'), ('Inclination', '<f8'), ('InitialPhase', '<f8'), ('Polarization', '<f8')])
+        for i in range(nsource):
+            MakeOneGB(ind[i],Craw,i,C,\
+                dfdtGW=kwargs['dfdt_GW'],\
+                randMass=kwargs["random_mass"],\
+                randFreq=kwargs['random_frequency'],\
+                randInc=kwargs['random_inclination'],verbose=False)
+        return C
 
 
 
