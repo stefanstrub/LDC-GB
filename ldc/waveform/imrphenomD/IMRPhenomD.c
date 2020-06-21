@@ -363,8 +363,8 @@ int IMRPhenomDGenerateFD_internal(
   CHECK(PD_SUCCESS == status, status, "init_amp_ins_prefactors failed");
 
   // NOTE: previously fRef=0 was by default fRef=fmin, now fRef defaults to fmaxCalc (fpeak in the paper)
-  // If fpeak is outside of the frequency range, take the last frequency
-  double fRef = (fRef_in == 0.0) ? fmin(pAmp->fmaxCalc, f_max) : fRef_in;
+  // NOTE: pAmp->fmaxCalc geometric frequency, while fRef is in Hz
+  double fRef = (fRef_in == 0.0) ? pAmp->fmaxCalc / M_sec : fRef_in;
 
   // incorporating fRef
   const double MfRef = M_sec * fRef;
@@ -512,8 +512,8 @@ int IMRPhenomDGenerateh22FDAmpPhase_internal(
   CHECK(PD_SUCCESS == status, status, "init_amp_ins_prefactors failed");
 
   // NOTE: previously fRef=0 was by default fRef=fmin, now fRef defaults to fmaxCalc (fpeak in the paper)
-  // If fpeak is outside of the frequency range, take the last frequency
-  double fRef = (fRef_in == 0.0) ? fmin(pAmp->fmaxCalc, freq->data[n-1]) : fRef_in;
+  // NOTE: pAmp->fmaxCalc geometric frequency, while fRef is in Hz
+  double fRef = (fRef_in == 0.0) ? pAmp->fmaxCalc / M_sec : fRef_in;
 
   // incorporating fRef
   const double MfRef = M_sec * fRef;
