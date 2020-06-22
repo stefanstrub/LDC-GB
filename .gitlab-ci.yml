@@ -24,6 +24,7 @@ doctest:
 pages:
   stage: deploy
   script:
+  - apt-get update
   - apt-get -y install gcc g++ 
   - pip install -U sphinx
   - pip install -U sphinx_rtd_theme
