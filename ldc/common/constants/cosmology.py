@@ -1,5 +1,8 @@
+"""
+Cosmological constants provided by astropy 
+"""
 import numpy as np
-from astropy.cosmology import Planck15 as cosmo
+#from astropy.cosmology import Planck15 
 from astropy.cosmology import FlatLambdaCDM
 from astropy import units as u
 
@@ -7,6 +10,8 @@ from astropy import units as u
 ldc_cosmo = FlatLambdaCDM(H0=67.1, Om0=0.3175)
 
 def DL(zup):
+    """ Return distance luminosity and assiciated unit
+    """
     quantity = ldc_cosmo.luminosity_distance(zup)
     return quantity.value, quantity.unit
 

@@ -1,3 +1,7 @@
+"""
+Trigonometric functions
+
+"""
 import numpy as np
 
 def aziPolAngleL2PsiIncl(bet, lam, theL, phiL):
@@ -9,9 +13,11 @@ def aziPolAngleL2PsiIncl(bet, lam, theL, phiL):
     - theL is the polar angle of zS [rad]
     - phiL is the azimuthal angle of zS [rad]
     """
-    inc = np.arccos( - np.cos(theL)*np.sin(bet) - np.cos(bet)*np.sin(theL)*np.cos(lam - phiL) )
+    inc = np.arccos( - np.cos(theL)*np.sin(bet) -\
+                     np.cos(bet)*np.sin(theL)*np.cos(lam - phiL) )
     down_psi = np.sin(theL)*np.sin(lam - phiL)
-    up_psi = -np.sin(bet)*np.sin(theL)*np.cos(lam - phiL) + np.cos(theL)*np.cos(bet)
+    up_psi = -np.sin(bet)*np.sin(theL)*np.cos(lam - phiL) +\
+             np.cos(theL)*np.cos(bet)
     psi = np.arctan2(up_psi, down_psi)
     
     return psi, inc
