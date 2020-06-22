@@ -148,7 +148,9 @@ def MakeOneGB(indIn,\
 
 
     # Compute sky position
-    sky_gal = ephem.Galactic(parsIn["GalacticLongitude[deg]"][indIn]*deg2rad, parsIn["GalacticLatitude[deg]"][indIn]*deg2rad, epoch='2000')
+    sky_gal = ephem.Galactic(parsIn["GalacticLongitude[deg]"][indIn]*deg2rad,
+                             parsIn["GalacticLatitude[deg]"][indIn]*deg2rad,
+                             epoch='2000')
     sky_ecl = ephem.Ecliptic(sky_gal)
     b_ecl = float(sky_ecl.lat) # in radians
     #t_ecl = np.pi/2. - b_ecl
@@ -195,7 +197,8 @@ class SourceMaker(ABC):
     """ Generate source catalogs. 
     
     """
-    def __init__(self, source_type, approximant, catalogs=None, logger=None):
+    def __init__(self, source_type, approximant, catalogs=None,
+                 logger=None, verbose=True):
         """Initialize source. 
         """
         self.source_type = source_type
@@ -205,7 +208,7 @@ class SourceMaker(ABC):
             if isinstance(self.catalogs, str):
                 self.catalogs = [self.catalogs]
         if logger is None:
-            self.set_logger()
+            self.set_logger(verbose=verbose)
         else:
             self.logger = logger
         self.logger.info("Source type is %s"%self.__class__)
@@ -230,11 +233,14 @@ class SourceMaker(ABC):
         """
         pass
 
-    def set_logger(self):
+    def set_logger(self, verbose=True):
         """ Set a stream logger.
         """
         logger = logging.getLogger()
-        logger.setLevel(logging.DEBUG)
+        if verbose:
+            logger.setLevel(logging.DEBUG)
+        else:
+            logger.setLevel(logging.ERROR)
         shandler = logging.StreamHandler(sys.stdout)
         logger.addHandler(shandler)
         self.logger = logger
