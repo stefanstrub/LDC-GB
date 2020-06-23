@@ -1,4 +1,7 @@
 from ldc.waveform.source import SourceMaker
+import numpy as np
+import matplotlib.pyplot as plt
+import sys
 
 cfg_mbhb = {'approximant': 'IMRPhenomD',
             'catalogs': 'catalog_1_yrs_full_1.dat',
@@ -11,19 +14,22 @@ cfg_mbhb = {'approximant': 'IMRPhenomD',
             'spin1': [0., 0.999],
             'spin2': [0., 0.999]}
 
-cfg_gb = {'approximant': 'TD_fdot',
+## Verification Galactic Binairis
+cfg_vgb = {'approximant': 'TD_fdot',
           'catalogs': 'VGB.npy',
           'nsource': 2,
           'seed': 1234,
           'source_type': 'GB'}
 
-for cfg in [cfg_mbhb, cfg_gb]:
+### Choose sources from catalogs without randomization
+for cfg in [cfg_mbhb, cfg_vgb]:
     source_maker = SourceMaker.type(cfg["source_type"],
                                     cfg["approximant"],
                                     catalogs=[cfg["catalogs"]]) 
-    cat = source_maker.choose_from_cat(**cfg)
+    cat = source_maker.choose_from_catalog(**cfg)
 
     source_maker.close_logger()
     print(cat)
     print(cat.dtype)
     
+ 
