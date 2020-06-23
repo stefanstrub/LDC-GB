@@ -356,15 +356,15 @@ int IMRPhenomDGenerateFD_internal(
 
   //time shift so that peak amplitude is approximately at t=0
   //For details see https://www.lsc-group.phys.uwm.edu/ligovirgo/cbcnote/WaveformsReview/IMRPhenomDCodeReview/timPD_EDOMain
-  const double t0 = DPhiMRD(pAmp->fmaxCalc, pPhi);
+  const double t0 = DPhiMRD(pAmp->fmaxCalc, pPhi) + pPhi->C2MRD;
 
   AmpInsPrefactors amp_prefactors;
   status = init_amp_ins_prefactors(&amp_prefactors, pAmp);
   CHECK(PD_SUCCESS == status, status, "init_amp_ins_prefactors failed");
 
   // NOTE: previously fRef=0 was by default fRef=fmin, now fRef defaults to fmaxCalc (fpeak in the paper)
-  // If fpeak is outside of the frequency range, take the last frequency
-  double fRef = (fRef_in == 0.0) ? fmin(pAmp->fmaxCalc, f_max) : fRef_in;
+  // NOTE: pAmp->fmaxCalc geometric frequency, while fRef is in Hz
+  double fRef = (fRef_in == 0.0) ? pAmp->fmaxCalc / M_sec : fRef_in;
 
   // incorporating fRef
   const double MfRef = M_sec * fRef;
@@ -505,15 +505,15 @@ int IMRPhenomDGenerateh22FDAmpPhase_internal(
 
   //time shift so that peak amplitude is approximately at t=0
   //For details see https://www.lsc-group.phys.uwm.edu/ligovirgo/cbcnote/WaveformsReview/IMRPhenomDCodeReview/timPD_EDOMain
-  const double t0 = DPhiMRD(pAmp->fmaxCalc, pPhi);
+  const double t0 = DPhiMRD(pAmp->fmaxCalc, pPhi) + pPhi->C2MRD;
 
   AmpInsPrefactors amp_prefactors;
   status = init_amp_ins_prefactors(&amp_prefactors, pAmp);
   CHECK(PD_SUCCESS == status, status, "init_amp_ins_prefactors failed");
 
   // NOTE: previously fRef=0 was by default fRef=fmin, now fRef defaults to fmaxCalc (fpeak in the paper)
-  // If fpeak is outside of the frequency range, take the last frequency
-  double fRef = (fRef_in == 0.0) ? fmin(pAmp->fmaxCalc, freq->data[n-1]) : fRef_in;
+  // NOTE: pAmp->fmaxCalc geometric frequency, while fRef is in Hz
+  double fRef = (fRef_in == 0.0) ? pAmp->fmaxCalc / M_sec : fRef_in;
 
   // incorporating fRef
   const double MfRef = M_sec * fRef;
