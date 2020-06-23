@@ -54,11 +54,6 @@ if __name__ == "__main__":
         for cfg, key in zip([cfg_dgb, cfg_igb], ["detached", "interacting"]):
         
             cfg['nsource'] = 1
-            if key == "detached":
-                cfg['catalogs'] = '007_SeBa_r105_ag_wdwd_pop_highres_P025g70_N1.npy'
-            else:
-                cfg['catalogs'] = 'AMCVn_GWR_MLDC_bulgefix_opt_N1.npy'
-
             cfg_ref = cfg.copy() # for reference (no randomization)
             cfg_ref['random_mass'] = "0"
             cfg_ref['random_frequency'] = "0"
@@ -72,7 +67,7 @@ if __name__ == "__main__":
             source_maker.close_logger()
 
             # Check distribution DWD GB 
-            Nrand = 10000
+            Nrand = 5000
             cats = np.zeros(Nrand, dtype=cat.dtype)
             source_maker = SourceMaker.type(cfg["source_type"],
                                             cfg["approximant"],

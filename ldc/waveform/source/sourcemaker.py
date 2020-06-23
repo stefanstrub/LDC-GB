@@ -27,6 +27,8 @@ def load_gb_catalog(catalog):
     """
     if catalog.split(".")[-1] == "h5":
         return load_h5_catalog(catalog)
+    elif catalog.split(".")[-1] in ["dat, data"]:
+        return load_txt_catalog(catalog)
     cat = np.load(catalog)
     return cat
 
@@ -90,7 +92,6 @@ def randomize_gaussian(x, randx, xmin, xmax, logger):
 
     randx can be in ['None', 'gaussian_%fpercent', 'gaussian_%f']
     """
-
     # analyse randx
     if randx in ['None', '0']:
         return x
@@ -148,7 +149,7 @@ class SourceMaker(ABC):
             raise ValueError("Invalid source_type %s"%source_type)
 
     @abstractmethod
-    def choose_from_cat(self, nsource, **kwargs):
+    def choose_from_catalog(self, nsource, **kwargs):
         """Generate a catalog of nsource sources randomly chosen from
         catalogs.
         """
@@ -227,9 +228,9 @@ class MBHBMaker(SourceMaker, BBH_IMRPhenomD):
         d['InitialPolarAngleL'] = np.arccos(np.random.uniform(-1.0, 1.0, size=n))
         d['InitialAzimuthalAngleL'] = np.random.uniform(0.0, 2.0*np.pi, size=n)
 
-    def choose_from_cat(self, nsource, mass_ratio=(1, 10), spin1=(0.01, 0.99),
-                        spin2=(0.01, 0.99), coalescence_time=(0.0001, 10),
-                        mass_total=(2, 8), **kwargs):
+    def choose_from_catalog(self, nsource, mass_ratio=(1, 10), spin1=(0.01, 0.99),
+                            spin2=(0.01, 0.99), coalescence_time=(0.0001, 10),
+                            mass_total=(2, 8), **kwargs):
         """Make a random selection of sources.
 
         If catalogs keyword is provided, sources are randomly chosen
@@ -297,7 +298,7 @@ class GBMaker(SourceMaker, GB_fdot):
         SourceMaker.__init__(self, source_type, approximant, **kwargs)
         GB_fdot.__init__(self, "catalog", source_type, approximant)
 
-    def choose_from_cat(self, nsource, **kwargs):
+    def choose_from_catalog(self, nsource, **kwargs):
         """ Make a random selection of sources.
         """
         C = np.hstack([load_gb_catalog(cat) for cat in self.catalogs])
