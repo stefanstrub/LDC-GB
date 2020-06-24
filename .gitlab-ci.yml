@@ -1,26 +1,31 @@
-image: python:3.7-alpine
+image: python:3.8-slim
 
 stages:
+  - build
   - test
   - deploy
 
 pylint:
   stage: test
   script:
-  - python3 -c 'import sys; f = open("/usr/local/lib/python3.7/site-packages/_manylinux.py", "w"); f.write("manylinux1_compatible = True"); f.close()'
+  - python3 -c 'import sys; f = open("/usr/local/lib/python3.8/site-packages/_manylinux.py", "w"); f.write("manylinux1_compatible = True"); f.close()'
   - pip install --upgrade astroid
   - pip install pylint
   - python pylint-monitor
 
-# doctest:
-#   stage: test
-#   script:
-#   - pip install -r requirements.txt
-#   - python ldc/waveform/waveform/hphc.py
+doctest:
+  stage: test
+  script:
+  - apt-get update
+  - apt-get -y install gcc g++ libfftw3-dev libgsl-dev 
+  - pip install -r requirements.txt
+  - python ldc/waveform/waveform/hphc.py
 
 pages:
   stage: deploy
   script:
+  - apt-get update
+  - apt-get -y install gcc g++ 
   - pip install -U sphinx
   - pip install -U sphinx_rtd_theme
   - cd doc
