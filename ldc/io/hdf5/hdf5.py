@@ -159,6 +159,21 @@ def load_config(filename, name="config"):
             attr[k] = str_decode(v)
     return attr
 
+def display(filename):
+    """ Display file content
+    
+    >>> save_array("test.h5", np.ones((5)), mode="w", author='me')
+    >>> display("test.h5")
+    data <HDF5 dataset "data": shape (5, 1), type "<f8">
+        author: b'me'
+    """
+    def print_attrs(name, obj): 
+        print(name, obj)
+        for key, val in obj.attrs.items(): 
+            print("    %s: %s" % (key, val))  
+    with h5py.File(filename, "r") as fid:
+        fid.visititems(print_attrs)
+
 if __name__ == "__main__":
     import doctest
     doctest.testmod()
