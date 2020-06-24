@@ -2,8 +2,8 @@
 
 import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline as spline
-import h5py
 from ldc.common import constants
+import ldc.io.hdf5 as hdfio
 
 clight = constants.Nature.VELOCITYOFLIGHT_CONSTANT_VACUUM
 LIST_SEP = " , "
@@ -14,27 +14,17 @@ def from_file(hdf5_filename, nodata=False, ilink=None):
     if nodata is True, then only meta data are read.  ilink can be
     used to load a single link (index between 0 and 5)
     """
-    with h5py.File(hdf5_filename, "r") as f:
-        dset = f.get("strain")
-        if not nodata:
-            if ilink is None:
-                yArm = np.array(dset)
-            else:
-                yArm = np.array(dset[:,ilink])
-        else:
-            yArm = None
-        try:
-            source_names = dset.attrs["sourceNames"].decode()
-            source_names = source_names.split(LIST_SEP)
-        except:
-            source_names = []
-        links = dset.attrs['links'].decode()
-        links = links.split(LIST_SEP)
-        t_min =  dset.attrs['t_min']
-        t_max = dset.attrs["t_max"]
-        dt = dset.attrs["dt"]
-       
-
+    if nodata:
+        attrs = hdfio.load_attributes(hdf5_filename, name="strain")
+        yArm = None
+    else:
+        yArm, attrs = hdfio.load_array(hdf5_filename, name="strain")
+    source_names = source_names.split(LIST_SEP)
+    links = attrs['links']
+    links = links.split(LIST_SEP)
+    t_min =  attrs['t_min']
+    t_max = attrs["t_max"]
+    dt = attrs["dt"]
     return yArm, source_names, links, t_min, t_max, dt
 
 def to_file(hdf5_filename, yArm, source_names, links, t_min, t_max, dt, ilink=None):
@@ -50,29 +40,18 @@ def to_file(hdf5_filename, yArm, source_names, links, t_min, t_max, dt, ilink=No
 
     """
     if ilink is None or ilink==0:
-        with h5py.File(hdf5_filename, "w") as f:
-            if len(yArm.shape)==1:
-                yArm = yArm.reshape(len(yArm), 1)
-            dset = f.create_dataset("strain", data=yArm, chunks=True, maxshape=(yArm.shape[0],None))
-            if source_names:
-                if len(source_names)>100:
-                    str_name = "-".join([source_names[0], source_names[-1]])
-                else:
-                    str_name = LIST_SEP.join(source_names)
-                f["strain"].attrs.create("sourceNames", str_name.encode("ascii", "ignore"))
-
-            str_link = LIST_SEP.join(links)
-            f["strain"].attrs.create("links", str_link.encode("ascii", "ignore"))
-            f["strain"].attrs.create("t_min", t_min)
-            f["strain"].attrs.create("t_max", t_max)
-            f["strain"].attrs.create("dt", dt)
-            
+        if len(source_names)>100:
+            str_name = "-".join([source_names[0], source_names[-1]])
+        else:
+            str_name = LIST_SEP.join(source_names)
+        str_link = LIST_SEP.join(links)
+        hdfio.save_array(hdf5_filename, yArm, name='strain', mode='w', links=str_link,
+                        sourceNames=str_name, t_min=t_min, t_max=t_max, dt=dt)
     else:
-        with h5py.File(hdf5_filename, "a") as f:
-            f["strain"].resize(f["strain"].shape[1]+1, axis=1)
-            f["strain"][:,-1] = yArm
-    f.close()
-
+        hdfio.append_array(hdf5_filename, yArm, ilink, name='strain', links=str_link,
+                           sourceNames=str_name,
+                           t_min=t_min, t_max=t_max, dt=dt)
+        
         
 class ProjectedStrain(object):
     """ Project GW strain on LISA arms """
