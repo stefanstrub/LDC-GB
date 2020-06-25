@@ -19,7 +19,7 @@ def from_file(hdf5_filename, nodata=False, ilink=None):
         yArm = None
     else:
         yArm, attrs = hdfio.load_array(hdf5_filename, name="strain")
-    source_names = source_names.split(LIST_SEP)
+    source_names = attrs['source_names'].split(LIST_SEP)
     links = attrs['links']
     links = links.split(LIST_SEP)
     t_min =  attrs['t_min']
@@ -46,10 +46,10 @@ def to_file(hdf5_filename, yArm, source_names, links, t_min, t_max, dt, ilink=No
             str_name = LIST_SEP.join(source_names)
         str_link = LIST_SEP.join(links)
         hdfio.save_array(hdf5_filename, yArm, name='strain', mode='w', links=str_link,
-                        sourceNames=str_name, t_min=t_min, t_max=t_max, dt=dt)
+                        source_names=str_name, t_min=t_min, t_max=t_max, dt=dt)
     else:
         hdfio.append_array(hdf5_filename, yArm, ilink, name='strain', links=str_link,
-                           sourceNames=str_name,
+                           source_names=str_name,
                            t_min=t_min, t_max=t_max, dt=dt)
         
         
