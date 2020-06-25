@@ -41,6 +41,7 @@ COPY LISANode /codes/LISANode
 
 RUN mkdir /codes/LDC
 COPY ldc /codes/LDC/ldc
+COPY data_generation /codes/LDC/data_generation
 COPY setup.py requirements.txt /codes/LDC/
 WORKDIR /codes/LDC
 RUN pip3 install -r requirements.txt
