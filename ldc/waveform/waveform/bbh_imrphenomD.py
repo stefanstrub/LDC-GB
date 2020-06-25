@@ -48,6 +48,7 @@ class BBH_IMRPhenomD(HpHc):
                      'm2s': 'Mass2',
                      'tc': 'CoalescenceTime',
                      'Tobs': 'ObservationDuration',
+                     'dt': 'Cadence',
                      'DL': lambda p: p['Distance']*1e3} #Gpc -> Mpc}
 
     def precomputation(self):
