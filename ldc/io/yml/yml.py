@@ -10,12 +10,15 @@ def decode(value):
     >>> decode('1.0')
     1.0
     """
-    if isinstance(value, (dict, list)):
-        value = str(value)
-    try:
-        value = float(value) if "." in value else int(value)
-    except ValueError:
-        pass
+    if isinstance(value, list):
+        value = [decode(v) for v in value]
+    else:
+        if isinstance(value, dict):
+            value = str(value)
+        try:
+            value = float(value) if "." in value else int(value)
+        except ValueError:
+            pass
     return value
 
 def save_config(filename, cfg, name="config"):
