@@ -76,6 +76,13 @@ setup(
     zip_safe=False,
     install_requires=['numpy'],
     ext_modules=[orbits_ext, fastGB_ext, imr_phenomd_ext],
-
+    scripts=[os.path.join("data_generation/scripts", s) for s in ['arm_projection',
+                                                                  "strain_combination",
+                                                                  "strain_interpolation",
+                                                                  'run_lisanode',
+                                                                  'prep_lisanode',
+                                                                  'source_selection',
+                                                                  'data_release']],
+    
 )
 
