@@ -102,9 +102,9 @@ class ProjectedStrain(object):
 
         if GWs[0].source_type in interp_type:
             hphc_call = 'interp_hphc'
-            jk = [GW.compute_hphc(receiver_time, **kwargs) for GW in GWs]
+            jk = [GW.compute_hphc_td(receiver_time, **kwargs) for GW in GWs]
         else:
-            hphc_call = 'compute_hphc'
+            hphc_call = 'compute_hphc_td'
             
 
         ### Compute GW effect on links
