@@ -42,13 +42,18 @@ docker:
 
 pages:
   stage: deploy
-  script:
+  before_script:
   - apt-get update
   - apt-get -y install gcc g++ 
   - pip install -U sphinx
   - pip install -U sphinx_rtd_theme
+  - pip install mkdocs-material
+  script:
   - cd doc
   - sphinx-build -b html . ../public
+  - cd ../data_generation/doc
+  - mkdocs build
+  - mv site ../../public/data_generation
   artifacts:
     paths:
     - public
