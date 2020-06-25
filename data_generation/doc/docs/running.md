@@ -160,4 +160,4 @@ strain, as well as CPU statistics: `snakemake --report report.html`
 A graphical representation of the underlying workflow can be obtained
 via: `snakemake --dag | dot -Tpng > dag.png `
 
-<img src="dag.png"  alt="Pipeline DAG" width="750"/> 
+<img src="running/dag.png"  alt="Pipeline DAG" width="750"/> 

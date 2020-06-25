@@ -12,6 +12,8 @@ Contents:
    :maxdepth: 2
 
    API <api>
+   Data generation pipeline documentation <https://lisa.pages.in2p3.fr/LDC/data_generation/>
+
 
 Indices and tables
 ==================
