@@ -1,0 +1,142 @@
+
+myconfig = "config.yml"
+configfile: myconfig
+
+singularity: "ldcpipe.sif" 
+
+
+subworkflow gbworkflow:
+    workdir:
+        "./gb-pipeline"
+    snakefile:
+        "./gb-pipeline/Snakefile"
+    configfile:
+        "./gb-pipeline/config.yml"
+
+
+rundir = config["dirname"]
+
+rule all:
+    input:
+        rundir+"/out_blind.h5",  rundir+"/out_nonblind.h5", 
+
+
+rule full:
+    input:
+        expand(rundir+"/{source}-lisanode/{source}-tdi.h5",
+               source=list(config["sources"].keys())+["sum", "gb"]),
+        
+
+rule source_selection:
+    input:
+        cfg = "param_{source}.yml",
+    output:
+        rundir+"/{source}.npy"
+    shell:
+        """
+        source_selection -c {input.cfg} -o {output}
+        """
+
+rule arm_projection:
+    input:
+        cfg = "config.yml", 
+        src = rundir+"/{source}.npy"
+    output:
+        temp(rundir+"/{source}--{batch}-y.h5")
+    log:
+        "log/{source}--{batch}-y.log"
+    params:
+        cfg = "param_{source}.yml"
+    shell:
+        """
+        arm_projection -i {input.src} -c {input.cfg} -o {output} --log {log} --select {wildcards.batch} --source-config {params.cfg}
+        """
+
+rule batch_merge:
+    input:
+        src = lambda wildcards: [rundir+"/{source}--%d:%d-y.h5"%(i,config["nbatch"]) for i in range(config["nbatch"])],
+        cfg = "config.yml"
+    output: rundir+"/{source}-y.h5"
+    log: "log/{source}-y.log"
+    shell:
+        """
+        strain_combination -i {input.src} -c {input.cfg} -o {output} --log {log}
+        """
+
+rule interp_gb:
+    input:
+        src = [gbworkflow(rundir+"/dgb-y.h5"), gbworkflow(rundir+"/igb-y.h5")],
+        cfg = "config.yml"
+    output:
+        out = rundir+"/gb-y.h5"
+    log:
+        "log/interp_gb.log"
+    shell:
+        """
+        strain_combination -i {input.src} -c {input.cfg} -o {output.out} --log {log}
+        """
+#strain_interpolation -i {input.src} -c {input.cfg} -o {output.out} --log {log}
+        
+rule source_merge:
+    input:
+        cfg = "config.yml", 
+        src = expand(rundir+"/{source}-y.h5",
+                     source=list(config["sources"].keys())+["gb"])
+    output:
+        out = rundir+"/sum-y.h5", 
+    log:
+        "log/source_merged.log"
+    shell:
+        """
+        strain_combination -i {input.src} -c {input.cfg} -o {output.out} --log {log}
+        """
+
+rule L0L1:
+    input:
+        data = rundir+"/{source}-y.h5",
+        graph = "LDC_graph.py",
+        cfg = myconfig,
+        cfgln = "lisanode_config.py",
+    output:
+        graph = rundir+"/{source}-lisanode/mygraph.py",
+        s = rundir+"/{source}-lisanode/{source}-tdi.h5"
+    log:
+        "log/{source}-tdi.log"
+    params:
+        prefix = config["ldc_liborbits"],
+        duration = config["t_max"]
+    resources:
+        mem_mb=30000
+    shell:
+        """
+        prep_lisanode -l {log} -o {output.graph} -c {input.cfgln} -g {input.graph} --pipe-config {input.cfg}
+        run_lisanode --h5 -l {log} -i {input.data} -o {output.s} -g {output.graph} -c {input.cfg} -n LISAWithGWAndTDI -f '-O3 -I{params.prefix}/nodes -L{params.prefix}/lib -I{params.prefix}/lib -I{params.prefix}/../../common/constants -lorbits' --duration {params.duration}
+        """
+
+rule blind_release:
+    input:
+        tdi = rundir+"/sum-lisanode/sum-tdi.h5"
+    output: rundir+"/out_blind.h5"
+    log:
+        "log/blind_release.log"
+    shell:
+        """
+        data_release --data-files {input.tdi} --dset-names tdi-sum -o {output} -l {log}
+        """
+
+rule release:
+    input:
+        tdi = expand(rundir+"/{source}-lisanode/{source}-tdi.h5",
+                     source=["sum"]),
+        cfg = [myconfig] + expand("param_{source}.yml", source=["vgb", "mbhb"]) +\
+              [gbworkflow("param_dgb.yml"), gbworkflow("param_igb.yml")],
+        cat = expand(rundir+"/{source}.npy", source=["vgb", "mbhb"]) +\
+              [gbworkflow(rundir+"/dgb.npy"), gbworkflow(rundir+"/igb.npy")]
+    output: rundir+"/out_nonblind.h5"
+    log:
+        "log/release.log"
+    shell:
+        """
+        data_release --data-files {input.tdi} {input.cat} --dset-names obs/tdi sky/vgb/cat sky/mbhb/cat sky/dgb/cat sky/igb/cat --config-files {input.cfg} --config-names obs/config sky/vgb/config sky/mbhb/config sky/dgb/config sky/igb/config -o {output} -l {log}
+        """
+    

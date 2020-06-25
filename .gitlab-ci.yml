@@ -40,6 +40,18 @@ docker:
   only:
   - master
 
+snaketest:
+  image: docker:latest
+  services:
+    - docker:dind
+  stage: test
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker pull "$CI_REGISTRY_IMAGE:$IMAGE_TAG"
+    - docker run "$CI_REGISTRY_IMAGE:$IMAGE_TAG" /bin/bash -c "cd /codes/LDC/data_generation/test; snakemake -j 1"
+
+
 pages:
   stage: deploy
   before_script:
