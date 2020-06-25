@@ -34,7 +34,8 @@ RUN apt-get -y update \
         python-dateutil==2.8.1 \
         pyyaml==3.13 \
         scipy==1.4.1 \        
-        six==1.14.0
+        six==1.14.0 \
+	snakemake==5.7.4
 
 RUN mkdir /codes
 COPY LISANode /codes/LISANode
