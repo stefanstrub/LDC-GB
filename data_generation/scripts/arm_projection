@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+import numpy as np
+import numpy.lib.recfunctions as recf
+import re
+import logging
+import os
+import sys
+import yaml
+from pathlib import Path
+
+from ldc.lisa.orbits import Orbits
+from ldc.waveform.waveform.hphc import HpHc
+from ldc.lisa.projection import ProjectedStrain
+import ldc.io.yml as ymlio
+from LDCPipeline.tools import init_logger, close_logger, parse_config
+
+def get_selection(select, nsource):
+    if not select:
+        istart = 0
+        iend = None
+    else:
+        idx, nbatch = get_range(select)
+        if nsource<=1 and idx!=0:
+            istart = 0
+            iend = -1 # [] empty list
+        elif nsource<=1 and idx==0:
+            istart = 0
+            iend = None
+        elif nsource<nbatch:
+            ns_per_batch = 1
+            istart = idx if idx<nsource else 0
+            iend = idx+1 if idx<nsource else 0
+        else:
+            ns_per_batch = nsource//nbatch
+            left = nsource%nbatch
+            istart = ns_per_batch*idx
+            iend = ns_per_batch*(idx+1) if idx+1!=nbatch else ns_per_batch*(idx+1)+left
+    return istart, iend
+
+def get_range(select):
+    x = re.search("([0-9]*):([0-9]*)", select) 
+    istart, iend = x.groups()
+    return int(istart), int(iend)
+            
+if __name__ == "__main__":
+
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--in', dest='cat', required=True,
+                        help= "Path to hdf5/npy sources file")
+    parser.add_argument('-c', '--config', required=True,
+                        help= "Path to configuration file")
+    parser.add_argument('--source-config', type=str, default="",
+                        help= "Path to source configuration file")
+    parser.add_argument('--approximant', type=str, default="",
+                help= "Approximant to be used, if not specified in the input catalog")
+    parser.add_argument('-o', '--out', default="./strain.hdf5", help= "Output strain")
+    parser.add_argument('-s', '--select', type=str,
+                help="Source selection isplit:nsplit (like 0:2 to project the first half)")
+    parser.add_argument('-l', '--log', type=str, default="", 
+                        help="Log file")
+    args = parser.parse_args()
+    logger = init_logger(args.log)
+    
+    cfg = ymlio.load_config(args.config)#parse_config(args.config)
+    t_max = cfg["t_max"]
+    t_min = cfg["t_min"]
+    dt = cfg["dt"]
+    #A_YEAR = 60*60*24*365
+
+    if args.source_config:
+        source_cfg = ymlio.load_config(args.source_config) #parse_config(args.source_config)
+    if args.source_config and args.select:
+        nsource = source_cfg["nsource"]
+        istart, iend = get_selection(args.select, nsource)
+        if (istart==0 and iend==0) or nsource==0:
+            logger.info("Skipping %s (Less sources than jobs)"%(args.select))
+            Path(args.out).touch()
+            sys.exit(0) # Successful exit
+    
+    # initialize the orbits
+    orbits = Orbits.type(cfg)
+    nArms = orbits.number_of_arms
+
+    # batch selection
+    if args.cat.split(".")[-1] in ["hdf5", "h5"]:
+        from LISAhdf5 import LISAhdf5
+        h5 = LISAhdf5(args.cat, mode='r')
+        sources = h5.getSourcesName()
+        GWs = [HpHc.from_file(args.hdf5, s) for s in sources]
+        GWs = [GW.split() for GW in GWs]
+        GWs = [GW for sublist in GWs for GW in sublist] # flatten
+        istart, iend = get_selection(args.select, len(GWs))
+        GWs = GWs[istart:iend]
+    else:
+        cat = np.load(args.cat)
+        istart, iend = get_selection(args.select, len(cat))
+        cat = cat[istart:iend]
+        name = os.path.basename(args.cat)
+        GWs = HpHc.type(name, source_cfg["source_type"], source_cfg["approximant"])
+        GWs.set_param(cat)
+        GWs = GWs.split()
+  
+    logger.info("selec %s start %s end %s"%(args.select, str(istart), str(iend)))
+    logger.info("will process %d sources"%len(GWs))
+    
+    # Initialize the projection on arm
+    Proj = ProjectedStrain(orbits)
+
+    # Compute GW effect on links
+    yArm = Proj.arm_response(t_min, t_max, dt, GWs, tt_order=cfg["travel_time_order"])
+    logger.info("Projection done")
+    
+    Proj.to_file(args.out)     # save on disk
+
+    logger.info("Saved to disk")
+    close_logger(logger)
