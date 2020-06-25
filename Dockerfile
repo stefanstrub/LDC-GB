@@ -38,7 +38,7 @@ RUN apt-get -y update \
 
 RUN mkdir /codes
 RUN mkdir /codes/LDC
-COPY ldc /codes/LDC/
+COPY ldc /codes/LDC/ldc
 COPY setup.py requirements.txt /codes/LDC/
 WORKDIR /codes/LDC
 RUN pip3 install -r requirements.txt
