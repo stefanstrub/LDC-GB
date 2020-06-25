@@ -37,6 +37,8 @@ RUN apt-get -y update \
         six==1.14.0
 
 RUN mkdir /codes
+COPY LISANode /codes/LISANode
+
 RUN mkdir /codes/LDC
 COPY ldc /codes/LDC/ldc
 COPY setup.py requirements.txt /codes/LDC/
@@ -45,6 +47,7 @@ RUN pip3 install -r requirements.txt
 RUN python3 setup.py install
 WORKDIR /codes/LDC/ldc/lisa/orbits/lib
 RUN make
+
 
 WORKDIR /codes/LISANode
 RUN pip3 install -e .
