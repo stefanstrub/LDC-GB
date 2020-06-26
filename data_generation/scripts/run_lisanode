@@ -3,10 +3,10 @@ import os
 import logging
 import shutil
 import subprocess
+import yaml
 
 import ldc.io.yml as ymlio
-from LDCPipeline.tools import init_logger, close_logger
-import yaml
+from ldc.utils.logging import init_logger, close_logger
 
 def build_config(config_template, gwstrain,  config_dest, noise=True):
     """ Build a dedicated config file for lisanode

@@ -6,7 +6,8 @@ import subprocess
 import glob
 
 import ldc.io.yml as ymlio
-from LDCPipeline.tools import init_logger, close_logger
+from ldc.utils.logging import init_logger, close_logger
+
 
 def remove_relative_import(dotpy, custom_prefix="my-"):
     with open(dotpy, "r", encoding='utf-8') as fid:

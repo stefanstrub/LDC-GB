@@ -9,7 +9,7 @@ import h5py
 import ldc.io.hdf5 as hdf5io
 import ldc.io.npz as npzio
 import ldc.io.yml as ymlio
-from LDCPipeline.tools import init_logger, close_logger
+from ldc.utils.logging import init_logger, close_logger
 
 def from_extension(filename):
     """ Return IO manager corresponding to filename

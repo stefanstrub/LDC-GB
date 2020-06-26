@@ -12,7 +12,8 @@ from ldc.lisa.orbits import Orbits
 from ldc.waveform.waveform.hphc import HpHc
 from ldc.lisa.projection import ProjectedStrain
 import ldc.io.yml as ymlio
-from LDCPipeline.tools import init_logger, close_logger, parse_config
+from ldc.utils.logging import init_logger, close_logger
+
 
 def get_selection(select, nsource):
     if not select:
@@ -62,7 +63,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     logger = init_logger(args.log)
     
-    cfg = ymlio.load_config(args.config)#parse_config(args.config)
+    cfg = ymlio.load_config(args.config)
     t_max = cfg["t_max"]
     t_min = cfg["t_min"]
     dt = cfg["dt"]

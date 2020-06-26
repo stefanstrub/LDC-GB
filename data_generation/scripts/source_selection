@@ -7,9 +7,7 @@ import argparse
 
 from ldc.waveform.source import SourceMaker
 import ldc.io.yml as ymlio
-
-from LDCPipeline.tools import init_logger, close_logger
-
+from ldc.utils.logging import init_logger, close_logger
 
 if __name__ == "__main__":
     import argparse
