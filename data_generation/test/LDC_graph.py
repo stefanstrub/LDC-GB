@@ -13,7 +13,7 @@ from .config import LISA_PUBLISH_BEATNOTE_FREQUENCIES
 from .config import LISA_MEASUREMENT_FS, LISA_PHYSICS_FS
 from ..compiler import Graph
 
-from LDCPipeline.projectedstrain import from_file
+from ldc.lisa.projection import from_file
 import h5py
 import os
 import yaml

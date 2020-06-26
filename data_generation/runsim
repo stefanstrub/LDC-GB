@@ -7,13 +7,35 @@ directly from the command line.
 """
 from shutil import copyfile, copymode
 import os
-from LDCPipeline.tools import parse_config
 import yaml
 import os.path as op
 import datetime
 import glob
 import h5py
 import numpy as np
+
+def parse_config(config, ignore_unit=True):
+    """ Return dict from configuration file
+    """
+    def str2num(v):
+        try:
+            v_ = float(v) if "." in v else int(v)
+        except:
+            v_ = v
+        return v_
+            
+    cfg = yaml.load(open(config, "r"), Loader=yaml.BaseLoader)
+    for k,v in cfg.items():
+        #if isinstance(v, (list, tuple)) and len(v)==2 and ignore_unit:
+        #    cfg[k] = str2num(v[0]) # ignore units for now
+        #else:
+        if isinstance(v, (list, tuple)):
+            cfg[k] = [str2num(vi) for vi in v]
+        else:
+            cfg[k] = str2num(v)
+        
+    return cfg
+
 
 if __name__ == "__main__":
 
@@ -29,9 +51,6 @@ if __name__ == "__main__":
                         help= "Print command to run on apccluster")
     parser.add_argument('--rewrite-gb-history', action='store_true',
                         help= "Rewrite GB files timestamps")
-    parser.add_argument('--archive', action='store_true',
-                        help= "Archive pipeline products")
-
     
     args = parser.parse_args()
 
