@@ -51,6 +51,21 @@ snaketest:
     - docker pull "$CI_REGISTRY_IMAGE:$IMAGE_TAG"
     - docker run "$CI_REGISTRY_IMAGE:$IMAGE_TAG" /bin/bash -c "cd /codes/LDC/data_generation/test; snakemake -j 1"
 
+singularity:
+  stage: deploy
+  image:
+    name: quay.io/singularity/singularity:v3.4.0
+    entrypoint: [""]
+  script:
+    - singularity build --docker-username ${SINGULARITY_DOCKER_USERNAME} --docker-password ${SINGULARITY_DOCKER_PASSWORD} ldcpipe.sif ldcpipe.def
+    - export MY_PROJECT_NAME=ldc
+    - echo oras://"$CI_REGISTRY_IMAGE"/"$MY_PROJECT_NAME":"$CI_COMMIT_TAG"
+    - singularity push --docker-username "${CI_REGISTRY_USER}" --docker-password "${CI_REGISTRY_PASSWORD}" ldcpipe.sif oras://"$CI_REGISTRY_IMAGE"/"$MY_PROJECT_NAME":"$CI_COMMIT_TAG"
+  artifacts:
+    paths:
+    - ldcpipe.sif
+  only:
+  - master
 
 pages:
   stage: deploy

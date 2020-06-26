@@ -20,13 +20,10 @@ The default python3 version is 3.6.8
 > source /sps/hep/lisaf/username/venv/bin/activate
 ```
 
-### Installing the LDCPipeline dependancies
+### Installing the pipeline dependancies
 
 ```
-> git clone git@gitlab.in2p3.fr:maudelejeune/LDCPipeline.git
-> cd LDCPipeline
-> pip install -r requirements.txt
-> python setup.py install
+> pip install snakemake==5.7.4
 ```
 
 ### Setting up a new pipeline
@@ -45,7 +42,7 @@ To download the singularity image:
 
 ```
 > ccenv singularity 3.5.2
-> singularity pull --docker-username gitlab-deploy-token --docker-password 49ZVwuqLhSTVcmcFq2p8 ldcpipe.sif oras://gitlab-registry.in2p3.fr/maudelejeune/ldcpipeline/ldcpipeline:latest
+> singularity pull --docker-username gitlab-deploy-token --docker-password ... ldcpipe.sif oras://gitlab-registry.in2p3.fr/lisa/ldc/ldc:latest
 ```
 
 ### Configuring the bash profile
@@ -85,7 +82,8 @@ in the 30 millions sources catalog should be run on the head node.
 
 ```
 cd gb-pipeline
-snakemake -j 1 --use-singularity run1/gb.npy
+snakemake -j 1 --use-singularity run1/dgb.npy
+snakemake -j 1 --use-singularity run1/igb.npy
 ```
 
 Then, a template script `job.sh` is provided. It can be tuned with
