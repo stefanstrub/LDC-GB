@@ -1,4 +1,5 @@
 import logging
+import sys
 
 def init_logger(filename=None, level=logging.DEBUG):
     """ Initialize a logger.

@@ -1,0 +1,140 @@
+#!/usr/bin/env python3
+
+description = """This script is a wrapper around Snakemake calls.  It is provided to
+ease the basic usage of the pipeline. Snakemake provides a lot of
+functionnalities which can be parsed and used using 'snakemake --help'
+directly from the command line.
+"""
+from shutil import copyfile, copymode
+import os
+from LDCPipeline.tools import parse_config
+import yaml
+import os.path as op
+import datetime
+import glob
+import h5py
+import numpy as np
+
+if __name__ == "__main__":
+
+    import argparse
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('--init', type=str, default="", 
+                        help= "Initialize a new run directory INIT")
+    parser.add_argument('--info', action='store_true',
+                        help= "Print run configuration summary")
+    parser.add_argument('--data', type=str, default="", 
+                        help= "Link existing ancillary data DATA or download them if DATA=download")
+    parser.add_argument('--apccluster', action='store_true',
+                        help= "Print command to run on apccluster")
+    parser.add_argument('--rewrite-gb-history', action='store_true',
+                        help= "Rewrite GB files timestamps")
+    parser.add_argument('--archive', action='store_true',
+                        help= "Archive pipeline products")
+
+    
+    args = parser.parse_args()
+
+    if args.init:
+        files = ["Snakefile", "config.yml", 
+                 "lisanode_config.py", "LDC_graph.py",
+                 "param_vgb.yml", "param_mbhb.yml", 
+                 "gb-pipeline/Snakefile", "gb-pipeline/config.yml",
+                 "gb-pipeline/param_dgb.yml", "gb-pipeline/param_igb.yml",
+                 "runsim"]
+        src = os.path.join(os.getcwd(), "test")
+        dest = args.init
+        os.makedirs(dest, exist_ok=True)
+        os.makedirs(os.path.join(dest, "gb-pipeline"), exist_ok=True)
+        for f in files:
+            if f=="runsim":
+                copyfile(os.path.join(os.getcwd(), f),
+                         os.path.join(dest, f))
+                copymode(os.path.join(os.getcwd(), f),os.path.join(dest, f))
+            else:
+                copyfile(os.path.join(src, f),
+                         os.path.join(dest, f))
+
+    else:
+        cfg_instru = parse_config("config.yml")
+        cfg_instru_ = parse_config("gb-pipeline/config.yml")
+        k_instru = ["t_min", "t_max",
+                    "nominal_arm_length", "initial_position", "initial_rotation",
+                    "travel_time_order"]
+
+    if args.data:
+        param_file = ["param_vgb.yml", "param_mbhb.yml", "gb-pipeline/param_dgb.yml", "gb-pipeline/param_igb.yml"]
+        if args.data == "download":
+            print("not yet available") # to go wget in dest
+        else:
+            for cfg in param_file:
+                cfgfile = cfg 
+                cfg_src = parse_config(cfgfile)
+                cfg_src["catalogs"] = os.path.join(args.data, os.path.basename(cfg_src["catalogs"]))
+                yaml.dump(cfg_src, open(cfgfile, "w"), default_flow_style=False)
+    
+    if args.info:
+        print("Instrumental configuration is: ")
+        for k in k_instru:
+            print("%s: %f"%(k, cfg_instru[k]))
+            if cfg_instru[k]!= cfg_instru_[k]:
+                print("WARNING: general config doesn't match GB one")
+                print("%s: %f !=%f"%(k, cfg_instru[k], cfg_instru_[k]))
+
+        print("Source configuration is: ")
+        if "mbhb" in cfg_instru["sources"]:
+            cfg_mbhb = parse_config("param_mbhb.yml")
+            print("Will include %d MBHB from %s at dt=%d s"%(cfg_mbhb["nsource"],
+                                                             cfg_mbhb["catalogs"],
+                                                             cfg_instru["dt"] ))
+            print("-----> using %d batch jobs"%cfg_instru["nbatch"])
+        if "vgb" in cfg_instru["sources"]:
+            cfg_vgb = parse_config("param_vgb.yml")
+            print("Will include %d VGB from %s at dt=%d s"%(cfg_vgb["nsource"],
+                                                            cfg_vgb["catalogs"],
+                                                            cfg_instru["dt"]))
+            print("-----> using %d batch jobs"%cfg_instru["nbatch"])
+
+        if "dgb" in cfg_instru_["sources"]:
+            cfg_dgb = parse_config("gb-pipeline/param_dgb.yml")
+            print("Will include %d GB from %s at dt=%d s "%(cfg_dgb["nsource"],
+                                                            cfg_dgb["catalogs"],
+                                                            cfg_instru_["dt"] ))
+            print("-----> using %d batch jobs"%cfg_instru_["nbatch"])
+        if "igb" in cfg_instru_["sources"]:
+            cfg_igb = parse_config("gb-pipeline/param_igb.yml")
+            print("Will include %d GB from %s at dt=%d s "%(cfg_igb["nsource"],
+                                                            cfg_igb["catalogs"],
+                                                            cfg_instru_["dt"] ))
+            print("-----> using %d batch jobs"%cfg_instru_["nbatch"])
+        print("Output will be saved in %s "%(cfg_instru["dirname"]))
+        print("(and in gb-pipeline/%s for GB strains)"%(cfg_instru_["dirname"]))
+            
+    if args.apccluster:
+        max_batch = max(cfg_instru_["nbatch"], cfg_instru["nbatch"])
+        cmd = 'snakemake --cores %d --use-singularity --default-res mem_mb=8000 --cluster "qsub -l nodes=1:ppn=1,mem={resources.mem_mb}mb,walltime=96:00:00"'%max_batch
+        print(cmd)
+
+    
+    if args.rewrite_gb_history:
+        gbd = op.join("gb-pipeline", cfg_instru_["dirname"])
+        for pref in ["dgb", "igb"]:
+            cdate = os.path.getmtime(op.join(gbd, "%s-y.h5"%pref))
+            cdate = datetime.datetime.fromtimestamp(cdate)
+
+            tmp_batch = glob.glob(op.join(gbd , "%s--*.h5"%pref))
+            delta = datetime.timedelta(0.1)
+            for f in tmp_batch:
+                os.system("touch --date='%s' %s"%(cdate-delta, f))
+
+            catalog = glob.glob(op.join(gbd , "%s.npy"%pref))
+            for f in catalog:
+                os.system("touch --date='%s' %s"%(cdate-2*delta, f))
+
+        configs = ["gb-pipeline/config.yml",
+                   "gb-pipeline/param_dgb.yml",
+                   "gb-pipeline/param_igb.yml",
+                   "gb-pipeline/Snakefile"]
+        for f in configs:
+            os.system("touch --date='%s' %s"%(cdate-3*delta, f))
+
