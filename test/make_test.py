@@ -20,7 +20,9 @@ pGBl = dict({'Amplitude': np.array([1.07345e-22, 1.0125e-22]), #"strain"),
              'InitialPhase': np.array([3.0581565, 3.546841]),# "radian"),
              'Polarization': np.array([3.5621656, 3.124485])})#, "Radian"),
 
-for mod in ["ldc.waveform.waveform"]:
+for mod in ["ldc.waveform.waveform",
+            "ldc.waveform.source",
+            "ldc.io.hdf5"]:
     module = importlib.import_module(mod)
     for sub in module.__all__:
         submodule = importlib.import_module(module.__name__+"."+sub)

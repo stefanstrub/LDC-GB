@@ -13,6 +13,7 @@ sources:
    igb: param_igb.yml
 
 nbatch: 2 #0
+checkpoint: 2
 
 dirname: run1
 
