@@ -135,7 +135,7 @@ class BBH_IMRPhenomD(HpHc):
         >>> GW = HpHc.type("my-mbhb", "MBHB", "IMRPhenomD")
         >>> hp,hc = GW.compute_hphc_td(np.arange(0,100,10), pMBHB)
         >>> print(hp[0:3], hc[0:3] )
-        [ 1.01001832e-20  3.20629073e-20 -2.84964535e-21] [ 7.94954224e-21 -2.53257153e-20 -1.46996521e-20]
+        [-3.66131878e-21 -3.09772221e-20  2.26880923e-21] [-1.06577266e-20  2.26413526e-20  1.54020276e-20]
         """
         if source_parameters is not None:
             self.set_param(source_parameters)

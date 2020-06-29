@@ -23,7 +23,7 @@ doctest:
   - apt-get update
   - apt-get -y install gcc g++ libfftw3-dev libgsl-dev 
   - pip install -r requirements.txt
-  - python ldc/waveform/waveform/hphc.py
+  - python test/make_test.py
 
 docker:
   image: docker:latest
