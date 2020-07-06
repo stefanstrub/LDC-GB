@@ -80,4 +80,6 @@ if __name__ == "__main__":
     # add all config
     for name, dfile in zip(args.config_names, args.config_files):
         cfg = ymlio.load_config(dfile)
+        if 'sources' in cfg.keys():
+            del cfg['sources']
         hdf5io.save_config(args.out, cfg, name=name, mode='a')
