@@ -5,13 +5,21 @@ configfile: myconfig
 singularity: "ldcpipe.sif" 
 
 
-subworkflow gbworkflow:
+subworkflow dgbworkflow:
     workdir:
-        "./gb-pipeline"
+        "./dgb-pipeline"
     snakefile:
-        "./gb-pipeline/Snakefile"
+        "./dgb-pipeline/Snakefile"
     configfile:
-        "./gb-pipeline/config.yml"
+        "./dgb-pipeline/config.yml"
+
+subworkflow igbworkflow:
+    workdir:
+        "./igb-pipeline"
+    snakefile:
+        "./igb-pipeline/Snakefile"
+    configfile:
+        "./igb-pipeline/config.yml"
 
 
 rundir = config["dirname"]
@@ -24,7 +32,7 @@ rule all:
 rule full:
     input:
         expand(rundir+"/{source}-lisanode/{source}-tdi.h5",
-               source=list(config["sources"].keys())+["sum", "gb"]),
+               source=list(config["sources"].keys())+["sum", "igb", "dgb"]),
         
 
 rule source_selection:
@@ -63,25 +71,27 @@ rule batch_merge:
         strain_combination -i {input.src} -c {input.cfg} -o {output} --log {log}
         """
 
-rule interp_gb:
+rule interp_gb: # used for tdi / source type
     input:
-        src = [gbworkflow(rundir+"/dgb-y.h5"), gbworkflow(rundir+"/igb-y.h5")],
+        src1 = dgbworkflow(rundir+"/dgb-y.h5"),
+        src2 = igbworkflow(rundir+"/igb-y.h5"),
         cfg = "config.yml"
     output:
-        out = rundir+"/gb-y.h5"
+        out1 = rundir+"/dgb-y.h5",
+        out2 = rundir+"/igb-y.h5"
     log:
         "log/interp_gb.log"
     shell:
         """
-        strain_combination -i {input.src} -c {input.cfg} -o {output.out} --log {log}
+        strain_combination -i {input.src1} -c {input.cfg} -o {output.out1} --log {log}
+        strain_combination -i {input.src2} -c {input.cfg} -o {output.out2} --log {log}
         """
-#strain_interpolation -i {input.src} -c {input.cfg} -o {output.out} --log {log}
         
 rule source_merge:
     input:
         cfg = "config.yml", 
         src = expand(rundir+"/{source}-y.h5",
-                     source=list(config["sources"].keys())+["gb"])
+                     source=list(config["sources"].keys())+["dgb", "igb"])
     output:
         out = rundir+"/sum-y.h5", 
     log:
@@ -129,9 +139,9 @@ rule release:
         tdi = expand(rundir+"/{source}-lisanode/{source}-tdi.h5",
                      source=["sum"]),
         cfg = [myconfig] + expand("param_{source}.yml", source=["vgb", "mbhb"]) +\
-              [gbworkflow("param_dgb.yml"), gbworkflow("param_igb.yml")],
+              [dgbworkflow("param_dgb.yml"), igbworkflow("param_igb.yml")],
         cat = expand(rundir+"/{source}.npy", source=["vgb", "mbhb"]) +\
-              [gbworkflow(rundir+"/dgb.npy"), gbworkflow(rundir+"/igb.npy")]
+              [dgbworkflow(rundir+"/dgb.npy"), igbworkflow(rundir+"/igb.npy")]
     output: rundir+"/out_nonblind.h5"
     log:
         "log/release.log"
