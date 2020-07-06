@@ -114,13 +114,14 @@ rule L0L1:
         "log/{source}-tdi.log"
     params:
         prefix = config["ldc_liborbits"],
-        duration = config["t_max"]
+        duration = config["t_max"],
+        optim = 1
     resources:
         mem_mb=30000
     shell:
         """
         prep_lisanode -l {log} -o {output.graph} -c {input.cfgln} -g {input.graph} --pipe-config {input.cfg}
-        run_lisanode --h5 -l {log} -i {input.data} -o {output.s} -g {output.graph} -c {input.cfg} -n LISAWithGWAndTDI -f '-I{params.prefix}/nodes -L{params.prefix}/lib -I{params.prefix}/lib -I{params.prefix}/../../common/constants -lorbits' --duration {params.duration}
+        run_lisanode -O {params.optim} --h5 -l {log} -i {input.data} -o {output.s} -g {output.graph} -c {input.cfg} -n LISAWithGWAndTDI -f '-I{params.prefix}/nodes -L{params.prefix}/lib -I{params.prefix}/lib -I{params.prefix}/../../common/constants -lorbits' --duration {params.duration}
         """
 
 rule blind_release:
