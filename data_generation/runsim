@@ -58,13 +58,16 @@ if __name__ == "__main__":
         files = ["Snakefile", "config.yml", 
                  "lisanode_config.py", "LDC_graph.py",
                  "param_vgb.yml", "param_mbhb.yml", 
-                 "gb-pipeline/Snakefile", "gb-pipeline/config.yml",
-                 "gb-pipeline/param_dgb.yml", "gb-pipeline/param_igb.yml",
+                 "igb-pipeline/Snakefile", "igb-pipeline/config.yml",
+                 "dgb-pipeline/Snakefile", "dgb-pipeline/config.yml",
+                 "dgb-pipeline/param_dgb.yml", "igb-pipeline/param_igb.yml",
                  "runsim"]
         src = os.path.join(os.getcwd(), "test")
         dest = args.init
         os.makedirs(dest, exist_ok=True)
-        os.makedirs(os.path.join(dest, "gb-pipeline"), exist_ok=True)
+        os.makedirs(os.path.join(dest, "igb-pipeline"), exist_ok=True)
+        os.makedirs(os.path.join(dest, "dgb-pipeline"), exist_ok=True)
+
         for f in files:
             if f=="runsim":
                 copyfile(os.path.join(os.getcwd(), f),
@@ -76,13 +79,14 @@ if __name__ == "__main__":
 
     else:
         cfg_instru = parse_config("config.yml")
-        cfg_instru_ = parse_config("gb-pipeline/config.yml")
+        cfg_instru_d = parse_config("dgb-pipeline/config.yml")
+        cfg_instru_i = parse_config("igb-pipeline/config.yml")
         k_instru = ["t_min", "t_max",
                     "nominal_arm_length", "initial_position", "initial_rotation",
                     "travel_time_order"]
 
     if args.data:
-        param_file = ["param_vgb.yml", "param_mbhb.yml", "gb-pipeline/param_dgb.yml", "gb-pipeline/param_igb.yml"]
+        param_file = ["param_vgb.yml", "param_mbhb.yml", "dgb-pipeline/param_dgb.yml", "igb-pipeline/param_igb.yml"]
         if args.data == "download":
             print("not yet available") # to go wget in dest
         else:
@@ -96,9 +100,10 @@ if __name__ == "__main__":
         print("Instrumental configuration is: ")
         for k in k_instru:
             print("%s: %f"%(k, cfg_instru[k]))
-            if cfg_instru[k]!= cfg_instru_[k]:
-                print("WARNING: general config doesn't match GB one")
-                print("%s: %f !=%f"%(k, cfg_instru[k], cfg_instru_[k]))
+            if cfg_instru[k]!= cfg_instru_d[k] or cfg_instru[k]!= cfg_instru_i[k]:
+                print("WARNING: general config doesn't match GB ones")
+                print("%s: %f !=%f or !=%f"%(k, cfg_instru[k],
+                                             cfg_instru_d[k], cfg_instru_i[k]))
 
         print("Source configuration is: ")
         if "mbhb" in cfg_instru["sources"]:
@@ -114,30 +119,34 @@ if __name__ == "__main__":
                                                             cfg_instru["dt"]))
             print("-----> using %d batch jobs"%cfg_instru["nbatch"])
 
-        if "dgb" in cfg_instru_["sources"]:
-            cfg_dgb = parse_config("gb-pipeline/param_dgb.yml")
+        if "dgb" in cfg_instru_d["sources"]:
+            cfg_dgb = parse_config("dgb-pipeline/param_dgb.yml")
             print("Will include %d GB from %s at dt=%d s "%(cfg_dgb["nsource"],
                                                             cfg_dgb["catalogs"],
-                                                            cfg_instru_["dt"] ))
-            print("-----> using %d batch jobs"%cfg_instru_["nbatch"])
-        if "igb" in cfg_instru_["sources"]:
-            cfg_igb = parse_config("gb-pipeline/param_igb.yml")
+                                                            cfg_instru_d["dt"] ))
+            print("-----> using %d batch jobs"%cfg_instru_d["nbatch"])
+        if "igb" in cfg_instru_i["sources"]:
+            cfg_igb = parse_config("igb-pipeline/param_igb.yml")
             print("Will include %d GB from %s at dt=%d s "%(cfg_igb["nsource"],
                                                             cfg_igb["catalogs"],
-                                                            cfg_instru_["dt"] ))
-            print("-----> using %d batch jobs"%cfg_instru_["nbatch"])
+                                                            cfg_instru_i["dt"] ))
+            print("-----> using %d batch jobs"%cfg_instru_i["nbatch"])
         print("Output will be saved in %s "%(cfg_instru["dirname"]))
-        print("(and in gb-pipeline/%s for GB strains)"%(cfg_instru_["dirname"]))
+        print("(and in dgb-pipeline/%s for GB strains)"%(cfg_instru_d["dirname"]))
+        print("(and in igb-pipeline/%s for GB strains)"%(cfg_instru_i["dirname"]))
             
     if args.apccluster:
         max_batch = max(cfg_instru_["nbatch"], cfg_instru["nbatch"])
         cmd = 'snakemake --cores %d --use-singularity --default-res mem_mb=8000 --cluster "qsub -l nodes=1:ppn=1,mem={resources.mem_mb}mb,walltime=96:00:00"'%max_batch
         print(cmd)
 
-    
     if args.rewrite_gb_history:
-        gbd = op.join("gb-pipeline", cfg_instru_["dirname"])
         for pref in ["dgb", "igb"]:
+            gbdir = "%s-pipeline"%pref
+            if pref=="dgb":
+                gbd = op.join(gbdir, cfg_instru_d["dirname"])
+            else:
+                gbd = op.join(gbdir, cfg_instru_i["dirname"])
             cdate = os.path.getmtime(op.join(gbd, "%s-y.h5"%pref))
             cdate = datetime.datetime.fromtimestamp(cdate)
 
@@ -150,10 +159,11 @@ if __name__ == "__main__":
             for f in catalog:
                 os.system("touch --date='%s' %s"%(cdate-2*delta, f))
 
-        configs = ["gb-pipeline/config.yml",
-                   "gb-pipeline/param_dgb.yml",
-                   "gb-pipeline/param_igb.yml",
-                   "gb-pipeline/Snakefile"]
-        for f in configs:
-            os.system("touch --date='%s' %s"%(cdate-3*delta, f))
+            configs = ["%s/config.yml"%gbdir,
+                       "%s/param_%s.yml"%(gbdir, pref), 
+                       "%s/Snakefile"%gbdir]
+            for f in configs:
+                os.system("touch --date='%s' %s"%(cdate-3*delta, f))
+
+
 
