@@ -41,6 +41,8 @@ if __name__ == "__main__":
                         help= "Activate devtool7 (required if default gcc<4.9)")
     parser.add_argument('--h5', action="store_true", 
                         help= "Use hdf5 output")
+    parser.add_argument('-O', '--optimization', choices=[0, 1, 2, 3], default=0, 
+                        help= "level of compiler optimizations")
     
     args = parser.parse_args()
     logger = init_logger(args.log)		
@@ -69,7 +71,7 @@ if __name__ == "__main__":
     args.graph = os.path.basename(args.graph)
         
     o = open(args.log, "a")
-    rargs = [prefix + " lisanode run -O 3 %s --flags='%s' --config=%s %s:%s -d %s -o %s"%(ofmt, args.flags, config,  args.graph, args.node, str(args.duration), args.output)]
+    rargs = [prefix + " lisanode run -O %d %s --flags='%s' --config=%s %s:%s -d %s -o %s"%(args.optimization, ofmt, args.flags, config,  args.graph, args.node, str(args.duration), args.output)]
     p = subprocess.Popen(rargs, stdout=o, stderr=o,
                          shell=True, cwd=output_dir, 
                          executable='/bin/bash')
