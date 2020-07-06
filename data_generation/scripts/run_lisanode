@@ -41,7 +41,8 @@ if __name__ == "__main__":
                         help= "Activate devtool7 (required if default gcc<4.9)")
     parser.add_argument('--h5', action="store_true", 
                         help= "Use hdf5 output")
-    parser.add_argument('-O', '--optimization', choices=[0, 1, 2, 3], default=0, 
+    parser.add_argument('-O', '--optimization', choices=[0, 1, 2, 3], type=int,
+                        default=0, 
                         help= "level of compiler optimizations")
     
     args = parser.parse_args()
