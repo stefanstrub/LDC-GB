@@ -1,24 +1,11 @@
 # Installation
 
-## Requirements
-
-> TODO: write a requirements.txt
-
-- cython
-- setuptools >= 41.0.0
-- fftw3
-- gsl
-- c++ 11 compiler
-- numpy
-- scipy
-- astropy
-- h5py
-
-
-## Installation 
-
+- `pip install -r requirements.txt`
 - `python setup.py install`
 - `python setup.py build_liborbits install`
+
+Paths to FFTW, GSL and other libraries can be set in the `setup.cfg`
+file.
 
 # Documentation
 
