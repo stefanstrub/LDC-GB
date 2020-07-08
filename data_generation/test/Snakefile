@@ -114,7 +114,7 @@ rule L0L1:
         "log/{source}-tdi.log"
     params:
         prefix = config["ldc_liborbits"],
-        duration = config["t_max"],
+        duration = config["t_max"]+15,
         optim = 1
     resources:
         mem_mb=30000

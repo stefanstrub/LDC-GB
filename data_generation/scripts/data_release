@@ -60,12 +60,13 @@ if __name__ == "__main__":
                 for i,dset in enumerate(dsets):
                     subarr, descr = hdf5io.load_array(dfile, name=dset)
                     if i==0:
-                        arr.append(subarr[:,0])
-                        arr.append(subarr[:,1])
+                        ineg = np.where(subarr[:,0]>=0)[0][0]
+                        arr.append(subarr[ineg:,0])
+                        arr.append(subarr[ineg:,1])
                         names.append("time")
                         names.append(dset)
                     else:
-                        arr.append(subarr[:,1])
+                        arr.append(subarr[ineg:,1])
                         names.append(dset)
                 arr = np.rec.fromarrays(arr, names=names)
                 del descr["name"]
