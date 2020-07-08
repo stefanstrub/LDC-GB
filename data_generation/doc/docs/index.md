@@ -7,6 +7,7 @@
 * [Installation](installation.md)
 * [Running a pipeline](running.md)
 * [Running at CCIN2P3](running_cc.md)
+* [Running at CNES](running_hal.md)
 * [Pipeline products](products.md)
 * [Performance](perf.md)
 

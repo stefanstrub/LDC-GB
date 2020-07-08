@@ -139,7 +139,7 @@ of memory is set at the last stage of the pipeline (see l. 116 of
 Snakefile). A default amount of memory can be set for the other rules,
 by using:
 
-`snakemake --cores 2 --default-res mem_mb=8000 --cluster "qsub -l
+`snakemake --cores 2 --default-resources "mem_mb=8000" --cluster "qsub -l
 nodes=1:ppn=1,mem={resources.mem_mb}mb,walltime=96:00:00"`
 
 
