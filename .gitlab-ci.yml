@@ -105,6 +105,8 @@ release:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     stage: release
     script:
+	- echo "${IMAGE_BUILD_TAG}"
+	- echo "${IMAGE_RELEASE_TAG}"
         - docker pull $IMAGE_BUILD_TAG
         - docker tag $IMAGE_BUILD_TAG $IMAGE_RELEASE_TAG
         - docker tag $IMAGE_BUILD_TAG $IMAGE_LATEST_TAG
