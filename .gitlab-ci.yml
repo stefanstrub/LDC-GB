@@ -57,8 +57,8 @@ snaketest:
   script:
     - docker pull $IMAGE_BUILD_TAG
     - docker run $IMAGE_BUILD_TAG /bin/bash -c "cd /codes/LDC/data_generation/test; snakemake -j 1"
-   only:
-   - master
+  only:
+  - master
 
 singularity:
   stage: deploy
