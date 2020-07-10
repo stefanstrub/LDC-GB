@@ -35,7 +35,7 @@ export SINGULARITY_BINDPATH="/work/SC/lisa/LDC/ancillary_data:/data"
 Here is an example of a snakemake command line to run the pipeline on
 HAL, using singularity container: 
 
-`snakemake --use-singularity --cores 250 --default-resources "mem_mb=8000" --cluster "qsub -l select=1:ncpus=1:mem={resources.mem_mb}mb,walltime=96:00:00" --batch batch_merge=1/3`
+`snakemake --use-singularity --cores 250 --default-resources "mem_mb=8000" --cluster "qsub -l select=1:ncpus=1:mem={resources.mem_mb}mb,walltime=24:00:00" --batch batch_merge=2/3`
 
 You can use `screen` to keep the main process alive as long as the
 jobs are running.
