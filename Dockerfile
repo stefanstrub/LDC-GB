@@ -38,7 +38,7 @@ FROM gitlab-registry.in2p3.fr/lisa/lisa-cde:feature-init-ci-process
 #         six==1.14.0 \
 # 	snakemake==5.7.4
 
-pip3 install --no-cache-dir snakemake==5.7.4
+RUN pip3 install --no-cache-dir snakemake==5.7.4
 
 RUN mkdir /codes
 COPY LISANode /codes/LISANode
