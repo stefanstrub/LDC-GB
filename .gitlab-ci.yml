@@ -106,5 +106,5 @@ release:
         - docker push $IMAGE_RELEASE_TAG
         - docker push $IMAGE_LATEST_TAG 
     only:
-        - tags
-	- master
+    - tags
+    - master
