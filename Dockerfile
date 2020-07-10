@@ -1,5 +1,4 @@
-FROM gitlab-registry.in2p3.fr/lisa/lisa-cde:feature-init-ci-process
-
+FROM gitlab-registry.in2p3.fr/lisa/lisa-cde:0.1.0
 RUN pip3 install --no-cache-dir snakemake==5.7.4
 
 RUN mkdir /codes
