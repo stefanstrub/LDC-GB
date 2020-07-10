@@ -112,5 +112,3 @@ release:
         - docker push $IMAGE_LATEST_TAG 
     rules:
     - if: '$CI_COMMIT_TAG'
-    only:
-    - master
