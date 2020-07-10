@@ -73,7 +73,6 @@ singularity:
     - ldcpipe.sif
   only:
   - master
-  - tags
 
 pages:
   stage: deploy
