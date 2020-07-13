@@ -183,7 +183,7 @@ class MBHBMaker(SourceMaker, BBH_IMRPhenomD):
         SourceMaker.__init__(self, source_type, approximant, **kwargs)
         BBH_IMRPhenomD.__init__(self, "catalog", source_type, approximant)
 
-    def set_cadence(self, params, base_dt=5, base_Tobs=YRSID_SI):
+    def set_cadence(self, params, base_dt=3, base_Tobs=YRSID_SI):
         """Adjust cadence to source frequency, to ensure a good sampling.
 
         TODO: this has been deactivated for now.
