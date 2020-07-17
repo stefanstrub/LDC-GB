@@ -80,7 +80,23 @@ if __name__ == "__main__":
                 
     # add all config
     for name, dfile in zip(args.config_names, args.config_files):
-        cfg = ymlio.load_config(dfile)
-        if 'sources' in cfg.keys():
-            del cfg['sources']
-        hdf5io.save_config(args.out, cfg, name=name, mode='a')
+        
+        extension = dfile.split(".")[-1]
+        
+        if extension == "yml":
+            cfg = ymlio.load_config(dfile)
+            if 'sources' in cfg.keys():
+                del cfg['sources']
+            hdf5io.save_config(args.out, cfg, name=name, mode='a')
+        elif extension == "py":
+            pcode = open(dfile, "r").read() 
+            cfg = {}
+            exec(pcode, cfg)
+            cfg_ = {}
+            for k,v in cfg.items():
+                if v is None:
+                    v = 'None'
+                if k[0]!='_':
+                    cfg_[k] = v
+            hdf5io.save_config(args.out, cfg_, name=name, mode='a')
+            
