@@ -10,7 +10,7 @@ from .instrument import LISA, Spacecraft
 from .tdi import LISAWithTDI, TDI
 from .config import LISA_PUBLISH_MEASUREMENTS
 from .config import LISA_PUBLISH_BEATNOTE_FREQUENCIES
-from .config import LISA_MEASUREMENT_FS, LISA_PHYSICS_FS
+from .config import LISA_MEASUREMENT_FS, LISA_PHYSICS_FS, LISA_TDI_FS
 from ..compiler import Graph
 
 from ldc.lisa.projection import from_file
@@ -89,14 +89,16 @@ class LISAWithGWAndTDI(LISAWithTDI):
         for t in ["X","Y","Z"]:
             avg =  "avg_" + t
             self.add("EllipticFilter<double>", avg)
+            dt_target = LISA_TDI_FS
+            upsampling = int(LISA_PHYSICS_FS/(1./dt_target))
             self.nodes[avg].params = {
-                'passband_freq': 0.4 * (1/gw_infos(self.config)["dt"]), 
-                'stopband_freq': 0.48 * (1/gw_infos(self.config)["dt"]), 
+                'passband_freq': 0.4 * (1/dt_target), 
+                'stopband_freq': 0.48 * (1/dt_target), 
                 'minimum_passband_gain': 0.1,
                 'minimum_attenuation': 100}
             decim = "decimation_" + t
             self.add("Decimation<double>", decim)
-            self.nodes[decim].downsampling = gw_infos(self.config)["upsampling"]
+            self.nodes[decim].downsampling = upsampling
             self.nodes[decim].lag = 14.61 # group delay found empirically
             self.connect("tdi."+t, avg + ".input")
             self.connect(avg+".result", decim + ".input")
