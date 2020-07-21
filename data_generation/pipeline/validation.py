@@ -24,58 +24,21 @@ def window(tm, show=False):
 
 def get_cat(key):
     if key == "big-gb":
-        cat = np.array([(8837553, 4.68832205e-21, -0.70722789, 3.53189901,
-                         0.01002696, 7.02742938e-15, 0.84565064, 0.21987979,
-                         2.48115233)],
+
+        cat = np.array([(8837553, 4.688322047828039e-21, -0.7072278874089373, 3.5318990119515874,
+                         0.01002696164199913, 7.0274293836061735e-15, 0.8456506362930373,
+                         0.21987979316696454,
+                         2.481152331028798)],
                        dtype=[('Name', '<i8'), ('Amplitude', '<f8'),
                               ('EclipticLatitude', '<f8'),
                               ('EclipticLongitude', '<f8'),
                               ('Frequency', '<f8'), ('FrequencyDerivative', '<f8'),
                               ('Inclination', '<f8'), ('InitialPhase', '<f8'),
                               ('Polarization', '<f8')])
-    elif key == "big-mbhb-1":
-        cat = np.array([(-0.30300442, 1.29251839, 1.20313618, 2.09730354, 0.747377,
-                         0.8388, 483052., 223583., 11526944.92187926, 1.22019689,
-                         2.69198245, 1.8083985, 1.73941, 13.47098356,
-                         31558149.7635456, 5.)],
-                       dtype=[('EclipticLatitude', '<f8'), ('EclipticLongitude', '<f8'),
-                              ('PolarAngleOfSpin1', '<f8'), ('PolarAngleOfSpin2', '<f8'),
-                              ('Spin1', '<f8'), ('Spin2', '<f8'), ('Mass1', '<f8'),
-                              ('Mass2', '<f8'), ('CoalescenceTime', '<f8'),
-                              ('PhaseAtCoalescence', '<f8'),
-                              ('InitialPolarAngleL', '<f8'),
-                              ('InitialAzimuthalAngleL', '<f8'), ('Redshift', '<f8'),
-                              ('Distance', '<f8'), ('ObservationDuration', '<f8'),
-                              ('Cadence', '<f8')])
-    elif key == "big-mbhb-2":
-        cat = np.array([(1.28888303, 2.10716542, 0.62478351, 1.60719115, 0.953675,
-                         0.954511, 294021., 260563., 20426222.35914461, 3.43517638,
-                         2.06463032, 4.28787516, 3.58897, 32.30154329,
-                         31558149.7635456, 5.)],
-                       dtype=[('EclipticLatitude', '<f8'), ('EclipticLongitude', '<f8'),
-                              ('PolarAngleOfSpin1', '<f8'), ('PolarAngleOfSpin2', '<f8'),
-                              ('Spin1', '<f8'), ('Spin2', '<f8'), ('Mass1', '<f8'),
-                              ('Mass2', '<f8'), ('CoalescenceTime', '<f8'),
-                              ('PhaseAtCoalescence', '<f8'),
-                              ('InitialPolarAngleL', '<f8'),
-                              ('InitialAzimuthalAngleL', '<f8'), ('Redshift', '<f8'),
-                              ('Distance', '<f8'), ('ObservationDuration', '<f8'),
-                              ('Cadence', '<f8')])
-    elif key == "big-mbhb-3":
-        cat = np.array([(-0.56410239, 0.61092685, 0.90897235, 1.18169945, 0.972661,
-                         0.972862, 319160., 250435., 4800021.15572853, 4.27592931,
-                         2.57753889, 4.09455023, 2.18186, 17.75836794,
-                         31558149.7635456, 5.)],
-                       dtype=[('EclipticLatitude', '<f8'), ('EclipticLongitude', '<f8'),
-                              ('PolarAngleOfSpin1', '<f8'), ('PolarAngleOfSpin2', '<f8'),
-                              ('Spin1', '<f8'), ('Spin2', '<f8'), ('Mass1', '<f8'),
-                              ('Mass2', '<f8'), ('CoalescenceTime', '<f8'),
-                              ('PhaseAtCoalescence', '<f8'),
-                              ('InitialPolarAngleL', '<f8'),
-                              ('InitialAzimuthalAngleL', '<f8'), ('Redshift', '<f8'),
-                              ('Distance', '<f8'), ('ObservationDuration', '<f8'),
-                              ('Cadence', '<f8')])
-
+    elif "big-mbhb" in key:
+        cat, k = hdf5io.load_array(filename, name="sky/mbhb/cat")
+        ik = int(key.split("-")[-1])
+        cat = cat[ik:ik+1]
     return cat
 
 def get_GW(cat, key):
@@ -140,11 +103,12 @@ if __name__ == '__main__':
 
     trange = np.arange(t_min, t_max, dt)
 
-    if 0: # mbhb time domain
+    if 1: # mbhb time domain
         key = "big-mbhb-2"
         cat = get_cat(key)
-        lisacode = get_lisacode(cat, key, config)#, from_file=False)
-        simple = get_simple_tdi(cat, key, config)#, from_file=False)
+        print(cat)
+        #lisacode = get_lisacode(cat, key, config, from_file=False)
+        simple = get_simple_tdi(cat, key, config, from_file=False)
         dirname = "/home/maude/data/LDC/sangria/1.3"
         lisanode = get_lisanode(os.path.join(dirname, "mbhb-tdi.h5"), config)
         background = get_lisanode(os.path.join(dirname, "sum-tdi.h5"), config,
@@ -155,7 +119,7 @@ if __name__ == '__main__':
         tmin = int((cat["CoalescenceTime"]-600)/dt)
         tmax = int((cat["CoalescenceTime"]+400)/dt)
         plt.plot(trange[tmin:tmax], simple[tmin:tmax], label="simple", color='k')
-        plt.plot(trange[tmin:tmax], lisacode[tmin:tmax], label="lisacode", color='b')
+        #plt.plot(trange[tmin:tmax], lisacode[tmin:tmax], label="lisacode", color='b')
         plt.plot(trange[tmin:tmax], lisanode[tmin:tmax], label="lisanode", color='orange')
         plt.plot(trange[tmin:tmax], background[tmin:tmax], label="background",
                  color='grey', alpha=0.5)
@@ -163,17 +127,17 @@ if __name__ == '__main__':
 
         plt.figure(figsize=(8,6))
         plt.subplot(111)
-        plt.plot(trange[tmin:tmax], lisacode[tmin:tmax]-simple[tmin:tmax],
-                 label="lisacode-simple", color='b')
+        #plt.plot(trange[tmin:tmax], lisacode[tmin:tmax]-simple[tmin:tmax],
+        #         label="lisacode-simple", color='b')
         plt.plot(trange[tmin:tmax], lisanode[tmin:tmax]-simple[tmin:tmax],
                  label="lisanode-simple", color='orange')
-        plt.plot(trange[tmin:tmax], simple[tmin:tmax]*10/100., label="10% TDI X",
-                 color='k', ls='--', alpha=0.5)
+        #plt.plot(trange[tmin:tmax], simple[tmin:tmax]*10/100., label="10% TDI X",
+        #         color='k', ls='--', alpha=0.5)
         plt.plot(trange[tmin:tmax], background[tmin:tmax], label="background",
                  color='grey', alpha=0.5)
         plt.legend(loc="upper right")
 
-    if 1: # gb freq domain
+    if 0: # gb freq domain
         key = "big-gb"
         cat = get_cat(key)
         lisacode = get_lisacode(cat, key, config)#, from_file=False)
@@ -214,4 +178,4 @@ if __name__ == '__main__':
                  color='k', ls='--', alpha=0.5)
 
         plt.legend(ncol=1, fontsize=8, loc="lower right")
-        plt.axis([0.0100255, 0.0100285, None, None])
+        plt.axis([0.0100255, 0.0100285, 0, 5e-16])
