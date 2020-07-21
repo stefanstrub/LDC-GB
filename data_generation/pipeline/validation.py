@@ -65,6 +65,26 @@ def get_simple_tdi(cat, key, config, from_file=True):
         np.save(filename, X)
         return X
 
+def get_simple_tdi_2(cat, key, config, from_file=True):
+    filename = 'simple-%s.npy'%key
+    if from_file:
+        return np.load(filename)
+    else:
+        GW = get_GW(cat, key)
+        orbits = Orbits.type(config)
+        P = ProjectedStrain(orbits)
+        yArm = P.arm_response(config["t_min"], config["t_max"], config["dt"], [GW],
+                              tt_order=config["travel_time_order"])
+        trange = np.arange(config["t_min"]-14.61, config["t_max"], config["dt"])
+        X = P.compute_tdi_x(trange)
+        X = X[3:]
+        #interpolator = spline(trange[3:], X)
+        #trange = np.arange(config["t_min"], config["t_max"], config["dt"])
+        #X = interpolator(trange)
+        np.save(filename, X)
+        return X
+
+    
 def get_lisacode(cat, key, config, from_file=True):
     filename = 'lisacode-%s.npy'%key
     if from_file:
@@ -74,7 +94,7 @@ def get_lisacode(cat, key, config, from_file=True):
         X = run_lisacode([GW], config["t_min"], config["t_max"], config["dt"])
         interpolator = spline(X[:,0], X[:,1])
         trange = np.arange(config["t_min"], config["t_max"], config["dt"])
-        X = interpolator(trange-251.45)
+        X = interpolator(trange-251.75)
         np.save(filename, X)
         return X
 
@@ -88,7 +108,7 @@ def get_lisanode(filename, config, name="X", subtract=None):
     X = X[ineg:]
     interpolator = spline(X[:,0], X[:,1])
     trange = np.arange(config["t_min"], config["t_max"], config["dt"])
-    X = interpolator(trange)
+    X = interpolator(trange) #-0.075) # 14.61 -> 14.535
     return X
 
     
@@ -103,12 +123,12 @@ if __name__ == '__main__':
 
     trange = np.arange(t_min, t_max, dt)
 
-    if 1: # mbhb time domain
-        key = "big-mbhb-2"
+    if 0: # mbhb time domain
+        key = "big-mbhb-13"
         cat = get_cat(key)
         print(cat)
-        #lisacode = get_lisacode(cat, key, config, from_file=False)
-        simple = get_simple_tdi(cat, key, config, from_file=False)
+        lisacode = get_lisacode(cat, key, config)#, from_file=False)
+        simple = get_simple_tdi(cat, key, config)#, from_file=False)
         dirname = "/home/maude/data/LDC/sangria/1.3"
         lisanode = get_lisanode(os.path.join(dirname, "mbhb-tdi.h5"), config)
         background = get_lisanode(os.path.join(dirname, "sum-tdi.h5"), config,
@@ -119,7 +139,7 @@ if __name__ == '__main__':
         tmin = int((cat["CoalescenceTime"]-600)/dt)
         tmax = int((cat["CoalescenceTime"]+400)/dt)
         plt.plot(trange[tmin:tmax], simple[tmin:tmax], label="simple", color='k')
-        #plt.plot(trange[tmin:tmax], lisacode[tmin:tmax], label="lisacode", color='b')
+        plt.plot(trange[tmin:tmax], lisacode[tmin:tmax], label="lisacode", color='b')
         plt.plot(trange[tmin:tmax], lisanode[tmin:tmax], label="lisanode", color='orange')
         plt.plot(trange[tmin:tmax], background[tmin:tmax], label="background",
                  color='grey', alpha=0.5)
@@ -127,8 +147,8 @@ if __name__ == '__main__':
 
         plt.figure(figsize=(8,6))
         plt.subplot(111)
-        #plt.plot(trange[tmin:tmax], lisacode[tmin:tmax]-simple[tmin:tmax],
-        #         label="lisacode-simple", color='b')
+        plt.plot(trange[tmin:tmax], lisacode[tmin:tmax]-simple[tmin:tmax],
+                 label="lisacode-simple", color='b')
         plt.plot(trange[tmin:tmax], lisanode[tmin:tmax]-simple[tmin:tmax],
                  label="lisanode-simple", color='orange')
         #plt.plot(trange[tmin:tmax], simple[tmin:tmax]*10/100., label="10% TDI X",
@@ -137,7 +157,7 @@ if __name__ == '__main__':
                  color='grey', alpha=0.5)
         plt.legend(loc="upper right")
 
-    if 0: # gb freq domain
+    if 1: # gb freq domain
         key = "big-gb"
         cat = get_cat(key)
         lisacode = get_lisacode(cat, key, config)#, from_file=False)

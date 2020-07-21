@@ -214,7 +214,7 @@ class HpHc(ABC):
 
         A first call to compute_hphc_td is assumed here.
         """
-        if hasattr(self, "i_hp"):
+        if "i_hp" in self.__dict__:
             return self.i_hp(t), self.i_hc(t)
         else:
             hp, self.i_hp = _interp(self.t, self.hp, t)

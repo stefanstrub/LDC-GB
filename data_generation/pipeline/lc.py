@@ -88,12 +88,15 @@ def ConfigureInstrument(fNh5,\
         d = np.loadtxt(psdfile,skiprows=2)
         LH.addPreProcess(pTDI,PSDdata=d)
 
-def run_lisacode(GWs, t_min, t_max, dt):
+def run_lisacode(GWs, t_min, t_max, dt_source, dt_obs=None):
 
+    if dt_obs is None:
+        dt_obs = dt_source
+    
     hphcfile = "hphc.hdf5"
     os.system("rm %s"%hphcfile)
     for GW1 in GWs:
-        GW1.compute_hphc_td(np.arange(t_min, t_max, dt), set_attr=True)
+        GW1.compute_hphc_td(np.arange(t_min, t_max, dt_source), set_attr=True)
         GW1.to_file(hphcfile) # save hp hc to file
 
     output_file = "TmpLC2_hphc-TDI.txt"
@@ -101,7 +104,7 @@ def run_lisacode(GWs, t_min, t_max, dt):
     
     ConfigureInstrument(hphcfile, scriptPath="",
                         options=[], TDI="X,Y,Z",
-                        duration=t_max, timeStep=dt, orbits="MLDC_Orbits")
+                        duration=t_max, timeStep=dt_obs, orbits="MLDC_Orbits")
     
         
     RunSimuLC2(hphcfile, scriptPath="", 

@@ -102,7 +102,10 @@ class ProjectedStrain(object):
 
         if GWs[0].source_type in interp_type:
             hphc_call = 'interp_hphc'
-            jk = [GW.compute_hphc_td(receiver_time, **kwargs) for GW in GWs]
+            if 'precomputed' in kwargs and kwargs['precomputed']:
+                pass
+            else:
+                jk = [GW.compute_hphc_td(receiver_time, **kwargs) for GW in GWs]
         else:
             hphc_call = 'compute_hphc_td'
             
