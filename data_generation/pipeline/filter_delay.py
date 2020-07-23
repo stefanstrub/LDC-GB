@@ -3,16 +3,21 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import signal
 from scipy.interpolate import InterpolatedUnivariateSpline as spline
+import os
+
 
 duration = 24*60*60
 window = signal.gaussian(3*duration, std=2000)
 arr = window
 
-
 if 0:
     hdfio.save_array("input.h5", arr, name="strain")
 
-elif 0:#se:
+# get delay of lisanode @dt=5 where 
+# passband_freq: 0.40*(1/5)
+# stopband_freq: 0.48*(1/5)
+elif 0:#se: 
+
     out, jk = hdfio.load_array("Response_20200721101931.h5", name="out") #14.61
     out2, jk = hdfio.load_array("Response_20200721103641.h5", name="out") # 14.535
     window2 = signal.gaussian(duration/5, std=2000/15)
@@ -45,7 +50,39 @@ elif 0:#se:
     plt.plot(np.arange(0, duration, 5), true_i-out_i_2, label="diff 2")
     plt.legend()
 
-if 1:
+
+# get filter coeff to have delay=10 
+# passband_freq: 0.40*(1/3.45)
+# stopband_freq: 0.48*(1/3.45)   
+elif 1:
+    os.system("rm out.h5")
+    os.system("lisanode run filter_graph.py:Response -d 86410 -o out.h5")
+    out2, jk = hdfio.load_array("out.h5", name="out") # 14.535
+    
+    out, jk = hdfio.load_array("Response_20200721101931.h5", name="out") #14.61
+    interpolator = spline(out[:,0], out[:,1])
+    out_i = interpolator(np.arange(0, duration, 5) - 0.075)
+    
+    out_i_shift = out2[2:, 1]
+    
+    interpolator = spline(np.arange(0, duration, 1/3), window)
+    true_i = interpolator(np.arange(0, duration, 5))
+    
+    plt.figure()
+    plt.subplot(211)
+    plt.plot(np.arange(0, duration, 1/3), window, label="true 3Hz")
+    plt.plot(np.arange(0, duration, 5), true_i, label="interpolated 3Hz")
+    plt.plot(np.arange(0, duration, 5), out_i, label="out")
+    plt.plot(np.arange(0, duration, 5), out_i_shift, label="out shifted")
+    plt.legend()
+    plt.subplot(212)
+    plt.plot(np.arange(0, duration, 5), true_i-out_i, label="diff")
+    plt.plot(np.arange(0, duration, 5), true_i-out_i_shift, label="diff shited")
+    plt.legend()
+    plt.show()
+
+    
+if 0: # get delay of lisacode @dt=5
     from RunSimuLC2 import RunSimuLC2
     from lc import ConfigureInstrument
     from ldc.lisa.orbits import Orbits

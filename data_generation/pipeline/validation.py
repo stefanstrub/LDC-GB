@@ -7,6 +7,9 @@ from ldc.waveform.waveform import HpHc
 from ldc.lisa.projection import ProjectedStrain
 from lc import run_lisacode
 import ldc.io.hdf5 as hdf5io
+from ldc.lisa.noise import get_noise_model
+from psd import psd as PSD
+import scipy
 
 def window(tm, show=False):
     xl = 1000.0
@@ -24,10 +27,10 @@ def window(tm, show=False):
 
 def get_cat(key):
     if key == "big-gb":
-
-        cat = np.array([(8837553, 4.688322047828039e-21, -0.7072278874089373, 3.5318990119515874,
-                         0.01002696164199913, 7.0274293836061735e-15, 0.8456506362930373,
-                         0.21987979316696454,
+        cat = np.array([(8837553, 4.688322047828039e-21, -0.7072278874089373,
+                         3.5318990119515874,
+                         0.01002696164199913, 7.0274293836061735e-15,
+                         0.8456506362930373, 0.21987979316696454,
                          2.481152331028798)],
                        dtype=[('Name', '<i8'), ('Amplitude', '<f8'),
                               ('EclipticLatitude', '<f8'),
@@ -65,26 +68,6 @@ def get_simple_tdi(cat, key, config, from_file=True):
         np.save(filename, X)
         return X
 
-def get_simple_tdi_2(cat, key, config, from_file=True):
-    filename = 'simple-%s.npy'%key
-    if from_file:
-        return np.load(filename)
-    else:
-        GW = get_GW(cat, key)
-        orbits = Orbits.type(config)
-        P = ProjectedStrain(orbits)
-        yArm = P.arm_response(config["t_min"], config["t_max"], config["dt"], [GW],
-                              tt_order=config["travel_time_order"])
-        trange = np.arange(config["t_min"]-14.61, config["t_max"], config["dt"])
-        X = P.compute_tdi_x(trange)
-        X = X[3:]
-        #interpolator = spline(trange[3:], X)
-        #trange = np.arange(config["t_min"], config["t_max"], config["dt"])
-        #X = interpolator(trange)
-        np.save(filename, X)
-        return X
-
-    
 def get_lisacode(cat, key, config, from_file=True):
     filename = 'lisacode-%s.npy'%key
     if from_file:
@@ -103,37 +86,53 @@ def get_lisanode(filename, config, name="X", subtract=None):
     if subtract:
         Xs, jk = hdf5io.load_array(subtract, name=name)
         X[:,1] -= Xs[:,1]
-        
     ineg = np.where(X[:,0]>=0)[0][0]
-    X = X[ineg:]
-    interpolator = spline(X[:,0], X[:,1])
-    trange = np.arange(config["t_min"], config["t_max"], config["dt"])
-    X = interpolator(trange) #-0.075) # 14.61 -> 14.535
+    print(X[ineg:10,0])
+    X = X[ineg:-1, 1]
     return X
 
     
 if __name__ == '__main__':
 
     # load configuration
-    dirname = "/home/maude/data/LDC/sangria/1.3"
+    dirname = "/home/maude/data/LDC/sangria/1.6"
     filename = os.path.join(dirname, "sangria.h5")
     config = hdf5io.load_config(filename, name="obs/config")
-    config["dt"] = 5
+
+    # replace waveform dt by tdi dt
+    tdi_descr = hdf5io.load_config(filename, name="obs/tdi")
+    config["dt"] = int(1/(tdi_descr["sampling_frequency"]))
     globals().update(config)
 
     trange = np.arange(t_min, t_max, dt)
+    if 1:
+        noise_model = "MRDv1"
+        Nmodel = get_noise_model(noise_model, np.logspace(-5, -1, 100))
+        Npsd = Nmodel.psd()
+        dirname = "/home/maude/data/LDC/sangria/1.6"
+        filename = os.path.join(dirname, "sangria.h5")
+        #tdi, attr = hdf5io.load_array(filename, name="obs/tdi")
+        X = get_lisanode(os.path.join(dirname, "sum-tdi.h5"), config)
+        plt.figure(figsize=(8,6))
+        f, psdX =  scipy.signal.welch(X, #tdi["X"],
+                                      fs=1.0/dt, window='hanning', nperseg=256*256)
+        plt.loglog(f, np.sqrt(psdX), label="noise only")
+        plt.loglog(Nmodel.freq, np.sqrt(Npsd), label=noise_model, alpha=2)
+        plt.legend()
+        plt.axis([1e-5, 3e-1, 4e-22, 2e-19])
 
-    if 0: # mbhb time domain
-        key = "big-mbhb-13"
+        
+    
+    if 1: # mbhb time domain
+        key = "big-mbhb-13" #or big-mbhb-9 or big-mbhb-13
         cat = get_cat(key)
-        print(cat)
         lisacode = get_lisacode(cat, key, config)#, from_file=False)
         simple = get_simple_tdi(cat, key, config)#, from_file=False)
-        dirname = "/home/maude/data/LDC/sangria/1.3"
+        dirname = "/home/maude/data/LDC/sangria/1.6"
         lisanode = get_lisanode(os.path.join(dirname, "mbhb-tdi.h5"), config)
         background = get_lisanode(os.path.join(dirname, "sum-tdi.h5"), config,
                                   subtract=os.path.join(dirname, "mbhb-tdi.h5"))
-        
+
         plt.figure(figsize=(8,6))
         plt.subplot(111)
         tmin = int((cat["CoalescenceTime"]-600)/dt)
@@ -151,18 +150,16 @@ if __name__ == '__main__':
                  label="lisacode-simple", color='b')
         plt.plot(trange[tmin:tmax], lisanode[tmin:tmax]-simple[tmin:tmax],
                  label="lisanode-simple", color='orange')
-        #plt.plot(trange[tmin:tmax], simple[tmin:tmax]*10/100., label="10% TDI X",
-        #         color='k', ls='--', alpha=0.5)
         plt.plot(trange[tmin:tmax], background[tmin:tmax], label="background",
                  color='grey', alpha=0.5)
         plt.legend(loc="upper right")
 
-    if 1: # gb freq domain
+    if 0: # gb freq domain
         key = "big-gb"
         cat = get_cat(key)
         lisacode = get_lisacode(cat, key, config)#, from_file=False)
         simple = get_simple_tdi(cat, key, config)#, from_file=False)
-        dirname = "/home/maude/data/LDC/sangria/1.3"
+        dirname = "/home/maude/data/LDC/sangria/1.6"
         lisanode = get_lisanode(os.path.join(dirname, "dgb-tdi.h5"), config)
         background = get_lisanode(os.path.join(dirname, "sum-tdi.h5"), config,
                                   subtract=os.path.join(dirname, "dgb-tdi.h5"))
