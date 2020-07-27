@@ -4,6 +4,7 @@ Time and frequency series containers based on xarray.
 import xarray as xr
 import numpy as np
 
+#pylint:disable=C0103
 
 def TimeSeries(array, t0=0, dt=1, units=None, name=None, ts=None):
     """Represent an equispaced LDC time series by way of an xarray.
@@ -19,6 +20,12 @@ def TimeSeries(array, t0=0, dt=1, units=None, name=None, ts=None):
         
     TODO:
         accept more meta data
+
+    >>> t = np.linspace(0,8,1000)
+    >>> s = np.sin(2 * np.pi * (t + 0.1 * t**2))
+    >>> hp = TimeSeries(s, t0=np.datetime64('2030-01-01 00:00:00'), dt=10, name='hp', units='strain')
+    >>> hp.coords['t'].values[10]
+    numpy.datetime64('2030-01-01T00:01:40.000000000')
     """
 
     # build the time axis or check the one that was provided
@@ -52,6 +59,12 @@ def FrequencySeries(array, df=0, kmin=0, t0=0, units=None, name=None):
     TODO:
         accept more metadata
         use the actual FFT units
+
+    >>> t = np.linspace(0,8,1000)
+    >>> s = np.sin(2 * np.pi * (t + 0.1 * t**2))
+    >>> hp = TimeSeries(s, name='hp', units='strain')
+    >>> hp.ts.fft().attrs
+    {'units': 'strain', 'df': 0.001, 'kmin': 0, 't0': 0}
     """
 
     # build the frequency axis
@@ -80,7 +93,7 @@ class TimeSeriesAccessor:
         """Obtain the real-space TimeSeries representation of a FrequencySeries.
                 
         Args:
-            dt (double): TimeSeries cadence (defaults to 0.5 / highest f represented in FrequencySeries)
+        dt (double): TimeSeries cadence (defaults to 0.5 / highest f represented in FrequencySeries)
         """
         
         array = self._obj
@@ -107,11 +120,5 @@ class TimeSeriesAccessor:
 if __name__ == "__main__":
     
     import doctest
-    t = np.linspace(0,8,1000)
-    s = np.sin(2 * np.pi * (t + 0.1 * t**2))
-    c = np.cos(2 * np.pi * (t + 0.1 * t**2))
-    hp = TimeSeries(s, name='hp', units='strain')
-    hp_f = hp.ts.fft()
-    #hpf = fhp.ts.ifft()
-    
+    doctest.testmod()
     
