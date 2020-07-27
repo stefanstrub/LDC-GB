@@ -72,7 +72,7 @@ class TimeSeriesAccessor:
         array = self._obj
         t0, dt, units = array.attrs['t0'], array.attrs['dt'], array.attrs['units']     
         
-        return FrequencySeries(np.fft.rfft(array),
+        return FrequencySeries(np.fft.rfft(array)*dt,
                                df=1.0/(dt * len(array)), kmin=0, t0=t0,
                                units=units, name=array.name)
     
