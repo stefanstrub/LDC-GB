@@ -2,8 +2,10 @@
 """
 import numpy as np
 import ldc.waveform.fastGB as FB
-from .hphc import HpHc
 from ldc.common.series import TimeSeries
+from .hphc import HpHc
+
+#pylint:disable=C0103
 
 def get_td_waveform(delta_t, start_time, duration, source_type,
                     approximant, name="", **kwargs):
