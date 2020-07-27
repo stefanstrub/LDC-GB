@@ -119,9 +119,9 @@ cdef class pyGB:
         fX,fY,fZ = [np.array(a[::2] + 1.j* a[1::2], dtype=np.complex128) for a in lout]
         kmin = int(int(f0*self.T) - M/2)
         df = 1.0/self.T
-        return (FrequencySeries(fX/df, df=df, kmin=kmin, t0=0),
-                FrequencySeries(fY/df, df=df, kmin=kmin, t0=0),
-                FrequencySeries(fZ/df, df=df, kmin=kmin, t0=0))
+        return (FrequencySeries(fX/df, df=df, kmin=kmin, t0=0, name="X"),
+                FrequencySeries(fY/df, df=df, kmin=kmin, t0=0, name="Y"),
+                FrequencySeries(fZ/df, df=df, kmin=kmin, t0=0, name="Z"))
 
     def get_td_tdixyz(self, **kwargs):
         """  Return TDI X,Y,Z in time domain. 
