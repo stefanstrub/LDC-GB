@@ -258,21 +258,6 @@ class HpHc(ABC):
             u = np.array([sin_l, -cos_l, 0])
         self.basis = k, v, u
 
-    def to_file(self, filename):
-        """ Save hp, hx, t and source type and parameters to file.
-
-        TODO: remove dependancy to MLDC
-        """
-        from LISAhdf5 import LISAhdf5
-        h5 = LISAhdf5(filename)
-        from LISAhdf5 import ParsUnits
-        units = self.source_parameters.copy()
-        for k, v in self.units.items():
-            units[k] = v
-        pu = ParsUnits(pars_i=self.source_parameters, units_i=units)
-        h5.addSource(self.source_name, pu,
-                     overwrite=True, hphcData=np.vstack([self.t, self.hp, self.hc]).T)
-
 
     def source2SSB(self, hSp, hSc):
         """ Convert h+, hx from source frame to Solar System Barycenter.
