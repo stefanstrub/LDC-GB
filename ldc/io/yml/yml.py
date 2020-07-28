@@ -2,24 +2,30 @@
 yml file format.
 """
 
-import yaml
+#import yaml
+from astropy import units
+from astropy.io.misc import yaml
 
-def decode(value):
-    """ Convert to numerical value if possible.
+# def decode(value):
+#     """ Convert to numerical value if possible.
 
-    >>> decode('1.0')
-    1.0
-    """
-    if isinstance(value, list):
-        value = [decode(v) for v in value]
-    else:
-        if isinstance(value, dict):
-            value = str(value)
-        try:
-            value = float(value) if "." in value else int(value)
-        except ValueError:
-            pass
-    return value
+#     >>> decode('1.0')
+#     1.0
+#     """
+#     if isinstance(value, list):
+#         value = [decode(v) for v in value]
+#     elif isinstance(value, dict):
+#         value = str(value)
+#     else:
+#         try:
+#             value = units.Quantity(value)
+#         except:
+#             print(value)
+#             try:
+#                 value = float(value) if "." in value else int(value)
+#             except:
+#                 pass
+#     return value
 
 def save_config(filename, cfg, name="config"):
     """ Write config to yml file
@@ -36,11 +42,11 @@ def save_config(filename, cfg, name="config"):
 def load_config(filename, name="config"):
     """ Load config from yml file
     """
-    cfg = yaml.load(open(filename, "r"), Loader=yaml.BaseLoader)
+    cfg = yaml.load(open(filename, "r"))#, Loader=yaml.BaseLoader)
     if name in cfg.keys():
         cfg = cfg[name]
-    for k, v in cfg.items():
-        cfg[k] = decode(v)
+    #for k, v in cfg.items():
+    #    cfg[k] = decode(v)
     return cfg
 
 
