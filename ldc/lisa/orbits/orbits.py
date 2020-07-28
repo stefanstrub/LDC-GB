@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 import numpy as np
+from astropy import units as un
 from itertools import permutations
 from _orbits import pyAnalyticOrbits
 from ldc.common import constants
@@ -9,15 +10,6 @@ from ldc.common import constants
 C = constants.Nature
 AU_IN_M = C.ASTRONOMICALUNIT_METER
 
-def check_units(config):
-    """ Check that parameters are given in expected units. 
-    
-    TODO: 
-    - nominal_arm_length in meter
-    - initial_rotation in radian
-    - initial_position in radian
-    """
-    pass
     
 
 class Orbits(ABC):
@@ -33,6 +25,7 @@ class Orbits(ABC):
         Orbits are given in SSB reference frame. 
         >>> X = Orbits.type(config)
         """
+        config = self.check_units(config)
         self.orbit_type = config.get('orbit_type')
         self.reference_frame = 'SSB'
         self.number_of_spacecraft = 3
@@ -41,6 +34,17 @@ class Orbits(ABC):
         self.eccentricity = self.arm_length/(2*np.sqrt(3)*AU_IN_M)
         self.tt = None
 
+    def check_units(self, config):
+        """ Convert parameters in expected units. 
+        """
+        self.units = dict({'nominal_arm_length':'m'})
+        for k,v in config.items():
+            if isinstance(v, un.Quantity):
+                config[k].to(un.Unit(self.units[k]))
+                config[k] = config[k].value
+        return config
+
+        
     @abstractmethod
     def compute_travel_time(self, emitter, receiver, receiver_time, order):
         """ Returns travel times for an emitter-receiver pair.
@@ -90,12 +94,25 @@ class AnalyticOrbits(pyAnalyticOrbits, Orbits):
     
     def __init__(self, config):
         """ Set instrumental configuration for orbits. 
-        """ 
+        """
+        Orbits.__init__(self, config)
+        config = self.check_units(config)
         arm_length_meter = config["nominal_arm_length"]
         irot_rad = config["initial_rotation"]
         ipos_ard = config["initial_position"]
         pyAnalyticOrbits.__init__(self, arm_length_meter, irot_rad, ipos_ard)
-        Orbits.__init__(self, config)
+        
+    def check_units(self, config):
+        """ Convert parameters in expected units. 
+        """
+        self.units = dict({'nominal_arm_length':'m',
+                           'initial_rotation':'rad',
+                           'initial_position':'rad'})
+        for k,v in config.items():
+            if isinstance(v, un.Quantity):
+                config[k].to(un.Unit(self.units[k]))
+                config[k] = config[k].value
+        return config
 
         
         
@@ -121,8 +138,8 @@ class OrbitsFromFile(Orbits):
 
 if __name__ == "__main__":
     import doctest
-    config = dict({"nominal_arm_length":2.5e9,#meter
-                   "initial_rotation":0,      #rad
-                   "initial_position":0,      #rad
+    config = dict({"nominal_arm_length":2.5e9*un.m,
+                   "initial_rotation":0*un.rad,
+                   "initial_position":0*un.rad,
                    "orbit_type":"analytic"})
     doctest.testmod()
