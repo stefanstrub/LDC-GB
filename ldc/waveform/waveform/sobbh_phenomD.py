@@ -3,6 +3,7 @@
 import numpy as np
 import pyfftw
 from scipy.interpolate import InterpolatedUnivariateSpline as spline
+from astropy import units as un
 from ldc.waveform.waveform.hphc import HpHc
 
 #pylint:disable=E1101
@@ -36,24 +37,24 @@ class SOBBH_phenomD(HpHc):
     def info(self):
         """ Return default units.
         """
-        SOBBHunits = {"AzimuthalAngleOfSpin1": "Radian",
-                      "AzimuthalAngleOfSpin2": "Radian",
+        SOBBHunits = {"AzimuthalAngleOfSpin1": "rad",
+                      "AzimuthalAngleOfSpin2": "rad",
                       "Distance": "Gpc",
-                      "EclipticLatitude": "Radian",
-                      "EclipticLongitude": "Radian",
-                      "Inclination": 'Radian',
+                      "EclipticLatitude": "rad",
+                      "EclipticLongitude": "rad",
+                      "Inclination": 'rad',
                       "InitialFrequency": 'Hz',
-                      "InitialPhase": 'Radian',
-                      "Mass1": 'SolarMass',
-                      "Mass2": 'SolarMass',
-                      "PolarAngleOfSpin1": "Radian",
-                      "PolarAngleOfSpin2": "Radian",
-                      "Polarization": "Radian",
-                      "Redshift": 'dimensionless',
+                      "InitialPhase": 'rad',
+                      "Mass1": 'Msun',
+                      "Mass2": 'Msun',
+                      "PolarAngleOfSpin1": "rad",
+                      "PolarAngleOfSpin2": "rad",
+                      "Polarization": "rad",
+                      "Redshift": '1',
                       "Spin1": "MassSquared",
                       "Spin2": "MassSquared",
-                      'Cadence': 'Seconds',
-                      'ObservationDuration': 'Seconds'}
+                      'Cadence': 's',
+                      'ObservationDuration': 's'}
         return SOBBHunits
 
     def check_param(self):
@@ -64,8 +65,8 @@ class SOBBH_phenomD(HpHc):
         assert self.units["PolarAngleOfSpin1"].lower() in ["radian", "rad", "r"]
         assert self.units["PolarAngleOfSpin2"].lower() in ["radian", "rad", "r"]
         assert self.units["Distance"].lower() in ["gpc"]
-        assert self.units["Mass1"].lower() in ["solarmass"]
-        assert self.units["Mass2"].lower() in ["solarmass"]
+        assert self.units["Mass1"].lower() in ["solarmass", "msun", "solmass", "m_sun"]
+        assert self.units["Mass2"].lower() in ["solarmass", "msun", "solmass", "m_sun"]
 
 
 
@@ -170,22 +171,22 @@ class SOBBH_phenomD(HpHc):
 
 if __name__ == "__main__":
     import doctest
-    pSOBBH = dict({"AzimuthalAngleOfSpin1": 0.0,# "Radian"),
-                   "AzimuthalAngleOfSpin2": 0.0,# "Radian"),
-                   "Distance": 0.8217407069275701,# "Gpc"),
-                   "EclipticLatitude": 0.23339632679489664,# "Radian"),
-                   "EclipticLongitude": 1.1798,# "Radian"),
-                   "Inclination": 1.1508,# 'Radian'),
-                   "InitialFrequency": 0.0074076, #'Hz'),
-                   "InitialPhase": 1.2622, #'Radian'),
-                   "Mass1": 31.033,# 'SolarMass'),
-                   "Mass2": 19.918,# 'SolarMass'),
-                   "PolarAngleOfSpin1": 2.7329, #"Radian"),
-                   "PolarAngleOfSpin2": 2.2947, #"Radian"),
-                   "Polarization": 3.7217, #"Radian"),
-                   "Redshift": 0.16454, #'unitless'),
+    pSOBBH = dict({"AzimuthalAngleOfSpin1": 0.0*un.rad,
+                   "AzimuthalAngleOfSpin2": 0.0*un.rad,
+                   "Distance": 0.8217407069275701*un.Gpc,
+                   "EclipticLatitude": 0.23339632679489664*un.rad,
+                   "EclipticLongitude": 1.1798*un.rad,
+                   "Inclination": 1.1508*un.rad,
+                   "InitialFrequency": 0.0074076*un.Hz,
+                   "InitialPhase": 1.2622*un.rad,
+                   "Mass1": 31.033*un.Msun,
+                   "Mass2": 19.918*un.Msun,
+                   "PolarAngleOfSpin1": 2.7329*un.rad,
+                   "PolarAngleOfSpin2": 2.2947*un.rad,
+                   "Polarization": 3.7217*un.rad,
+                   "Redshift": 0.16454,
                    "Spin1": 0.4684,# "MassSquared"),
                    "Spin2": 0.979,# "MassSquared"),
-                   'Cadence': 5.,# 's')})
-                   'ObservationDuration': 95.}) # 'Seconds'
+                   'Cadence': 5.*un.s,
+                   'ObservationDuration': 95.*un.s})
     doctest.testmod()

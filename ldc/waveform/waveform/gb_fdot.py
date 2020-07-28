@@ -2,6 +2,7 @@
 
 
 import numpy as np
+from astropy import units as un
 from ldc.waveform.waveform.hphc import HpHc
 
 
@@ -32,19 +33,19 @@ class GB_fdot(HpHc):
         print('- f    = ', self.f, 'Hz')
         print('- dfdt = ', self.dfdt, 'Hz/s')
         print('- amplitude = ', self.phi0)
-        print('- cos(inc)  =', self.cos_inc)
+        print('- cos(inc)  =', self.cos_inc, 'rad')
 
     def info(self):
         """ Return GB parameter names and units
         """
-        units = {'EclipticLatitude':         'Radian',
-                 'EclipticLongitude':        'Radian',
-                 'Amplitude':                'strain',
+        units = {'EclipticLatitude':         'rad',
+                 'EclipticLongitude':        'rad',
+                 'Amplitude':                '1',
                  'Frequency':                'Hz',
-                 'FrequencyDerivative':      'Hz^2',
-                 'Inclination':              'Radian',
-                 'Polarization':             'Radian',
-                 'InitialPhase':             'Radian'}
+                 'FrequencyDerivative':      'Hz2',
+                 'Inclination':              'rad',
+                 'Polarization':             'rad',
+                 'InitialPhase':             'rad'}
         return units
 
 
@@ -95,13 +96,13 @@ class GB_fdot(HpHc):
 
 if __name__ == "__main__":
     import doctest
+    pGB = dict({'Amplitude': 1.07345e-22,
+                'EclipticLatitude': 0.312414*un.rad,
+                'EclipticLongitude': -2.75291*un.rad,
+                'Frequency': 0.00135962*un.Hz,
+                'FrequencyDerivative': 8.94581279e-19*un.Unit('Hz2'),
+                'Inclination': 0.523599*un.rad,
+                'InitialPhase': 3.0581565*un.rad,
+                'Polarization': 3.5621656*un.rad})
 
-    pGB = dict({'Amplitude': 1.07345e-22,#, "strain"),
-                'EclipticLatitude': 0.312414,#, "radian"),
-                'EclipticLongitude': -2.75291,# "radian"),
-                'Frequency': 0.00135962,# "Hz"),
-                'FrequencyDerivative': 8.94581279e-19,# "Hz^2"),
-                'Inclination': 0.523599,# "radian"),
-                'InitialPhase': 3.0581565,# "radian"),
-                'Polarization': 3.5621656})#,# "radian")})
     doctest.testmod()
