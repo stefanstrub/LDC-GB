@@ -45,9 +45,10 @@ class HpHc(ABC):
             parmapping = self.parameter_map[parname]
             return (self.source_parameters[parmapping] if isinstance(parmapping, str)
                     else parmapping(self.source_parameters))
-        # this will throw the right exception if we don't have this attribute
-        return self.__dict__[parname] #if isinstance(parname)
-
+        elif parname in self.__dict__.keys():
+            # this will throw the right exception if we don't have this attribute
+            return self.__dict__[parname] #if isinstance(parname)
+        raise AttributeError
 
     def __init__(self, source_name, source_type, approximant):
         """ Initialization common to all sources. """
