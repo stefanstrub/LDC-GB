@@ -4,6 +4,8 @@ HDF5 file format.
 """
 import h5py
 import numpy as np
+from astropy import units
+import ast
 
 def str_encode(value):
     """ Encode value to ascii if string
@@ -11,7 +13,7 @@ def str_encode(value):
     >>> str_encode("hello")
     b'hello'
     """
-    if isinstance(value, (str, bytes)):
+    if isinstance(value, (str)):#, bytes)):
         return value.encode("ascii", "ignore")
     return value
 
@@ -24,6 +26,31 @@ def str_decode(value):
     if isinstance(value, (bytes)):
         return value.decode()
     return value
+
+def quantity_encode(value):
+    """ Encode astropy quantity to save units
+
+    >>> quantity_encode(10*units.m)
+    "{'value': 10.0, 'units': 'm'}"
+    """
+    if isinstance(value, units.Quantity):
+        value = str(dict({"value":value.value, "units":str(value.unit)}))
+    return value
+
+def quantity_decode(value):
+    """ Decode astropy quantity
+
+    >>> quantity_decode("{'value': 10.0, 'units': 'm'}")
+    <Quantity 10. m>
+    """
+    try:
+        value = ast.literal_eval(value)
+        if isinstance(value, dict) and 'units' in value.keys():
+            value = value["value"]*units.Unit(value["units"])
+    except:
+        pass
+    return value
+
 
 def encode_utype(array):
     """ Replace utype column in numpy array by binary format.
@@ -146,7 +173,7 @@ def save_config(filename, cfg, name="config", mode='a'):
     with h5py.File(filename, mode) as fid:
         fid.create_group(name)
         for k, v in cfg.items():
-            fid[name].attrs.create(k, str_encode(v))
+            fid[name].attrs.create(k, quantity_encode(str_encode(v)))
 
 
 def load_config(filename, name="config"):
@@ -156,21 +183,21 @@ def load_config(filename, name="config"):
         grp = fid.get(name)
         attr = dict()
         for k, v in grp.attrs.items():
-            attr[k] = str_decode(v)
+            attr[k] = quantity_decode(str_decode(v))
     return attr
 
 def display(filename):
     """ Display file content
-    
+
     >>> save_array("test.h5", np.ones((5)), mode="w", author='me')
     >>> display("test.h5")
     data <HDF5 dataset "data": shape (5, 1), type "<f8">
         author: b'me'
     """
-    def print_attrs(name, obj): 
+    def print_attrs(name, obj):
         print(name, obj)
-        for key, val in obj.attrs.items(): 
-            print("    %s: %s" % (key, val))  
+        for key, val in obj.attrs.items():
+            print("    %s: %s" % (key, val))
     with h5py.File(filename, "r") as fid:
         fid.visititems(print_attrs)
 

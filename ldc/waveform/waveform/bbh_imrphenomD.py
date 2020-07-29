@@ -4,6 +4,7 @@ phenom D approximant."""
 import numpy as np
 import pyfftw
 from scipy import signal
+from astropy import units as un
 
 from ldc.common import constants
 from ldc.common import tools
@@ -19,7 +20,7 @@ MTsun = constants.Nature.SUN_GM/constants.Nature.VELOCITYOFLIGHT_CONSTANT_VACUUM
 #pylint:disable=C0103
 
 def butter_lowpass_filter(data, cutoff, fs, order=4, show=False):
-    """ Return low pass filtered data 
+    """ Return low pass filtered data
     """
     #nyq = 0.5 * fs  # Nyquist Frequency
     #normal_cutoff = cutoff / nyq
@@ -71,22 +72,22 @@ class BBH_IMRPhenomD(HpHc):
     def info(self):
         """ Return default units
         """
-        MBHBunits = {'EclipticLatitude':                 'Radian',\
-                     'EclipticLongitude':                'Radian',\
-                     'PolarAngleOfSpin1':                'Radian',\
-                     'PolarAngleOfSpin2':                'Radian',\
+        MBHBunits = {'EclipticLatitude':                 'rad',\
+                     'EclipticLongitude':                'rad',\
+                     'PolarAngleOfSpin1':                'rad',\
+                     'PolarAngleOfSpin2':                'rad',\
                      'Spin1':                            'MassSquared',\
                      'Spin2':                            'MassSquared',\
-                     'Mass1':                            'SolarMass',\
-                     'Mass2':                            'SolarMass',\
-                     'CoalescenceTime':                  'Second',\
-                     'PhaseAtCoalescence':               'Radian',\
-                     'InitialPolarAngleL':               'Radian',\
-                     'InitialAzimuthalAngleL':           'Radian',\
-                     'Cadence':                          'Seconds',\
-                     'Redshift':                         'dimensionless',\
+                     'Mass1':                            'Msun',\
+                     'Mass2':                            'Msun',\
+                     'CoalescenceTime':                  's',\
+                     'PhaseAtCoalescence':               'rad',\
+                     'InitialPolarAngleL':               'rad',\
+                     'InitialAzimuthalAngleL':           'rad',\
+                     'Cadence':                          's',\
+                     'Redshift':                         '1',\
                      'Distance':                         'Gpc',
-                     'ObservationDuration':              'Seconds'}
+                     'ObservationDuration':              's'}
         return MBHBunits
 
     def check_param(self):
@@ -102,8 +103,8 @@ class BBH_IMRPhenomD(HpHc):
         assert self.units["PolarAngleOfSpin1"].lower() in ["radian", "rad", "r"]
         assert self.units["PolarAngleOfSpin2"].lower() in ["radian", "rad", "r"]
         assert self.units["Distance"].lower() in ["gpc"]
-        assert self.units["Mass1"].lower() in ["solarmass"]
-        assert self.units["Mass2"].lower() in ["solarmass"]
+        assert self.units["Mass1"].lower() in ["solarmass", "msun", "solmass", "m_sun"]
+        assert self.units["Mass2"].lower() in ["solarmass", "msun", "solmass", "m_sun"]
         assert self.units["CoalescenceTime"].lower() in ["s", "seconds", "second", "sec"]
 
         if not constants.check_cosmo(self.DL, self.redshift):
@@ -237,20 +238,20 @@ class BBH_IMRPhenomD(HpHc):
 
 if __name__ == "__main__":
     import doctest
-    pMBHB = dict({'EclipticLatitude': 0.312414, #"radian"),
-                  'EclipticLongitude': -2.75291,# "radian"),
-                  'CoalescenceTime': 28086000.0,# 's'),
-                  'Distance':  9.14450149011798,# 'Gpc'),
-                  'InitialAzimuthalAngleL': 3.9,# 'radian'),
-                  'InitialPolarAngleL': 2.3535, #'radian'),
-                  'Mass1': 132628.202,# "SolarMass"),
-                  'Mass2': 30997.2481,# "SolarMass"),
-                  'PhaseAtCoalescence':  3.8, #'Radian'),
-                  'PolarAngleOfSpin1': 0.0,#'Radian'),
-                  'PolarAngleOfSpin2': 0.0,#'Radian'),
-                  'Redshift': 1.2687,# 'dimensionless'),
+    pMBHB = dict({'EclipticLatitude': 0.312414*un.rad,
+                  'EclipticLongitude': -2.75291*un.rad,
+                  'CoalescenceTime': 28086000.0*un.s,
+                  'Distance':  9.14450149011798*un.Gpc,
+                  'InitialAzimuthalAngleL': 3.9*un.rad,
+                  'InitialPolarAngleL': 2.3535*un.rad,
+                  'Mass1': 132628.202*un.Msun,
+                  'Mass2': 30997.2481*un.Msun,
+                  'PhaseAtCoalescence':  3.8*un.rad,
+                  'PolarAngleOfSpin1': 0.0*un.rad,
+                  'PolarAngleOfSpin2': 0.0*un.rad,
+                  'Redshift': 1.2687,
                   'Spin1': 0.9481998052314212, #'MassSquared'),
                   'Spin2': 0.9871324769575264, #'MassSquared'),
-                  'Cadence': 5.,
-                  'ObservationDuration':95.})#, 's') })
+                  'Cadence': 5.*un.s,
+                  'ObservationDuration':95.*un.s})
     doctest.testmod()

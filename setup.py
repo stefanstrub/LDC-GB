@@ -51,15 +51,16 @@ fastGB_ext = Extension("fastGB",
                        include_dirs=[numpy.get_include(), "ldc/common/constants",
                                      GSL_CFLAGS.decode()[2:]],
                        extra_compile_args = ["-std=c99"], 
-                       libraries=['fftw3', 'gsl'])#,
+                       libraries=['fftw3', 'gsl'])
 
 imr_phenomd_ext = Extension("pyimrphenomD",
                             sources=["ldc/waveform/imrphenomD/pyimrphenomD"+ext_c,
                                      "ldc/waveform/imrphenomD/IMRPhenomD.c",
                                      "ldc/waveform/imrphenomD/IMRPhenomD_internals.c"],
-                            include_dirs = [numpy.get_include(), 'ldc/common/constants'],#, include_gsl_dir],
+                            include_dirs=[numpy.get_include(),
+                                          'ldc/common/constants'],
                             language="c",
-                            extra_compile_args = ["-std=c99", "-O3"],
+                            extra_compile_args=["-std=c99", "-O3"],
                             libraries=["gsl", "gslcblas"],
                             #library_dirs=[lib_gsl_dir])
                             )
@@ -72,7 +73,9 @@ setup(
     author='ldc-dev',
     author_email='ldc-dev@lisamission.org',
     cmdclass={'build_ext': build_ext, "build_liborbits": build_liborbits}, 
-    packages=find_namespace_packages(include=['ldc.lisa.*','ldc.common.*', 'ldc.waveform.*', 'ldc.io.*', 'ldc.utils.*']),
+    packages=find_namespace_packages(include=['ldc.lisa.*','ldc.common.*',
+                                              'ldc.waveform.*', 'ldc.io.*',
+                                              'ldc.utils.*']),
     zip_safe=False,
     install_requires=['numpy'],
     ext_modules=[orbits_ext, fastGB_ext, imr_phenomd_ext],
@@ -83,6 +86,5 @@ setup(
                                                                   'prep_lisanode',
                                                                   'source_selection',
                                                                   'data_release']],
-    
 )
 

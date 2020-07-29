@@ -244,25 +244,26 @@ class ProjectedStrain(object):
 if __name__ == "__main__":
 
     import numpy as np
+    from astropy import units as un
     import doctest
-    from LDCPipeline.hphc import HpHcGB
+    from ldc.waveform.waveform import HpHc
     from ldc.lisa.orbits import Orbits
     
-    config = {'nominal_arm_length':2.5e9, #"m", 
-              'initial_rotation':0, #'rad', 
-              'initial_position':0,#'rad')]
-              'orbit_type':'analytic'} 
+    config = dict({"nominal_arm_length":2.5e9*un.m,
+                   "initial_rotation":0*un.rad,
+                   "initial_position":0*un.rad,
+                   "orbit_type":"analytic"})
 
-    pGB = dict({'Amplitude': 1.07345e-22,#, "strain"), 
-                'EclipticLatitude': 0.312414,#, "radian"),
-                'EclipticLongitude': -2.75291,# "radian"), 
-                'Frequency': 0.00135962,# "Hz"),
-                'FrequencyDerivative': 8.94581279e-19,# "Hz^2"), 
-                'Inclination': 0.523599 ,# "radian"), 
-                'InitialPhase': 3.0581565,# "radian"), 
-                'Polarization': 3.5621656})#,# "radian")})
+    pGB = dict({'Amplitude': 1.07345e-22,
+                'EclipticLatitude': 0.312414*un.rad,
+                'EclipticLongitude': -2.75291*un.rad,
+                'Frequency': 0.00135962*un.Hz,
+                'FrequencyDerivative': 8.94581279e-19*un.Unit('Hz2'),
+                'Inclination': 0.523599*un.rad,
+                'InitialPhase': 3.0581565*un.rad,
+                'Polarization': 3.5621656*un.rad})
 
-    GB = HpHcGB("my-galactic-binary", "GB", "TD_fdot")
+    GB = HpHc.type("my-galactic-binary", "GB", "TD_fdot")
     GB.set_param(pGB)
     orbits = Orbits.type(config)
     
