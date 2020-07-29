@@ -4,10 +4,10 @@ def get_freq_indices(f1, f2, fmin=-1, fmax=-1, i=0):
     """ Return indices of a common frequency range.  
     """
 
-    ihmax = np.argwhere(f1 >=fmax)[0][0]+1 if fmax>0 else len(f1)-1
-    ihmin = np.argwhere(f1 >=fmin)[0][0]+1 if fmin>0 else 1
-    idmax = np.argwhere(f2 >=fmax)[0][0]+1 if fmax>0 else len(f2)-1
-    idmin = np.argwhere(f2 >=fmin)[0][0]+1 if fmin>0 else 1
+    ihmax = np.argwhere(f1 >=fmax)[0][0] if fmax>0 else len(f1)-1
+    ihmin = np.argwhere(f1 >=fmin)[0][0] if fmin>0 else 1
+    idmax = np.argwhere(f2 >=fmax)[0][0] if fmax>0 else len(f2)-1
+    idmin = np.argwhere(f2 >=fmin)[0][0] if fmin>0 else 1
 
     if (f1[ihmin] != f2[idmin] or f1[ihmax] != f2[idmax]) and i==0:
         fmin = max(f1[ihmin], f2[idmin])
@@ -20,15 +20,15 @@ def compute_tdi_snr(source, noise, data=None, fmin=-1, fmax=-1, full_output=Fals
     """ Compute SNR from TDI X,Y,Z. 
     
     noise is a Noise object, return by ldc.lisa.noise.get_noise_model
-    source ans data are TDI arrays 
+    source ans data are FrequencySeries
     """
     if data is None:
         data = source
 
     # freq indices selection
-    freq = source["freq"]
-    df = freq[1]-freq[0]
-    ihmin,ihmax,idmin,idmax = get_freq_indices(freq, data["freq"], fmin=fmin, fmax=fmax)
+    freq = np.array(source["X"].f)
+    df = source["X"].attrs["df"]
+    ihmin,ihmax,idmin,idmax = get_freq_indices(freq, np.array(data["X"].f), fmin=fmin, fmax=fmax)
     
     # inverse covariance matrix
     SXX = noise.psd(freq=freq, option='X')
@@ -65,8 +65,8 @@ def compute_tdi_snr(source, noise, data=None, fmin=-1, fmax=-1, full_output=Fals
     dsnr["tot2"] = snr_tot
     if full_output:
         dsnr["cumsum"] = cumsum* 4.*df
-        dsnr["freq"] = source["freq"][ihmin:ihmax]
+        dsnr["freq"] = freq[ihmin:ihmax]
         dsnr["EXX"] = EXX
         dsnr["EXY"] = EXY
     return dsnr
-    
+
