@@ -78,13 +78,14 @@ class TimeSeriesAccessor:
     def __init__(self, xarray_obj):
         self._obj = xarray_obj
  
-    def fft(self):
+    def fft(self, win=None, **kwargs):
         """Obtain the frequency-domain FrequencySeries representation of a TimeSeries.        
         """
         
         array = self._obj
         t0, dt, units = array.attrs['t0'], array.attrs['dt'], array.attrs['units']     
-        
+        if win is not None:
+            array = array.copy()*win(np.arange(t0, len(array)*dt-t0, dt), **kwargs)
         return FrequencySeries(np.fft.rfft(array)*dt,
                                df=1.0/(dt * len(array)), kmin=0, t0=t0,
                                units=units, name=array.name)
