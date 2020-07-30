@@ -108,9 +108,9 @@ class AnalyticOrbits(pyAnalyticOrbits, Orbits):
         self.units = dict({'nominal_arm_length':'m',
                            'initial_rotation':'rad',
                            'initial_position':'rad'})
-        for k,v in config.items():
-            if isinstance(v, un.Quantity):
-                config[k].to(un.Unit(self.units[k]))
+        for k,u in self.units.items():
+            if isinstance(config[k], un.Quantity):
+                config[k].to(un.Unit(u))
                 config[k] = config[k].value
         return config
 
