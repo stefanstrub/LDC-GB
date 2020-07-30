@@ -8,8 +8,10 @@ from astropy import units as un
 
 from ldc.common import constants
 from ldc.common import tools
+from ldc.common.series import FrequencySeries
 from ldc.waveform import imrphenomD
 from ldc.waveform.waveform.hphc import HpHc
+
 
 YRSID_SI = constants.Nature.SIDEREALYEAR_J2000DAY*24*60*60
 MTsun = constants.Nature.SUN_GM/constants.Nature.VELOCITYOFLIGHT_CONSTANT_VACUUM**3
@@ -138,16 +140,26 @@ class BBH_IMRPhenomD(HpHc):
         >>> print(hp[0:3], hc[0:3] )
         [-3.66131878e-21 -3.09772221e-20  2.26880923e-21] [-1.06577266e-20  2.26413526e-20  1.54020276e-20]
         """
-        if source_parameters is not None:
-            self.set_param(source_parameters)
-
-        # Read param and convert in expected units
-
         # Check the approximant and call appropriate function
         if self.approximant == 'IMRPhenomD':
-            tm, hpS, hcS = self.IMRPhenomD_MBHB(simbuffer=simbuffer)
+            hpS, hcS = self.compute_hphc_fd(source_parameters=source_parameters,
+                                            simbuffer=simbuffer)
         else:
             raise NotImplementedError
+
+        # iFFT
+        hpS = hpS.ts.ifft(dt=self.dt)
+        hcS = hcS.ts.ifft(dt=self.dt)
+        Nt = len(hpS)
+        tm = np.arange(Nt)*self.dt # corresponding time array
+        
+        # Taper and cut to Tobs
+        i0 = np.argwhere((tm-self.Tobs) >= 0)[0][0]
+        Ms = (self.m1s + self.m2s) * MTsun  # taper the end of the signal
+        tap = self.tc + 500.0*Ms
+        window = taper = 0.5*(1.0 - np.tanh(0.001*(tm  -  tap)))
+        hpS, hcS = window*hpS, window*hcS
+        tm, hpS, hcS = tm[:i0], hpS[:i0], hcS[:i0]
 
         if low_pass:
             cutoff = 1/(2*(t[1]-t[0])) #actual dt 5s -> cutoff at ~0.1Hz
@@ -183,12 +195,15 @@ class BBH_IMRPhenomD(HpHc):
         return frS, ampS, phS
 
 
-    def IMRPhenomD_MBHB(self, simbuffer=0.):
+    def compute_hphc_fd(self, source_parameters=None, simbuffer=0.):
         """ Return hp,hc in the source frame.
 
         Wrapper around MLDC IMRPhenomD model handling Fourier transforms.
 
         """
+        if source_parameters is not None:
+            self.set_param(source_parameters)
+        
         frS, ampS, phS = self._IMRPhenomD_waveform()
         fmax = np.max(frS) # actual max Frequency
         if 0.5/fmax < self.dt:
@@ -196,43 +211,30 @@ class BBH_IMRPhenomD(HpHc):
                   0.5/fmax, " < ", self.dt)
             raise ValueError
 
-        factorp = 1/2.*(tools.spinWeightedSphericalHarmonic(-2, 2, 2, self.incl, self.phi0) + \
+        factorp = 1/2.*(tools.spinWeightedSphericalHarmonic(-2, 2, 2,
+                                                            self.incl, self.phi0) + \
                           np.conj(tools.spinWeightedSphericalHarmonic(-2, 2, -2,
-                                                                      self.incl, self.phi0)))
-        factorc = 1j/2.*(tools.spinWeightedSphericalHarmonic(-2, 2, 2, self.incl, self.phi0) - \
+                                                                      self.incl,
+                                                                      self.phi0)))
+        factorc = 1j/2.*(tools.spinWeightedSphericalHarmonic(-2, 2, 2,
+                                                             self.incl, self.phi0) - \
                          np.conj(tools.spinWeightedSphericalHarmonic(-2, 2, -2,
-                                                                     self.incl, self.phi0)))
-
+                                                                     self.incl,
+                                                                     self.phi0)))
         t0 = -self.tc - simbuffer # shift the data by tc
         phasetimeshift = -2.0*np.pi*frS*t0
-        CommonPart = ampS * np.exp(1.0j*(phS+phasetimeshift)) ### 22 mode
+        CommonPart = ampS * np.exp(1.0j * (phS + phasetimeshift)) ### 22 mode
         del ampS, phS, phasetimeshift
 
         # creating full arrays (from zero freq, to nyquist)
-        fNy = 0.5/self.dt
-        Nf = int(fNy//self.df)+1 #int(np.rint(fNy/self.df)+1)
         i_b = int(np.rint(frS[0]/self.df))
-        i_e = i_b + len(frS)
         del frS
-        hp_f = np.zeros(Nf, dtype='complex128')
-        hc_f = np.zeros(Nf, dtype='complex128')
-        hp_f[i_b:i_e] = np.conjugate(factorp * CommonPart)# to agree with fft conventions
-        hc_f[i_b:i_e] = np.conjugate(factorc * CommonPart)
-        Nfp = None #2*(Nf-1) if Nf%2!=0 else 2*Nf
-        hpS = pyfftw.interfaces.numpy_fft.irfft(hp_f, n=Nfp)*(1.0/self.dt) # ifft
-        hcS = pyfftw.interfaces.numpy_fft.irfft(hc_f, n=Nfp)*(1.0/self.dt) # ifft
+        hp_f = FrequencySeries(np.conjugate(factorp * CommonPart),
+                               df=self.df, kmin=i_b)
+        hc_f = FrequencySeries(np.conjugate(factorc * CommonPart),
+                               df=self.df, kmin=i_b)
+        return hp_f, hc_f
 
-        del hp_f, hc_f, CommonPart
-
-        # taper and cut to Tobs
-        Nt = len(hpS)
-        tm = np.arange(Nt)*self.dt # corresponding time array
-        i0 = np.argwhere((tm-self.Tobs) >= 0)[0][0]
-        Ms = (self.m1s + self.m2s) * MTsun  # taper the end of the signal
-        tap = self.tc + 500.0*Ms
-        window = taper = 0.5*(1.0 - np.tanh(0.001*(tm  -  tap)))
-        hpS, hcS = window*hpS, window*hcS
-        return tm[:i0], hpS[:i0], hcS[:i0]
 
 if __name__ == "__main__":
     import doctest

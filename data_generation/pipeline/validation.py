@@ -4,7 +4,9 @@ import os
 from scipy.interpolate import InterpolatedUnivariateSpline as spline
 from ldc.lisa.orbits import Orbits
 from ldc.waveform.waveform import HpHc
+from ldc.waveform.waveform import get_fd_tdixyz
 from ldc.lisa.projection import ProjectedStrain
+from ldc.common.series import TimeSeries
 from lc import run_lisacode
 import ldc.io.hdf5 as hdf5io
 from ldc.lisa.noise import get_noise_model
@@ -123,7 +125,7 @@ if __name__ == '__main__':
 
         
     
-    if 1: # mbhb time domain
+    if 0: # mbhb time domain
         key = "big-mbhb-13" #or big-mbhb-9 or big-mbhb-13
         cat = get_cat(key)
         lisacode = get_lisacode(cat, key, config)#, from_file=False)
@@ -154,7 +156,7 @@ if __name__ == '__main__':
                  color='grey', alpha=0.5)
         plt.legend(loc="upper right")
 
-    if 0: # gb freq domain
+    if 1: # gb freq domain
         key = "big-gb"
         cat = get_cat(key)
         lisacode = get_lisacode(cat, key, config)#, from_file=False)
@@ -164,34 +166,35 @@ if __name__ == '__main__':
         background = get_lisanode(os.path.join(dirname, "sum-tdi.h5"), config,
                                   subtract=os.path.join(dirname, "dgb-tdi.h5"))
         
-        simple_Xf = np.fft.fft(window(trange)*simple)*dt
-        lisacode_Xf = np.fft.fft(window(trange)*lisacode)*dt
-        lisanode_Xf = np.fft.fft(window(trange)*lisanode)*dt
-        background_Xf = np.fft.fft(window(trange)*background)*dt
-        N = len(simple_Xf)
-        freq = np.fft.fftfreq(N, d=dt)
+        simple_Xf = TimeSeries(window(trange)*simple, dt=dt).ts.fft()
+        lisacode_Xf = TimeSeries(window(trange)*lisacode, dt=dt).ts.fft()
+        lisanode_Xf = TimeSeries(window(trange)*lisanode, dt=dt).ts.fft()
+        background_Xf = TimeSeries(window(trange)*background, dt=dt).ts.fft()
+        pGB = dict(zip(cat.dtype.names, cat[0]))
+        fastGB_Xf, jk, jk = get_fd_tdixyz(dt, t_max, "GB", "TD_fdot", **pGB)
         
         plt.figure(figsize=(8,6))
         plt.subplot(111)
         plt.title("TDI X in freq. domain: abs value")
-        plt.plot(freq[:N//2], np.abs(simple_Xf[:N//2]), label="simple tdi")
-        plt.plot(freq[:N//2], np.abs(lisacode_Xf[:N//2]), label="lisacode")
-        plt.plot(freq[:N//2], np.abs(lisanode_Xf[:N//2]), label="lisanode")
-        plt.plot(freq[:N//2], np.abs(background_Xf[:N//2]), label="background",
+        plt.plot(simple_Xf.f, np.abs(simple_Xf), label="simple tdi")
+        plt.plot(lisacode_Xf.f, np.abs(lisacode_Xf), label="lisacode")
+        plt.plot(lisanode_Xf.f, np.abs(lisanode_Xf), label="lisanode")
+        plt.plot(background_Xf.f, np.abs(background_Xf), label="background",
                  color='grey', alpha=0.5)
+        plt.plot(fastGB_Xf.f, np.abs(fastGB_Xf), label="fastGB", color="k")
         plt.legend(ncol=1, fontsize=8, loc="lower right")
         plt.axis([0.0100255, 0.0100285, None, None])
 
         plt.figure(figsize=(8,6))
         plt.subplot(111)
         plt.title("TDI X in freq. domain: abs value of the difference")
-        plt.plot(freq[:N//2], np.abs(lisacode_Xf[:N//2]-simple_Xf[:N//2]),
+        plt.plot(simple_Xf.f, np.abs(lisacode_Xf-simple_Xf),
                  label="lisacode-simple")
-        plt.plot(freq[:N//2], np.abs(lisanode_Xf[:N//2]-simple_Xf[:N//2]),
+        plt.plot(simple_Xf.f, np.abs(lisanode_Xf-simple_Xf),
                  label="lisanode-simple")
-        plt.plot(freq[:N//2], np.abs(background_Xf[:N//2]), label="background",
+        plt.plot(simple_Xf.f, np.abs(background_Xf), label="background",
                  color='grey', alpha=0.5)
-        plt.plot(freq[:N//2], np.abs(simple_Xf[:N//2])*1/100., label="1% simple",
+        plt.plot(simple_Xf.f, np.abs(simple_Xf)*1/100., label="1% simple",
                  color='k', ls='--', alpha=0.5)
 
         plt.legend(ncol=1, fontsize=8, loc="lower right")

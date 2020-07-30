@@ -75,32 +75,6 @@ class HpHc(ABC):
         raise ValueError("Invalid source_type %s (approximant=%s)"%(source_type, approximant))
 
 
-    @staticmethod
-    def from_file(filename, source_name=None, index=None):
-        """Return the hxhp instance corresponding to source type read from
-        file, or passed as argument.
-
-        If source_name is None, take the first source.
-        hx, hx and time samples are read from file.
-
-        TODO: remove dependancy to MLDC
-        """
-        from LISAhdf5 import LISAhdf5
-        h5 = LISAhdf5(filename, mode='r')
-        if source_name is None and index is not None:
-            source_name = h5.getSourcesName()[index]
-        param = h5.getSourceParameters(source_name)
-        source_type = param.get("SourceType")
-        approximant = param.get("Approximant")
-
-        hphc = HpHc.type(source_name, source_type, approximant)
-        hphc.set_param(param.pars, units=param.units)
-        try:
-            hphc.hp, hphc.hx, hphc.t = h5.getSourceHpHc(source_name)
-        except:
-            pass
-        return hphc
-
     @property
     def pnames(self):
         """ Shortcut to parameter name """
@@ -256,21 +230,6 @@ class HpHc(ABC):
         else:
             u = np.array([sin_l, -cos_l, 0])
         self.basis = k, v, u
-
-    def to_file(self, filename):
-        """ Save hp, hx, t and source type and parameters to file.
-
-        TODO: remove dependancy to MLDC
-        """
-        from LISAhdf5 import LISAhdf5
-        h5 = LISAhdf5(filename)
-        from LISAhdf5 import ParsUnits
-        units = self.source_parameters.copy()
-        for k, v in self.units.items():
-            units[k] = v
-        pu = ParsUnits(pars_i=self.source_parameters, units_i=units)
-        h5.addSource(self.source_name, pu,
-                     overwrite=True, hphcData=np.vstack([self.t, self.hp, self.hc]).T)
 
     def source2SSB(self, hSp, hSc):
         """ Convert h+, hx from source frame to Solar System Barycenter.

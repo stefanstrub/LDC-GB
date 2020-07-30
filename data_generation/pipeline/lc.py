@@ -88,6 +88,17 @@ def ConfigureInstrument(fNh5,\
         d = np.loadtxt(psdfile,skiprows=2)
         LH.addPreProcess(pTDI,PSDdata=d)
 
+def source_to_file(filename, GW):
+    from LISAhdf5 import LISAhdf5, ParsUnits
+    h5 = LISAhdf5(filename)
+    units = GW.source_parameters.copy()
+    for k, v in GW.units.items():
+        units[k] = v
+    pu = ParsUnits(pars_i=GW.source_parameters, units_i=units)
+    h5.addSource(GW.source_name, pu,
+                 overwrite=True, hphcData=np.vstack([GW.t, GW.hp, GW.hc]).T)
+    
+        
 def run_lisacode(GWs, t_min, t_max, dt_source, dt_obs=None):
 
     if dt_obs is None:
@@ -97,7 +108,8 @@ def run_lisacode(GWs, t_min, t_max, dt_source, dt_obs=None):
     os.system("rm %s"%hphcfile)
     for GW1 in GWs:
         GW1.compute_hphc_td(np.arange(t_min, t_max, dt_source), set_attr=True)
-        GW1.to_file(hphcfile) # save hp hc to file
+        source_to_file(hphcfile, GW1)
+
 
     output_file = "TmpLC2_hphc-TDI.txt"
     os.system("rm %s"%output_file)
