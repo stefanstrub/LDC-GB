@@ -67,7 +67,7 @@ singularity:
     name: quay.io/singularity/singularity:v3.4.0
     entrypoint: [""]
   script:
-    - singularity build --docker-username ${SINGULARITY_DOCKER_USERNAME} --docker-password ${SINGULARITY_DOCKER_PASSWORD} ldcpipe.sif docker://gitlab-registry.in2p3.fr/lisa/ldc:$${CI_COMMIT_REF_SLUG}
+    - singularity build --docker-username ${SINGULARITY_DOCKER_USERNAME} --docker-password ${SINGULARITY_DOCKER_PASSWORD} ldcpipe.sif docker://gitlab-registry.in2p3.fr/lisa/ldc:${CI_COMMIT_REF_SLUG}
     - echo "${ORAS_URL}"
     - singularity push --docker-username "${CI_REGISTRY_USER}" --docker-password "${CI_REGISTRY_PASSWORD}" ldcpipe.sif "${ORAS_URL}"
   artifacts:
