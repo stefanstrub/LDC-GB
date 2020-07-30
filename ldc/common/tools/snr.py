@@ -31,8 +31,8 @@ def compute_tdi_snr(source, noise, data=None, fmin=-1, fmax=-1, full_output=Fals
     cumsum = np.zeros((len(freq)))
 
     for k in ["X", "Y", "Z"]:     # individual SNR
-        d = data[k].sel(f=slice(fmin, fmax)).values
-        s = source[k].sel(f=slice(fmin, fmax)).values
+        d = data[k].sel(f=freq, method="nearest").values
+        s = source[k].sel(f=freq, method="nearest").values
 
         snr = np.sum(np.real(d*np.conj(s)/SXX))
         snr *= 4.0*df
@@ -43,10 +43,10 @@ def compute_tdi_snr(source, noise, data=None, fmin=-1, fmax=-1, full_output=Fals
         if full_output:
             cumsum+= np.cumsum(np.real(d * np.conj(s)*EXX))
     for k1,k2 in [("X", "Y"), ("X", "Z"), ("Y", "Z")]:
-        d1 = data[k1].sel(f=slice(fmin, fmax)).values
-        s1 = source[k1].sel(f=slice(fmin, fmax)).values
-        d2 = data[k2].sel(f=slice(fmin, fmax)).values
-        s2 = source[k2].sel(f=slice(fmin, fmax)).values
+        d1 = data[k1].sel(f=freq, method="nearest").values
+        s1 = source[k1].sel(f=freq, method="nearest").values
+        d2 = data[k2].sel(f=freq, method="nearest").values
+        s2 = source[k2].sel(f=freq, method="nearest").values
 
         snr = np.sum(np.real(d1*np.conj(s2)*EXY))
         snr+= np.sum(np.real(d2*np.conj(s1)*EXY))
