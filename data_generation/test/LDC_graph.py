@@ -13,11 +13,12 @@ from .config import LISA_PUBLISH_BEATNOTE_FREQUENCIES
 from .config import LISA_MEASUREMENT_FS, LISA_PHYSICS_FS, LISA_TDI_FS
 from ..compiler import Graph
 
-from ldc.lisa.projection import from_file
 import h5py
 import os
-import yaml
+from astropy import units as u
 from scipy.constants import c as clight
+import ldc.io.yml as ymlio
+from ldc.lisa.projection import from_file
 
 
 DEFAULT_CONFIG = "config.yml"
@@ -25,7 +26,12 @@ DEFAULT_CONFIG = "config.yml"
 def gw_infos(config):
     """ Return GW infos from config file
     """
-    d = yaml.load(open(config, "r"), Loader=yaml.BaseLoader)
+    #d = yaml.load(open(config, "r"), Loader=yaml.BaseLoader)
+    d = ymlio.load_config(config)
+
+    for k in ['t_min', 't_max', 'dt']:
+        if isinstance(d[k], u.Quantity):
+            d[k] = d[k].to(u.s).value
     d["source_signal"] = d["gwstrain_file"]
     yArm, source_names, links, t_min, t_max, dt = from_file(d["source_signal"],
                                                             nodata=True)
@@ -36,21 +42,28 @@ def gw_infos(config):
 
 def orbits_infos(config):
     """ Return Orbits infos from config file
+
+    TODO: do some unit conversion here
     """
-    d = yaml.load(open(config, "r"), Loader=yaml.BaseLoader)
-    d["t_min"] = float(d["t_min"])
-    d["t_max"] = float(d["t_max"])
-    d["dt"] = float(d["dt"]) 
-    d["nominal_arm_length"] = float(d["nominal_arm_length"]) 
-    d["init_rotation"] = float(d["initial_rotation"]) 
-    d["init_position"] = float(d["initial_position"])
+    #d = yaml.load(open(config, "r"), Loader=yaml.BaseLoader)
+    d = ymlio.load_config(config)
+    for k in ['t_min', 't_max', 'dt']:
+        if isinstance(d[k], u.Quantity):
+            d[k] = d[k].to(u.s).value
+    for k in ["initial_rotation", "initial_position"]:
+        if isinstance(d[k], u.Quantity):
+            d[k] = d[k].to(u.rad).value
+    for k in ["nominal_arm_length"]:
+        if isinstance(d[k], u.Quantity):
+            d[k] = d[k].to(u.m).value
     d["travel_time_order"] = int(d["travel_time_order"]) 
     return d
 
 def noise_infos(config):
     """ Return Noise infos from config file
     """
-    d = yaml.load(open(config, "r"), Loader=yaml.BaseLoader)
+    #d = yaml.load(open(config, "r"), Loader=yaml.BaseLoader)
+    d = ymlio.load_config(config)
     d["on_off"] = int(d["noise"])
     return d
     
@@ -78,10 +91,11 @@ class LISAWithGWAndTDI(LISAWithTDI):
 
         O = orbits_infos(self.config)
         self.params = {"armlength":O["nominal_arm_length"],
-                       "init_rotation":O["init_rotation"],
-                       "init_position":O["init_position"],
+                       "init_rotation":O["initial_rotation"],
+                       "init_position":O["initial_position"],
                        "ldc_tt_order":O["travel_time_order"]}
 
+        self.duration = O["t_max"] + 10
         
     def publish_tdi_variables(self):
         """Publish TDI variables."""
@@ -92,14 +106,14 @@ class LISAWithGWAndTDI(LISAWithTDI):
             dt_target = LISA_TDI_FS
             upsampling = int(LISA_PHYSICS_FS/(1./dt_target))
             self.nodes[avg].params = {
-                'passband_freq': 0.4 * (1/dt_target), 
-                'stopband_freq': 0.48 * (1/dt_target), 
+                'passband_freq': 0.4 * (1/3.45), 
+                'stopband_freq': 0.48 * (1/3.45), 
                 'minimum_passband_gain': 0.1,
                 'minimum_attenuation': 100}
             decim = "decimation_" + t
             self.add("Decimation<double>", decim)
             self.nodes[decim].downsampling = upsampling
-            self.nodes[decim].lag = 14.61 # group delay found empirically
+            self.nodes[decim].lag = 10 # group delay found empirically
             self.connect("tdi."+t, avg + ".input")
             self.connect(avg+".result", decim + ".input")
             self.publish_output(decim + ".result", t)
@@ -161,8 +175,8 @@ class LISAWithGW(LISA):
 
         O = orbits_infos(config)
         self.params = {"armlength":O["nominal_arm_length"],
-                       "init_rotation":O["init_rotation"],
-                       "init_position":O["init_position"],
+                       "init_rotation":O["initial_rotation"],
+                       "init_position":O["initial_position"],
                        "ldc_tt_order":O["travel_time_order"]}
 
 

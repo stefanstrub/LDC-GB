@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 import yaml
+from astropy import units as u
 from pathlib import Path
 
 from ldc.lisa.orbits import Orbits
@@ -42,6 +43,13 @@ def get_range(select):
     x = re.search("([0-9]*):([0-9]*)", select) 
     istart, iend = x.groups()
     return int(istart), int(iend)
+
+def get_trange(cfg):
+    for k in ['t_min', 't_max', 'dt']:
+        if isinstance(cfg[k], u.Quantity):
+            cfg[k] = cfg[k].to(u.s).value
+    return cfg["t_min"], cfg["t_max"], cfg["dt"]
+
             
 if __name__ == "__main__":
 
@@ -66,10 +74,7 @@ if __name__ == "__main__":
     logger = init_logger(args.log)
     
     cfg = ymlio.load_config(args.config)
-    t_max = cfg["t_max"]
-    t_min = cfg["t_min"]
-    dt = cfg["dt"]
-    #A_YEAR = 60*60*24*365
+    t_min, t_max, dt = get_trange(cfg)
 
     if args.source_config:
         source_cfg = ymlio.load_config(args.source_config) #parse_config(args.source_config)

@@ -4,10 +4,18 @@ import re
 import os
 import sys
 from scipy.interpolate import make_interp_spline
+from astropy import units as u
 
 import ldc.io.yml as ymlio
 from ldc.lisa.projection import ProjectedStrain, from_file, to_file
 from ldc.utils.logging import init_logger, close_logger
+
+def get_trange(cfg):
+    for k in ['t_min', 't_max', 'dt']:
+        if isinstance(cfg[k], u.Quantity):
+            cfg[k] = cfg[k].to(u.s).value
+    return cfg["t_min"], cfg["t_max"], cfg["dt"]
+
 
 if __name__ == "__main__":
 
@@ -24,9 +32,7 @@ if __name__ == "__main__":
 
     ### load instrument config : TODO use a better format
     cfg = ymlio.load_config(args.config)
-    t_max = cfg["t_max"]
-    t_min = cfg["t_min"]
-    dt = cfg["dt"]
+    t_min, t_max, dt = get_trange(cfg)
     t1 = np.arange(t_min, t_max, dt)
     order = cfg['interp_order']
 
