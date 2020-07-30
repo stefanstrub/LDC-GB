@@ -45,6 +45,7 @@ docker:
   only:
   - master
   - tags
+  - develop
 
 snaketest:
   image: docker:latest
@@ -58,6 +59,7 @@ snaketest:
     - docker run $IMAGE_BUILD_TAG /bin/bash -c "cd /codes/LDC/data_generation/test; snakemake -j 1"
   only:
   - master
+  - develop
 
 singularity:
   stage: deploy
@@ -73,6 +75,7 @@ singularity:
     - ldcpipe.sif
   only:
   - master
+  - develop
 
 pages:
   stage: deploy
