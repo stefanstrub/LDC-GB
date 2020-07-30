@@ -117,7 +117,7 @@ cdef class pyGB:
 
         lout = [xsl, ysl, zsl] if simulator=="synthlisa" else [xls, yls, zls]
         fX,fY,fZ = [np.array(a[::2] + 1.j* a[1::2], dtype=np.complex128) for a in lout]
-        kmin = int(int(f0*self.T) - M/2)
+        kmin = int(int(f0*self.T) - M/2) - 1
         df = 1.0/self.T
         return (FrequencySeries(fX/df, df=df, kmin=kmin, t0=0, name="X"),
                 FrequencySeries(fY/df, df=df, kmin=kmin, t0=0, name="Y"),
