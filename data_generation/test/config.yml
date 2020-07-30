@@ -18,7 +18,7 @@ sources:
 nbatch: 1
 dirname: run1
 
-#ldc_liborbits: /codes/LDC/ldc/lisa/orbits
-ldc_liborbits: /home/maude/soft/LDC/ldc/lisa/orbits
+ldc_liborbits: /codes/LDC/ldc/lisa/orbits
+
 
 
