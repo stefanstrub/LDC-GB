@@ -66,6 +66,8 @@ singularity:
   image:
     name: quay.io/singularity/singularity:v3.4.0
     entrypoint: [""]
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
     - echo "docker://gitlab-registry.in2p3.fr/lisa/ldc:${CI_COMMIT_REF_SLUG}"
     - singularity build --docker-username ${SINGULARITY_DOCKER_USERNAME} --docker-password ${SINGULARITY_DOCKER_PASSWORD} ldcpipe.sif docker://gitlab-registry.in2p3.fr/lisa/ldc:${CI_COMMIT_REF_SLUG}
