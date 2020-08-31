@@ -78,10 +78,12 @@ pages:
   stage: deploy
   before_script:
   - apt-get update
-  - apt-get -y install gcc g++ 
+  - apt-get -y install gcc g++ libfftw3-dev libgsl-dev 
   - pip install -U sphinx
   - pip install -U sphinx_rtd_theme
   - pip install mkdocs-material
+  - pip install -r requirements.txt
+  - python setup.py install
   script:
   - cd doc
   - sphinx-build -b html . ../public
