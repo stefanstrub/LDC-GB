@@ -25,7 +25,7 @@ deg2rad = np.pi/180.
 def load_gb_catalog(catalog):
     """Load GB catalog either in h5 or npy format.
     """
-    if catalog.split(".")[-1] == "h5":
+    if catalog.split(".")[-1] in ["h5", "hdf5"]:
         return load_h5_catalog(catalog)
     elif catalog.split(".")[-1] in ["dat, data"]:
         return load_txt_catalog(catalog)
