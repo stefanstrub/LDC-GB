@@ -52,38 +52,59 @@ def load_h5_catalog(catalog):
     cat = np.rec.fromarrays(list(D.values()), names=list(D.keys()))
     return cat
 
-def load_mbhb_catalog(catalog):
+def load_mbhb_catalog(catalog, option="IMRPhenomD"):
     """ Load .dat
     """
     dat = np.genfromtxt(catalog, names=True, dtype=([float]*19 + ['|U3'] + [float]*8))
-
-    mass1 = dat['m1']#*(1. + dat['z'])
-    mass2 = dat['m2']#*(1. + dat['z'])
+    if dat.size==1:
+        dat = np.array([dat])
     beta = 0.5*np.pi - dat['ecl_colat']
     lam = dat['ecl_long']
     tc = dat['Tc_yrs']*YRSID_SI
-    th1 = dat['thS1']
-    th2 = dat['thS2']
     phi0 = dat['phi0']
-    spin1 = dat['a1']
-    spin2 = dat['a2']
+
+    if option == "IMRPhenomD":
+        mass1 = dat['m1']#*(1. + dat['z'])
+        mass2 = dat['m2']#*(1. + dat['z'])
+        th1 = dat['thS1']
+        th2 = dat['thS2']
+        spin1 = dat['a1']
+        spin2 = dat['a2']
+    elif option == "IMRPhenomHM":
+        mass1 = dat['m1']*(1. + dat['z'])
+        mass2 = dat['m2']*(1. + dat['z'])
+        psi, incl = tools.aziPolAngleL2PsiIncl(beta, lam, dat['thL'],  dat['phL'])
+        psi[psi<0] = psi[psi<0] + 2.0*np.pi
+        chi1 = dat['a1']*np.cos(dat['thS1'])
+        chi2 = dat['a2']*np.cos(dat['thS2'])
+
+
 
     sindex = mass1 < mass2 # switch index
     mass1[sindex], mass2[sindex] = mass2[sindex], mass1[sindex]
-    th1[sindex], th2[sindex] = th2[sindex], th1[sindex]
-    spin1[sindex], spin2[sindex] = spin2[sindex], spin1[sindex]
     phi0[sindex] += np.pi
 
-    cat = np.rec.fromarrays([beta, lam,
-                             dat['thS1'], dat['thS2'], dat['a1'], dat['a2'],
-                             mass1, mass2, tc, phi0, dat['thL'], dat['phL'],
-                             dat['z'], dat['DL_Mpc']*1e-3],
-                            names=['EclipticLatitude', 'EclipticLongitude',
-                                   'PolarAngleOfSpin1', 'PolarAngleOfSpin2',
-                                   'Spin1', 'Spin2', 'Mass1', 'Mass2',
-                                   'CoalescenceTime', 'PhaseAtCoalescence',
-                                   'InitialPolarAngleL', 'InitialAzimuthalAngleL',
-                                   'Redshift', 'Distance'])
+    if option == "IMRPhenomD":
+        th1[sindex], th2[sindex] = th2[sindex], th1[sindex]
+        spin1[sindex], spin2[sindex] = spin2[sindex], spin1[sindex]
+        cat = np.rec.fromarrays([beta, lam,
+                                 th1, th2, spin1, spin2,
+                                 mass1, mass2, tc, phi0, dat['thL'], dat['phL'],
+                                 dat['z'], dat['DL_Mpc']],
+                                names=['EclipticLatitude', 'EclipticLongitude',
+                                       'PolarAngleOfSpin1', 'PolarAngleOfSpin2',
+                                       'Spin1', 'Spin2', 'Mass1', 'Mass2',
+                                       'CoalescenceTime', 'PhaseAtCoalescence',
+                                       'InitialPolarAngleL', 'InitialAzimuthalAngleL',
+                                       'Redshift', 'Distance'])
+    elif option == "IMRPhenomHM":
+        chi1[sindex], chi2[sindex] = chi2[sindex], chi1[sindex]
+        cat = np.rec.fromarrays([beta, lam,  chi1, chi2,
+                                 mass1, mass2, tc, phi0, psi, incl, dat['DL_Mpc']],
+                                names=['EclipticLatitude', 'EclipticLongitude',
+                                       'Spin1', 'Spin2','Mass1', 'Mass2',
+                                       'CoalescenceTime', 'PhaseAtCoalescence',
+                                       'Polarization', 'Inclination','Distance'])
     return cat
 
 def randomize_gaussian(x, randx, xmin, xmax, logger):
