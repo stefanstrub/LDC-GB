@@ -52,7 +52,7 @@ class BBH_IMRPhenomD(HpHc):
                      'tc': 'CoalescenceTime',
                      'Tobs': 'ObservationDuration',
                      'dt': 'Cadence',
-                     'DL': lambda p: p['Distance']*1e3} #Gpc -> Mpc}
+                     'DL': lambda p: p['Distance']} #Mpc -> Mpc}
 
     def precomputation(self):
         """ Load required parameters and convert them in expected units. """
@@ -86,7 +86,7 @@ class BBH_IMRPhenomD(HpHc):
                      'InitialAzimuthalAngleL':           'rad',\
                      'Cadence':                          's',\
                      'Redshift':                         '1',\
-                     'Distance':                         'Gpc',
+                     'Distance':                         'Mpc',
                      'ObservationDuration':              's'}
         return MBHBunits
 
@@ -102,7 +102,7 @@ class BBH_IMRPhenomD(HpHc):
         assert self.units["PhaseAtCoalescence"].lower() in ["radian", "rad", "r"]
         assert self.units["PolarAngleOfSpin1"].lower() in ["radian", "rad", "r"]
         assert self.units["PolarAngleOfSpin2"].lower() in ["radian", "rad", "r"]
-        assert self.units["Distance"].lower() in ["gpc"]
+        assert self.units["Distance"].lower() in ["mpc"]
         assert self.units["Mass1"].lower() in ["solarmass", "msun", "solmass", "m_sun"]
         assert self.units["Mass2"].lower() in ["solarmass", "msun", "solmass", "m_sun"]
         assert self.units["CoalescenceTime"].lower() in ["s", "seconds", "second", "sec"]
