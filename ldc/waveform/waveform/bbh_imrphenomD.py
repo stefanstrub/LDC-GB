@@ -152,7 +152,7 @@ class BBH_IMRPhenomD(HpHc):
         hcS = hcS.ts.ifft(dt=self.dt)
         Nt = len(hpS)
         tm = np.arange(Nt)*self.dt # corresponding time array
-        
+
         # Taper and cut to Tobs
         i0 = np.argwhere((tm-self.Tobs) >= 0)[0][0]
         Ms = (self.m1s + self.m2s) * MTsun  # taper the end of the signal
@@ -203,7 +203,7 @@ class BBH_IMRPhenomD(HpHc):
         """
         if source_parameters is not None:
             self.set_param(source_parameters)
-        
+
         frS, ampS, phS = self._IMRPhenomD_waveform()
         fmax = np.max(frS) # actual max Frequency
         if 0.5/fmax < self.dt:
