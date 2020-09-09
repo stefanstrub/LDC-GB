@@ -156,8 +156,8 @@ class HpHc(ABC):
         default_units = self.info()
         for k in self.pnames:
             if isinstance(self.source_parameters[k], un.Quantity):
-                self.source_parameters[k].to(un.Unit(default_units[k]))
-                self.source_parameters[k] = self.source_parameters[k].value
+                conv = self.source_parameters[k].to(un.Unit(default_units[k]))
+                self.source_parameters[k] = conv.value
             elif units is not None:
                 self.source_parameters[k] *= un.Unit(units[k])
                 self.source_parameters[k].to(un.Unit(default_units[k]))
