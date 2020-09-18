@@ -136,7 +136,9 @@ if __name__ == "__main__":
         print("(and in igb-pipeline/%s for GB strains)"%(cfg_instru_i["dirname"]))
             
     if args.apccluster:
-        max_batch = max(cfg_instru_["nbatch"], cfg_instru["nbatch"])
+        max_batch = max(cfg_instru_d["nbatch"],
+                        cfg_instru_i["nbatch"],
+                        cfg_instru["nbatch"])
         cmd = 'snakemake --cores %d --use-singularity --default-res mem_mb=8000 --cluster "qsub -l nodes=1:ppn=1,mem={resources.mem_mb}mb,walltime=96:00:00"'%max_batch
         print(cmd)
 
