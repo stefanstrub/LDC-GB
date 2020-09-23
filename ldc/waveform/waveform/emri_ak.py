@@ -1,6 +1,7 @@
 """ Compute waveforms h+ and hx for EMRI. """
 
 import numpy as np
+from astropy import units as un
 from ldc.waveform.waveform.hphc import HpHc
 
 #pylint:disable=E1101
@@ -36,20 +37,20 @@ class HpHcEMRI(HpHc):
     def info(self):
         """ Return default units
         """
-        EMRIunits = dict({"AzimuthalAngleOfSpin": 'Radian',
+        EMRIunits = dict({"AzimuthalAngleOfSpin": 'rad',
                           "Distance": 'Gpc',
-                          "EclipticLatitude": "Radian",
-                          "EclipticLongitude": 'Radian',
-                          "InitialAlphaAngle": "Radian",
+                          "EclipticLatitude": "rad",
+                          "EclipticLongitude": 'rad',
+                          "InitialAlphaAngle": "rad",
                           "InitialAzimuthalOrbitalFrequency": "Hz",
-                          "InitialAzimuthalOrbitalPhase": "Radian",
-                          "InitialEccentricity": 'Unitless',
-                          "InitialTildeGamma": 'Radian',
-                          "LambdaAngle": 'Radian',
-                          "MassOfCompactObject": 'SolarMass',
-                          "MassOfSMBH": 'SolarMass',
-                          "PlungeTime": 'Seconds',
-                          "PolarAngleOfSpin": 'Radian',
+                          "InitialAzimuthalOrbitalPhase": "rad",
+                          "InitialEccentricity": '1',
+                          "InitialTildeGamma": 'rad',
+                          "LambdaAngle": 'rad',
+                          "MassOfCompactObject": 'MSun',
+                          "MassOfSMBH": 'MSun',
+                          "PlungeTime": 's',
+                          "PolarAngleOfSpin": 'rad',
                           "SMBHspin": "MassSquared"})
         return EMRIunits
 
@@ -97,21 +98,20 @@ class HpHcEMRI(HpHc):
 if __name__ == "__main__":
 
     import doctest
-    pEMRI = dict({"AzimuthalAngleOfSpin": 3.3, #'Radian'),
-                  "Distance": 4.066032714225506, #'Gpc'),
-                  "EclipticLatitude": -1.0865079083647613, #"Radian"),
-                  "EclipticLongitude": 5.45915569996,# 'Radian'),
-                  "InitialAlphaAngle": 5.144987211440423,# "Radian"),
-                  "InitialAzimuthalOrbitalFrequency": 0.0006865, #"Hz"),
-                  "InitialAzimuthalOrbitalPhase": 1.774141989722132,# "Radian"),
-                  "InitialEccentricity": 0.3365614512812651,# 'Unitless'),
-                  "InitialTildeGamma": 4.783451533651018,# 'Radian'),
-                  "LambdaAngle": 1.0976000000002033, #'Radian'),
-                  "MassOfCompactObject": 25.89699960277051,# 'SolarMass'),
-                  "MassOfSMBH": 1330605.9163026307,# 'SolarMass'),
-                  "PlungeTime": 41327816.5734, #'s'),
-                  "PolarAngleOfSpin": 2.3754411347141318, #'Radian'),
+    pEMRI = dict({"AzimuthalAngleOfSpin": 3.3*un.rad,
+                  "Distance": 4.066032714225506*un.Gpc,
+                  "EclipticLatitude": -1.0865079083647613*un.rad,
+                  "EclipticLongitude": 5.45915569996*un.rad,
+                  "InitialAlphaAngle": 5.144987211440423*un.rad,
+                  "InitialAzimuthalOrbitalFrequency": 0.0006865*un.Hz,
+                  "InitialAzimuthalOrbitalPhase": 1.774141989722132*un.rad,
+                  "InitialEccentricity": 0.3365614512812651,
+                  "InitialTildeGamma": 4.783451533651018*un.rad,
+                  "LambdaAngle": 1.0976000000002033*un.rad,
+                  "MassOfCompactObject": 25.89699960277051*un.Msun,
+                  "MassOfSMBH": 1330605.9163026307*un.Msun,
+                  "PlungeTime": 41327816.5734*un.s,
+                  "PolarAngleOfSpin": 2.3754411347141318*un.rad,
                   "SMBHspin": 0.9671,# "MassSquared"),
-                  #'Cadence': (5., 's'),
                   })
     doctest.testmod()

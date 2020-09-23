@@ -14,7 +14,9 @@ def build_config(config_template, gwstrain,  config_dest, noise=True):
     d = ymlio.load_config(config_template)
     d["noise"] = 1 if noise else 0
     d["gwstrain_file"] = os.path.abspath(gwstrain) # full path
-    yaml.dump(d, open(config_dest, "w"))
+    #yaml.dump(d, open(config_dest, "w"))
+    ymlio.save_config(config_dest, d, mode="w")
+    #return d["t_max"]
     
 description = """ Run lisanode from the ouput directory, with a dedicated
 configuration file"""
@@ -35,8 +37,8 @@ if __name__ == "__main__":
                         help= "LISANode main node name")
     parser.add_argument('-f', '--flags', default="",
                         help= "LISANode flags")
-    parser.add_argument('--duration', default=1000,
-                        help= "duration in seconds")
+    #parser.add_argument('--duration', default=1000,
+    #                    help= "duration in seconds")
     parser.add_argument('--devtool7', action="store_true", 
                         help= "Activate devtool7 (required if default gcc<4.9)")
     parser.add_argument('--h5', action="store_true", 
@@ -72,7 +74,8 @@ if __name__ == "__main__":
     args.graph = os.path.basename(args.graph)
         
     o = open(args.log, "a")
-    rargs = [prefix + " lisanode run -O %d %s --flags='%s' --config=%s %s:%s -d %s -o %s"%(args.optimization, ofmt, args.flags, config,  args.graph, args.node, str(args.duration), args.output)]
+    #rargs = [prefix + " lisanode run -O %d %s --flags='%s' --config=%s %s:%s -d %s -o %s"%(args.optimization, ofmt, args.flags, config,  args.graph, args.node, str(args.duration), args.output)]
+    rargs = [prefix + " lisanode run -O %d %s --flags='%s' --config=%s %s:%s -o %s"%(args.optimization, ofmt, args.flags, config,  args.graph, args.node, args.output)]
     p = subprocess.Popen(rargs, stdout=o, stderr=o,
                          shell=True, cwd=output_dir, 
                          executable='/bin/bash')

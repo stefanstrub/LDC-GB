@@ -9,6 +9,7 @@ cdef extern from "GB.h":
 import numpy as np
 cimport numpy as np
 from ldc.common import constants
+from ldc.common.series import TimeSeries, FrequencySeries
 from ldc.lisa.noise import simple_snr
 import math
 
@@ -16,8 +17,7 @@ import math
 # TODO:
 # orbits: use ldc.orbits in lisa.c
 # parameters: check pycbc conventions, give info on expected units, getter/setter tools
-# time domain
-# output as frequency array
+
 
 
 YEAR = constants.Nature.SIDEREALYEAR_J2000DAY*24*60*60
@@ -117,29 +117,17 @@ cdef class pyGB:
 
         lout = [xsl, ysl, zsl] if simulator=="synthlisa" else [xls, yls, zls]
         fX,fY,fZ = [np.array(a[::2] + 1.j* a[1::2], dtype=np.complex128) for a in lout]
-        kmin = int(f0*self.T) - M/2
+        kmin = int(int(f0*self.T) - M/2) 
         df = 1.0/self.T
-        freq = np.linspace(kmin*df,(kmin + len(fX)-1)*df, len(fX))
-        self.kmin = kmin
-        # TODO convert to freq. array
-        return freq,fX/df,fY/df,fZ/df #return freq,fX,fY,fZ
+        return (FrequencySeries(fX/df, df=df, kmin=kmin, t0=0, name="X"),
+                FrequencySeries(fY/df, df=df, kmin=kmin, t0=0, name="Y"),
+                FrequencySeries(fZ/df, df=df, kmin=kmin, t0=0, name="Z"))
 
     def get_td_tdixyz(self, **kwargs):
         """  Return TDI X,Y,Z in time domain. 
         """
-        freq, fX, fY, fZ = self.get_fd_tdixyz(**kwargs)
-        df = 1.0/self.T
-        kmin = self.kmin#int(freq[0]/df)
-        n = int(1.0/(self.delta_t*df))
-        ret = np.zeros(int(n/2+1),dtype='complex128')
-        ret[kmin:kmin+len(fX)] = fX*df*n; Xt = np.fft.irfft(ret)
-        ret[kmin:kmin+len(fX)] = fY*df*n; Yt = np.fft.irfft(ret)
-        ret[kmin:kmin+len(fX)] = fZ*df*n; Zt = np.fft.irfft(ret)
-
-        trange = np.arange(len(Xt))*self.delta_t
-        if self.T<trange[-1]:
-            i_end =  np.argwhere(trange > self.T)[0][0]
-        else:
-            i_end = None
-        return trange[:i_end], Xt[:i_end], Yt[:i_end], Zt[:i_end]
-        
+        fX, fY, fZ = self.get_fd_tdixyz(**kwargs)
+        return (fX.ts.ifft(dt=self.delta_t),
+                fY.ts.ifft(dt=self.delta_t),
+                fZ.ts.ifft(dt=self.delta_t))
+    

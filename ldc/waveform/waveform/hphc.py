@@ -7,6 +7,7 @@ import importlib
 import numpy as np
 from scipy.interpolate import interp1d
 from scipy.interpolate import InterpolatedUnivariateSpline as spline
+from astropy import units as un
 
 #pylint:disable=C0103
 #pylint:disable=W0201
@@ -21,10 +22,9 @@ def _interp(t, x, tnew, kind='spline', der=False, integr=False):
         else:
             splh = spline(t, x)
         return (splh(tnew), splh)
-    else:
-        #hp = np.interp(tnew, t, x)
-        itp = interp1d(t, x, kind=kind)
-        return itp(tnew), itp
+    #hp = np.interp(tnew, t, x)
+    itp = interp1d(t, x, kind=kind)
+    return itp(tnew), itp
 
 
 class HpHc(ABC):
@@ -45,10 +45,10 @@ class HpHc(ABC):
             parmapping = self.parameter_map[parname]
             return (self.source_parameters[parmapping] if isinstance(parmapping, str)
                     else parmapping(self.source_parameters))
-        else:
+        elif parname in self.__dict__.keys():
             # this will throw the right exception if we don't have this attribute
             return self.__dict__[parname] #if isinstance(parname)
-
+        raise AttributeError
 
     def __init__(self, source_name, source_type, approximant):
         """ Initialization common to all sources. """
@@ -63,51 +63,24 @@ class HpHc(ABC):
         if source_type == "MBHB" or (source_type is None and approximant == "IMRPhenomD"):
             module = importlib.import_module("ldc.waveform.waveform.bbh_imrphenomD")
             return getattr(module, "BBH_IMRPhenomD")(source_name, source_type, approximant)
-        elif source_type == "GB":
+        if source_type == "GB":
             module = importlib.import_module("ldc.waveform.waveform.gb_fdot")
             return getattr(module, "GB_fdot")(source_name, source_type, approximant)
-        elif source_type == "EMRI":
+        if source_type == "EMRI":
             module = importlib.import_module("ldc.waveform.waveform.emri_ak")
             return getattr(module, "EMRI_AK")(source_name, source_type, approximant)
-        elif source_type == "SOBBH":
+        if source_type == "SOBBH":
             module = importlib.import_module("ldc.waveform.waveform.sobbh_phenomD")
             return getattr(module, "SOBBH_phenomD")(source_name, source_type, approximant)
         raise ValueError("Invalid source_type %s (approximant=%s)"%(source_type, approximant))
 
-
-    @staticmethod
-    def from_file(filename, source_name=None, index=None):
-        """Return the hxhp instance corresponding to source type read from
-        file, or passed as argument.
-
-        If source_name is None, take the first source.
-        hx, hx and time samples are read from file.
-
-        TODO: remove dependancy to MLDC
-        """
-        from LISAhdf5 import LISAhdf5
-        h5 = LISAhdf5(filename, mode='r')
-        if source_name is None and index is not None:
-            source_name = h5.getSourcesName()[index]
-        param = h5.getSourceParameters(source_name)
-        source_type = param.get("SourceType")
-        approximant = param.get("Approximant")
-
-        hphc = HpHc.type(source_name, source_type, approximant)
-        hphc.set_param(param.pars, units=param.units)
-        try:
-            hphc.hp, hphc.hx, hphc.t = h5.getSourceHpHc(source_name)
-        except:
-            pass
-        return hphc
 
     @property
     def pnames(self):
         """ Shortcut to parameter name """
         if isinstance(self.source_parameters, dict):
             return list(self.source_parameters.keys())
-        else:
-            return list(self.source_parameters.dtype.names)
+        return list(self.source_parameters.dtype.names)
 
     def split(self):
         """Return a list of HpHc object, one for each set of parameter in
@@ -133,39 +106,32 @@ class HpHc(ABC):
             GW.set_param(dict(pars))
         return GWS
 
-    # def add_param(self, param, value, units='dimensionless'):
-    #     """ add or update parameter
-    #     """
-    #     self.source_parameters[param] = value
-    #     self.units[param] = units
-
-
-    def set_param(self, param, units='default'):
+    def set_param(self, param, units=None):
         """Set or update all source parameters
 
-        param can be
-        - a dict
-        - a vector of values (alphabetical order is assumed)
-        - a record array
+        Args:
+            param (dict, array, record array): if simple array, alphabetical order is assumed
+            units (dict): units can also be given through param using astropy quantities.
 
         >>> HpHc = HpHc.type("demo", "GB", "None")
         >>> HpHc.set_param(pGB)
         >>> HpHc.display()
         Source parameters:
-        Amplitude : 1.07345e-22  [ strain ]
-        EclipticLatitude : 0.312414  [ Radian ]
-        EclipticLongitude : -2.75291  [ Radian ]
+        Amplitude : 1.07345e-22  [ 1 ]
+        EclipticLatitude : 0.312414  [ rad ]
+        EclipticLongitude : -2.75291  [ rad ]
         Frequency : 0.00135962  [ Hz ]
-        FrequencyDerivative : 8.94581279e-19  [ Hz^2 ]
-        Inclination : 0.523599  [ Radian ]
-        InitialPhase : 3.0581565  [ Radian ]
-        Polarization : 3.5621656  [ Radian ]
+        FrequencyDerivative : 8.94581279e-19  [ Hz2 ]
+        Inclination : 0.523599  [ rad ]
+        InitialPhase : 3.0581565  [ rad ]
+        Polarization : 3.5621656  [ rad ]
         Internal parameters:
         - phi0 =  3.0581565 rad
         - f    =  [0.00135962] Hz
         - dfdt =  [8.94581279e-19] Hz/s
         - amplitude =  3.0581565
-        - cos(inc)  = 0.8660252915835662
+        - cos(inc)  = 0.8660252915835662 rad
+
         """
         if isinstance(param, dict):
             self.source_parameters = param
@@ -184,12 +150,20 @@ class HpHc(ABC):
         self.check_param()
         self.precomputation()
 
-    def set_units(self, units='default'):
-        """ Set units to default value.
+    def set_units(self, units=None):
+        """ Set and convert to default units.
         """
-        if units != "default":
-            raise ValueError("Units can't be changed for now")
-        self.units = self.info()
+        default_units = self.info()
+        for k in self.pnames:
+            if isinstance(self.source_parameters[k], un.Quantity):
+                conv = self.source_parameters[k].to(un.Unit(default_units[k]))
+                self.source_parameters[k] = conv.value
+            elif units is not None:
+                self.source_parameters[k] *= un.Unit(units[k])
+                self.source_parameters[k].to(un.Unit(default_units[k]))
+                self.source_parameters[k] = self.source_parameters[k].value
+        self.units = default_units
+
 
     @abstractmethod
     def check_param(self):
@@ -216,10 +190,9 @@ class HpHc(ABC):
         """
         if "i_hp" in self.__dict__:
             return self.i_hp(t), self.i_hc(t)
-        else:
-            hp, self.i_hp = _interp(self.t, self.hp, t)
-            hc, self.i_hc = _interp(self.t, self.hc, t)
-            return hp, hc
+        hp, self.i_hp = _interp(self.t, self.hp, t)
+        hc, self.i_hc = _interp(self.t, self.hc, t)
+        return hp, hc
 
     def _interp_hphc(self, tm, hp, hc, t, **kwargs):
         """ Interpolate hp, hc and set them as attr.
@@ -252,27 +225,11 @@ class HpHc(ABC):
         sin_l, cos_l = np.sin(self.eclLon), np.cos(self.eclLon)
         k = np.array([-cos_d * cos_l, -cos_d * sin_l, -sin_d])
         v = np.array([-sin_d * cos_l, -sin_d * sin_l, cos_d])
-        if isinstance(sin_d, np.ndarray):
+        if isinstance(sin_d, np.ndarray) and sin_d.ndim > 0:
             u = np.array([sin_l, -cos_l, np.zeros((len(sin_l)))])
         else:
             u = np.array([sin_l, -cos_l, 0])
         self.basis = k, v, u
-
-    def to_file(self, filename):
-        """ Save hp, hx, t and source type and parameters to file.
-
-        TODO: remove dependancy to MLDC
-        """
-        from LISAhdf5 import LISAhdf5
-        h5 = LISAhdf5(filename)
-        from LISAhdf5 import ParsUnits
-        units = self.source_parameters.copy()
-        for k, v in self.units.items():
-            units[k] = v
-        pu = ParsUnits(pars_i=self.source_parameters, units_i=units)
-        h5.addSource(self.source_name, pu,
-                     overwrite=True, hphcData=np.vstack([self.t, self.hp, self.hc]).T)
-
 
     def source2SSB(self, hSp, hSc):
         """ Convert h+, hx from source frame to Solar System Barycenter.
@@ -296,22 +253,24 @@ class HpHc(ABC):
 if __name__ == "__main__":
     import doctest
 
-    pGB = dict({'Amplitude': 1.07345e-22,#, "strain"),
-                'EclipticLatitude': 0.312414,#, "radian"),
-                'EclipticLongitude': -2.75291,# "radian"),
-                'Frequency': 0.00135962,# "Hz"),
-                'FrequencyDerivative': 8.94581279e-19,# "Hz^2"),
-                'Inclination': 0.523599,# "radian"),
-                'InitialPhase': 3.0581565,# "radian"),
-                'Polarization': 3.5621656})#,# "radian")})
+    pGB = dict({'Amplitude': 1.07345e-22,
+                'EclipticLatitude': 0.312414*un.rad,
+                'EclipticLongitude': -2.75291*un.rad,
+                'Frequency': 0.00135962*un.Hz,
+                'FrequencyDerivative': 8.94581279e-19*un.Unit('Hz2'),
+                'Inclination': 0.523599*un.rad,
+                'InitialPhase': 3.0581565*un.rad,
+                'Polarization': 3.5621656*un.rad})
 
-    pGBl = dict({'Amplitude': np.array([1.07345e-22, 1.0125e-22]), #"strain"),
-                 'EclipticLatitude': np.array([0.312414, 1.015463]),# "radian"),
-                 'EclipticLongitude': np.array([-2.75291, 0.512364]),# "radian"),
-                 'Frequency': np.array([0.00135962, 0.0005478]), #"Hz"),
-                 'FrequencyDerivative': np.array([8.94581279e-19, 8.45279e-19]), #"Hz^2"),
-                 'Inclination': np.array([0.523599, 0.15548]), #"radian"),
-                 'InitialPhase': np.array([3.0581565, 3.546841]),# "radian"),
-                 'Polarization': np.array([3.5621656, 3.124485])})#, "Radian"),
+    pGBl = dict({'Amplitude': np.array([1.07345e-22, 1.0125e-22]),
+                 'EclipticLatitude': np.array([0.312414, 1.015463])*un.rad,
+                 'EclipticLongitude': np.array([-2.75291, 0.512364])*un.rad,
+                 'Frequency': np.array([0.00135962, 0.0005478])*un.Hz,
+                 'FrequencyDerivative': np.array([8.94581279e-19,
+                                                  8.45279e-19]*un.Unit('Hz2')),
+                 'Inclination': np.array([0.523599, 0.15548])*un.rad,
+                 'InitialPhase': np.array([3.0581565, 3.546841])*un.rad,
+                 'Polarization': np.array([3.5621656, 3.124485])*un.rad})
+
 
     doctest.testmod()

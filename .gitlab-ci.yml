@@ -45,6 +45,7 @@ docker:
   only:
   - master
   - tags
+  - develop
 
 snaketest:
   image: docker:latest
@@ -58,14 +59,16 @@ snaketest:
     - docker run $IMAGE_BUILD_TAG /bin/bash -c "cd /codes/LDC/data_generation/test; snakemake -j 1"
   only:
   - master
+  - develop
 
 singularity:
   stage: deploy
   image:
-    name: quay.io/singularity/singularity:v3.4.0
+    name: quay.io/singularity/singularity:v3.4.2
     entrypoint: [""]
   script:
-    - singularity build --docker-username ${SINGULARITY_DOCKER_USERNAME} --docker-password ${SINGULARITY_DOCKER_PASSWORD} ldcpipe.sif ldcpipe.def
+    - echo "docker://gitlab-registry.in2p3.fr/lisa/ldc:${CI_COMMIT_REF_SLUG}"
+    - singularity build --docker-username "${CI_REGISTRY_USER}" --docker-password "${CI_REGISTRY_PASSWORD}" ldcpipe.sif docker://gitlab-registry.in2p3.fr/lisa/ldc:${CI_COMMIT_REF_SLUG}
     - echo "${ORAS_URL}"
     - singularity push --docker-username "${CI_REGISTRY_USER}" --docker-password "${CI_REGISTRY_PASSWORD}" ldcpipe.sif "${ORAS_URL}"
   artifacts:
@@ -73,6 +76,7 @@ singularity:
     - ldcpipe.sif
   only:
   - master
+  - develop
 
 pages:
   stage: deploy
