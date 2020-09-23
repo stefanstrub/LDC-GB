@@ -1,9 +1,13 @@
-# distutils: sources = GB.c LISA.c 
-# distutils: language = c
+# distutils: sources = GB.cc LISA.cc c_wrapper.cc
+# distutils: language = c++
 # cython: language_level=3
 
 cdef extern from "GB.h":
-    void Fast_GB(double* , long, double, double,  double*, double*, double*, double*, double*, double*, int);
+    void Fast_GB(double* , long, double, double,
+    	 	 double*, double*, double*, double*, double*, double*, int);
+    void Fast_GB_with_orbits(double* , long, double, double, double*,
+                             double*, double*, double*, double*, double*, double*, int, int);
+
         
 
 import numpy as np
@@ -24,25 +28,33 @@ YEAR = constants.Nature.SIDEREALYEAR_J2000DAY*24*60*60
 
 cdef class pyGB:
     cdef public double arm_length
+    cdef public double init_rotation
+    cdef public double init_position
     cdef public long M,N
     cdef public double f0,fdot,ampl,theta,phi,psi,incl,phi0
     cdef public double T, delta_t
     cdef public int oversample
     cdef public int kmin
+    cdef public int ldc_orbits # temp option to compare old/new version
     
-    def __cinit__(self, orbits=None, T=6.2914560e7, delta_t=15):
+    def __cinit__(self, orbits=None, T=6.2914560e7, delta_t=15, ldc_orbits=0):
         """ Define C++ FastBinary dimensions and check that orbits are
         compatible.
         """
+        self.ldc_orbits = ldc_orbits
         if orbits is not None:
             if not isinstance(orbits, "AnalyticOrbits"):
                 raise TypeError('Fastbinary approximation requires analytic orbits')
             else:
                 self.arm_length = orbits.arm_length
-                if orbits.initial_rotation !=0 or orbits.initial_position !=0:
-                    raise ValueError('Fastbinary approximation requires null initial rotation and position')
+                self.init_rotation = orbits.initial_rotation
+                self.init_position = orbits.initial_position
+                #if orbits.initial_rotation !=0 or orbits.initial_position !=0:
+                #    raise ValueError('Fastbinary approximation requires null initial rotation and position')
         else:
-            self.arm_length = 2.5e9
+            self.arm_length = 2.5e9 # m
+            self.init_rotation = 0 # rad
+            self.init_position = 0 # rad
         self.T, self.delta_t = T, delta_t
     
     def buffersize(self, f0, ampl, oversample):
@@ -110,10 +122,12 @@ cdef class pyGB:
         # TODO change to complex dtype
         
         cdef np.ndarray[np.double_t, ndim=1, mode="c"] Cpars = np.array(pars)
-        
-        Fast_GB(&Cpars[0], N, self.T, self.delta_t,
-                &xls[0], &yls[0], &zls[0], &xsl[0], &ysl[0], &zsl[0],
-                len(pars))
+        cdef np.ndarray[np.double_t, ndim=1, mode="c"] Opars = np.array([self.arm_length,
+                                                                         self.init_rotation,
+                                                                         self.init_position])
+        Fast_GB_with_orbits(&Cpars[0], N, self.T, self.delta_t, &Opars[0],
+                            &xls[0], &yls[0], &zls[0], &xsl[0], &ysl[0], &zsl[0],
+                            len(pars),self.ldc_orbits)
 
         lout = [xsl, ysl, zsl] if simulator=="synthlisa" else [xls, yls, zls]
         fX,fY,fZ = [np.array(a[::2] + 1.j* a[1::2], dtype=np.complex128) for a in lout]

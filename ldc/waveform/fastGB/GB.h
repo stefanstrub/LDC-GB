@@ -2,6 +2,7 @@
 #define GB_h
 
 #include "pdbParam.h"
+#include "c_wrapper.h"
 
 #define YEAR Nature_SIDEREALYEAR_J2000DAY*24*60*60 /* Number of seconds in a year */
 #define C Nature_VELOCITYOFLIGHT_CONSTANT_VACUUM /* Speed of light (m/s) */
@@ -77,18 +78,20 @@ struct Waveform
 
 
 void Fast_GB(double *params, long N, double Tobs, double dt,  double *XLS, double *YLS, double *ZLS, double* XSL, double* YSL, double* ZSL, int NP);
+void Fast_GB_with_orbits(double *params, long N, double Tobs, double dt,  double *orbit_params, double *XLS, double *YLS, double *ZLS, double* XSL, double* YSL, double* ZSL, int NP, int B);
 
-void XYZ(double ***d, double f0, long q, long M, double dt, double Tobs, double *XLS, double *YLS, double *ZLS, double* XSL, double* YSL, double* ZSL);
+
+void XYZ(double ***d, double f0, long q, long M, double dt, double Tobs, double Larm, double *XLS, double *YLS, double *ZLS, double* XSL, double* YSL, double* ZSL);
 
 void get_basis_vecs(double *params, double *u, double *v, double *k);
 void get_basis_tensors(struct Waveform *wfm);
-void calc_sep_vecs(struct Waveform *wfm);
+void calc_sep_vecs(struct Waveform *wfm, double Larm);
 void calc_d_matrices(struct Waveform *wfm);
 void calc_kdotr(struct Waveform *wfm);
 
 void get_transfer(struct Waveform *wfm, double t);
 void set_const_trans(struct Waveform *wfm);
-void calc_xi_f(struct Waveform *wfm, double t);
+void calc_xi_f(struct Waveform *wfm, struct AnalyticOrbits*, double t, int B);
 
 void copy_params(struct Waveform *wfm, double *params);
 void alloc_waveform(struct Waveform *wfm);

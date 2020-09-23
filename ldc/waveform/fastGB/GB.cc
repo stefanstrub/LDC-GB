@@ -8,21 +8,42 @@
 
 #include "LISA.h"
 #include "GB.h"
+#include "c_wrapper.h"
 
-
-void Fast_GB(double *params, long N, double Tobs, double dt, double *XLS, double *YLS, double *ZLS,
-							double* XSL, double* YSL, double* ZSL, int NP)
+void Fast_GB(double *params, long N, double Tobs, double dt,
+	     double *XLS, double *YLS, double *ZLS,
+	     double* XSL, double* YSL, double* ZSL, int NP)
 {
+  double* orbit_params = malloc(3*sizeof(double));
+  orbit_params[0] = LARM;
+  orbit_params[1] = LAMBDA;
+  orbit_params[2] = KAPPA;
+
+  Fast_GB_with_orbits(params, N, Tobs,dt, orbit_params, XLS, YLS, ZLS, XSL, YSL, ZSL, NP,0);
+}
+
+void Fast_GB_with_orbits(double *params, long N, double Tobs, double dt,
+			 double *orbit_params, 
+			 double *XLS, double *YLS, double *ZLS,
+			 double* XSL, double* YSL, double* ZSL, int NP,
+			 int ldcorbitsonoff)
+{
+  
 	long n;     // iterator
 	double t;	// time
 
+	struct AnalyticOrbits* lisa = newAnalyticOrbits(orbit_params[0], orbit_params[1],
+							orbit_params[2]);
+        double Larm = AnalyticOrbits_get_armlength(lisa);
+	
+	
 	// waveform struct to hold pieces for calculation
 	struct Waveform *wfm = malloc(sizeof(struct Waveform));
 
-	wfm->N  = N;				 // set number of samples
-	wfm->T  = Tobs;  		     // set observation period
-	wfm->NP = NP;				 // inform model of number of parameters being used
-	alloc_waveform(wfm);		 // allocate memory to hold pieces of waveform
+	wfm->N  = N; // set number of samples
+	wfm->T  = Tobs; // set observation period
+	wfm->NP = NP; // inform model of number of parameters being used
+	alloc_waveform(wfm);	 // allocate memory to hold pieces of waveform
 	copy_params(wfm, params);    // copy parameters to waveform structure
 
 
@@ -32,8 +53,8 @@ void Fast_GB(double *params, long N, double Tobs, double dt, double *XLS, double
 	{
 		t = wfm->T*(double)(n)/(double)N; // First time sample must be at t=0 for phasing
 
-		calc_xi_f(wfm ,t);		  // calc frequency and time variables
-		calc_sep_vecs(wfm);       // calculate the S/C separation vectors
+		calc_xi_f(wfm, lisa, t, ldcorbitsonoff);  // calc frequency and time variables
+		calc_sep_vecs(wfm, Larm);       // calculate the S/C separation vectors
 		calc_d_matrices(wfm);     // calculate pieces of waveform
 		calc_kdotr(wfm);		  // calculate dot product
 		get_transfer(wfm, t);     // Calculating Transfer function
@@ -45,14 +66,18 @@ void Fast_GB(double *params, long N, double Tobs, double dt, double *XLS, double
 	unpack_data(wfm);  // Unpack arrays from FFT and normalize
 
 
-	XYZ(wfm->d, wfm->params[0]/wfm->T, wfm->q, N, dt, Tobs, XLS, YLS, ZLS, XSL, YSL, ZSL); 
+	XYZ(wfm->d, wfm->params[0]/wfm->T, wfm->q, N, dt, Tobs, Larm, XLS, YLS, ZLS, XSL, YSL, ZSL); 
 
 	free_waveform(wfm);  // Deallocate memory
 	free(wfm);
+	deleteAnalyticOrbits(lisa);
+
 	return;
 }
 
-void calc_xi_f(struct Waveform *wfm, double t)
+        
+
+void calc_xi_f(struct Waveform *wfm, struct AnalyticOrbits* lisa, double t, int ldcorbitsonoff)
 {
 	long i;
 
@@ -62,8 +87,17 @@ void calc_xi_f(struct Waveform *wfm, double t)
 	if (wfm->NP > 7) dfdt_0   = wfm->params[7]/wfm->T/wfm->T;
 	if (wfm->NP > 8) d2fdt2_0 = wfm->params[8]/wfm->T/wfm->T/wfm->T;
 
-	spacecraft(t, wfm->x, wfm->y, wfm->z); // Calculate position of each spacecraft at time t
-
+	// Calculate position of each spacecraft at time t
+	if (ldcorbitsonoff==0)
+	  spacecraft(t, wfm->x, wfm->y, wfm->z);
+	else {
+	  for(i=0; i<3; i++){
+	    wfm->x[i] = AnalyticOrbits_get_position_x(lisa, i+1, t);
+	    wfm->y[i] = AnalyticOrbits_get_position_y(lisa, i+1, t);
+	    wfm->z[i] = AnalyticOrbits_get_position_z(lisa, i+1, t);
+	  }
+	}
+	
 	for(i=0; i<3; i++)
 	{
 		wfm->kdotx[i] = (wfm->x[i]*wfm->k[0] + wfm->y[i]*wfm->k[1] + wfm->z[i]*wfm->k[2])/C;
@@ -401,7 +435,7 @@ void calc_d_matrices(struct Waveform *wfm)
 	return;
 }
 
-void calc_sep_vecs(struct Waveform *wfm)
+void calc_sep_vecs(struct Waveform *wfm, double Larm)
 {
 	long i;
 
@@ -602,8 +636,8 @@ void get_transfer(struct Waveform *wfm, double t)
 	return;
 }
 
-void XYZ(double ***d, double f0, long q, long M, double dt, double Tobs, double *XLS, double *YLS, double *ZLS,
-					double* XSL, double* YSL, double* ZSL)
+void XYZ(double ***d, double f0, long q, long M, double dt, double Tobs, double Larm, double *XLS, double *YLS, double *ZLS,
+	 double* XSL, double* YSL, double* ZSL)
 {
 	int i;
 	double fonfs;

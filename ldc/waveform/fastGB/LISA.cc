@@ -8,7 +8,8 @@ void instrument_noise(double f, double *SAE, double *SXYZ)
     //Power spectral density of the detector noise and transfer frequency
     double red, Sloc;
     double trans;
-        
+    double Larm = LARM;
+  
     red  = 16.0*(pow((2.0e-5/f), 10.0)+ (1.0e-4/f)*(1.0e-4/f));
     Sloc = 2.89e-24;
     
@@ -29,6 +30,10 @@ void instrument_noise(double f, double *SAE, double *SXYZ)
 
 void spacecraft(double t, double *x, double *y, double *z)
 {
+       double lambda = LAMBDA;
+       double kappa = KAPPA;
+       //double Larm = LARM;
+  
 	double alpha;
 	double beta1, beta2, beta3;
 	double sa, sb, ca, cb;

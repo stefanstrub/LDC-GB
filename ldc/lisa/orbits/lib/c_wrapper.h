@@ -9,8 +9,12 @@ typedef struct AnalyticOrbits AnalyticOrbits;
 
 AnalyticOrbits* newAnalyticOrbits(double arm_length, double init_position, double init_rotation);
 
-  double MyClass_int_get(AnalyticOrbits* v, double t);
-
+  double AnalyticOrbits_get_armlength(AnalyticOrbits* v);
+  double AnalyticOrbits_get_position_x(AnalyticOrbits* v, int spacecraft_index, double t);
+  double AnalyticOrbits_get_position_y(AnalyticOrbits* v, int spacecraft_index, double t);
+  double AnalyticOrbits_get_position_z(AnalyticOrbits* v, int spacecraft_index, double t);
+  
+  
 void deleteAnalyticOrbits(AnalyticOrbits* v);
 
 #ifdef __cplusplus

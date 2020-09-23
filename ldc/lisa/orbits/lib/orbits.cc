@@ -14,6 +14,7 @@ AnalyticOrbits::AnalyticOrbits(double arm_length, double init_position, double i
     }
     eccentricity = arm_length/(2*sqrt(3)*AU_IN_M);
     init_time = init_position * ASTRONOMICAL_YEAR / (2 * M_PI);
+    spacecraft_separation = arm_length;
   } 
 
 double AnalyticOrbits::alpha(double time) {

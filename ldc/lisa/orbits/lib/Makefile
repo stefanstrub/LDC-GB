@@ -1,6 +1,6 @@
 src = orbits.cc common.cc 
 obj = $(src:.cc=.o)
-headers = $(src:.cc=.hpp)
+headers = $(src:.cc=.hpp) 
 flags = -I../../../common/constants/ -std=c++11
 
 
