@@ -40,7 +40,7 @@ class Orbits(ABC):
         self.units = dict({'nominal_arm_length':'m'})
         for k,v in config.items():
             if isinstance(v, un.Quantity):
-                config[k].to(un.Unit(self.units[k]))
+                config[k] = config[k].to(un.Unit(self.units[k]))
                 config[k] = config[k].value
         return config
 
@@ -110,7 +110,7 @@ class AnalyticOrbits(pyAnalyticOrbits, Orbits):
                            'initial_position':'rad'})
         for k,u in self.units.items():
             if isinstance(config[k], un.Quantity):
-                config[k].to(un.Unit(u))
+                config[k] = config[k].to(un.Unit(u))
                 config[k] = config[k].value
         return config
 

@@ -78,7 +78,7 @@ struct Waveform
 
 
 void Fast_GB(double *params, long N, double Tobs, double dt,  double *XLS, double *YLS, double *ZLS, double* XSL, double* YSL, double* ZSL, int NP);
-void Fast_GB_with_orbits(double *params, long N, double Tobs, double dt,  double *orbit_params, double *XLS, double *YLS, double *ZLS, double* XSL, double* YSL, double* ZSL, int NP, int B);
+void Fast_GB_with_orbits(double *params, long N, double Tobs, double dt,  double *orbit_params, double *XLS, double *YLS, double *ZLS, double* XSL, double* YSL, double* ZSL, int NP);
 
 
 void XYZ(double ***d, double f0, long q, long M, double dt, double Tobs, double Larm, double *XLS, double *YLS, double *ZLS, double* XSL, double* YSL, double* ZSL);
@@ -91,7 +91,7 @@ void calc_kdotr(struct Waveform *wfm);
 
 void get_transfer(struct Waveform *wfm, double t);
 void set_const_trans(struct Waveform *wfm);
-void calc_xi_f(struct Waveform *wfm, struct AnalyticOrbits*, double t, int B);
+void calc_xi_f(struct Waveform *wfm, struct AnalyticOrbits*, double t);
 
 void copy_params(struct Waveform *wfm, double *params);
 void alloc_waveform(struct Waveform *wfm);

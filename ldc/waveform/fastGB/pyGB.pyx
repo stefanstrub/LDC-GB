@@ -6,7 +6,7 @@ cdef extern from "GB.h":
     void Fast_GB(double* , long, double, double,
     	 	 double*, double*, double*, double*, double*, double*, int);
     void Fast_GB_with_orbits(double* , long, double, double, double*,
-                             double*, double*, double*, double*, double*, double*, int, int);
+                             double*, double*, double*, double*, double*, double*, int);
 
         
 
@@ -16,7 +16,7 @@ from ldc.common import constants
 from ldc.common.series import TimeSeries, FrequencySeries
 from ldc.lisa.noise import simple_snr
 import math
-
+from ldc.lisa.orbits import AnalyticOrbits
 
 # TODO:
 # orbits: use ldc.orbits in lisa.c
@@ -35,22 +35,18 @@ cdef class pyGB:
     cdef public double T, delta_t
     cdef public int oversample
     cdef public int kmin
-    cdef public int ldc_orbits # temp option to compare old/new version
     
-    def __cinit__(self, orbits=None, T=6.2914560e7, delta_t=15, ldc_orbits=0):
+    def __cinit__(self, orbits=None, T=6.2914560e7, delta_t=15):
         """ Define C++ FastBinary dimensions and check that orbits are
         compatible.
         """
-        self.ldc_orbits = ldc_orbits
         if orbits is not None:
-            if not isinstance(orbits, "AnalyticOrbits"):
+            if not isinstance(orbits, AnalyticOrbits):
                 raise TypeError('Fastbinary approximation requires analytic orbits')
             else:
                 self.arm_length = orbits.arm_length
                 self.init_rotation = orbits.initial_rotation
                 self.init_position = orbits.initial_position
-                #if orbits.initial_rotation !=0 or orbits.initial_position !=0:
-                #    raise ValueError('Fastbinary approximation requires null initial rotation and position')
         else:
             self.arm_length = 2.5e9 # m
             self.init_rotation = 0 # rad
@@ -127,7 +123,7 @@ cdef class pyGB:
                                                                          self.init_position])
         Fast_GB_with_orbits(&Cpars[0], N, self.T, self.delta_t, &Opars[0],
                             &xls[0], &yls[0], &zls[0], &xsl[0], &ysl[0], &zsl[0],
-                            len(pars),self.ldc_orbits)
+                            len(pars))
 
         lout = [xsl, ysl, zsl] if simulator=="synthlisa" else [xls, yls, zls]
         fX,fY,fZ = [np.array(a[::2] + 1.j* a[1::2], dtype=np.complex128) for a in lout]
