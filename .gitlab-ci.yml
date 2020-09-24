@@ -25,7 +25,7 @@ doctest:
   stage: test
   script:
   - apt-get update
-  - apt-get -y install gcc g++ libfftw3-dev libgsl-dev 
+  - apt-get -y install gcc g++ libfftw3-dev libgsl-dev make
   - pip install -r requirements.txt
   - python setup.py build_liborbits 
   - python setup.py install
@@ -83,7 +83,7 @@ pages:
   stage: deploy
   before_script:
   - apt-get update
-  - apt-get -y install gcc g++ libfftw3-dev libgsl-dev 
+  - apt-get -y install gcc g++ libfftw3-dev libgsl-dev make
   - pip install -U sphinx
   - pip install -U sphinx_rtd_theme
   - pip install mkdocs-material
