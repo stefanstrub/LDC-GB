@@ -23,11 +23,11 @@ void Fast_GB(double *params, long N, double Tobs, double dt,
 }
 
 void Fast_GB_with_orbits(double *params, long N, double Tobs, double dt,
-			 double *orbit_params, 
+			 double *orbit_params,
 			 double *XLS, double *YLS, double *ZLS,
 			 double* XSL, double* YSL, double* ZSL, int NP)
 {
-  
+
 	long n;     // iterator
 	double t;	// time
 
@@ -64,7 +64,7 @@ void Fast_GB_with_orbits(double *params, long N, double Tobs, double dt,
 	unpack_data(wfm);  // Unpack arrays from FFT and normalize
 
 
-	XYZ(wfm->d, wfm->params[0]/wfm->T, wfm->q, N, dt, Tobs, Larm, XLS, YLS, ZLS, XSL, YSL, ZSL); 
+	XYZ(wfm->d, wfm->params[0]/wfm->T, wfm->q, N, dt, Tobs, Larm, XLS, YLS, ZLS, XSL, YSL, ZSL);
 
 	free_waveform(wfm);  // Deallocate memory
 	free(wfm);
@@ -73,7 +73,7 @@ void Fast_GB_with_orbits(double *params, long N, double Tobs, double dt,
 	return;
 }
 
-        
+
 
 void calc_xi_f(struct Waveform *wfm, struct AnalyticOrbits* lisa, double t)
 {
@@ -94,7 +94,7 @@ void calc_xi_f(struct Waveform *wfm, struct AnalyticOrbits* lisa, double t)
 	  wfm->y[i] = AnalyticOrbits_get_position_y(lisa, i+1, t);
 	  wfm->z[i] = AnalyticOrbits_get_position_z(lisa, i+1, t);
 	}
-	
+
 	for(i=0; i<3; i++)
 	{
 		wfm->kdotx[i] = (wfm->x[i]*wfm->k[0] + wfm->y[i]*wfm->k[1] + wfm->z[i]*wfm->k[2])/C;
@@ -354,7 +354,7 @@ void free_waveform(struct Waveform *wfm)
 	free(wfm->ecross);
 	free(wfm->dplus);
 	free(wfm->dcross);
-	
+
 	free(wfm->r12);
 	free(wfm->r21);
 	free(wfm->r31);
@@ -394,7 +394,7 @@ void free_waveform(struct Waveform *wfm)
 	for (i=0; i<3; i++)
 	  free(wfm->d[i]);
 	free(wfm->d);
-	
+
 	free(wfm->params);
 
 	return;

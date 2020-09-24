@@ -8,7 +8,7 @@ cdef extern from "GB.h":
     void Fast_GB_with_orbits(double* , long, double, double, double*,
                              double*, double*, double*, double*, double*, double*, int);
 
-        
+
 
 import numpy as np
 cimport numpy as np
@@ -35,7 +35,7 @@ cdef class pyGB:
     cdef public double T, delta_t
     cdef public int oversample
     cdef public int kmin
-    
+
     def __cinit__(self, orbits=None, T=6.2914560e7, delta_t=15):
         """ Define C++ FastBinary dimensions and check that orbits are
         compatible.
@@ -52,9 +52,9 @@ cdef class pyGB:
             self.init_rotation = 0 # rad
             self.init_position = 0 # rad
         self.T, self.delta_t = T, delta_t
-    
+
     def buffersize(self, f0, ampl, oversample):
-        """Get array dimension needed to compute TDI. 
+        """Get array dimension needed to compute TDI.
         """
         Acut = simple_snr(f0,ampl,years=self.T/YEAR)
         mult = 8
@@ -77,8 +77,8 @@ cdef class pyGB:
 
     def _parse_template(self, template):
         """Return source parameters from dictionary.
-        
-        TODO: 
+
+        TODO:
         - should be inherited from a general GB class
         - should check that keys exists
         - should also parse a vector ?
@@ -93,14 +93,14 @@ cdef class pyGB:
         psi = template['Polarization']
         phi0 = -template['InitialPhase']
         return [f0, fdot, ampl, theta, phi, psi, incl, phi0]
-        
+
     def get_fd_tdixyz(self, template=None, f0=None, fdot=None, ampl=None,
                       theta=None, phi=None, psi=None, incl=None, phi0=None,
                       oversample=1, simulator='synthlisa'):
-        """ Return TDI X,Y,Z in freq. domain. 
-        
-        f0 in Hz, fdot in Hz/s, ampl in strain, 
-        theta,phi,psi,incl,phi0 in rad. 
+        """ Return TDI X,Y,Z in freq. domain.
+
+        f0 in Hz, fdot in Hz/s, ampl in strain,
+        theta,phi,psi,incl,phi0 in rad.
         """
         if template is not None:
             [f0, fdot, ampl, theta, phi, psi, incl, phi0] = self._parse_template(template)
@@ -108,7 +108,7 @@ cdef class pyGB:
                 np.cos(incl), psi, phi0, fdot*self.T**2]
 
         N = self.buffersize(f0,ampl,oversample)
-        M = N  
+        M = N
         cdef np.ndarray[np.double_t, ndim=1, mode="c"] xls = np.zeros(2*M)
         cdef np.ndarray[np.double_t, ndim=1, mode="c"] xsl = np.zeros(2*M)
         cdef np.ndarray[np.double_t, ndim=1, mode="c"] yls = np.zeros(2*M)
@@ -116,7 +116,7 @@ cdef class pyGB:
         cdef np.ndarray[np.double_t, ndim=1, mode="c"] zls = np.zeros(2*M)
         cdef np.ndarray[np.double_t, ndim=1, mode="c"] zsl = np.zeros(2*M)
         # TODO change to complex dtype
-        
+
         cdef np.ndarray[np.double_t, ndim=1, mode="c"] Cpars = np.array(pars)
         cdef np.ndarray[np.double_t, ndim=1, mode="c"] Opars = np.array([self.arm_length,
                                                                          self.init_rotation,
@@ -127,17 +127,16 @@ cdef class pyGB:
 
         lout = [xsl, ysl, zsl] if simulator=="synthlisa" else [xls, yls, zls]
         fX,fY,fZ = [np.array(a[::2] + 1.j* a[1::2], dtype=np.complex128) for a in lout]
-        kmin = int(int(f0*self.T) - M/2) 
+        kmin = int(int(f0*self.T) - M/2)
         df = 1.0/self.T
         return (FrequencySeries(fX/df, df=df, kmin=kmin, t0=0, name="X"),
                 FrequencySeries(fY/df, df=df, kmin=kmin, t0=0, name="Y"),
                 FrequencySeries(fZ/df, df=df, kmin=kmin, t0=0, name="Z"))
 
     def get_td_tdixyz(self, **kwargs):
-        """  Return TDI X,Y,Z in time domain. 
+        """  Return TDI X,Y,Z in time domain.
         """
         fX, fY, fZ = self.get_fd_tdixyz(**kwargs)
         return (fX.ts.ifft(dt=self.delta_t),
                 fY.ts.ifft(dt=self.delta_t),
                 fZ.ts.ifft(dt=self.delta_t))
-    
