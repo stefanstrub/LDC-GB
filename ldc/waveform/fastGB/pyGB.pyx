@@ -19,7 +19,6 @@ import math
 from ldc.lisa.orbits import AnalyticOrbits
 
 # TODO:
-# orbits: use ldc.orbits in lisa.c
 # parameters: check pycbc conventions, give info on expected units, getter/setter tools
 
 
