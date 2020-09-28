@@ -76,8 +76,8 @@ class BBH_IMRPhenomD(HpHc):
                      'EclipticLongitude':                'rad',\
                      'PolarAngleOfSpin1':                'rad',\
                      'PolarAngleOfSpin2':                'rad',\
-                     'Spin1':                            'MassSquared',\
-                     'Spin2':                            'MassSquared',\
+                     'Spin1':                            '1',\
+                     'Spin2':                            '1',\
                      'Mass1':                            'Msun',\
                      'Mass2':                            'Msun',\
                      'CoalescenceTime':                  's',\
