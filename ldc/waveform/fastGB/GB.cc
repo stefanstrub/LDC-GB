@@ -8,21 +8,40 @@
 
 #include "LISA.h"
 #include "GB.h"
+#include "c_wrapper.h"
 
-
-void Fast_GB(double *params, long N, double Tobs, double dt, double *XLS, double *YLS, double *ZLS,
-							double* XSL, double* YSL, double* ZSL, int NP)
+void Fast_GB(double *params, long N, double Tobs, double dt,
+	     double *XLS, double *YLS, double *ZLS,
+	     double* XSL, double* YSL, double* ZSL, int NP)
 {
+  double* orbit_params = (double*) malloc(3*sizeof(double));
+  orbit_params[0] = LARM;
+  orbit_params[1] = LAMBDA;
+  orbit_params[2] = KAPPA;
+
+  Fast_GB_with_orbits(params, N, Tobs,dt, orbit_params, XLS, YLS, ZLS, XSL, YSL, ZSL, NP);
+}
+
+void Fast_GB_with_orbits(double *params, long N, double Tobs, double dt,
+			 double *orbit_params,
+			 double *XLS, double *YLS, double *ZLS,
+			 double* XSL, double* YSL, double* ZSL, int NP)
+{
+
 	long n;     // iterator
 	double t;	// time
 
-	// waveform struct to hold pieces for calculation
-	struct Waveform *wfm = malloc(sizeof(struct Waveform));
+	struct AnalyticOrbits* lisa = newAnalyticOrbits(orbit_params[0], orbit_params[1],
+							orbit_params[2]);
+        double Larm = AnalyticOrbits_get_armlength(lisa);
 
-	wfm->N  = N;				 // set number of samples
-	wfm->T  = Tobs;  		     // set observation period
-	wfm->NP = NP;				 // inform model of number of parameters being used
-	alloc_waveform(wfm);		 // allocate memory to hold pieces of waveform
+	// waveform struct to hold pieces for calculation
+	struct Waveform *wfm = (struct Waveform*) malloc(sizeof(struct Waveform));
+
+	wfm->N  = N; // set number of samples
+	wfm->T  = Tobs; // set observation period
+	wfm->NP = NP; // inform model of number of parameters being used
+	alloc_waveform(wfm);	 // allocate memory to hold pieces of waveform
 	copy_params(wfm, params);    // copy parameters to waveform structure
 
 
@@ -32,8 +51,8 @@ void Fast_GB(double *params, long N, double Tobs, double dt, double *XLS, double
 	{
 		t = wfm->T*(double)(n)/(double)N; // First time sample must be at t=0 for phasing
 
-		calc_xi_f(wfm ,t);		  // calc frequency and time variables
-		calc_sep_vecs(wfm);       // calculate the S/C separation vectors
+		calc_xi_f(wfm, lisa, t);  // calc frequency and time variables
+		calc_sep_vecs(wfm, Larm);       // calculate the S/C separation vectors
 		calc_d_matrices(wfm);     // calculate pieces of waveform
 		calc_kdotr(wfm);		  // calculate dot product
 		get_transfer(wfm, t);     // Calculating Transfer function
@@ -45,24 +64,36 @@ void Fast_GB(double *params, long N, double Tobs, double dt, double *XLS, double
 	unpack_data(wfm);  // Unpack arrays from FFT and normalize
 
 
-	XYZ(wfm->d, wfm->params[0]/wfm->T, wfm->q, N, dt, Tobs, XLS, YLS, ZLS, XSL, YSL, ZSL); 
+	XYZ(wfm->d, wfm->params[0]/wfm->T, wfm->q, N, dt, Tobs, Larm, XLS, YLS, ZLS, XSL, YSL, ZSL);
 
 	free_waveform(wfm);  // Deallocate memory
 	free(wfm);
+	deleteAnalyticOrbits(lisa);
+
 	return;
 }
 
-void calc_xi_f(struct Waveform *wfm, double t)
+
+
+void calc_xi_f(struct Waveform *wfm, struct AnalyticOrbits* lisa, double t)
 {
 	long i;
 
-	double f0, dfdt_0, d2fdt2_0;
+	double f0;
+	double dfdt_0 = 0;
+	double d2fdt2_0 = 0;
 
 	f0       = wfm->params[0]/wfm->T;
 	if (wfm->NP > 7) dfdt_0   = wfm->params[7]/wfm->T/wfm->T;
 	if (wfm->NP > 8) d2fdt2_0 = wfm->params[8]/wfm->T/wfm->T/wfm->T;
 
-	spacecraft(t, wfm->x, wfm->y, wfm->z); // Calculate position of each spacecraft at time t
+	// Calculate position of each spacecraft at time t
+	//spacecraft(t, wfm->x, wfm->y, wfm->z);
+	for(i=0; i<3; i++){
+	  wfm->x[i] = AnalyticOrbits_get_position_x(lisa, i+1, t);
+	  wfm->y[i] = AnalyticOrbits_get_position_y(lisa, i+1, t);
+	  wfm->z[i] = AnalyticOrbits_get_position_z(lisa, i+1, t);
+	}
 
 	for(i=0; i<3; i++)
 	{
@@ -89,7 +120,7 @@ void copy_params(struct Waveform *wfm, double *params)
 
 	int NP = wfm->NP;
 
-	wfm->params = malloc(NP*sizeof(double));
+	wfm->params = (double*) malloc(NP*sizeof(double));
 
 	for (i=0; i<NP; i++) wfm->params[i] = params[i];
 
@@ -154,13 +185,12 @@ void unpack_data(struct Waveform *wfm)
 void fft_data(struct Waveform *wfm)
 {
 	long N = wfm->N;
-
-	gsl_fft_complex_radix2_transform(wfm->data12, 1, N, -1);
-	gsl_fft_complex_radix2_transform(wfm->data21, 1, N, -1);
-	gsl_fft_complex_radix2_transform(wfm->data31, 1, N, -1);
-	gsl_fft_complex_radix2_transform(wfm->data13, 1, N, -1);
-	gsl_fft_complex_radix2_transform(wfm->data23, 1, N, -1);
-	gsl_fft_complex_radix2_transform(wfm->data32, 1, N, -1);
+	gsl_fft_complex_radix2_forward(wfm->data12, 1, N);
+	gsl_fft_complex_radix2_forward(wfm->data21, 1, N);
+	gsl_fft_complex_radix2_forward(wfm->data31, 1, N);
+	gsl_fft_complex_radix2_forward(wfm->data13, 1, N);
+	gsl_fft_complex_radix2_forward(wfm->data23, 1, N);
+	gsl_fft_complex_radix2_forward(wfm->data32, 1, N);
 
 	return;
 }
@@ -172,11 +202,11 @@ void alloc_waveform(struct Waveform *wfm)
 
 	N = wfm->N;
 
-	wfm->k = malloc(3*sizeof(double));
+	wfm->k = (double*) malloc(3*sizeof(double));
 
-	wfm->kdotx = malloc(3*sizeof(double));
-	wfm->kdotr = malloc(3*sizeof(double *));
-	for (i=0; i<3; i++) wfm->kdotr[i] = malloc(3*sizeof(double));
+	wfm->kdotx = (double*) malloc(3*sizeof(double));
+	wfm->kdotr = (double**) malloc(3*sizeof(double *));
+	for (i=0; i<3; i++) wfm->kdotr[i] = (double*) malloc(3*sizeof(double));
 
 	for (i=0; i<3; i++)
 	{
@@ -184,9 +214,9 @@ void alloc_waveform(struct Waveform *wfm)
 	  wfm->kdotx[i] = 0.;
 	}
 
-	wfm->xi    = malloc(3*sizeof(double));
-	wfm->f     = malloc(3*sizeof(double));
-	wfm->fonfs = malloc(3*sizeof(double));
+	wfm->xi    = (double*) malloc(3*sizeof(double));
+	wfm->f     = (double*) malloc(3*sizeof(double));
+	wfm->fonfs = (double*) malloc(3*sizeof(double));
 	for (i=0; i<3; i++)
 	{
 		wfm->xi[i]    = 0.;
@@ -195,30 +225,30 @@ void alloc_waveform(struct Waveform *wfm)
 	}
 
 	// Polarization basis tensors
-	wfm->eplus = malloc(3*sizeof(double*));
-	for (i=0; i<3; i++) wfm->eplus[i] = malloc(3*sizeof(double));
-	wfm->ecross = malloc(3*sizeof(double*));
-	for (i=0; i<3; i++) wfm->ecross[i] = malloc(3*sizeof(double));
+	wfm->eplus = (double**) malloc(3*sizeof(double*));
+	for (i=0; i<3; i++) wfm->eplus[i] = (double*) malloc(3*sizeof(double));
+	wfm->ecross = (double**) malloc(3*sizeof(double*));
+	for (i=0; i<3; i++) wfm->ecross[i] = (double*) malloc(3*sizeof(double));
 
-	wfm->dplus = malloc(3*sizeof(double*));
-	for (i=0; i<3; i++) wfm->dplus[i] = malloc(3*sizeof(double));
-	wfm->dcross = malloc(3*sizeof(double*));
-	for (i=0; i<3; i++) wfm->dcross[i] = malloc(3*sizeof(double));
+	wfm->dplus = (double**) malloc(3*sizeof(double*));
+	for (i=0; i<3; i++) wfm->dplus[i] = (double*) malloc(3*sizeof(double));
+	wfm->dcross = (double**) malloc(3*sizeof(double*));
+	for (i=0; i<3; i++) wfm->dcross[i] = (double*) malloc(3*sizeof(double));
 
-	wfm->r12 = malloc(3*sizeof(double));
-	wfm->r21 = malloc(3*sizeof(double));
-	wfm->r31 = malloc(3*sizeof(double));
-	wfm->r13 = malloc(3*sizeof(double));
-	wfm->r23 = malloc(3*sizeof(double));
-	wfm->r32 = malloc(3*sizeof(double));
+	wfm->r12 = (double*) malloc(3*sizeof(double));
+	wfm->r21 = (double*) malloc(3*sizeof(double));
+	wfm->r31 = (double*) malloc(3*sizeof(double));
+	wfm->r13 = (double*) malloc(3*sizeof(double));
+	wfm->r23 = (double*) malloc(3*sizeof(double));
+	wfm->r32 = (double*) malloc(3*sizeof(double));
 
 
-	wfm->data12 = malloc(2*N*sizeof(double));
-	wfm->data21 = malloc(2*N*sizeof(double));
-	wfm->data31 = malloc(2*N*sizeof(double));
-	wfm->data13 = malloc(2*N*sizeof(double));
-	wfm->data23 = malloc(2*N*sizeof(double));
-	wfm->data32 = malloc(2*N*sizeof(double));
+	wfm->data12 = (double*) malloc(2*N*sizeof(double));
+	wfm->data21 = (double*) malloc(2*N*sizeof(double));
+	wfm->data31 = (double*) malloc(2*N*sizeof(double));
+	wfm->data13 = (double*) malloc(2*N*sizeof(double));
+	wfm->data23 = (double*) malloc(2*N*sizeof(double));
+	wfm->data32 = (double*) malloc(2*N*sizeof(double));
 	for (i=0; i<2*N; i++)
 	{
 		wfm->data12[i] = 0.;
@@ -229,12 +259,12 @@ void alloc_waveform(struct Waveform *wfm)
 		wfm->data32[i] = 0.;
 	}
 
-	wfm->a12 = malloc(2*N*sizeof(double));
-	wfm->a21 = malloc(2*N*sizeof(double));
-	wfm->a31 = malloc(2*N*sizeof(double));
-	wfm->a13 = malloc(2*N*sizeof(double));
-	wfm->a23 = malloc(2*N*sizeof(double));
-	wfm->a32 = malloc(2*N*sizeof(double));
+	wfm->a12 = (double*) malloc(2*N*sizeof(double));
+	wfm->a21 = (double*) malloc(2*N*sizeof(double));
+	wfm->a31 = (double*) malloc(2*N*sizeof(double));
+	wfm->a13 = (double*) malloc(2*N*sizeof(double));
+	wfm->a23 = (double*) malloc(2*N*sizeof(double));
+	wfm->a32 = (double*) malloc(2*N*sizeof(double));
 	for (i=0; i<2*N; i++)
 	{
 		wfm->a12[i] = 0.;
@@ -245,14 +275,14 @@ void alloc_waveform(struct Waveform *wfm)
 		wfm->a32[i] = 0.;
 	}
 
-	wfm->TR = malloc(3*sizeof(double*));
-	for (i=0;i<3; i++) wfm->TR[i] = malloc(3*sizeof(double));
-	wfm->TI = malloc(3*sizeof(double*));
-	for (i=0;i<3; i++) wfm->TI[i] = malloc(3*sizeof(double));
+	wfm->TR = (double**) malloc(3*sizeof(double*));
+	for (i=0;i<3; i++) wfm->TR[i] = (double*) malloc(3*sizeof(double));
+	wfm->TI = (double**) malloc(3*sizeof(double*));
+	for (i=0;i<3; i++) wfm->TI[i] = (double*) malloc(3*sizeof(double));
 
-	wfm->x = malloc(3*sizeof(double));
-	wfm->y = malloc(3*sizeof(double));
-	wfm->z = malloc(3*sizeof(double));
+	wfm->x = (double*) malloc(3*sizeof(double));
+	wfm->y = (double*) malloc(3*sizeof(double));
+	wfm->z = (double*) malloc(3*sizeof(double));
 
 	for (i=0; i<3; i++)
 	{
@@ -276,14 +306,14 @@ void alloc_waveform(struct Waveform *wfm)
 		wfm->r32[i] = 0.;
 	}
 
-	wfm->d = malloc(3*sizeof(double**));
-	for (i=0; i<3; i++) wfm->d[i] = malloc(3*sizeof(double*));
+	wfm->d = (double***) malloc(3*sizeof(double**));
+	for (i=0; i<3; i++) wfm->d[i] = (double**) malloc(3*sizeof(double*));
 
 	for (i=0; i<3; i++)
 	{
 		for (j=0; j<3; j++)
 		{
-			wfm->d[i][j] = malloc(2*N*sizeof(double));
+			wfm->d[i][j] =(double*) malloc(2*N*sizeof(double));
 		}
 	}
 
@@ -324,7 +354,7 @@ void free_waveform(struct Waveform *wfm)
 	free(wfm->ecross);
 	free(wfm->dplus);
 	free(wfm->dcross);
-	
+
 	free(wfm->r12);
 	free(wfm->r21);
 	free(wfm->r31);
@@ -364,7 +394,7 @@ void free_waveform(struct Waveform *wfm)
 	for (i=0; i<3; i++)
 	  free(wfm->d[i]);
 	free(wfm->d);
-	
+
 	free(wfm->params);
 
 	return;
@@ -401,7 +431,7 @@ void calc_d_matrices(struct Waveform *wfm)
 	return;
 }
 
-void calc_sep_vecs(struct Waveform *wfm)
+void calc_sep_vecs(struct Waveform *wfm, double Larm)
 {
 	long i;
 
@@ -485,8 +515,8 @@ void get_basis_tensors(struct Waveform *wfm)
 
 	double *u, *v;		  // GW basis vectors
 
-	u = malloc(3*sizeof(double));
-	v = malloc(3*sizeof(double));
+	u = (double*) malloc(3*sizeof(double));
+	v = (double*) malloc(3*sizeof(double));
 
 	set_const_trans(wfm);  // set the constant pieces of transfer function
 
@@ -602,8 +632,8 @@ void get_transfer(struct Waveform *wfm, double t)
 	return;
 }
 
-void XYZ(double ***d, double f0, long q, long M, double dt, double Tobs, double *XLS, double *YLS, double *ZLS,
-					double* XSL, double* YSL, double* ZSL)
+void XYZ(double ***d, double f0, long q, long M, double dt, double Tobs, double Larm, double *XLS, double *YLS, double *ZLS,
+	 double* XSL, double* YSL, double* ZSL)
 {
 	int i;
 	double fonfs;
@@ -612,9 +642,9 @@ void XYZ(double ***d, double f0, long q, long M, double dt, double Tobs, double 
 	double *X, *Y, *Z;
 	double phiLS, cLS, sLS, phiSL, cSL, sSL;
 
-	X   = malloc(2*M*sizeof(double));
-	Y   = malloc(2*M*sizeof(double));
-	Z   = malloc(2*M*sizeof(double));
+	X   = (double*) malloc(2*M*sizeof(double));
+	Y   = (double*) malloc(2*M*sizeof(double));
+	Z   = (double*) malloc(2*M*sizeof(double));
 
 	// YLS = malloc(2*M*sizeof(double));
 	// ZLS = malloc(2*M*sizeof(double));

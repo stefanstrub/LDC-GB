@@ -24,9 +24,7 @@ public:
   array<double, 3> s_rotation;
 
   double eccentricity;
-
   double init_time;
-  
   
   AnalyticOrbits();
   AnalyticOrbits(double arm_length, double init_position, double init_rotation);

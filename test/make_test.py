@@ -89,13 +89,14 @@ orbits = Orbits.type(config)
 
 tmp_filename = next(tempfile._get_candidate_names()) #pylint: disable=W0212
 
-
-for mod in ["ldc.waveform.waveform",
-            "ldc.waveform.source",
-            "ldc.lisa.orbits",  "ldc.lisa.projection", "ldc.lisa.noise" , 
-            "ldc.io.hdf5"]:
-    module = importlib.import_module(mod)
-    for sub in module.__all__:
-        submodule = importlib.import_module(module.__name__+"."+sub)
-        doctest.testmod(submodule, extraglobs=globals(), verbose=True)
+if __name__ == "__main__":
+    for mod in ["ldc.waveform.waveform",
+                "ldc.waveform.source",
+                "ldc.lisa.orbits",  "ldc.lisa.projection", "ldc.lisa.noise" , 
+                "ldc.io.hdf5"]:
+        module = importlib.import_module(mod)
+        for sub in module.__all__:
+            submodule = importlib.import_module(module.__name__+"."+sub)
+            doctest.testmod(submodule, extraglobs=globals(), verbose=True,
+                            raise_on_error=True)
 

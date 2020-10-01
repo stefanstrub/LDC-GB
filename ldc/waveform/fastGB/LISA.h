@@ -17,16 +17,16 @@
 #define Sacc 9.000000e-30
 
 /* Mean arm length of constellation (m) */
-#define Larm 2.5e9
+#define LARM 2.5e9
 
  /* LISA orbital eccentricity */
 #define ec 0.0048241852
 
  /* Initial azimuthal position of the guiding center */
-#define kappa 0.000000
+#define KAPPA 0.000000
 
  /* Initial orientation of the LISA constellation */
-#define lambda 0.000000
+#define LAMBDA 0.000000
 
  /* LISA modulation frequency */
 #define fm 3.168753575e-8

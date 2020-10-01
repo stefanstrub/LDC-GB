@@ -10,9 +10,10 @@ COPY data_generation /codes/LDC/data_generation
 COPY setup.py requirements.txt /codes/LDC/
 WORKDIR /codes/LDC
 RUN pip3 install -r requirements.txt
+RUN python3 setup.py build_liborbits 
 RUN python3 setup.py install
-WORKDIR /codes/LDC/ldc/lisa/orbits/lib
-RUN make
+#WORKDIR /codes/LDC/ldc/lisa/orbits/lib
+#RUN make
 
 
 WORKDIR /codes/LISANode

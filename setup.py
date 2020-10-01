@@ -45,13 +45,18 @@ orbits_ext = Extension("_orbits",
 
 fastGB_ext = Extension("fastGB",
                        sources=["ldc/waveform/fastGB/pyGB.pyx",
-                                "ldc/waveform/fastGB/GB.c",
-                                "ldc/waveform/fastGB/LISA.c"], 
-                       language="c",
+                                "ldc/waveform/fastGB/GB.cc",
+                                "ldc/waveform/fastGB/LISA.cc",
+                                "ldc/lisa/orbits/lib/c_wrapper.cc",
+                                "ldc/lisa/orbits/lib/orbits.cc"], 
+                       language="c++",
                        include_dirs=[numpy.get_include(), "ldc/common/constants",
-                                     GSL_CFLAGS.decode()[2:]],
-                       extra_compile_args = ["-std=c99"], 
-                       libraries=['fftw3', 'gsl'])
+                                     GSL_CFLAGS.decode()[2:],
+                                     'ldc/lisa/orbits/lib'],
+                       library_dirs=['ldc/lisa/orbits/lib'],
+                       extra_compile_args = ['-fpermissive'],#["-std=c99"],
+                       libraries=['fftw3', 'gsl', 'orbits'])
+
 
 imr_phenomd_ext = Extension("pyimrphenomD",
                             sources=["ldc/waveform/imrphenomD/pyimrphenomD"+ext_c,
