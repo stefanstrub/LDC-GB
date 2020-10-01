@@ -13,15 +13,18 @@ if __name__ == "__main__":
                         help="Input hdf5 file without units")
     parser.add_argument('--output-dir', type=str, default="",
                         help="Output directory")
+    parser.add_argument('--blind', action='store_true',
+                        help="Blind data set")
     args = parser.parse_args()
 
     cats = ["sky/vgb/cat", "sky/dgb/cat", "sky/igb/cat", "sky/mbhb/cat"]
     tdi = ["obs/tdi"]
 
-    for c in cats:
-        arr, attr = hdf5io.load_array(args.input_file, name=c)
-        out = os.path.join(args.output_dir, c.replace("/", "_")+".txt.gz")
-        txtio.save_array(out, arr)
+    if not args.blind:
+        for c in cats:
+            arr, attr = hdf5io.load_array(args.input_file, name=c)
+            out = os.path.join(args.output_dir, c.replace("/", "_")+".txt.gz")
+            txtio.save_array(out, arr)
 
     for c in tdi:
         arr, attr = hdf5io.load_array(args.input_file, name=c)
