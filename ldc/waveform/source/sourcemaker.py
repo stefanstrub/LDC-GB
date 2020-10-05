@@ -167,7 +167,8 @@ class MBHBMaker(SourceMaker, BBH_IMRPhenomD):
 
     def choose_from_catalog(self, nsource, mass_ratio=(1, 10), spin1=(0.01, 0.99),
                             spin2=(0.01, 0.99), coalescence_time=(0.0001, 10),
-                            mass_total=(2, 8), **kwargs):
+                            mass_total=(2, 8), redshited_mass=True, non_precessing=False,
+                            **kwargs):
         """Make a random selection of sources.
 
         If catalogs keyword is provided, sources are randomly chosen
@@ -179,7 +180,8 @@ class MBHBMaker(SourceMaker, BBH_IMRPhenomD):
 
         # load catalogs
         if hasattr(self, 'catalogs'):
-            C = [load_mbhb_catalog(cat) for cat in self.catalogs]
+            C = [load_mbhb_catalog(cat, redshifted_mass=redshifted_mass,
+                                   non_precessing=non_precessing) for cat in self.catalogs]
             units = C[0][1]
             C = [c[0] for c in C]
             if nsource < 0:
