@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 import logging
 import re
 import sys
-import h5py as h5
 import numpy as np
 import numpy.lib.recfunctions as recf
 
@@ -14,6 +13,7 @@ from astropy.coordinates import BarycentricMeanEcliptic
 
 from ldc.common import constants, tools
 from ldc.waveform.waveform import BBH_IMRPhenomD, GB_fdot
+from .catio import *
 
 #pylint:disable=W1201
 #pylint:disable=C0103
@@ -22,90 +22,6 @@ YRSID_SI = constants.Nature.SIDEREALYEAR_J2000DAY*24*60*60
 MTsun = constants.Nature.SUN_GM/constants.Nature.VELOCITYOFLIGHT_CONSTANT_VACUUM**3
 deg2rad = np.pi/180.
 
-def load_gb_catalog(catalog):
-    """Load GB catalog either in h5 or npy format.
-    """
-    if catalog.split(".")[-1] in ["h5", "hdf5"]:
-        return load_h5_catalog(catalog)
-    elif catalog.split(".")[-1] in ["dat, data"]:
-        return load_txt_catalog(catalog)
-    cat = np.load(catalog)
-    return cat
-
-def load_h5_catalog(catalog):
-    """ Load h5 catalog a la LISAhdf5.
-    """
-    h5file = h5.File(catalog, mode='r')
-    gp = h5file.get("H5LISA/GWSources")
-    params = dict()
-    sources = list(gp.keys())
-    params = list(gp.get(sources[0]).keys())
-    D = dict().fromkeys(["Name"]+params)
-    for k, v in D.items():
-        D[k] = []
-    for s in sources:
-        src = gp.get(s)
-        D["Name"].append(s)
-        for ky in list(src.keys()):
-            D[str(ky)].append(src.get(ky).value)
-    h5file.close()
-    cat = np.rec.fromarrays(list(D.values()), names=list(D.keys()))
-    return cat
-
-def load_mbhb_catalog(catalog, option="IMRPhenomD"):
-    """ Load .dat
-    """
-    dat = np.genfromtxt(catalog, names=True, dtype=([float]*19 + ['|U3'] + [float]*8))
-    if dat.size==1:
-        dat = np.array([dat])
-    beta = 0.5*np.pi - dat['ecl_colat']
-    lam = dat['ecl_long']
-    tc = dat['Tc_yrs']*YRSID_SI
-    phi0 = dat['phi0']
-
-    if option == "IMRPhenomD":
-        mass1 = dat['m1']#*(1. + dat['z'])
-        mass2 = dat['m2']#*(1. + dat['z'])
-        th1 = dat['thS1']
-        th2 = dat['thS2']
-        spin1 = dat['a1']
-        spin2 = dat['a2']
-    elif option == "IMRPhenomHM":
-        mass1 = dat['m1']*(1. + dat['z'])
-        mass2 = dat['m2']*(1. + dat['z'])
-        psi, incl = tools.aziPolAngleL2PsiIncl(beta, lam, dat['thL'],  dat['phL'])
-        psi[psi<0] = psi[psi<0] + 2.0*np.pi
-        chi1 = dat['a1']*np.cos(dat['thS1'])
-        chi2 = dat['a2']*np.cos(dat['thS2'])
-
-
-
-    sindex = mass1 < mass2 # switch index
-    mass1[sindex], mass2[sindex] = mass2[sindex], mass1[sindex]
-    phi0[sindex] += np.pi
-
-    if option == "IMRPhenomD":
-        th1[sindex], th2[sindex] = th2[sindex], th1[sindex]
-        spin1[sindex], spin2[sindex] = spin2[sindex], spin1[sindex]
-        cat = np.rec.fromarrays([beta, lam,
-                                 th1, th2, spin1, spin2,
-                                 mass1, mass2, tc, phi0, dat['thL'], dat['phL'],
-                                 dat['z'], dat['DL_Mpc']],
-                                names=['EclipticLatitude', 'EclipticLongitude',
-                                       'PolarAngleOfSpin1', 'PolarAngleOfSpin2',
-                                       'Spin1', 'Spin2', 'Mass1', 'Mass2',
-                                       'CoalescenceTime', 'PhaseAtCoalescence',
-                                       'InitialPolarAngleL', 'InitialAzimuthalAngleL',
-                                       'Redshift', 'Distance'])
-    elif option == "IMRPhenomHM":
-        chi1[sindex], chi2[sindex] = chi2[sindex], chi1[sindex]
-        cat = np.rec.fromarrays([beta, lam,  chi1, chi2,
-                                 mass1, mass2, tc, phi0, psi, incl, dat['DL_Mpc']],
-                                names=['EclipticLatitude', 'EclipticLongitude',
-                                       'Spin1', 'Spin2','Mass1', 'Mass2',
-                                       'CoalescenceTime', 'PhaseAtCoalescence',
-                                       'Polarization', 'Inclination','Distance'])
-    return cat
 
 def randomize_gaussian(x, randx, xmin, xmax, logger):
     """Add or multiply x by a random quantity, such that it remains
@@ -264,6 +180,8 @@ class MBHBMaker(SourceMaker, BBH_IMRPhenomD):
         # load catalogs
         if hasattr(self, 'catalogs'):
             C = [load_mbhb_catalog(cat) for cat in self.catalogs]
+            units = C[0][1]
+            C = [c[0] for c in C]
             if nsource < 0:
                 nsource = np.random.choice([c.size for c in C])
                 self.logger.info("number of source is %d"%(nsource))
@@ -304,7 +222,7 @@ class MBHBMaker(SourceMaker, BBH_IMRPhenomD):
         C = recf.append_fields(C[ind], ['ObservationDuration', 'Cadence'],
                                [obs_duration, cadence],
                                usemask=False)
-        return C
+        return C, units
 
 
 class GBMaker(SourceMaker, GB_fdot):
@@ -322,19 +240,23 @@ class GBMaker(SourceMaker, GB_fdot):
     def choose_from_catalog(self, nsource, **kwargs):
         """ Make a random selection of sources.
         """
-        C = np.hstack([load_gb_catalog(cat) for cat in self.catalogs])
+        C = [load_gb_catalog(cat, rename=True) for cat in self.catalogs]
+        units = C[0][1]
+        C = np.hstack([c[0] for c in C])
         self.logger.info("Input catalog has %d sources"%len(C))
         if len(C) < nsource:
             self.logger.error("Number of sources in catalogs is smaller than requested")
         if 'seed' in kwargs:
             np.random.seed(kwargs["seed"])
         ind = np.random.choice(len(C), nsource, replace=False)
-        return C[ind]
+        return C[ind], units
 
     def draw_random_catalog(self, nsource, **kwargs):
         """ Make a list of sources randomizing parameters in the catalogs.
         """
-        Craw = np.hstack([load_gb_catalog(cat) for cat in self.catalogs])
+        Craw = [load_gb_catalog(cat) for cat in self.catalogs]
+        units = Craw[0][1]
+        Craw = np.hstack([c[0] for c in Craw])
         self.logger.info("Input catalog has %d sources"%len(Craw))
         if len(Craw) < nsource:
             self.logger.error("Number of sources in catalogs is smaller than requested")
@@ -402,6 +324,14 @@ class GBMaker(SourceMaker, GB_fdot):
         phi0 = np.random.uniform(0, 2.*np.pi, size=nsource)
         name = Craw["ID[]"] if "ID[]" in Craw.dtype.names  else [str(i) for i in np.arange(nsource)]
 
+        units = {'EclipticLatitude':         'rad',
+                 'EclipticLongitude':        'rad',
+                 'Amplitude':                '1',
+                 'Frequency':                'Hz',
+                 'FrequencyDerivative':      'Hz2',
+                 'Inclination':              'rad',
+                 'Polarization':             'rad',
+                 'InitialPhase':             'rad'}
 
         C = np.rec.fromarrays([name, amplitude, b_ecl,
                                l_ecl, f, dfdt, inc, phi0, psi],
@@ -409,4 +339,4 @@ class GBMaker(SourceMaker, GB_fdot):
                                      'EclipticLongitude', 'Frequency',
                                      'FrequencyDerivative', 'Inclination',
                                      'InitialPhase', 'Polarization'])
-        return C
+        return C, units
