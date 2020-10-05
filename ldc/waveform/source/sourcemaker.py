@@ -167,7 +167,7 @@ class MBHBMaker(SourceMaker, BBH_IMRPhenomD):
 
     def choose_from_catalog(self, nsource, mass_ratio=(1, 10), spin1=(0.01, 0.99),
                             spin2=(0.01, 0.99), coalescence_time=(0.0001, 10),
-                            mass_total=(2, 8), redshited_mass=True, non_precessing=False,
+                            mass_total=(0, 5000), redshifted_mass=True, non_precessing=False,
                             **kwargs):
         """Make a random selection of sources.
 
