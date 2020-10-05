@@ -158,10 +158,10 @@ class HpHc(ABC):
             if isinstance(self.source_parameters[k], un.Quantity):
                 conv = self.source_parameters[k].to(un.Unit(default_units[k]))
                 self.source_parameters[k] = conv.value
-            elif units is not None:
-                self.source_parameters[k] *= un.Unit(units[k])
-                self.source_parameters[k].to(un.Unit(default_units[k]))
-                self.source_parameters[k] = self.source_parameters[k].value
+            elif units is not None and k in units and un.Unit(units[k])!=un.dimensionless_unscaled:
+                qty = self.source_parameters[k]*un.Unit(units[k])
+                qty = qty.to(un.Unit(default_units[k]))
+                self.source_parameters[k] = qty.value
         self.units = default_units
 
 
