@@ -13,6 +13,7 @@ from ldc.lisa.orbits import Orbits
 from ldc.waveform.waveform.hphc import HpHc
 from ldc.lisa.projection import ProjectedStrain, to_file
 import ldc.io.yml as ymlio
+import ldc.io.hdf5 as h5io
 from ldc.utils.logging import init_logger, close_logger
 
 
@@ -90,19 +91,11 @@ if __name__ == "__main__":
     orbits = Orbits.type(cfg)
     nArms = orbits.number_of_arms
 
-    # batch selection
-    # if args.cat.split(".")[-1] in ["hdf5", "h5"]:
-    #     from LISAhdf5 import LISAhdf5
-    #     h5 = LISAhdf5(args.cat, mode='r')
-    #     sources = h5.getSourcesName()
-    #     GWs = [HpHc.from_file(args.hdf5, s) for s in sources]
-    #     GWs = [GW.split() for GW in GWs]
-    #     GWs = [GW for sublist in GWs for GW in sublist] # flatten
-    #     istart, iend = get_selection(args.select, len(GWs))
-    #     GWs = GWs[istart:iend]
-    # else:
-    cat = np.load(args.cat)
-    istart, iend = get_selection(args.select, len(cat))
+    #cat = np.load(args.cat)
+    cat, units = h5io.load_array(args.cat)
+    if cat.size==1:
+        cat = np.array([cat])
+    istart, iend = get_selection(args.select, cat.size)
     cat = cat[istart:iend]
     name = os.path.basename(args.cat)
   
@@ -128,7 +121,7 @@ if __name__ == "__main__":
     for i,j in indices:
 
         GWs = HpHc.type(name, source_cfg["source_type"], source_cfg["approximant"])
-        GWs.set_param(cat[i:j])
+        GWs.set_param(cat[i:j], units=units)
         GWs = GWs.split()
         
         # Compute GW effect on links

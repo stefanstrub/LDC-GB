@@ -7,6 +7,7 @@ import argparse
 
 from ldc.waveform.source import SourceMaker
 import ldc.io.yml as ymlio
+import ldc.io.hdf5 as h5io
 from ldc.utils.logging import init_logger, close_logger
 
 if __name__ == "__main__":
@@ -36,10 +37,11 @@ if __name__ == "__main__":
                                     catalogs=args.input,
                                     logger=logger)
     if cfg["source_type"] == "GB" and 'random_frequency' in cfg.keys():
-        cat = source_maker.draw_random_catalog(**cfg)
+        cat, units = source_maker.draw_random_catalog(**cfg)
     else:
-        cat = source_maker.choose_from_catalog(**cfg)
-    np.save(args.output, cat)
-
+        cat, units = source_maker.choose_from_catalog(**cfg)
+    #np.save(args.output, cat)
+    h5io.save_array(args.output, cat, **units)
+    
     close_logger(logger)
     

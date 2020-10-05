@@ -19,7 +19,7 @@ rule source_selection:
     input:
         cfg = "param_{source}.yml",
     output:
-        rundir+"/{source}.npy"
+        rundir+"/{source}.h5"
     shell:
         """
         source_selection -c {input.cfg} -o {output}
@@ -28,7 +28,7 @@ rule source_selection:
 rule arm_projection:
     input:
         cfg = "config.yml",
-	src = rundir+"/{source}.npy"
+	src = rundir+"/{source}.h5"
     output: temp(rundir+"/{source}--{batch}-y.h5")
     log: "log/{source}--{batch}-y.log"
     threads: 1

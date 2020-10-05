@@ -39,7 +39,7 @@ rule source_selection:
     input:
         cfg = "param_{source}.yml",
     output:
-        rundir+"/{source}.npy"
+        rundir+"/{source}.h5"
     shell:
         """
         source_selection -c {input.cfg} -o {output}
@@ -48,7 +48,7 @@ rule source_selection:
 rule arm_projection:
     input:
         cfg = "config.yml", 
-        src = rundir+"/{source}.npy"
+        src = rundir+"/{source}.h5"
     output:
         temp(rundir+"/{source}--{batch}-y.h5")
     log:
@@ -142,8 +142,8 @@ rule release:
         cfg = [myconfig, "lisanode_config.py"] +\
               expand("param_{source}.yml", source=["vgb", "mbhb"]) +\
               [dgbworkflow("param_dgb.yml"), igbworkflow("param_igb.yml")],
-        cat = expand(rundir+"/{source}.npy", source=["vgb", "mbhb"]) +\
-              [dgbworkflow(rundir+"/dgb.npy"), igbworkflow(rundir+"/igb.npy")]
+        cat = expand(rundir+"/{source}.h5", source=["vgb", "mbhb"]) +\
+              [dgbworkflow(rundir+"/dgb.h5"), igbworkflow(rundir+"/igb.h5")]
     output: rundir+"/out_nonblind.h5"
     log:
         "log/release.log"
