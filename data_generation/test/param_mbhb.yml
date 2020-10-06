@@ -6,9 +6,6 @@ coalescence_time:
 mass_ratio:
 - 1
 - 10
-mass_total:
-- 2
-- 10
 nsource: 1
 seed: 1234
 source_type: MBHB
