@@ -1,3 +1,4 @@
-__all__ = ["sourcemaker"]
+__all__ = ["sourcemaker", "catio"]
 
 from .sourcemaker import *
+from .catio import *
