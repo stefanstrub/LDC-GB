@@ -33,7 +33,7 @@ if __name__ == "__main__":
         
     if os.path.isdir(args.input):
         logger.info("glob files from %s"%args.input)
-        args.input = glob.glob(args.input+"/*")
+        args.input = sorted(glob.glob(args.input+"/*"))
         logger.info("found %d files"%(len(args.input)))
         
     source_maker = SourceMaker.type(cfg["source_type"],
