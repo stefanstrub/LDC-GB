@@ -168,6 +168,7 @@ class MBHBMaker(SourceMaker, BBH_IMRPhenomD):
     def choose_from_catalog(self, nsource, mass_ratio=(1, 10), spin1=(0.01, 0.99),
                             spin2=(0.01, 0.99), coalescence_time=(0.0001, 10),
                             mass_total=(0, 5000), redshifted_mass=True, non_precessing=False,
+                            indices=None,
                             **kwargs):
         """Make a random selection of sources.
 
@@ -219,9 +220,18 @@ class MBHBMaker(SourceMaker, BBH_IMRPhenomD):
         # random choice of source index
         if 'seed' in kwargs:
             np.random.seed(kwargs["seed"])
-        ind = np.random.choice(len(C), nsource, replace=False)
-        cadence, obs_duration = self.set_cadence(C[ind])
-        C = recf.append_fields(C[ind], ['ObservationDuration', 'Cadence'],
+        if not indices:
+            ind = np.random.choice(len(C), nsource, replace=False)
+            #ind = np.arange(len(C))
+        else:
+            ind = np.array(indices, dtype=int)
+            if np.any(ind>=len(C)):
+                self.logger.error("Some indices greater than catalog size after selection")
+                raise ValueError
+
+        C = C[ind]
+        cadence, obs_duration = self.set_cadence(C)
+        C = recf.append_fields(C, ['ObservationDuration', 'Cadence'],
                                [obs_duration, cadence],
                                usemask=False)
         return C, units
