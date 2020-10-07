@@ -1,7 +1,7 @@
 src = orbits.cc common.cc 
 obj = $(src:.cc=.o)
 headers = $(src:.cc=.hpp) 
-flags = -I../../../common/constants/ -std=c++11
+flags = -fPIC -I../../../common/constants/ -std=c++11
 
 
 #PREFIX is environment variable, but if it is not set, then set default value
