@@ -37,6 +37,9 @@ lisa_orbits = orbits.Orbits.type(dict({"nominal_arm_length":2.5e6*un.km,
 
 GB = FB.FastGB(delta_t=del_t, T=Tobs, orbits=lisa_orbits) # in seconds
 
+pGB['EclipticLatitude'] *= (180/np.pi) # to deg
+pGB['EclipticLatitude'] *= un.deg
+
 X, Y, Z = GB.get_td_tdixyz(template=pGB,
                            oversample=4,
                            simulator='synthlisa')
