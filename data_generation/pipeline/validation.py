@@ -97,17 +97,18 @@ def get_lisanode(filename, config, name="X", subtract=None):
 if __name__ == '__main__':
 
     # load configuration
-    dirname = "/home/maude/data/LDC/sangria/1.6"
+    dirname = "/home/maude/data/LDC/sangria/1.7"
     filename = os.path.join(dirname, "sangria.h5")
     config = hdf5io.load_config(filename, name="obs/config")
 
     # replace waveform dt by tdi dt
     tdi_descr = hdf5io.load_config(filename, name="obs/tdi")
     config["dt"] = int(1/(tdi_descr["sampling_frequency"]))
+    config["t_min"] = config["t_min"].value
+    config["t_max"] = config["t_max"].value
     globals().update(config)
-
     trange = np.arange(t_min, t_max, dt)
-    if 1:
+    if 0:
         noise_model = "MRDv1"
         Nmodel = get_noise_model(noise_model, np.logspace(-5, -1, 100))
         Npsd = Nmodel.psd()
@@ -128,9 +129,9 @@ if __name__ == '__main__':
     if 0: # mbhb time domain
         key = "big-mbhb-13" #or big-mbhb-9 or big-mbhb-13
         cat = get_cat(key)
-        lisacode = get_lisacode(cat, key, config)#, from_file=False)
+        lisacode = get_lisacode(cat, key, config, from_file=False)
         simple = get_simple_tdi(cat, key, config)#, from_file=False)
-        dirname = "/home/maude/data/LDC/sangria/1.6"
+        dirname = "/home/maude/data/LDC/sangria/1.7"
         lisanode = get_lisanode(os.path.join(dirname, "mbhb-tdi.h5"), config)
         background = get_lisanode(os.path.join(dirname, "sum-tdi.h5"), config,
                                   subtract=os.path.join(dirname, "mbhb-tdi.h5"))
@@ -161,7 +162,7 @@ if __name__ == '__main__':
         cat = get_cat(key)
         lisacode = get_lisacode(cat, key, config)#, from_file=False)
         simple = get_simple_tdi(cat, key, config)#, from_file=False)
-        dirname = "/home/maude/data/LDC/sangria/1.6"
+        dirname = "/home/maude/data/LDC/sangria/1.7"
         lisanode = get_lisanode(os.path.join(dirname, "dgb-tdi.h5"), config)
         background = get_lisanode(os.path.join(dirname, "sum-tdi.h5"), config,
                                   subtract=os.path.join(dirname, "dgb-tdi.h5"))
