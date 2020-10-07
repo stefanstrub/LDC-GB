@@ -135,7 +135,7 @@ class HpHc(ABC):
         """
         if isinstance(param, dict):
             self.source_parameters = param
-        elif (isinstance(param, np.recarray) or
+        elif (isinstance(param, np.recarray) or (isinstance(param, np.record)) or
               (isinstance(param, np.ndarray) and
                hasattr(param.dtype, 'names'))):
             self.source_parameters = param
