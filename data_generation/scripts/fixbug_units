@@ -67,7 +67,7 @@ if __name__ == "__main__":
     for c, units in zip(cats, units_cats):
         print(c)
         arr, attr = hdf5io.load_array(args.input_file, name=c)
-        if c in ["sky/dgb/cat", "sky/igb/cat"]:
+        if c in ["sky/dgb/cat", "sky/igb/cat", "sky/vgb/cat"]:
             for k,v in units.items():
                 attr[k] = v
         else:
