@@ -17,6 +17,7 @@ from ldc.common.series import TimeSeries, FrequencySeries
 from ldc.lisa.noise import simple_snr
 import math
 from ldc.lisa.orbits import AnalyticOrbits
+from ldc.waveform.waveform import GB_fdot
 
 # TODO:
 # parameters: check pycbc conventions, give info on expected units, getter/setter tools
@@ -34,6 +35,7 @@ cdef class pyGB:
     cdef public double T, delta_t
     cdef public int oversample
     cdef public int kmin
+    cdef public object wfm
 
     def __cinit__(self, orbits=None, T=6.2914560e7, delta_t=15):
         """ Define C++ FastBinary dimensions and check that orbits are
@@ -51,6 +53,12 @@ cdef class pyGB:
             self.init_rotation = 0 # rad
             self.init_position = 0 # rad
         self.T, self.delta_t = T, delta_t
+
+        self.wfm = GB_fdot('fast', 'GB', 'GB_fdot')
+
+
+    def info(self):
+        return self.wfm.info()
 
     def buffersize(self, f0, ampl, oversample):
         """Get array dimension needed to compute TDI.
@@ -76,21 +84,19 @@ cdef class pyGB:
 
     def _parse_template(self, template):
         """Return source parameters from dictionary.
-
-        TODO:
-        - should be inherited from a general GB class
-        - should check that keys exists
-        - should also parse a vector ?
-        - should get unit and check them
         """
-        f0 = template["Frequency"]
-        fdot = template["FrequencyDerivative"]
-        theta = 0.5*np.pi-template['EclipticLatitude']
-        phi = template['EclipticLongitude']
-        ampl = template['Amplitude']
-        incl = template['Inclination']
-        psi = template['Polarization']
-        phi0 = -template['InitialPhase']
+        self.wfm.set_param(template)
+        self.wfm.set_units()
+        self.wfm.check_param()
+
+        f0 = self.wfm.source_parameters["Frequency"]
+        fdot = self.wfm.source_parameters["FrequencyDerivative"]
+        theta = 0.5*np.pi-self.wfm.source_parameters['EclipticLatitude']
+        phi = self.wfm.source_parameters['EclipticLongitude']
+        ampl = self.wfm.source_parameters['Amplitude']
+        incl = self.wfm.source_parameters['Inclination']
+        psi = self.wfm.source_parameters['Polarization']
+        phi0 = -self.wfm.source_parameters['InitialPhase']
         return [f0, fdot, ampl, theta, phi, psi, incl, phi0]
 
     def get_fd_tdixyz(self, template=None, f0=None, fdot=None, ampl=None,
