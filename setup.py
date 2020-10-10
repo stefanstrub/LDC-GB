@@ -54,7 +54,8 @@ fastGB_ext = Extension("fastGB",
                                      GSL_CFLAGS.decode()[2:],
                                      'ldc/lisa/orbits/lib'],
                        library_dirs=['ldc/lisa/orbits/lib'],
-                       extra_compile_args = ['-fpermissive'],#["-std=c99"],
+                       extra_compile_args = ['-fpermissive', "-std=gnu++11"],
+                       #["-std=c99"],
                        libraries=['fftw3', 'gsl', 'orbits'])
 
 
