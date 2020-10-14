@@ -77,6 +77,7 @@ class Noise():
         """
         self.freq = frq
         self.wd = wd
+        self._arm_length = 2.5e9
 
     def set_wdconfusion(self, duration):
         """ Set the white dwarf noise contribution in years.
@@ -88,8 +89,12 @@ class Noise():
 
     @property
     def arm_length(self):
-        return  2.5e9 # LISA's arm meters
+        return self._arm_length
 
+    @arm_length.setter
+    def arm_length(self, value):
+        self._arm_length = value
+    
     def wd_confusion(self, freq=None, option="X"):
         """ Compute the white dwarf confusion noise for PSD.
 
