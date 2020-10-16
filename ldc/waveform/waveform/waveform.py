@@ -1,7 +1,11 @@
 """ High level waveforms and TDI functions. 
 """
 import numpy as np
-import ldc.waveform.fastGB as FB
+
+# the second form does not work in Python 3.6
+from ldc.waveform import fastGB as FB
+# import ldc.waveform.fastGB as FB
+
 from ldc.common.series import TimeSeries
 from .hphc import HpHc
 
