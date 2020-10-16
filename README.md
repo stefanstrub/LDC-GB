@@ -1,11 +1,15 @@
+# Prerequisites
+
+- GSL (e.g., `apt-get install libgsl-dev` or `conda install gsl`)
+- FFTW3 (e.g., `apt-get install libfftw3-dev` or `conda install fftw`)
+
 # Installation
 
 - `pip install -r requirements.txt`
-- `python setup.py install`
 - `python setup.py build_liborbits install`
+- `python setup.py install`
 
-Paths to FFTW, GSL and other libraries can be set in the `setup.cfg`
-file.
+Paths to FFTW and GSL can be set explicitly by editing `setup.cfg`.
 
 # Documentation
 
