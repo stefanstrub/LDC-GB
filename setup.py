@@ -56,7 +56,7 @@ fastGB_ext = Extension("fastGB",
                        library_dirs=['ldc/lisa/orbits/lib'],
                        extra_compile_args = ['-fpermissive', "-std=gnu++11"],
                        #["-std=c99"],
-                       libraries=['fftw3', 'gsl', 'orbits'])
+                       libraries=['fftw3', 'gsl', 'gslcblas', 'orbits'])
 
 
 imr_phenomd_ext = Extension("pyimrphenomD",
