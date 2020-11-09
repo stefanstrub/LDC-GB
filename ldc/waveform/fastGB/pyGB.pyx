@@ -129,7 +129,6 @@ cdef class pyGB:
         Fast_GB_with_orbits(&Cpars[0], N, self.T, self.delta_t, &Opars[0],
                             &xls[0], &yls[0], &zls[0], &xsl[0], &ysl[0], &zsl[0],
                             len(pars))
-
         lout = [xsl, ysl, zsl] if simulator=="synthlisa" else [xls, yls, zls]
         fX,fY,fZ = [np.array(a[::2] + 1.j* a[1::2], dtype=np.complex128) for a in lout]
         kmin = int(int(f0*self.T) - M/2)
