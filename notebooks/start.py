@@ -33,12 +33,12 @@ dt = int(1/(tdi_descr["sampling_frequency"]))
 tdi_ts = xr.Dataset(dict([(k,TimeSeries(tdi_ts[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
 tdi_fs = xr.Dataset(dict([(k,tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 
-filtered_fft = tdi_fs.copy()
-peak_freq = 0.0004726
-filtered_fft["X"][tdi_fs.f < peak_freq * 0.99] = 0+0j
-filtered_fft["X"][tdi_fs.f > peak_freq * 1.01] = 0+0j
-data_filtered = filtered_fft["X"].ts.ifft()
-data_filtered2 = TimeSeries(np.fft.irfft(filtered_fft["X"]),dt=dt)
+# filtered_fft = tdi_fs.copy()
+# peak_freq = 0.0004726
+# filtered_fft["X"][tdi_fs.f < peak_freq * 0.99] = 0+0j
+# filtered_fft["X"][tdi_fs.f > peak_freq * 1.01] = 0+0j
+# data_filtered = filtered_fft["X"].ts.ifft()
+# data_filtered2 = TimeSeries(np.fft.irfft(filtered_fft["X"]),dt=dt)
 
 plt.figure
 plt.semilogx(tdi_fs["X"][::30].f, tdi_fs["X"][::30].real, label="TDI X")
@@ -132,24 +132,24 @@ for i in range(number_segments):
 # pGB['Frequency'] *= 1.01
 # pGB['FrequencyDerivative'] *= 1.1
 # pGB['Polarization'] *= 1.001
-pGB['EclipticLatitude'] += 0.05
+# pGB['EclipticLatitude'] += 0.05
 # pGB['EclipticLongitude'] += 0.01
 # pGB['Inclination'] *= 1.001
 Xs_td2, Ys_td2, Zs_td2 = GB.get_td_tdixyz(template=pGB, simulator='synthlisa')
 analytic_signal2 = scipy.signal.hilbert(Xs_td2)
 amplitude_envelope2 = np.abs(analytic_signal2)
 
-pGB['EclipticLatitude'] -= 0.05
+pGB2['EclipticLatitude'] -= 0.05
 #modify pGB
 # pGB['InitialPhase'] *= 1.01
 # pGB['Amplitude'] *= 1.01
-pGB['Frequency'] *= 1.1
+pGB2['Frequency'] *= 1.1
 # pGB['FrequencyDerivative'] *= 1.1
 # pGB['Polarization'] *= 1.001
 # pGB['EclipticLatitude'] += 0.05
 # pGB['EclipticLongitude'] += 0.01
 # pGB['Inclination'] *= 1.001
-Xs_td2, Ys_td2, Zs_td2 = GB.get_td_tdixyz(template=pGB, simulator='synthlisa')
+Xs_td2, Ys_td2, Zs_td2 = GB.get_td_tdixyz(template=pGB2, simulator='synthlisa')
 analytic_signal2 = scipy.signal.hilbert(Xs_td2)
 amplitude_envelope3 = np.abs(analytic_signal2)
 
@@ -198,14 +198,14 @@ Xs_td.values = np.zeros(len(Xs_td.values))
 Ys_td.values = np.zeros(len(Ys_td.values))
 Zs_td.values = np.zeros(len(Zs_td.values))
 for j,s in enumerate(vgb):
-    pGB = dict(zip(vgb.dtype.names, s))
-    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB, oversample=4, simulator='synthlisa')
-    fmin, fmax = float(Xs.f[0]) , float(Xs.f[-1]+Xs.attrs['df'])
-    source = dict({"X":Xs, "Y":Ys, "Z":Zs})
+    pGB2 = dict(zip(vgb.dtype.names, s))
+    Xs2, Ys2, Zs2 = GB.get_fd_tdixyz(template=pGB2, oversample=4, simulator='synthlisa')
+    fmin, fmax = float(Xs2.f[0]) , float(Xs2.f[-1]+Xs2.attrs['df'])
+    source = dict({"X":Xs2, "Y":Ys2, "Z":Zs2})
     SNR2[j,1] = compute_tdi_snr(source, Nmodel, data=tdi_fs, fmin=fmin, fmax=fmax)["tot2"]
     SNR2[j,0] = compute_tdi_snr(source, Nmodel)["tot2"] 
 
-    Xs_tdvb, Ys_tdvb, Zs_tdvb = GB.get_td_tdixyz(template=pGB, simulator='synthlisa')
+    Xs_tdvb, Ys_tdvb, Zs_tdvb = GB.get_td_tdixyz(template=pGB2, simulator='synthlisa')
     Xs_td += Xs_tdvb
     Ys_td += Ys_tdvb
     Zs_td += Zs_tdvb
@@ -235,48 +235,51 @@ for i in range(number_segments):
 frequency_calculated = params2[:,1] - frequency_correction
 print(frequency_calculated)
 #%%
-Xp = Xs_td#/amplitude_envelope*amplitude_target
+tdi_tsc = tdi_ts.copy(deep=True)
+tdi_fsc = tdi_fs.copy(deep=True)
+tdi_tsc["X"] = Xs_td#/amplitude_envelope*amplitude_target
 # Xp = tdi_ts["X"]/amplitude_envelope*amplitude_target
 # Xp = Xp[int(0.1*len(Xp.t)):-int(0.1*len(Xp.t))]
 # Xp = Xp[int(0.499*len(Xp.t)):-int(0.499*len(Xp.t))]
 # Xp = Xp_segments[2]
 # Xp = Xp[:int(1/1000*len(Xp.t))]
 # Xp = data_filtered2/amplitude_envelope*amplitude_target
-Xp = Xp[::3]
 plt.figure(figsize=(12,6))
-plt.plot(Xp.t/(24*3600), Xp, label="VGB")
-plt.plot(Xp.t/(24*3600), Xp/amplitude_envelope[::3]*amplitude_target/5000, label="VGB-inv")
-plt.plot(Xp.t/(24*3600), amplitude_envelope[::3], label="Envelope")
-plt.plot(Xp.t/(24*3600), amplitude_envelope2[::3], label="Envelope_lat+0.05")
-plt.plot(Xp.t/(24*3600), amplitude_envelope3[::3], label="Envelope_f*1.1")
-plt.plot(Xp8.t/(24*3600), Xp8/amplitude_envelope[::3]*amplitude_target/5000, label="VGB8-inv")
+plt.plot(tdi_tsc["X"].t/(24*3600), tdi_tsc["X"], label="VGB")
+plt.plot(tdi_tsc["X"][:-1].t/(24*3600), tdi_tsc["X"][:-1]/amplitude_envelope*amplitude_target/5000, label="VGB-inv")
+plt.plot(tdi_tsc["X"][:-1].t/(24*3600), amplitude_envelope, label="Envelope")
+plt.plot(tdi_tsc["X"][:-1].t/(24*3600), amplitude_envelope2, label="Envelope_lat+0.05")
+plt.plot(tdi_tsc["X"][:-1].t/(24*3600), amplitude_envelope3, label="Envelope_f*1.1")
+# plt.plot(tdi_tsc8.t/(24*3600), tdi_tsc8/amplitude_envelope[::3]*amplitude_target/5000, label="VGB8-inv")
 plt.xlabel("Time [days]")
 plt.ylabel("X-TDI strain")
 plt.legend()
-plt.savefig("pictures/VGB88-inv.png")
+# plt.savefig("pictures/VGB88-inv.png")
 plt.show()
 
-Xp_fs = Xp.ts.fft(win=window)
-Xp_inv = Xp
-Xp_inv.values = Xp.values/amplitude_envelope[::3]*amplitude_target/5000
-Xp_fs = Xp_inv[cut:cut+length].ts.fft(win=window)
+tdi_tsc_inv = tdi_tsc.copy(deep=True)
+tdi_tsc_inv["X"][:-1].values = tdi_tsc["X"][:-1].values/amplitude_envelope*amplitude_target/5000
+tdi_fsc_inv = xr.Dataset(dict([(k,tdi_tsc_inv[k][:-1].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+tdi_fsc = xr.Dataset(dict([(k,tdi_tsc[k][:-1].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+
 plt.figure(figsize=(12,6))
 plt.subplot(121)
 plt.title("real part")
-plt.plot(Xp_fs.f, (Xp_fs[Xs.kmin:Xs.kmin+len(Xs)]-Xs.values).real, label="TDI X - fast "+pGB["Name"])
+plt.plot(Xs.f, (tdi_fsc["X"][Xs.kmin:Xs.kmin+len(Xs)]-Xs.values).real, label="TDI X - fast "+pGB["Name"])
+plt.plot(Xs.f, (tdi_fsc_inv["X"][Xs.kmin:Xs.kmin+len(Xs)]).real, label="TDI X - fast "+pGB["Name"])
 plt.axis([pGB["Frequency"]-6e-7, pGB["Frequency"]+6e-7, -3e-17, 5e-17])
 plt.legend(loc="lower right")
 plt.xlabel("freq [Hz]")
 plt.subplot(122)
 plt.title("imaginary part")
-plt.plot(Xp_fs.f, (Xp_fs.isel(f=slice(Xs.kmin, Xs.kmin+len(Xs)))-Xs.values).imag, label="TDI X - fast "+pGB["Name"])
+plt.plot(tdi_fsc.f, (tdi_fsc_inv.isel(f=slice(Xs.kmin, Xs.kmin+len(Xs)))-Xs.values).imag, label="TDI X - fast "+pGB["Name"])
 plt.axis([pGB["Frequency"]-6e-7, pGB["Frequency"]+6e-7, -3e-17, 5e-17])
 plt.legend(loc="lower left")
 plt.xlabel("freq [Hz]")
 plt.savefig("pictures/fs.png")
 
 plt.figure(figsize=(12,6))
-plt.plot(Xp_inv.t[cut:cut+length]/(24*3600), Xp_inv[cut:cut+length], label="VGB8")
+plt.plot(tdi_tsc_inv.t[cut:cut+length]/(24*3600), tdi_tsc_inv[cut:cut+length], label="VGB8")
 plt.xlabel("Time [days]")
 plt.ylabel("X-TDI strain")
 plt.legend()
@@ -434,8 +437,6 @@ plt.ylim(0.0004,0.0005)
 print(samples[-1, :])
 
 #%%
-cut = 10**5
-length = 1000
 tdi_tsx_invmod = tdi_ts["X"][1:]/amplitude_envelope*amplitude_target
 arr = Xs_td.shift(t=2)
 subtracted = tdi_ts["X"]-arr
