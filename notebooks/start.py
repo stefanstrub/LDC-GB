@@ -41,7 +41,7 @@ tdi_fs = xr.Dataset(dict([(k,tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "
 # data_filtered2 = TimeSeries(np.fft.irfft(filtered_fft["X"]),dt=dt)
 
 plt.figure
-plt.semilogx(tdi_fs["X"][::30].f, tdi_fs["X"][::30].real, label="TDI X")
+plt.semilogx(tdi_fs["X"].f, tdi_fs["X"].real, label="TDI X")
 # plt.loglog(filtered_fft["X"].f, filtered_fft["X"].real, label="TDI X")
 plt.legend()
 plt.xlabel("freq [Hz]")

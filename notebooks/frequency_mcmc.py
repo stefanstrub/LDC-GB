@@ -34,6 +34,10 @@ dt = int(1/(tdi_descr["sampling_frequency"]))
 tdi_ts = xr.Dataset(dict([(k,TimeSeries(tdi_ts[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
 tdi_fs = xr.Dataset(dict([(k,tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 
+# tdi_ts_training, tdi_descr_training = hdfio.load_array(sangria_fn_training, name="obs/tdi")
+# tdi_ts_training = xr.Dataset(dict([(k,TimeSeries(tdi_ts_training[k], dt=dt)) for k in ["X", "Y", "Z"]]))
+# tdi_fs_training = xr.Dataset(dict([(k,tdi_ts_training[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+
 
 noise_model = "MRDv1"
 Nmodel = get_noise_model(noise_model, np.logspace(-5, -1, 100))
@@ -69,10 +73,11 @@ vgb, units = hdfio.load_array(sangria_fn_training, name="sky/vgb/cat")
 start = time.time()
 GB = fastGB.FastGB(delta_t=dt, T=float(tdi_ts["X"].t[-1])) # in seconds
 print(time.time()- start)
+start = time.time()
 pGB = dict(zip(vgb.dtype.names, vgb[8])) # we take the source #8
 print(time.time()- start)
 #modify pGB
-pGB['InitialPhase'] *= 1.01
+# pGB['InitialPhase'] *= 1.01
 # pGB['Amplitude'] *= 1.01
 # pGB['Frequency'] *= 1.05
 # pGB['FrequencyDerivative'] *= 1.1
@@ -80,11 +85,26 @@ pGB['InitialPhase'] *= 1.01
 # pGB['EclipticLatitude'] += 0.03
 # pGB['EclipticLongitude'] += 0.01
 # pGB['Inclination'] += 0.01
+start = time.time()
 Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB, oversample=4, simulator='synthlisa')
 print(time.time()- start)
 fmin, fmax = float(Xs.f[0]) , float(Xs.f[-1]+Xs.attrs['df'])
 source = dict({"X":Xs, "Y":Ys, "Z":Zs})
+Xs_td, Ys_td, Zs_td = GB.get_td_tdixyz(template=pGB, simulator='synthlisa')
 
+
+plt.figure(figsize=(12,3))
+# plt.plot(Xs_td.t, Xs_td2, label="TDI X")
+# plt.plot(tdi_ts_training['X'].t, tdi_ts_training['X'], label="data")
+plt.plot(tdi_ts['X'].t/86400, tdi_ts['X'], label="Verification Binaries")
+plt.plot(Xs_td.t/86400, Xs_td, label="Binary")
+# plt.plot(Xp.t, amplitude_envelope, label="envelope")
+# plt.plot(Xs_td.t[::100], amplitude_envelope2[::100], label="envelope 2")
+plt.ylabel('X TDI strain')
+plt.xlabel('time [days]')
+# plt.ylim(-10**-20,10**-20)
+plt.legend()
+plt.show()
 
 # plt.figure(figsize=(12,6))
 # plt.subplot(121)
@@ -133,73 +153,202 @@ Sn = Nmodel.psd(freq=freq, option='X')
 def likelihood(data, simulation, Sn):
     diff = data - simulation
     p = float(np.mean(np.abs(diff)**2 / Sn/ 10**4))
-    print(p)
     return np.exp(-p / 2.0)
 print(likelihood(tdi_fs["X"].isel(f=slice(Xs.kmin, Xs.kmin+len(Xs))),Xs.values,Sn))
 # Number of histogram bins.
 n_bin = 50
 # Total number of proposed samples.
-number_of_samples = 10 ** 2
-number_of_parameters = 2
+number_of_samples = 10 ** 4
+number_of_parameters = 3
 
 # Make the first random sample. ------------------------------------
 pGBs = deepcopy(pGB)
-pGBs['Frequency'] = pGB['Frequency']*1.001
-pGBs['Amplitude'] *= 1.01
-# pGBs['Frequency'] *= 1.001
+pGBs['Amplitude'] *= 1.101
+pGBs['EclipticLatitude'] = (np.random.random()-0.5) * np.pi 
+pGBs['EclipticLongitude'] = np.random.random() * np.pi 
+pGBs['InitialPhase'] = np.random.random() * np.pi 
+pGBs['Frequency'] *= 1.0001
+pGBs['FrequencyDerivative'] *= 1.01
+pGBs['Polarization'] = np.random.random() * np.pi 
+pGBs['Inclination'] = np.random.random()* np.pi 
 Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs, oversample=4, simulator='synthlisa')
+
 dataX = tdi_fs["X"].isel(f=slice(Xs.kmin, Xs.kmin+len(Xs)))
+dataY = tdi_fs["Y"].isel(f=slice(Ys.kmin, Ys.kmin+len(Ys)))
+dataZ = tdi_fs["Z"].isel(f=slice(Zs.kmin, Zs.kmin+len(Zs)))
+# dataX_training = tdi_fs_training["X"].isel(f=slice(Xs.kmin, Xs.kmin+len(Xs)))
+# dataY_training = tdi_fs_training["Y"].isel(f=slice(Ys.kmin, Ys.kmin+len(Ys)))
+# dataZ_training = tdi_fs_training["Z"].isel(f=slice(Zs.kmin, Zs.kmin+len(Zs)))
 fmin, fmax = float(Xs.f[0]) , float(Xs.f[-1]+Xs.attrs['df'])
 freq = np.array(Xs.sel(f=slice(fmin, fmax)).f)
 Sn = Nmodel.psd(freq=freq, option='X')
 
 # Evaluate posterior for the first sample.
-p1 = likelihood(dataX, Xs.values, Sn)
-samples = np.zeros((number_of_samples, number_of_parameters))
-samples[0,0] = pGBs['Amplitude']
-samples[0,1] = pGBs['Frequency']
-likelihood_values= np.zeros(number_of_samples)
-likelihood_values[0] = p1
-# Run Metropolis-Hastings sampler. ---------------------------------
+# p1 = likelihood(dataX, Xs.values, Sn)
+diff = np.abs(dataX - Xs.values)**2 + np.abs(dataY - Ys.values)**2 + np.abs(dataZ - Zs.values)**2
 
+p = float(np.sum(diff / Sn)*Xs.attrs['df'])
+p1 = np.exp(-p / 2.0)
+samples = xr.Dataset(dict([(name,xr.DataArray(np.zeros(number_of_samples), dims=('number_of_sample'), coords={"number_of_sample": range(number_of_samples)},
+                         )) for name, titles in pGBs.items()]))
+
+for name, titles in pGBs.items():
+    if name != 'Name':
+        samples[name][0] = pGBs[name]
+samples['Likelihood'] = samples['Name']
+samples = samples.drop(['Name'])
+samples['Likelihood'][0] = p1
+
+# Run Metropolis-Hastings sampler. ---------------------------------
 plt.figure()
-plt.plot(dataX.f,dataX.values)
-plt.plot(Xs.f, Xs.values)
+plt.subplot(231)
+# plt.plot(dataX_training.f*1000,dataX_training.values, label='data')
+plt.plot(dataX.f*1000,dataX.values, label='binary')
+# plt.plot(Xs.f, Xs.values, label='start')
+plt.subplot(232)
+# plt.plot(dataY_training.f*1000,dataY_training.values, label='data')
+plt.plot(dataY.f*1000,dataY.values, label='binary')
+# plt.plot(Ys.f, Ys.values, label='start')
+plt.subplot(233)
+# plt.plot(dataZ_training.f*1000,dataZ_training.values, label='data')
+plt.plot(dataZ.f*1000,dataZ.values, label='binary')
+# plt.plot(Zs.f, Zs.values, label='start')
+plt.subplot(234)
+# plt.plot(dataX_training.f*1000,dataX_training.values.imag, label='data')
+plt.plot(dataX.f*1000,dataX.values.imag, label='binary')
+# plt.plot(Xs.f, Xs.values.imag, label='start')
+plt.subplot(235)
+# plt.plot(dataY_training.f*1000,dataY_training.values.imag, label='data')
+plt.plot(dataY.f*1000,dataY.values.imag, label='binary')
+# plt.plot(Ys.f, Ys.values.imag, label='start')
+plt.subplot(236)
+# plt.plot(dataZ_training.f*1000,dataZ_training.values.imag, label='data')
+plt.plot(dataZ.f*1000,dataZ.values.imag, label='binary')
+# plt.plot(Zs.f, Zs.values.imag, label='start')
+
+print(p1)
+start = time.time()
 for i in range(1, number_of_samples):
 
     # Normal distributed proposal.
-    std = np.array(np.eye(2)*[1*10**-22,1*10**-7])
-    pGBs['Amplitude'], pGBs['Frequency'] = np.random.multivariate_normal(samples[i-1,:], std**2)
-    if pGBs['Frequency'] < 10**-4:
+    std = np.array(np.eye(8)*[1*10**-22,1/10, 1/10,1*10**-7,10**-19,1/10,1/10,1/10])
+    previous_samples =  [samples['Amplitude'][i-1], samples['EclipticLatitude'][i-1], samples['EclipticLongitude'][i-1], samples['Frequency'][0],samples['FrequencyDerivative'][i-1], samples['Inclination'][i-1], samples['InitialPhase'][i-1], samples['Polarization'][i-1]]
+    pGBs['Amplitude'], pGBs['EclipticLatitude'], pGBs['EclipticLongitude'], pGBs['Frequency'],pGB['FrequencyDerivative'], pGBs['Inclination'], pGBs['InitialPhase'], pGBs['Polarization'] = np.random.multivariate_normal(previous_samples, std**2)
+    if i > 1000 and samples['Frequency'][i-1] == samples['Frequency'][i-401]:
+        pGBs['Frequency'] = samples['Frequency'][i-1]
+    if pGBs['Frequency'] < 10**-4 or pGBs['Frequency'] > 10**-2:
         pGBs['Frequency'] = 5*10**-4
-    print(pGBs['Amplitude'])
+    if pGBs['Amplitude'] < 10**-23 or pGBs['Amplitude'] > 10**-5:
+        pGBs['Amplitude'] = 5*10**-23
+    if pGBs['InitialPhase'] < 0 or pGBs['InitialPhase'] > 2*np.pi:
+        pGBs['InitialPhase'] = 0
+    # print(pGBs['Amplitude'])
     Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs, oversample=4, simulator='synthlisa')
     dataX = tdi_fs["X"].isel(f=slice(Xs.kmin, Xs.kmin+len(Xs)))
+    dataY = tdi_fs["Y"].isel(f=slice(Ys.kmin, Ys.kmin+len(Ys)))
+    dataZ = tdi_fs["Z"].isel(f=slice(Zs.kmin, Zs.kmin+len(Zs)))
 
     fmin, fmax = float(Xs.f[0]) , float(Xs.f[-1]+Xs.attrs['df'])
     freq = np.array(Xs.sel(f=slice(fmin, fmax)).f)
     Sn = Nmodel.psd(freq=freq, option='X')
-    plt.plot(dataX.f,dataX.values)
-    plt.plot(Xs.f, Xs.values)
+    # plt.plot(dataX.f,dataX.values.real)
+    # plt.plot(Xs.f, Xs.values.real)
 
     # Evaluate posterior.
-    p_test = likelihood(dataX, Xs.values, Sn)
+    diff = np.abs(dataX - Xs.values)**2 + np.abs(dataY - Ys.values)**2 + np.abs(dataZ - Zs.values)**2
+    p = float(np.sum(diff / Sn)*Xs.attrs['df'])
+    p_test = np.exp(-p / 2.0)
     T_inv =  1
     # print(p_test/p1, pGBs['Frequency'])
     # Apply Metropolis rule.
     # print(p_test.values,p.values,(p_test / p) ** T_inv)
-    if (p_test / p1) ** T_inv > np.random.rand() or p1 == 0:  # L^i/L^j
+    if p1 == 0:
         p1 = p_test
-        samples[i,0] = pGBs['Amplitude']
-        samples[i,1] = pGBs['Frequency']
-        likelihood_values[i] = p1
+        for name, titles in pGBs.items():
+            if name != 'Name':
+                samples[name][i] = pGBs[name]
+        samples['Likelihood'][i] = p1
+    elif (p_test / p1) ** T_inv > np.random.rand():  # L^i/L^j
+        p1 = p_test
+        for name, titles in pGBs.items():
+            if name != 'Name':
+                samples[name][i] = pGBs[name]
+        samples['Likelihood'][i] = p1
     
     else:
-        samples[i] = samples[i - 1]
-        likelihood_values[i] = p1
-
+        for name in samples.data_vars:
+            samples[name][i] = samples[name][i-1]
+        
+print(time.time()- start)
 # plot
+n_max = np.argmax(samples['Likelihood'].values)
+pGBmax = deepcopy(pGB)
+for name, titles in pGBmax.items():
+    if name != 'Name':
+        pGBmax[name] = samples[name][n_max].values
+Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBmax, oversample=4, simulator='synthlisa')
+
+
+plt.subplot(231)
+# plt.plot(Xs.f, Xs.values, label='optimized')
+plt.xlabel('f [mHz]')
+plt.ylabel('X-TDI real [1/Hz]')
+plt.legend()
+plt.subplot(232)
+# plt.plot(Ys.f, Ys.values, label='optimized')
+plt.xlabel('f [mHz]')
+plt.ylabel('Y-TDI real [1/Hz]')
+plt.legend()
+plt.subplot(233)
+# plt.plot(Zs.f, Zs.values, label='optimized')
+plt.xlabel('f [mHz]')
+plt.ylabel('Z-TDI real [1/Hz]')
+plt.legend()
+plt.subplot(234)
+# plt.plot(Xs.f, Xs.values.imag, label='optimized')
+plt.xlabel('f [mHz]')
+plt.ylabel('X-TDI imag [1/Hz]')
+plt.legend()
+plt.subplot(235)
+# plt.plot(Ys.f, Ys.values.imag, label='optimized')
+plt.xlabel('f [mHz]')
+plt.ylabel('Y-TDI imag [1/Hz]')
+plt.legend()
+plt.subplot(236)
+# plt.plot(Zs.f, Zs.values.imag, label='optimized')
+plt.xlabel('f [mHz]')
+plt.ylabel('Z-TDI imag [1/Hz]')
+plt.legend()
+
 n_bin = 50
+plt.figure(figsize=(20,30))
+i = 0
+number_of_parameters = 0
+for name in samples.data_vars:
+    number_of_parameters += 1
+for name in samples.data_vars:
+    i += 1
+    if name != 'Likelihood':
+        plt.suptitle("sampled posterior")
+        plt.subplot(3,number_of_parameters,i)
+        plt.axvline(x=pGB[name], color='r')
+        plt.plot(samples[name],samples['Likelihood'], '.')
+
+        plt.ylabel('Likelihood')
+        plt.subplot(3,number_of_parameters,i+number_of_parameters)
+        plt.axvline(x=pGB[name], color='r')
+        n, bins, patches = plt.hist(samples[name], n_bin, density=True, facecolor='k', alpha=0.5)
+
+        plt.subplot(3,number_of_parameters,i+2*number_of_parameters)
+        if name == 'Frequency':
+            plt.axvline(x=pGB[name]*1000, color='r')
+            plt.plot(samples[name]*1000, range(number_of_samples), 'k')
+        else:
+            plt.axvline(x=pGB[name], color='r')
+            plt.plot(samples[name], range(number_of_samples), 'k')
+        plt.xlabel(name)
+plt.show()
+
 plt.figure()
 plt.suptitle("sampled posterior")
 plt.subplot(231)
