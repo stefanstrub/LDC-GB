@@ -19,26 +19,27 @@ from ldc.waveform.waveform import HpHc
 import torch
 from torch.optim import Adam
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.distributions.categorical import Categorical
 
-def mlp(sizes, activation, output_activation=nn.Identity):
-    """The basic multilayer perceptron architecture used."""
-    layers = []
-    for j in range(len(sizes)-1):
-        act = activation if j < len(sizes)-2 else output_activation
-        layers += [nn.Linear(sizes[j], sizes[j+1]), act()]
-    return nn.Sequential(*layers)
-
-
 class MLP(nn.Module):
-    """The network used by the frequency."""
-    def __init__(self, obs_dim, hidden_sizes=(64,64), activation=nn.Tanh):
-        super().__init__()
-        self.net = mlp([obs_dim] + list(hidden_sizes) + [8], activation)
+    def __init__(self, obs_dim,):
+        super(MLP, self).__init__()
+        self.conv1 = nn.Conv1d(6, 32, 64)
+        self.pool = nn.MaxPool1d(2)
+        self.conv2 = nn.Conv1d(32, 3, 3)
+        self.fc1 = nn.Linear(100, 120)
+        self.fc2 = nn.Linear(120, 84)
+        self.fc3 = nn.Linear(84, 1)
 
-    def forward(self, obs):
-        # Critical to ensure v has right shape
-        return torch.squeeze(self.net(obs), -1)
+    def forward(self, x):
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+        x = x.view(-1, x.shape[0]*x.shape[1]*x.shape[2])
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
 
 class VPGBuffer:
     """
@@ -122,6 +123,9 @@ class Sangria:
         Nmodel = get_noise_model(noise_model, np.logspace(-5, -1, 100))
 
 
+        self.boundaries = {'Amplitude': [-24.0, -20.0],'EclipticLatitude': [-1.0, 1.0],
+        'EclipticLongitude': [0.0, 2.0*np.pi],'Frequency': [0.0001, 0.1],'FrequencyDerivative': [-20.0, -14.0],
+        'Inclination': [-1.0, 1.0],'InitialPhase': [0.0, 2.0*np.pi],'Polarization': [0.0, 2.0*np.pi]}
 
 
         vgb, units = hdfio.load_array(sangria_fn_training, name="sky/vgb/cat")
@@ -143,9 +147,9 @@ class Sangria:
         self.obs_dim = [256]
         self.parameters = ['Amplitude','EclipticLatitude','EclipticLongitude','Frequency','FrequencyDerivative','Inclination','InitialPhase','Polarization']
         self.net = {}
-        for parameter in self.parameters:
-            self.net[parameter] = MLP(obs_dim=self.obs_dim[0], hidden_sizes=[self.hid]*self.l)
-
+        for parameter in self.parameters:   
+            self.net[parameter] = MLP(self.obs_dim[0])
+        
     def train(self):
         """
         Main training loop.
@@ -153,13 +157,13 @@ class Sangria:
         IMPORTANT: This function called by the checker to train your agent.
         You SHOULD NOT change the arguments this function takes and what it outputs!
         """
-
+        
 
         # Training parameters
         # Number of epochs to train for
-        epochs = 30
+        epochs = 50
         # The longest an episode can go on before cutting it off
-        batch_size = 100
+        batch_size = 1
         # Learning rates for policy and value function
         lr = 3e-3
 
@@ -170,9 +174,9 @@ class Sangria:
         # of the policy and then value networks
         # TODO: Use these optimizers later to update the policy and value networks.
         self.optimizers = {}
-        for parameter in self.parameters:
-            self.optimizers[parameter] = Adam(self.net[parameter].net.parameters(), lr=lr)
-
+        for parameter in self.parameters:   
+            self.optimizers[parameter] = Adam(self.net[parameter].parameters(), lr=lr)
+        
         Xs = np.zeros((batch_size,self.obs_dim[0]))
         Ys = np.zeros((batch_size,self.obs_dim[0]))
         Zs = np.zeros((batch_size,self.obs_dim[0]))
@@ -183,21 +187,23 @@ class Sangria:
         # Main training loop: collect experience in env and update / log each epoch
         for epoch in range(epochs):
             pGBsampled = np.zeros((batch_size,number_of_parameters))
-            # plt.figure()
+            plt.figure()
             start = time.time()
             for t in range(batch_size):
                 pGBs = deepcopy(self.pGB)
                 # Normal distributed proposal.
-                std = np.array([1*10**-21,1, 1,5*10**-6,10**-19,1,1,1])
+                std = np.array([5*10**-21,1, 1,1*10**-6,10**-19,1,1,1])
                 # std = np.array([np.pi])
                 i = 0
                 for parameter in self.parameters:
-                    if parameter in ['Frequency', 'Amplitude', 'FrequencyDerivative']:
+                    if parameter in ['Amplitude', 'Frequency', 'FrequencyDerivative']:
                         pGBs[parameter] = self.pGB[parameter]+(np.random.rand()-0.5)*std[i]
                     else:
-                        pGBs[parameter] = np.random.rand()*np.pi
+                        pGBs[parameter] = np.random.uniform(self.boundaries[parameter][0], self.boundaries[parameter][1])
                     if parameter == 'Amplitude':
                         pGBsampled[t,i] = np.log10(pGBs[parameter])
+                    if parameter == 'Frequency':
+                        pGBsampled[t,i] = pGBs[parameter]*10**4
                     else:
                         pGBsampled[t,i] = pGBs[parameter]
                     i += 1
@@ -209,7 +215,7 @@ class Sangria:
                 # print(pGBsampled)
                 Xb, Yb, Zb = self.GB.get_fd_tdixyz(template=pGBs, oversample=4, simulator='synthlisa')
 
-                # plt.plot(Xb.f*1000,Xb.values, label='binary', color=colors[t], alpha = 1)
+                plt.plot(Xb.f*1000,Xb.values, label='binary', color=colors[t], alpha = 1)
 
                 if (Xb.kmin-self.kmin) >= 0:
                     try:
@@ -229,12 +235,19 @@ class Sangria:
                         Xs[t,:(Xb.kmin-self.kmin)+len(Xb)] = Xb[-(Xb.kmin-self.kmin):]
                         Ys[t,:(Yb.kmin-self.kmin)+len(Yb)] = Yb[-(Yb.kmin-self.kmin):]
                         Zs[t,:(Zb.kmin-self.kmin)+len(Zb)] = Zb[-(Zb.kmin-self.kmin):]
-            print(time.time()- start)
+            print(time.time()- start)   
             Xsr = torch.tensor(Xs.real).float()
-            pGBsampled = torch.tensor(pGBsampled).float()
-            # plt.figure()
-            # plt.imshow(Xs)
-            # plt.show()
+            Xsi = torch.tensor(Xs.imag).float()
+            Ysr = torch.tensor(Ys.real).float()
+            Ysi = torch.tensor(Ys.imag).float()
+            Zsr = torch.tensor(Zs.real).float()
+            Zsi = torch.tensor(Zs.imag).float()
+            input_data = torch.tensor([Xs.real,Xs.imag,Ys.real,Ys.imag,Zs.real,Zs.imag])
+            input_data = torch.reshape(input_data,(batch_size,6,self.obs_dim[0])).float()
+            pGBsampled = torch.tensor(pGBsampled).float()   
+            plt.figure()
+            plt.imshow(Xs)
+            plt.show()
 
             print(f"Epoch: {epoch+1}/{epochs}")
             # This is the end of an epoch, so here is where you likely want to update
@@ -243,22 +256,23 @@ class Sangria:
             # done for you.
             criterion = torch.nn.MSELoss()
             i = 0
-            for parameter in ['Frequency']:
+            for parameter in self.parameters:
+                result = self.net[parameter].forward(input_data)
+                loss_prev = criterion(result,pGBsampled[:,i])
                 for _ in range(100):
                     self.optimizers[parameter].zero_grad()
                     #compute a loss for the value function, call loss.backwards() and then
                     # pi_total, log_prob = self.ac.pi.forward(data['obs'],act=data['act'])
                     # loss_v = torch.sum(torch.mul(data["tdres"].detach(),log_prob))/len(ep_returns)
-                    result = self.net[parameter].forward(Xsr)
-                    std = pGBsampled[:,i].std()
-                    loss = criterion(result,pGBsampled[:])
+                    result = self.net[parameter].forward(input_data)
+                    loss = criterion(result,pGBsampled[:,i])
 
                     loss.backward()
                     # print(loss_v)
                     # print(list(self.ac.v.parameters())[-1].grad)
                     self.optimizers[parameter].step()
-                print(result - pGBsampled)
-                print(parameter,loss.sqrt())
+                # print(result - pGBsampled[:,i])
+                print(parameter,loss.sqrt(),loss_prev.sqrt())
                 i += 1
             # print(self.std_ret)
 

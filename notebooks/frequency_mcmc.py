@@ -93,18 +93,18 @@ source = dict({"X":Xs, "Y":Ys, "Z":Zs})
 Xs_td, Ys_td, Zs_td = GB.get_td_tdixyz(template=pGB, simulator='synthlisa')
 
 
-plt.figure(figsize=(12,3))
-# plt.plot(Xs_td.t, Xs_td2, label="TDI X")
-# plt.plot(tdi_ts_training['X'].t, tdi_ts_training['X'], label="data")
-plt.plot(tdi_ts['X'].t/86400, tdi_ts['X'], label="Verification Binaries")
-plt.plot(Xs_td.t/86400, Xs_td, label="Binary")
-# plt.plot(Xp.t, amplitude_envelope, label="envelope")
-# plt.plot(Xs_td.t[::100], amplitude_envelope2[::100], label="envelope 2")
-plt.ylabel('X TDI strain')
-plt.xlabel('time [days]')
-# plt.ylim(-10**-20,10**-20)
-plt.legend()
-plt.show()
+# plt.figure(figsize=(12,3))
+# # plt.plot(Xs_td.t, Xs_td2, label="TDI X")
+# # plt.plot(tdi_ts_training['X'].t, tdi_ts_training['X'], label="data")
+# plt.plot(tdi_ts['X'].t/86400, tdi_ts['X'], label="Verification Binaries")
+# plt.plot(Xs_td.t/86400, Xs_td, label="Binary")
+# # plt.plot(Xp.t, amplitude_envelope, label="envelope")
+# # plt.plot(Xs_td.t[::100], amplitude_envelope2[::100], label="envelope 2")
+# plt.ylabel('X TDI strain')
+# plt.xlabel('time [days]')
+# # plt.ylim(-10**-20,10**-20)
+# plt.legend()
+# plt.show()
 
 # plt.figure(figsize=(12,6))
 # plt.subplot(121)
@@ -163,11 +163,11 @@ number_of_parameters = 3
 
 # Make the first random sample. ------------------------------------
 pGBs = deepcopy(pGB)
-pGBs['Amplitude'] *= 1.101
+pGBs['Amplitude'] *= 1.0
 pGBs['EclipticLatitude'] = (np.random.random()-0.5) * np.pi 
 pGBs['EclipticLongitude'] = np.random.random() * np.pi 
 pGBs['InitialPhase'] = np.random.random() * np.pi 
-pGBs['Frequency'] *= 1.0001
+pGBs['Frequency'] *= 1.001
 pGBs['FrequencyDerivative'] *= 1.01
 pGBs['Polarization'] = np.random.random() * np.pi 
 pGBs['Inclination'] = np.random.random()* np.pi 
@@ -231,7 +231,7 @@ start = time.time()
 for i in range(1, number_of_samples):
 
     # Normal distributed proposal.
-    std = np.array(np.eye(8)*[1*10**-22,1/10, 1/10,1*10**-7,10**-19,1/10,1/10,1/10])
+    std = np.array(np.eye(8)*[1*10**-25,1/10, 1/10,1*10**-6,10**-19,1/10,1/10,1/10])
     previous_samples =  [samples['Amplitude'][i-1], samples['EclipticLatitude'][i-1], samples['EclipticLongitude'][i-1], samples['Frequency'][0],samples['FrequencyDerivative'][i-1], samples['Inclination'][i-1], samples['InitialPhase'][i-1], samples['Polarization'][i-1]]
     pGBs['Amplitude'], pGBs['EclipticLatitude'], pGBs['EclipticLongitude'], pGBs['Frequency'],pGB['FrequencyDerivative'], pGBs['Inclination'], pGBs['InitialPhase'], pGBs['Polarization'] = np.random.multivariate_normal(previous_samples, std**2)
     if i > 1000 and samples['Frequency'][i-1] == samples['Frequency'][i-401]:
