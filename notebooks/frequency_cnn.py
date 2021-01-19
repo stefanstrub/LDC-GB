@@ -164,7 +164,7 @@ class Sangria:
         # Number of epochs to train for
         epochs = 50
         # The longest an episode can go on before cutting it off
-        batch_size = 1
+        batch_size = 32
         # Learning rates for policy and value function
         lr = 3e-3
 
@@ -184,7 +184,7 @@ class Sangria:
         number_of_parameters = 8
 
         colors = plt.cm.jet(np.linspace(0,1,batch_size))
-        plt.style.use('dark_background')
+        # plt.style.use('dark_background')
         # Main training loop: collect experience in env and update / log each epoch
         for epoch in range(epochs):
             pGBsampled = np.zeros((batch_size,number_of_parameters))
