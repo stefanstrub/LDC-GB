@@ -85,13 +85,14 @@ print(time.time()- start)
 # pGB['EclipticLatitude'] += 0.03
 # pGB['EclipticLongitude'] += 0.01
 # pGB['Inclination'] += 0.01
-start = time.time()
 Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB, oversample=4, simulator='synthlisa')
-print(time.time()- start)
 fmin, fmax = float(Xs.f[0]) , float(Xs.f[-1]+Xs.attrs['df'])
 source = dict({"X":Xs, "Y":Ys, "Z":Zs})
+start = time.time()
 Xs_td, Ys_td, Zs_td = GB.get_td_tdixyz(template=pGB, simulator='synthlisa')
 
+print('ftransform',time.time()- start)
+print(len(Xs))
 
 # plt.figure(figsize=(12,3))
 # # plt.plot(Xs_td.t, Xs_td2, label="TDI X")
