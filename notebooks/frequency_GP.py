@@ -16,6 +16,11 @@ import ldc.waveform.fastGB as fastGB
 from ldc.common.tools import compute_tdi_snr
 from ldc.waveform.waveform import HpHc
 
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import Matern, RationalQuadratic, ExpSineSquared, RBF
+from sklearn.kernel_approximation import Nystroem
+from sklearn import linear_model, pipeline
+from sklearn.metrics import mean_squared_error
 
 DATAPATH = "/home/stefan/LDC/Sangria/data"
 sangria_fn = DATAPATH+"/dgb-tdi.h5"
@@ -23,16 +28,16 @@ sangria_fn = DATAPATH+"/dgb-tdi.h5"
 # sangria_fn = DATAPATH+"/LDC2_sangria_gdb-tdi_v1_v3U3MxS.h5"
 # sangria_fn = DATAPATH+"/LDC2_sangria_idb-tdi_v1_DgtGV85.h5"
 # sangria_fn = DATAPATH+"/LDC2_sangria_mbhb-tdi_v1_MN5aIPz.h5"
-# sangria_fn = DATAPATH+"/LDC2_sangria_training_v1.h5"
-# tdi_ts, tdi_descr = hdfio.load_array(sangria_fn, name="obs/tdi")
-sangria_fn = DATAPATH+"/LDC2_sangria_vgb-tdi_v1_sgsEVXb.h5"
-tdi_ts, tdi_descr = hdfio.load_array(sangria_fn)
+sangria_fn = DATAPATH+"/LDC2_sangria_training_v1.h5"
+tdi_ts, tdi_descr = hdfio.load_array(sangria_fn, name="obs/tdi")
+# sangria_fn = DATAPATH+"/LDC2_sangria_vgb-tdi_v1_sgsEVXb.h5"
+# tdi_ts, tdi_descr = hdfio.load_array(sangria_fn)
 sangria_fn_training = DATAPATH+"/LDC2_sangria_training_v1.h5"
 dt = int(1/(tdi_descr["sampling_frequency"]))
 
 # Build timeseries and frequencyseries object for X,Y,Z
-# tdi_ts = xr.Dataset(dict([(k,TimeSeries(tdi_ts[k], dt=dt)) for k in ["X", "Y", "Z"]]))
-tdi_ts = xr.Dataset(dict([(k,TimeSeries(tdi_ts[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
+tdi_ts = xr.Dataset(dict([(k,TimeSeries(tdi_ts[k], dt=dt)) for k in ["X", "Y", "Z"]]))
+# tdi_ts = xr.Dataset(dict([(k,TimeSeries(tdi_ts[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
 tdi_fs = xr.Dataset(dict([(k,tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 
 # tdi_ts_training, tdi_descr_training = hdfio.load_array(sangria_fn_training, name="obs/tdi")
@@ -160,19 +165,23 @@ print(likelihood(tdi_fs["X"].isel(f=slice(Xs.kmin, Xs.kmin+len(Xs))),Xs.values,S
 # Number of histogram bins.
 n_bin = 50
 # Total number of proposed samples.
-number_of_samples = 10 ** 2
-number_of_parameters = 3
+number_of_samples = 5*10 **3
+
+parameters = ['Amplitude','EclipticLatitude','EclipticLongitude','Frequency','FrequencyDerivative','Inclination','InitialPhase','Polarization']
+boundaries = {'Amplitude': [10**-21.0, 10**-20.0],'EclipticLatitude': [-1.0, 1.0],
+'EclipticLongitude': [0.0, 2.0*np.pi],'Frequency': [0.0004725, 0.0004727],'FrequencyDerivative': [10**-20.0, 10**-18.0],
+'Inclination': [-1.0, 1.0],'InitialPhase': [0.0, 2.0*np.pi],'Polarization': [0.0, 2.0*np.pi]}
 
 # Make the first random sample. ------------------------------------
 pGBs = deepcopy(pGB)
-pGBs['Amplitude'] *= 1.0
-pGBs['EclipticLatitude'] = (np.random.random()-0.5) * np.pi 
-pGBs['EclipticLongitude'] = np.random.random() * np.pi 
-pGBs['InitialPhase'] = np.random.random() * np.pi 
-pGBs['Frequency'] *= 1.001
-pGBs['FrequencyDerivative'] *= 1.01
-pGBs['Polarization'] = np.random.random() * np.pi 
-pGBs['Inclination'] = np.random.random()* np.pi 
+# pGBs['Amplitude'] *= 1.0
+# pGBs['EclipticLatitude'] = (np.random.random()-0.5) * np.pi 
+# pGBs['EclipticLongitude'] = np.random.random() * np.pi 
+# pGBs['InitialPhase'] = np.random.random() * np.pi 
+# pGBs['Frequency'] *= 1.001
+# pGBs['FrequencyDerivative'] *= 1.01
+# pGBs['Polarization'] = np.random.random() * np.pi 
+# pGBs['Inclination'] = np.random.random()* np.pi 
 Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs, oversample=4, simulator='synthlisa')
 
 dataX = tdi_fs["X"].isel(f=slice(Xs.kmin, Xs.kmin+len(Xs)))
@@ -189,99 +198,129 @@ Sn = Nmodel.psd(freq=freq, option='X')
 # p1 = likelihood(dataX, Xs.values, Sn)
 diff = np.abs(dataX - Xs.values)**2 + np.abs(dataY - Ys.values)**2 + np.abs(dataZ - Zs.values)**2
 
-p = float(np.sum(diff / Sn)*Xs.attrs['df'])
-p1 = np.exp(-p / 2.0)
+p = -float(np.sum(diff / Sn)*Xs.attrs['df'])/2.0
+p1 = p#np.exp(p)
 samples = xr.Dataset(dict([(name,xr.DataArray(np.zeros(number_of_samples), dims=('number_of_sample'), coords={"number_of_sample": range(number_of_samples)},
                          )) for name, titles in pGBs.items()]))
-
-for name, titles in pGBs.items():
-    if name != 'Name':
-        samples[name][0] = pGBs[name]
+pGBs01 = {}
+for parameter in parameters:
+    if parameter in ['EclipticLatitude']:
+        samples[parameter][0] = (np.sin(pGBs[parameter])-boundaries[parameter][0])/(boundaries[parameter][1]-boundaries[parameter][0])
+    elif parameter in ['Inclination']:
+        samples[parameter][0] = (np.cos(pGBs[parameter])-boundaries[parameter][0])/(boundaries[parameter][1]-boundaries[parameter][0])
+    else:
+        samples[parameter][0] = (pGBs[parameter]-boundaries[parameter][0])/(boundaries[parameter][1]-boundaries[parameter][0])
+    pGBs01[parameter] = samples[parameter][0]
 samples['Likelihood'] = samples['Name']
 samples = samples.drop(['Name'])
 samples['Likelihood'][0] = p1
+
 
 # Run Metropolis-Hastings sampler. ---------------------------------
 plt.figure()
 plt.subplot(231)
 # plt.plot(dataX_training.f*1000,dataX_training.values, label='data')
 plt.plot(dataX.f*1000,dataX.values, label='binary')
-# plt.plot(Xs.f, Xs.values, label='start')
+plt.plot(Xs.f*1000, Xs.values, label='start')
 plt.subplot(232)
 # plt.plot(dataY_training.f*1000,dataY_training.values, label='data')
 plt.plot(dataY.f*1000,dataY.values, label='binary')
-# plt.plot(Ys.f, Ys.values, label='start')
+plt.plot(Ys.f*1000, Ys.values, label='start')
 plt.subplot(233)
 # plt.plot(dataZ_training.f*1000,dataZ_training.values, label='data')
 plt.plot(dataZ.f*1000,dataZ.values, label='binary')
-# plt.plot(Zs.f, Zs.values, label='start')
+plt.plot(Zs.f*1000, Zs.values, label='start')
 plt.subplot(234)
 # plt.plot(dataX_training.f*1000,dataX_training.values.imag, label='data')
 plt.plot(dataX.f*1000,dataX.values.imag, label='binary')
-# plt.plot(Xs.f, Xs.values.imag, label='start')
+plt.plot(Xs.f*1000, Xs.values.imag, label='start')
 plt.subplot(235)
 # plt.plot(dataY_training.f*1000,dataY_training.values.imag, label='data')
 plt.plot(dataY.f*1000,dataY.values.imag, label='binary')
-# plt.plot(Ys.f, Ys.values.imag, label='start')
+plt.plot(Ys.f*1000, Ys.values.imag, label='start')
 plt.subplot(236)
 # plt.plot(dataZ_training.f*1000,dataZ_training.values.imag, label='data')
 plt.plot(dataZ.f*1000,dataZ.values.imag, label='binary')
-# plt.plot(Zs.f, Zs.values.imag, label='start')
+plt.plot(Zs.f*1000, Zs.values.imag, label='start')
 
-print(p1)
-start = time.time()
-for i in range(1, number_of_samples):
 
-    # Normal distributed proposal.
-    std = np.array(np.eye(8)*[1*10**-25,1/10, 1/10,1*10**-6,10**-19,1/10,1/10,1/10])
-    previous_samples =  [samples['Amplitude'][i-1], samples['EclipticLatitude'][i-1], samples['EclipticLongitude'][i-1], samples['Frequency'][0],samples['FrequencyDerivative'][i-1], samples['Inclination'][i-1], samples['InitialPhase'][i-1], samples['Polarization'][i-1]]
-    pGBs['Amplitude'], pGBs['EclipticLatitude'], pGBs['EclipticLongitude'], pGBs['Frequency'],pGB['FrequencyDerivative'], pGBs['Inclination'], pGBs['InitialPhase'], pGBs['Polarization'] = np.random.multivariate_normal(previous_samples, std**2)
-    if i > 1000 and samples['Frequency'][i-1] == samples['Frequency'][i-401]:
-        pGBs['Frequency'] = samples['Frequency'][i-1]
-    if pGBs['Frequency'] < 10**-4 or pGBs['Frequency'] > 10**-2:
-        pGBs['Frequency'] = 5*10**-4
-    if pGBs['Amplitude'] < 10**-23 or pGBs['Amplitude'] > 10**-5:
-        pGBs['Amplitude'] = 5*10**-23
-    if pGBs['InitialPhase'] < 0 or pGBs['InitialPhase'] > 2*np.pi:
-        pGBs['InitialPhase'] = 0
-    # print(pGBs['Amplitude'])
-    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs, oversample=4, simulator='synthlisa')
-    dataX = tdi_fs["X"].isel(f=slice(Xs.kmin, Xs.kmin+len(Xs)))
-    dataY = tdi_fs["Y"].isel(f=slice(Ys.kmin, Ys.kmin+len(Ys)))
-    dataZ = tdi_fs["Z"].isel(f=slice(Zs.kmin, Zs.kmin+len(Zs)))
+print('p1',p1)
+def sampler(number_of_samples,parameters,pGBs,boundaries,p1, uniform=False):
+    samples = xr.Dataset(dict([(name,xr.DataArray(np.zeros(number_of_samples), dims=('number_of_sample'), coords={"number_of_sample": range(number_of_samples)},
+                         )) for name, titles in pGBs.items()]))
+    pGBs01 = {}
+    for parameter in parameters:
+        if parameter in ['Polarization']:
+            samples[parameter][0] = (np.sin(pGB[parameter])-boundaries[parameter][0])/(boundaries[parameter][1]-boundaries[parameter][0])
+        elif parameter in ['Inclination']:
+            samples[parameter][0] = (np.cos(pGB[parameter])-boundaries[parameter][0])/(boundaries[parameter][1]-boundaries[parameter][0])
+        else:
+            samples[parameter][0] = (pGB[parameter]-boundaries[parameter][0])/(boundaries[parameter][1]-boundaries[parameter][0])
+        pGBs01[parameter] = samples[parameter][0]
+    samples['Likelihood'] = samples['Name']
+    samples = samples.drop(['Name'])
+    samples['Likelihood'][0] = p1
 
-    fmin, fmax = float(Xs.f[0]) , float(Xs.f[-1]+Xs.attrs['df'])
-    freq = np.array(Xs.sel(f=slice(fmin, fmax)).f)
-    Sn = Nmodel.psd(freq=freq, option='X')
-    # plt.plot(dataX.f,dataX.values.real)
-    # plt.plot(Xs.f, Xs.values.real)
+    start = time.time()
+    for i in range(1, number_of_samples):
 
-    # Evaluate posterior.
-    diff = np.abs(dataX - Xs.values)**2 + np.abs(dataY - Ys.values)**2 + np.abs(dataZ - Zs.values)**2
-    p = float(np.sum(diff / Sn)*Xs.attrs['df'])
-    p_test = np.exp(-p / 2.0)
-    T_inv =  1
-    # print(p_test/p1, pGBs['Frequency'])
-    # Apply Metropolis rule.
-    # print(p_test.values,p.values,(p_test / p) ** T_inv)
-    if p1 == 0:
-        p1 = p_test
-        for name, titles in pGBs.items():
-            if name != 'Name':
-                samples[name][i] = pGBs[name]
-        samples['Likelihood'][i] = p1
-    elif (p_test / p1) ** T_inv > np.random.rand():  # L^i/L^j
-        p1 = p_test
-        for name, titles in pGBs.items():
-            if name != 'Name':
-                samples[name][i] = pGBs[name]
-        samples['Likelihood'][i] = p1
-    
-    else:
-        for name in samples.data_vars:
-            samples[name][i] = samples[name][i-1]
+        for parameter in parameters:
+            if parameter in ['Frequency']:#,'FrequencyDerivative','Amplitude','EclipticLongitude']:
+                pGBs01[parameter] = np.random.rand()
+                if uniform:
+                    pGBs01[parameter] = i/number_of_samples
+                pGBs[parameter] = (pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0]
+            # elif parameter in ['FrequencyDerivative','Amplitude']:
+            #     pass
+            elif parameter in ['EclipticLatitude']:
+                pGBs01[parameter] = np.random.rand()
+                pGBs[parameter] = np.arcsin((pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
+            elif parameter in ['Inclination']:
+                pGBs01[parameter] = np.random.rand()
+                pGBs[parameter] = np.arccos((pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
+            else:
+                pGBs01[parameter] = np.random.rand()
+                pGBs[parameter] = (pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0]
+        Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs, oversample=4, simulator='synthlisa')
+        dataX = tdi_fs["X"].isel(f=slice(Xs.kmin, Xs.kmin+len(Xs)))
+        dataY = tdi_fs["Y"].isel(f=slice(Ys.kmin, Ys.kmin+len(Ys)))
+        dataZ = tdi_fs["Z"].isel(f=slice(Zs.kmin, Zs.kmin+len(Zs)))
+        # plt.plot(dataX.f,dataX.values)
+        # plt.show()
+        fmin, fmax = float(Xs.f[0]) , float(Xs.f[-1]+Xs.attrs['df'])
+        freq = np.array(Xs.sel(f=slice(fmin, fmax)).f)
+        Sn = Nmodel.psd(freq=freq, option='X')
+        # plt.plot(dataX.f,dataX.values.real)
+        # plt.plot(Xs.f, Xs.values.real)
+
+        # Evaluate posterior.
+        diff = np.abs(dataX - Xs.values)**2 + np.abs(dataY - Ys.values)**2 + np.abs(dataZ - Zs.values)**2
+        p = -float(np.sum(diff / Sn)*Xs.attrs['df'])/2.0
+        p_test = p#np.exp(p)
+        T_inv =  1
+        # print(p_test/p1, pGBs['Frequency'])
+        # Apply Metropolis rule.
+        # print(p_test.values,p.values,(p_test / p) ** T_inv)
+        if p1 == 0:
+            p1 = p_test
+            for parameter, titles in pGBs.items():
+                if parameter != 'Name':
+                    samples[parameter][i] = pGBs01[parameter]
+            samples['Likelihood'][i] = p1
+        elif 1+(p_test / p1) ** T_inv > np.random.rand():  # L^i/L^j
+            p1 = p_test
+            for parameter, titles in pGBs.items():
+                if parameter != 'Name':
+                    samples[parameter][i] = pGBs01[parameter]
+            samples['Likelihood'][i] = p1
         
-print(time.time()- start)
+        else:
+            for name in samples.data_vars:
+                samples[name][i] = samples[name][i-1]
+    print('sampler time',time.time()- start)
+    return samples
+
+samples = sampler(number_of_samples,parameters,pGBs,boundaries,p1,uniform=True)
 # plot
 n_max = np.argmax(samples['Likelihood'].values)
 pGBmax = deepcopy(pGB)
@@ -289,6 +328,81 @@ for name, titles in pGBmax.items():
     if name != 'Name':
         pGBmax[name] = samples[name][n_max].values
 Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBmax, oversample=4, simulator='synthlisa')
+
+
+class Model():
+
+    def __init__(self):
+        """
+            TODO: enter your code here
+        """
+        pass
+
+    def predict(self, test_x, return_std=False):
+        """
+            TODO: enter your code here
+        """
+        ## dummy code below
+        # y, y_std = self.nystroem_approx_blr.predict(test_x, return_std=return_std)
+        y, y_std = self.gpr.predict(test_x, return_std=return_std)
+        return y, y_std
+
+    def fit_model(self, train_x, train_y):
+        """
+             TODO: enter your code here
+        """
+        #kernel=Matern(length_scale=0.5,nu=0.5)
+        # feature_map_nystroem = Nystroem(kernel= Matern(length_scale=0.1, nu=3.5), random_state=1 )
+        # self.nystroem_approx_blr = pipeline.Pipeline([("feature_map", feature_map_nystroem),
+        #                                         ("blr",  linear_model.BayesianRidge())])
+
+        # self.nystroem_approx_blr.set_params(feature_map__n_components=5000)
+        # self.nystroem_approx_blr.fit(train_x, train_y)
+        self.gpr = GaussianProcessRegressor(kernel=RBF(length_scale=0.1, length_scale_bounds=(1e-2, 1)))
+        self.gpr.fit(train_x,train_y)
+        pass
+
+
+
+train_x = np.zeros((number_of_samples-1,len(parameters)))
+i = 0
+for name in parameters:
+    train_x[:,i] = samples[name][1:]
+    i +=1
+nu = np.mean(samples['Likelihood'].values)
+sigma = np.std(samples['Likelihood'].values)
+train_y = (samples['Likelihood'][1:]-nu)/sigma
+
+number_of_test_samples = 300
+test_samples = sampler(number_of_test_samples,parameters,pGBs,boundaries,p1, uniform= True)
+test_x = np.zeros((number_of_test_samples,len(parameters)))
+i = 0
+for name in parameters:
+    test_x[:,i] = test_samples[name]
+    i +=1
+test_y = test_samples['Likelihood']
+
+M = Model()
+start = time.time()
+M.fit_model(train_x, train_y)
+print('fit time',time.time()- start)
+prediction_scaled, p_std = M.predict(test_x, return_std=True)
+prediction = (prediction_scaled*sigma)+nu
+p_std = p_std*sigma
+print('prediction',prediction)
+print('test_y',prediction-test_y.values)
+print('MSE',mean_squared_error(test_y.values,prediction))
+
+for parameter in parameters:
+    if parameter in ['EclipticLatitude']:
+        samples[parameter] = np.arcsin((samples[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
+        test_samples[parameter] = np.arcsin((test_samples[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
+    elif parameter in ['Inclination']:
+        samples[parameter] = np.arccos((samples[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
+        test_samples[parameter] = np.arccos((test_samples[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
+    else:
+        samples[parameter] = (samples[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0]
+        test_samples[parameter] = (test_samples[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0]
 
 
 plt.subplot(231)
@@ -323,7 +437,7 @@ plt.ylabel('Z-TDI imag [1/Hz]')
 plt.legend()
 
 n_bin = 50
-plt.figure(figsize=(20,30))
+plt.figure(figsize=(20,40))
 i = 0
 number_of_parameters = 0
 for name in samples.data_vars:
@@ -332,23 +446,38 @@ for name in samples.data_vars:
     i += 1
     if name != 'Likelihood':
         plt.suptitle("sampled posterior")
-        plt.subplot(3,number_of_parameters,i)
+        plt.subplot(1,number_of_parameters,i)
         plt.axvline(x=pGB[name], color='r')
         plt.plot(samples[name],samples['Likelihood'], '.')
+        plt.plot(test_samples[name],test_samples['Likelihood'])
+        plt.plot(test_samples[name][1:],prediction[1:])
+        plt.fill_between(test_samples[name][1:],prediction[1:]-p_std[1:],prediction[1:]+p_std[1:], color='g', alpha= 0.2)
+        if i == 0:
+            plt.ylabel('log-Likelihood')
 
-        plt.ylabel('Likelihood')
-        plt.subplot(3,number_of_parameters,i+number_of_parameters)
-        plt.axvline(x=pGB[name], color='r')
-        n, bins, patches = plt.hist(samples[name], n_bin, density=True, facecolor='k', alpha=0.5)
+        # plt.subplot(3,number_of_parameters,i+number_of_parameters)
+        # plt.axvline(x=pGB[name], color='r')
+        # n, bins, patches = plt.hist(samples[name], n_bin, density=True, facecolor='k', alpha=0.5)
 
-        plt.subplot(3,number_of_parameters,i+2*number_of_parameters)
-        if name == 'Frequency':
-            plt.axvline(x=pGB[name]*1000, color='r')
-            plt.plot(samples[name]*1000, range(number_of_samples), 'k')
-        else:
-            plt.axvline(x=pGB[name], color='r')
-            plt.plot(samples[name], range(number_of_samples), 'k')
+        # plt.subplot(3,number_of_parameters,i+2*number_of_parameters)
+        # if name == 'Frequency':
+        #     plt.axvline(x=pGB[name]*1000, color='r')
+        #     plt.plot(samples[name]*1000, range(number_of_samples), 'k')
+        # else:
+        #     plt.axvline(x=pGB[name], color='r')
+        #     plt.plot(samples[name], range(number_of_samples), 'k')
         plt.xlabel(name)
+
+plt.figure()
+plt.scatter(samples['Amplitude'],samples['Frequency'],c=samples['Likelihood'])
+plt.xlim(min(samples['Amplitude']),max(samples['Amplitude']))
+plt.ylim(min(samples['Frequency']),max(samples['Frequency']))
+plt.colorbar()
+plt.figure()
+plt.scatter(samples['EclipticLatitude'],samples['EclipticLongitude'],c=samples['Likelihood'])
+plt.xlim(min(samples['EclipticLatitude']),max(samples['EclipticLatitude']))
+plt.ylim(min(samples['EclipticLongitude']),max(samples['EclipticLongitude']))
+plt.colorbar()
 plt.show()
 
 plt.figure()
@@ -360,9 +489,9 @@ plt.xlabel('Amplitude')
 plt.ylabel('Likelihood')
 plt.subplot(232)
 plt.axvline(x=pGB['Frequency'], color='r')
-plt.plot(samples[:,1],likelihood_values, '.')
+plt.plot(samples[:,1],np.log(likelihood_values), '.')
 plt.xlabel('Frequeny')
-plt.ylabel('Likelihood')
+plt.ylabel('log-Likelihood')
 plt.figure()
 plt.suptitle("sampled posterior")
 plt.subplot(231)
@@ -394,6 +523,8 @@ plt.ylabel('sample number')
 # plt.xlabel('phi')
 # plt.ylabel('sample number')
 plt.show()
+
+
 
 plt.figure()
 s = template(Xp.t, samples[-1, 0], samples[-1, 1], samples[-1, 2])
@@ -595,3 +726,59 @@ import pandas as pd
 data = np.array([range(len(mbhb)), mbhb["CoalescenceTime"], SNR2[:,0], SNR2[:,1]]).T
 pd.DataFrame(data, columns=["index", "tc", "fast", "TDI"])
 # %%
+
+## Constant for Cost function
+THRESHOLD = 0.5
+W1 = 1
+W2 = 20
+W3 = 100
+W4 = 0.04
+
+
+def cost_function(true, predicted):
+    """
+        true: true values in 1D numpy array
+        predicted: predicted values in 1D numpy array
+
+        return: float
+    """
+    cost = (true - predicted)**2
+
+    # true above threshold (case 1)
+    mask = true > THRESHOLD
+    mask_w1 = np.logical_and(predicted>=true,mask)
+    mask_w2 = np.logical_and(np.logical_and(predicted<true,predicted >=THRESHOLD),mask)
+    mask_w3 = np.logical_and(predicted<THRESHOLD,mask)
+
+    cost[mask_w1] = cost[mask_w1]*W1
+    cost[mask_w2] = cost[mask_w2]*W2
+    cost[mask_w3] = cost[mask_w3]*W3
+
+    # true value below threshold (case 2)
+    mask = true <= THRESHOLD
+    mask_w1 = np.logical_and(predicted>true,mask)
+    mask_w2 = np.logical_and(predicted<=true,mask)
+
+    cost[mask_w1] = cost[mask_w1]*W1
+    cost[mask_w2] = cost[mask_w2]*W2
+
+    reward = W4*np.logical_and(predicted < THRESHOLD,true<THRESHOLD)
+    if reward is None:
+        reward = 0
+    return np.mean(cost) - np.mean(reward)
+
+"""
+Fill in the methods of the Model. Please do not change the given methods for the checker script to work.
+You can add new methods, and make changes. The checker script performs:
+
+
+    M = Model()
+    M.fit_model(train_x,train_y)
+    prediction = M.predict(test_x)
+
+It uses predictions to compare to the ground truth using the cost_function above.
+"""
+
+
+if __name__ == "__main__":
+    main()
