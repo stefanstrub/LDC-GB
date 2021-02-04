@@ -160,7 +160,7 @@ print(likelihood(tdi_fs["X"].isel(f=slice(Xs.kmin, Xs.kmin+len(Xs))),Xs.values,S
 # Number of histogram bins.
 n_bin = 50
 # Total number of proposed samples.
-number_of_samples = 10 ** 2
+number_of_samples = 10 ** 4
 number_of_parameters = 3
 
 # Make the first random sample. ------------------------------------
@@ -190,7 +190,7 @@ Sn = Nmodel.psd(freq=freq, option='X')
 diff = np.abs(dataX - Xs.values)**2 + np.abs(dataY - Ys.values)**2 + np.abs(dataZ - Zs.values)**2
 
 p = float(np.sum(diff / Sn)*Xs.attrs['df'])
-p1 = np.exp(-p / 2.0)
+p1 = -p / 2.0
 samples = xr.Dataset(dict([(name,xr.DataArray(np.zeros(number_of_samples), dims=('number_of_sample'), coords={"number_of_sample": range(number_of_samples)},
                          )) for name, titles in pGBs.items()]))
 
@@ -259,7 +259,7 @@ for i in range(1, number_of_samples):
     # Evaluate posterior.
     diff = np.abs(dataX - Xs.values)**2 + np.abs(dataY - Ys.values)**2 + np.abs(dataZ - Zs.values)**2
     p = float(np.sum(diff / Sn)*Xs.attrs['df'])
-    p_test = np.exp(-p / 2.0)
+    p_test = -p / 2.0
     T_inv =  1
     # print(p_test/p1, pGBs['Frequency'])
     # Apply Metropolis rule.
