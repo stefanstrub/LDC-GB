@@ -167,7 +167,7 @@ def loglikelihood(pGBs):
 # Number of histogram bins.
 n_bin = 50
 # Total number of proposed samples.
-number_of_samples = 1*10 **3
+number_of_samples = 1*10 **2
 cutoff_ratio = 1000
 
 parameters = ['Amplitude','EclipticLatitude','EclipticLongitude','Frequency','FrequencyDerivative','Inclination','InitialPhase','Polarization']
@@ -274,44 +274,66 @@ def sampler(number_of_samples,parameters,pGBs,boundaries,p1, uniform=False, MCMC
     samples['Likelihood'].append(p1)
 
     start = time.time()
-    
-    for i in range(1, number_of_samples):
-        if onlyf:
+    if onlyf:
+        for i in range(1, number_of_samples):
             parameter = 'Frequency'
             if uniform:
                 pGBs01[parameter] = i/number_of_samples
             pGBs[parameter] = (pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0]
-        else:
+            p_test = loglikelihood(pGBs)
+            Tinv = 1
+            if i > number_of_samples/5:
+                Tinv =  i/10
+            if not(MCMC):
+                Tinv = 0 
+            if (p_test / p1) ** (-Tinv) > np.random.rand():  
+                p1 = p_test
+                for parameter in parameters:
+                    samples[parameter].append(pGBs01[parameter])
+                samples['Likelihood'].append(p1)
+    else:
+        a = np.linspace(0.3,0.9,3)
+        b = np.linspace(0.15,0.75,3)
+        sample_value = {}
+        sample_value['Amplitude'], sample_value['EclipticLatitude'], sample_value['EclipticLongitude'], sample_value['Frequency'],\
+        sample_value['Inclination'], sample_value['InitialPhase'], sample_value['Polarization']  = np.meshgrid(a,a,a,a,a,a,a)
+        for parameter in ['Amplitude','EclipticLatitude','EclipticLongitude','Frequency','Inclination','InitialPhase','Polarization']:
+            sample_value[parameter] = sample_value[parameter].reshape(1,-1)[0]
+        sample_value2 = {}
+        sample_value2['Amplitude'], sample_value2['EclipticLatitude'], sample_value2['EclipticLongitude'], sample_value2['Frequency'],\
+        sample_value2['Inclination'], sample_value2['InitialPhase'], sample_value2['Polarization']  = np.meshgrid(b,b,b,b,b,b,b)
+        for parameter in ['Amplitude','EclipticLatitude','EclipticLongitude','Frequency','Inclination','InitialPhase','Polarization']:
+            sample_value2[parameter] = sample_value2[parameter].reshape(1,-1)[0]
+        for parameter in ['Amplitude','EclipticLatitude','EclipticLongitude','Frequency','Inclination','InitialPhase','Polarization']:
+            sample_value[parameter] = np.append(sample_value[parameter],sample_value2[parameter])
+        number_of_samples = len(sample_value['Amplitude'])
+        for i in range(1, number_of_samples):
             for parameter in parameters:
-                if parameter in ['Amplitude']:#,'FrequencyDerivative','Amplitude','EclipticLongitude']:
-                    pGBs01[parameter] = np.random.rand()
+                if parameter in ['Frequency']:#,'FrequencyDerivative','Amplitude','EclipticLongitude']:
+                    pGBs01[parameter] = sample_value[parameter][i]
                     pGBs[parameter] = (pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0]
                 elif parameter in ['FrequencyDerivative']:
                     pass
                 elif parameter in ['EclipticLatitude']:
-                    pGBs01[parameter] = np.random.rand()
+                    pGBs01[parameter] = sample_value[parameter][i]
                     pGBs[parameter] = np.arcsin((pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
                 elif parameter in ['Inclination']:
-                    pGBs01[parameter] = np.random.rand()
+                    pGBs01[parameter] = sample_value[parameter][i]
                     pGBs[parameter] = np.arccos((pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
                 else:
-                    pGBs01[parameter] = np.random.rand()
+                    pGBs01[parameter] = sample_value[parameter][i]
                     pGBs[parameter] = (pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0]
-        p_test = loglikelihood(pGBs)
-        Tinv = 1
-        if i > number_of_samples/5:
-            Tinv =  i/10
-        if not(MCMC):
-            Tinv = 0 
-        # print(p_test/p1, pGBs['Frequency'])
-        # Apply Metropolis rule.
-        # print(p_test.values,p.values,(p_test / p) ** T_inv)
-        if (p_test / p1) ** (-Tinv) > np.random.rand():  # L^i/L^j
-        # elif True:  # L^i/L^j
-            p1 = p_test
-            for parameter in parameters:
-                samples[parameter].append(pGBs01[parameter])
-            samples['Likelihood'].append(p1)
+            p_test = loglikelihood(pGBs)
+            Tinv = 1
+            if i > number_of_samples/5:
+                Tinv =  i/10
+            if not(MCMC):
+                Tinv = 0 
+            if (p_test / p1) ** (-Tinv) > np.random.rand():  
+                p1 = p_test
+                for parameter in parameters:
+                    samples[parameter].append(pGBs01[parameter])
+                samples['Likelihood'].append(p1)
     print('sampler time',time.time()- start)
     for parameter in parameters:
         samples[parameter] = np.asarray(samples[parameter])
@@ -338,7 +360,7 @@ class ExactGPModel(gpytorch.models.ExactGP):
         kernelLong = gpytorch.kernels.PeriodicKernel(active_dims=torch.tensor([2]))
         kernelF = gpytorch.kernels.RBFKernel(active_dims=(3))
         kernelFD = gpytorch.kernels.RBFKernel(active_dims=(4))
-        kernelI = gpytorch.kernels.PeriodicKernel(active_dims=(5))
+        kernelI = gpytorch.kernels.RBFKernel(active_dims=(5))
         kernelIP = gpytorch.kernels.PeriodicKernel(active_dims=torch.tensor([6]))
         kernelP = gpytorch.kernels.PeriodicKernel(active_dims=torch.tensor([7]))
         kernel = kernelA + kernelLat + kernelLong + kernelF + kernelFD + kernelI + kernelIP + kernelP
@@ -406,9 +428,6 @@ model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kerne
 list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].parameters())[1].requires_grad=False
 # Latitude
 model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].period_length = torch.tensor([[2.0]])
-list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].parameters())[1].requires_grad=False
-# Amplitude
-model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].lengthscale = torch.tensor([[0.4]])
 list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].parameters())[1].requires_grad=False
 
 

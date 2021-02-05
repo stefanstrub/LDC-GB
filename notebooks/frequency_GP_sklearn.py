@@ -360,7 +360,7 @@ class Model():
         # length_scale_bounds=[(1e-1, 1),(1e-1, 1),(1e-1, 1),(5e-2, 0.2),(1e-1, 5),(1e-1, 5),(1e-1, 5),(1e-1, 5)],
         # periodicity_bounds=[(1e-1, 1),(1e-1, 1),(1e-1, 1),(5e-2, 0.2),(1e-1, 5),(1e-1, 5),(1e-1, 5),(1e-1, 5)])
         kernel = RBF(length_scale=[0.3,0.1,1,0.08,0.5,0.1,0.3,0.2], length_scale_bounds=[(1e-1, 1),(1e-1, 1),(1e-1, 1),(5e-2, 0.2),(1e-1, 5),(1e-1, 5),(1e-1, 5),(1e-1, 5)])
-        # kernel = RBF(length_scale=0.5, length_scale_bounds=(1e-1, 5))
+        kernel = RBF(length_scale=0.5, length_scale_bounds=(1e-1, 5))
         self.gpr = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=0)
         # self.br = BaggingRegressor(self.gpr)
         self.gpr.fit(train_x,train_y)
@@ -462,7 +462,7 @@ for name in samples.data_vars:
         j = 0
         if i > 3:
             j = 1
-        # axes[i-1].axvline(x=pGB[name], color='r')
+        axes[j,i%4].axvline(x=pGB[name], color='r')
         axes[j,i%4].plot(samples[name],samples['Likelihood'], '.',label='train')
         axes[j,i%4].plot(test_samples[name],test_samples['Likelihood'],'.',label='true')
         axes[j,i%4].errorbar(test_samples[name][1:],prediction[1:],p_std[1:], fmt='.',label='prediction')
