@@ -1,3 +1,4 @@
 {
-    "python.pythonPath": "/home/stefan/anaconda3/envs/ldc/bin/python"
+    "python.pythonPath": "/home/stefan/anaconda3/bin/python",
+    "jupyter.jupyterServerType": "local"
 }
