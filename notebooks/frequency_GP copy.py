@@ -256,9 +256,9 @@ ax6.plot(dataZ.f*1000,dataZ.values.imag, label='binary')
 ax6.plot(Zs.f*1000, Zs.values.imag, label='start')
 
 print('p1',p1)
-def sampler(number_of_samples,parameters,pGBs,boundaries,p1, uniform=False, MCMC=False, onlyf=False):
+def sampler(number_of_samples,parameters,pGB,boundaries,p1, uniform=False, MCMC=False, only=False, onlyparameter='Frequency'):
     samples = xr.Dataset(dict([(name,xr.DataArray(np.zeros(number_of_samples), dims=('number_of_sample'), coords={"number_of_sample": range(number_of_samples)},
-                         )) for name, titles in pGBs.items()]))
+                         )) for name, titles in pGB.items()]))
     samples = {}
     pGBs01 = {}
     for parameter in parameters:
@@ -272,31 +272,36 @@ def sampler(number_of_samples,parameters,pGBs,boundaries,p1, uniform=False, MCMC
         pGBs01[parameter] = samples[parameter][0]
     samples['Likelihood'] = []
     samples['Likelihood'].append(p1)
-
     start = time.time()
     
     for i in range(1, number_of_samples):
-        if onlyf:
-            parameter = 'Frequency'
+        if only:
+            parameter = onlyparameter
             if uniform:
                 pGBs01[parameter] = i/number_of_samples
             pGBs[parameter] = (pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0]
+            # pGBs[parameter] = np.arccos((pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
         else:
             for parameter in parameters:
-                if parameter in ['Amplitude']:#,'FrequencyDerivative','Amplitude','EclipticLongitude']:
+                if parameter in ['Frequency']:#,'FrequencyDerivative','Amplitude','EclipticLongitude']:
                     pGBs01[parameter] = np.random.rand()
-                    pGBs[parameter] = (pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0]
                 elif parameter in ['FrequencyDerivative']:
                     pass
                 elif parameter in ['EclipticLatitude']:
                     pGBs01[parameter] = np.random.rand()
-                    pGBs[parameter] = np.arcsin((pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
                 elif parameter in ['Inclination']:
                     pGBs01[parameter] = np.random.rand()
-                    pGBs[parameter] = np.arccos((pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
                 else:
                     pGBs01[parameter] = np.random.rand()
-                    pGBs[parameter] = (pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0]
+        for parameter in parameters:
+            if parameter in ['FrequencyDerivative']:
+                pass
+            if parameter in ['EclipticLatitude']:
+                pGBs[parameter] = np.arcsin((pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
+            elif parameter in ['Inclination']:
+                pGBs[parameter] = np.arccos((pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
+            else:
+                pGBs[parameter] = (pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0]
         p_test = loglikelihood(pGBs)
         Tinv = 1
         if i > number_of_samples/5:
@@ -361,18 +366,30 @@ sigma = np.std(samples['Likelihood'][1:])
 train_y = (samples['Likelihood'][1:]-nu)/sigma
 
 number_of_test_samples = 300
-test_samples = sampler(number_of_test_samples,parameters,pGB,boundaries,p1, uniform= True, onlyf=True)
-test_x = np.zeros((number_of_test_samples,len(parameters)))
-i = 0
-for name in parameters:
-    test_x[:,i] = test_samples[name]
-    i +=1
-test_y = test_samples['Likelihood']
-
+test_x = {}
+test_y = {}
+# for parameter in ['Frequency']:
+#     test_samples = sampler(number_of_test_samples,parameters,pGB,boundaries,p1, uniform= True, only=True, onlyparameter=parameter)
+#     test_x[parameter] = np.zeros((number_of_test_samples,len(parameters)))
+#     i = 0
+#     for name in parameters:
+#         test_x[parameter][:,i] = test_samples[name]
+#         i +=1
+#     test_y[parameter] = test_samples['Likelihood']
+#     test_x[parameter] = torch.from_numpy(test_x[parameter]).float()
+#     test_y[parameter] = torch.from_numpy(test_y[parameter]).float()
+for parameter in parameters:
+    test_samples = sampler(number_of_test_samples,parameters,pGB,boundaries,p1, uniform= True, only=True, onlyparameter=parameter)
+    test_x[parameter] = np.zeros((number_of_test_samples,len(parameters)))
+    i = 0
+    for name in parameters:
+        test_x[parameter][:,i] = test_samples[name]
+        i +=1
+    test_y[parameter] = test_samples['Likelihood']
+    test_x[parameter] = torch.from_numpy(test_x[parameter]).float()
+    test_y[parameter] = torch.from_numpy(test_y[parameter]).float()
 train_x = torch.from_numpy(train_x).float()
 train_y = torch.from_numpy(train_y).float()
-test_x = torch.from_numpy(test_x).float()
-test_y = torch.from_numpy(test_y).float()
 # initialize likelihood and model
 likelihood = gpytorch.likelihoods.GaussianLikelihood()
 model = ExactGPModel(train_x, train_y, likelihood)
@@ -409,7 +426,7 @@ model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kerne
 list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].parameters())[1].requires_grad=False
 # Amplitude
 model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].lengthscale = torch.tensor([[0.4]])
-list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].parameters())[0].requires_grad=False
+list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].parameters())[1].requires_grad=False
 
 
 # Use the adam optimizer
@@ -456,13 +473,13 @@ for i in range(training_iter):
 model.eval()
 likelihood.eval()
 
-# Make predictions by feeding model through likelihood
-with torch.no_grad(), gpytorch.settings.fast_pred_var():
-    observed_pred = likelihood(model(test_x))
-
-observed_pred = (observed_pred*sigma)+nu
-train_y = (train_y*sigma)+nu
-print('sqrt(MSE)',np.sqrt(mean_squared_error(test_y.numpy(),observed_pred.mean.numpy())))
+observed_pred = {}
+for parameter in parameters:
+    # Make predictions by feeding model through likelihood
+    with torch.no_grad(), gpytorch.settings.fast_pred_var():
+        observed_pred[parameter] = likelihood(model(test_x[parameter]))
+        observed_pred_print = (observed_pred[parameter]*sigma)+nu
+    print('sqrt(MSE) ',parameter, np.sqrt(mean_squared_error(test_y[parameter].cpu().numpy(),observed_pred_print.mean.cpu().numpy())))
 
 for parameter in parameters:
     if parameter in ['EclipticLatitude']:
@@ -501,22 +518,55 @@ ax6.set_ylabel('Z-TDI imag [1/Hz]')
 ax6.legend()
 
 
-with torch.no_grad():
-    # Initialize plot
-    f, ax = plt.subplots(1, 1, figsize=(4, 3))
+# with torch.no_grad():
+#     # Initialize plot
+#     f, ax = plt.subplots(1, 1, figsize=(4, 3))
 
-    # Get upper and lower confidence bounds
-    lower, upper = observed_pred.confidence_region()
-    # Plot training data as black stars
-    ax.plot(train_x.numpy()[:,3], train_y.numpy(), 'k*')
-    ax.plot(test_x.numpy()[1:,3], test_y.numpy()[1:], 'g.')
-    # Plot predictive means as blue line
-    ax.plot(test_x.numpy()[1:,3], observed_pred.mean.numpy()[1:], 'b.')
-    # Shade between the lower and upper confidence bounds
-    ax.fill_between(test_x.numpy()[1:,3], lower.numpy()[1:], upper.numpy()[1:], alpha=0.5)
-    # ax.set_ylim([-3, 3])
-    ax.legend(['Observed Data','True', 'Mean', 'Confidence'])
+#     # Get upper and lower confidence bounds
+#     lower, upper = observed_pred.confidence_region()
+#     # Plot training data as black stars
+#     ax.plot(train_x.numpy()[:,3], train_y.numpy(), 'k*')
+#     ax.plot(test_x.numpy()[1:,3], test_y.numpy()[1:], 'g.')
+#     # Plot predictive means as blue line
+#     ax.plot(test_x.numpy()[1:,3], observed_pred.mean.numpy()[1:], 'b.')
+#     # Shade between the lower and upper confidence bounds
+#     ax.fill_between(test_x.numpy()[1:,3], lower.numpy()[1:], upper.numpy()[1:], alpha=0.5)
+#     # ax.set_ylim([-3, 3])
+#     ax.legend(['Observed Data','True', 'Mean', 'Confidence'])
     
+
+fig, ax = plt.subplots(2, 4,figsize=(15,15))
+plt.suptitle("sampled posterior")
+i = 0    
+for parameter in parameters:
+    j = 0
+    if i > 3:
+        j = 1
+    with torch.no_grad():
+        # Get upper and lower confidence bounds
+        lower, upper = observed_pred[parameter].confidence_region()
+        mean = observed_pred[parameter].mean
+        mean = mean.cpu()
+        lower = lower.cpu()
+        upper = upper.cpu()
+        train_x = train_x.cpu()
+        train_y = train_y.cpu()
+        test_x[parameter] = test_x[parameter].cpu()
+        train_y = (train_y*sigma)+nu
+        mean = (mean*sigma)+nu
+        lower = (lower*sigma)+nu
+        upper = (upper*sigma)+nu
+        # Plot training data as black stars
+        # ax[j,i%4].plot(train_x.numpy()[:,i], train_y.numpy(), 'k*')
+        ax[j,i%4].plot(test_x[parameter].numpy()[1:,i], test_y[parameter].numpy()[1:], 'g.')
+        # Plot predictive means as blue line
+        ax[j,i%4].plot(test_x[parameter].numpy()[1:,i], mean.numpy()[1:], 'b.')
+        # Shade between the lower and upper confidence bounds
+        ax[j,i%4].fill_between(test_x[parameter].numpy()[1:,i], lower.numpy()[1:], upper.numpy()[1:], alpha=0.5)
+        ax[j,i%4].legend(['True', 'Mean', 'Confidence'])
+        ax[j,i%4].set_xlabel(parameter)
+    i += 1
+plt.show()
 
 prediction = observed_pred.mean.numpy()
 n_bin = 50

@@ -1,3 +1,4 @@
+#%%
 import matplotlib.pyplot as plt
 import scipy
 import numpy as np
@@ -19,6 +20,16 @@ from ldc.waveform.waveform import HpHc
 import torch
 import gpytorch
 from sklearn.metrics import mean_squared_error
+
+from botorch.models.gpytorch import GPyTorchModel
+from botorch.acquisition import qExpectedImprovement, qUpperConfidenceBound
+from botorch.optim import optimize_acqf
+
+
+
+# use a GPU if available
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+dtype = torch.float
 
 DATAPATH = "/home/stefan/LDC/Sangria/data"
 sangria_fn = DATAPATH+"/dgb-tdi.h5"
@@ -167,26 +178,8 @@ def loglikelihood(pGBs):
 # Number of histogram bins.
 n_bin = 50
 # Total number of proposed samples.
-number_of_samples = 1*10 **4
+number_of_samples = 5*10 **4
 cutoff_ratio = 1000
-
-parameters = ['Amplitude','EclipticLatitude','EclipticLongitude','Frequency','FrequencyDerivative','Inclination','InitialPhase','Polarization']
-boundaries = {'Amplitude': [10**-22.0, 5*10**-21.0],'EclipticLatitude': [-1.0, 1.0],
-'EclipticLongitude': [0.0, 2.0*np.pi],'Frequency': [0.0004725, 0.0004727],'FrequencyDerivative': [10**-20.0, 10**-18.0],
-'Inclination': [-1.0, 1.0],'InitialPhase': [0.0, 2.0*np.pi],'Polarization': [0.0, 2.0*np.pi]}
-
-# boundaries_small = deepcopy(boundaries)
-# part_ratio = 5
-# for parameter in parameters:
-#     if parameter in ['EclipticLongitude','Frequency']:
-#         boundaries_small[parameter] = [pGB[parameter]-(boundaries[parameter][1]-boundaries[parameter][0])/part_ratio,pGB[parameter]+(boundaries[parameter][1]-boundaries[parameter][0])/part_ratio]
-#     if parameter == 'EclipticLatitude':
-#         boundaries_small[parameter] = [np.sin(pGB[parameter])-(boundaries[parameter][1]-boundaries[parameter][0])/part_ratio,np.sin(pGB[parameter])+(boundaries[parameter][1]-boundaries[parameter][0])/part_ratio]
-#     elif parameter == 'Inclination':
-#         boundaries_small[parameter] = [np.cos(pGB[parameter])-(boundaries[parameter][1]-boundaries[parameter][0])/part_ratio,np.cos(pGB[parameter])+(boundaries[parameter][1]-boundaries[parameter][0])/part_ratio]
-#     else:
-#         boundaries_small[parameter] = [pGB[parameter]-(boundaries[parameter][1]-boundaries[parameter][0])/part_ratio,pGB[parameter]+(boundaries[parameter][1]-boundaries[parameter][0])/part_ratio]
-# boundaries = boundaries_small
 
 # Make the first random sample. ------------------------------------
 pGBs = deepcopy(pGB)
@@ -211,6 +204,28 @@ Sn = Nmodel.psd(freq=freq, option='X')
 diff = np.abs(dataX - Xs.values)**2 + np.abs(dataY - Ys.values)**2 + np.abs(dataZ - Zs.values)**2
 p1 = -float(np.sum(diff / Sn)*Xs.attrs['df'])/2.0
 p1 = p1
+
+frequency_lower_boundary = dataX.f[0].values+(dataX.f[-1].values - dataX.f[0].values)*4/10
+frequency_upper_boundary = dataX.f[-1].values-(dataX.f[-1].values - dataX.f[0].values)*3/10
+parameters = ['Amplitude','EclipticLatitude','EclipticLongitude','Frequency','FrequencyDerivative','Inclination','InitialPhase','Polarization']
+boundaries = {'Amplitude': [10**-21.0, 5*10**-21.0],'EclipticLatitude': [-1.0, 1.0],
+'EclipticLongitude': [0.0, 2.0*np.pi],'Frequency': [frequency_lower_boundary, frequency_upper_boundary],'FrequencyDerivative': [10**-20.0, 10**-16.0],
+'Inclination': [-1.0, 1.0],'InitialPhase': [0.0, 2.0*np.pi],'Polarization': [0.0, np.pi]}
+# [0.0004725, 0.0004727]
+# boundaries_small = deepcopy(boundaries)
+# part_ratio = 10
+# for parameter in parameters:
+#     if parameter in ['EclipticLongitude','Frequency']:
+#         boundaries_small[parameter] = [pGB[parameter]-(boundaries[parameter][1]-boundaries[parameter][0])/part_ratio,pGB[parameter]+(boundaries[parameter][1]-boundaries[parameter][0])/part_ratio]
+#     if parameter == 'EclipticLatitude':
+#         boundaries_small[parameter] = [np.sin(pGB[parameter])-(boundaries[parameter][1]-boundaries[parameter][0])/part_ratio,np.sin(pGB[parameter])+(boundaries[parameter][1]-boundaries[parameter][0])/part_ratio]
+#     elif parameter == 'Inclination':
+#         boundaries_small[parameter] = [np.cos(pGB[parameter])-(boundaries[parameter][1]-boundaries[parameter][0])/part_ratio,np.cos(pGB[parameter])+(boundaries[parameter][1]-boundaries[parameter][0])/part_ratio]
+#     else:
+#         boundaries_small[parameter] = [pGB[parameter]-(boundaries[parameter][1]-boundaries[parameter][0])/part_ratio,pGB[parameter]+(boundaries[parameter][1]-boundaries[parameter][0])/part_ratio]
+# boundaries = boundaries_small
+
+
 
 samples = xr.Dataset(dict([(name,xr.DataArray(np.zeros(number_of_samples), dims=('number_of_sample'), coords={"number_of_sample": range(number_of_samples)},
                          )) for name, titles in pGBs.items()]))
@@ -256,9 +271,9 @@ ax6.plot(dataZ.f*1000,dataZ.values.imag, label='binary')
 ax6.plot(Zs.f*1000, Zs.values.imag, label='start')
 
 print('p1',p1)
-def sampler(number_of_samples,parameters,pGBs,boundaries,p1, uniform=False, MCMC=False, onlyf=False):
+def sampler(number_of_samples,parameters,pGB,boundaries,p1, uniform=False, MCMC=False, only=False, onlyparameter='Frequency'):
     samples = xr.Dataset(dict([(name,xr.DataArray(np.zeros(number_of_samples), dims=('number_of_sample'), coords={"number_of_sample": range(number_of_samples)},
-                         )) for name, titles in pGBs.items()]))
+                         )) for name, titles in pGB.items()]))
     samples = {}
     pGBs01 = {}
     for parameter in parameters:
@@ -272,31 +287,36 @@ def sampler(number_of_samples,parameters,pGBs,boundaries,p1, uniform=False, MCMC
         pGBs01[parameter] = samples[parameter][0]
     samples['Likelihood'] = []
     samples['Likelihood'].append(p1)
-
     start = time.time()
     
     for i in range(1, number_of_samples):
-        if onlyf:
-            parameter = 'Frequency'
+        if only:
+            parameter = onlyparameter
             if uniform:
                 pGBs01[parameter] = i/number_of_samples
             pGBs[parameter] = (pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0]
+            # pGBs[parameter] = np.arccos((pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
         else:
             for parameter in parameters:
-                if parameter in ['Amplitude']:#,'FrequencyDerivative','Amplitude','EclipticLongitude']:
+                if parameter in ['Frequency']:#,'FrequencyDerivative','Amplitude','EclipticLongitude']:
                     pGBs01[parameter] = np.random.rand()
-                    pGBs[parameter] = (pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0]
                 elif parameter in ['FrequencyDerivative']:
                     pass
                 elif parameter in ['EclipticLatitude']:
                     pGBs01[parameter] = np.random.rand()
-                    pGBs[parameter] = np.arcsin((pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
                 elif parameter in ['Inclination']:
                     pGBs01[parameter] = np.random.rand()
-                    pGBs[parameter] = np.arccos((pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
                 else:
                     pGBs01[parameter] = np.random.rand()
-                    pGBs[parameter] = (pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0]
+        for parameter in parameters:
+            # if parameter in ['FrequencyDerivative']:
+            #     pass
+            if parameter in ['EclipticLatitude']:
+                pGBs[parameter] = np.arcsin((pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
+            elif parameter in ['Inclination']:
+                pGBs[parameter] = np.arccos((pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
+            else:
+                pGBs[parameter] = (pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0]
         p_test = loglikelihood(pGBs)
         Tinv = 1
         if i > number_of_samples/5:
@@ -327,9 +347,10 @@ for name, titles in pGBmax.items():
     if name != 'Name':
         pGBmax[name] = deepcopy(samples[name][n_max])
 Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBmax, oversample=4, simulator='synthlisa')
-
+#%%
 
 class ExactGPModel(gpytorch.models.ExactGP):
+    _num_outputs = 1  # to inform GPyTorchModel API
     def __init__(self, train_x, train_y, likelihood):
         super(ExactGPModel, self).__init__(train_x, train_y, likelihood)
         self.mean_module = gpytorch.means.ConstantMean()
@@ -341,10 +362,16 @@ class ExactGPModel(gpytorch.models.ExactGP):
         kernelI = gpytorch.kernels.PeriodicKernel(active_dims=(5))
         kernelIP = gpytorch.kernels.PeriodicKernel(active_dims=torch.tensor([6]))
         kernelP = gpytorch.kernels.PeriodicKernel(active_dims=torch.tensor([7]))
-        kernel = kernelA + kernelLat + kernelLong + kernelF + kernelFD + kernelI + kernelIP + kernelP
+        # kernel = kernelA + kernelLat + kernelLong + kernelF + kernelFD + kernelI + kernelIP + kernelP
+        # kernel = kernelA  + kernelF + kernelFD + kernelI + kernelIP + kernelP + kernelLat * kernelLong
         kernel = kernelA * kernelLat * kernelLong * kernelF * kernelFD * kernelI * kernelIP * kernelP
-        self.covar_module = gpytorch.kernels.ScaleKernel(kernel)
-
+        self.base_covar_module = gpytorch.kernels.RBFKernel()
+        self.covar_module = gpytorch.kernels.ProductStructureKernel(
+            gpytorch.kernels.ScaleKernel(
+                gpytorch.kernels.GridInterpolationKernel(self.base_covar_module, grid_size=100, num_dims=1)
+            ), num_dims=8
+        )
+  
     def forward(self, x):
         mean_x = self.mean_module(x)
         covar_x = self.covar_module(x)
@@ -359,110 +386,190 @@ for name in parameters:
 nu = np.mean(samples['Likelihood'][1:])
 sigma = np.std(samples['Likelihood'][1:])
 train_y = (samples['Likelihood'][1:]-nu)/sigma
-
-number_of_test_samples = 300
-test_samples = sampler(number_of_test_samples,parameters,pGB,boundaries,p1, uniform= True, onlyf=True)
-test_x = np.zeros((number_of_test_samples,len(parameters)))
-i = 0
-for name in parameters:
-    test_x[:,i] = test_samples[name]
-    i +=1
-test_y = test_samples['Likelihood']
-
 train_x = torch.from_numpy(train_x).float()
 train_y = torch.from_numpy(train_y).float()
-test_x = torch.from_numpy(test_x).float()
-test_y = torch.from_numpy(test_y).float()
-# initialize likelihood and model
-likelihood = gpytorch.likelihoods.GaussianLikelihood()
-model = ExactGPModel(train_x, train_y, likelihood)
 
-training_iter = 50
-
-
-# Find optimal model hyperparameters
-model.train()
-likelihood.train()
-
-
-hypers = {
-    'likelihood.noise': torch.tensor(0.0001),
-    # 'covar_module.base_kernel.lengthscale': torch.tensor(0.08)
-    # 'covar_module.base_kernel.kernels.1.period_length': torch.tensor(0.5)
-    # list(covar_module.base_kernel.kernels)[1].period_length
-}
-model.initialize(**hypers)
-# Polarization
-model.covar_module.base_kernel.kernels[1].period_length = torch.tensor([[0.5]])
-list(model.covar_module.base_kernel.kernels[1].parameters())[1].requires_grad=False
-# InitialPhase
-model.covar_module.base_kernel.kernels[0].kernels[1].period_length = torch.tensor([[1.0]])
-list(model.covar_module.base_kernel.kernels[0].kernels[1].parameters())[1].requires_grad=False
-# Frequency
-model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].lengthscale = torch.tensor([[0.066]])
-list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].parameters())[0].requires_grad=False
-# Longitude
-model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].period_length = torch.tensor([[1.0]])
-list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].parameters())[1].requires_grad=False
-# Latitude
-model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].period_length = torch.tensor([[2.0]])
-list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].parameters())[1].requires_grad=False
-# Amplitude
-model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].lengthscale = torch.tensor([[0.4]])
-list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].parameters())[0].requires_grad=False
+number_of_test_samples = 200
+test_x = {}
+test_y = {}
+for parameter in parameters:
+    test_samples = sampler(number_of_test_samples,parameters,pGB,boundaries,p1, uniform= True, only=True, onlyparameter=parameter)
+    test_x[parameter] = np.zeros((number_of_test_samples,len(parameters)))
+    i = 0
+    for name in parameters:
+        test_x[parameter][:,i] = test_samples[name]
+        i +=1
+    test_y[parameter] = test_samples['Likelihood']
+    test_x[parameter] = torch.from_numpy(test_x[parameter]).float()
+    test_x[parameter] = test_x[parameter].cuda()
+    test_y[parameter] = torch.from_numpy(test_y[parameter]).float()
+test_samples = sampler(number_of_test_samples,parameters,pGB,boundaries,p1)
+parameter = 'random'
+test_x[parameter] = np.zeros((number_of_test_samples,len(parameters)))
+i = 0
+for name in parameters:
+    test_x[parameter][:,i] = test_samples[name]
+    i +=1
+test_y[parameter] = test_samples['Likelihood']
+test_x[parameter] = torch.from_numpy(test_x[parameter]).float()
+test_x[parameter] = test_x[parameter].cuda()
+test_y[parameter] = torch.from_numpy(test_y[parameter]).float()
 
 
-# Use the adam optimizer
-optimizer = torch.optim.Adam([
-    {"params": model.mean_module.parameters()},
-    {"params": model.covar_module.parameters()},
-], lr=0.1)  # Includes GaussianLikelihood parameters
-# optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
 
-# "Loss" for GPs - the marginal log likelihood
-mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
+train_x = train_x.cuda()
+train_y = train_y.cuda()
+bo_iterations = 1
+for bo_iter in range(bo_iterations):
+    # initialize likelihood and model
+    likelihood = gpytorch.likelihoods.GaussianLikelihood().cuda()
+    model = ExactGPModel(train_x, train_y, likelihood).cuda()
 
-for i in range(training_iter):
-    # Zero gradients from previous iteration
-    optimizer.zero_grad()
-    # Output from model
-    output = model(train_x)
-    # Calc loss and backprop gradients
-    loss = -mll(output, train_y)
-    loss.backward()
-    print('Iter %d/%d - Loss: %.3f     noise: %.3f' % (
-    i + 1, training_iter, loss.item(),
-    model.likelihood.noise.item()
-    ))
-    print('Iter %d/%d - Loss: %.3f   Al: %.3f Lal: %.3f Lap: %.3f  Lol: %.3f Lop: %.3f  Fl: %.3f  FDl: %.3f  Il: %.3f  IPl: %.3f IPp: %.3f  Pl: %.3f Pp: %.3f   noise: %.3f' % (
-        i + 1, training_iter, loss.item(),
-        model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].lengthscale.item(),
-        model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].lengthscale.item(),
-        model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].period_length.item(),
-        model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].lengthscale.item(),
-        model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].period_length.item(),
-        model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].lengthscale.item(),
-        model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[1].lengthscale.item(),
-        model.covar_module.base_kernel.kernels[0].kernels[0].kernels[1].lengthscale.item(),
-        model.covar_module.base_kernel.kernels[0].kernels[1].lengthscale.item(),
-        model.covar_module.base_kernel.kernels[0].kernels[1].period_length.item(),
-        model.covar_module.base_kernel.kernels[1].lengthscale.item(),
-        model.covar_module.base_kernel.kernels[1].period_length.item(),
-        model.likelihood.noise.item()
-    ))
-    optimizer.step()
+    training_iter = 50
+
+    hypers = {
+        'likelihood.noise': torch.tensor(0.0001),
+        # 'covar_module.base_kernel.lengthscale': torch.tensor(0.08)
+        # 'covar_module.base_kernel.kernels.1.period_length': torch.tensor(0.5)
+        # list(covar_module.base_kernel.kernels)[1].period_length
+    }
+    # model.initialize(**hypers)
+    # # Polarization
+    # # model.covar_module.base_kernel.kernels[1].lengthscale = torch.tensor([[0.5]])
+    # # list(model.covar_module.base_kernel.kernels[1].parameters())[0].requires_grad=False
+    # model.covar_module.base_kernel.kernels[1].period_length = torch.tensor([[1.0]]).cuda()
+    # list(model.covar_module.base_kernel.kernels[1].parameters())[1].requires_grad=False
+    # # InitialPhase
+    # # model.covar_module.base_kernel.kernels[0].kernels[1].lengthscale = torch.tensor([[1.0]])
+    # # list(model.covar_module.base_kernel.kernels[0].kernels[1].parameters())[0].requires_grad=False
+    # model.covar_module.base_kernel.kernels[0].kernels[1].period_length = torch.tensor([[2.0]]).cuda()
+    # list(model.covar_module.base_kernel.kernels[0].kernels[1].parameters())[1].requires_grad=False
+    # # Inclination
+    # # model.covar_module.base_kernel.kernels[0].kernels[0].kernels[1].lengthscale = torch.tensor([[1.0]])
+    # # list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[1].parameters())[0].requires_grad=False
+    # model.covar_module.base_kernel.kernels[0].kernels[0].kernels[1].period_length = torch.tensor([[2.0]]).cuda()
+    # list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[1].parameters())[1].requires_grad=False
+    # # FrequencyDerivative
+    # # model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[1].lengthscale = torch.tensor([[10.0]]).cuda()
+    # # list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[1].parameters())[0].requires_grad=False
+    # # Frequency
+    # model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].lengthscale = torch.tensor([[0.066]]).cuda()
+    # list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].parameters())[0].requires_grad=False
+    # # Longitude
+    # # model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].lengthscale = torch.tensor([[1.0]])
+    # # list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].parameters())[0].requires_grad=False
+    # model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].period_length = torch.tensor([[1.0]]).cuda()
+    # list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].parameters())[1].requires_grad=False
+    # # Latitude
+    # # model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].lengthscale = torch.tensor([[0.066]])
+    # # list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].parameters())[0].requires_grad=False
+    # model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].period_length = torch.tensor([[2.0]]).cuda()
+    # list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].parameters())[1].requires_grad=False
+    # # Amplitude
+    # model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].lengthscale = torch.tensor([[0.4]]).cuda()
+    # # list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].parameters())[0].requires_grad=False
+
+    # Find optimal model hyperparameters
+    model.train()
+    likelihood.train()
+
+    # Use the adam optimizer
+    optimizer = torch.optim.Adam([
+        {"params": model.mean_module.parameters()},
+        {"params": model.covar_module.parameters()},
+    ], lr=0.01)  # Includes GaussianLikelihood parameters
+    # optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
+
+    # "Loss" for GPs - the marginal log likelihood
+    mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
+
+    def train():
+        for i in range(training_iter):
+            # Zero gradients from previous iteration
+            optimizer.zero_grad()
+            with gpytorch.settings.use_toeplitz(False), gpytorch.settings.max_root_decomposition_size(30):
+                # Output from model
+                output = model(train_x)
+                # Calc loss and backprop gradients
+                loss = -mll(output, train_y)
+                loss.backward()
+            print('Iter %d/%d - Loss: %.3f' % (i + 1, training_iter, loss.item()))
+            # print('Iter %d/%d - Loss: %.3f     noise: %.3f' % (
+            # i + 1, training_iter, loss.item(),
+            # model.likelihood.noise.item()
+            # ))
+            # print('Iter %d/%d - Loss: %.3f   Al: %.3f Lal: %.3f  Lol: %.3f Lop: %.3f  Fl: %.3f  FDl: %.3f  Il: %.3f IPl: %.3f IPp: %.3f  Pl: %.3f Pp: %.3f   noise: %.3f' % (
+            #     i + 1, training_iter, loss.item(),
+            #     model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].lengthscale.item(),
+            #     model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].lengthscale.item(),
+            #     # model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].period_length.item(),
+            #     model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].lengthscale.item(),
+            #     model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].period_length.item(),
+            #     model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].lengthscale.item(),
+            #     model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[1].lengthscale.item(),
+            #     model.covar_module.base_kernel.kernels[0].kernels[0].kernels[1].lengthscale.item(),
+            #     # model.covar_module.base_kernel.kernels[0].kernels[0].kernels[1].period_length.item(),
+            #     model.covar_module.base_kernel.kernels[0].kernels[1].lengthscale.item(),
+            #     model.covar_module.base_kernel.kernels[0].kernels[1].period_length.item(),
+            #     model.covar_module.base_kernel.kernels[1].lengthscale.item(),
+            #     model.covar_module.base_kernel.kernels[1].period_length.item(),
+            #     model.likelihood.noise.item()
+            # ))
+            optimizer.step()
+            torch.cuda.empty_cache()
+
+    with gpytorch.settings.use_toeplitz(True):
+        train()
+
+    best_value = train_y.max()
+    print('best value', (best_value*sigma)+nu)
+    best_value = best_value.cuda()
+    if bo_iter < bo_iterations-1:
+        qEI = qExpectedImprovement(model=model, best_f=best_value)
+        qUCB = qUpperConfidenceBound(model=model, beta=1)
+        candidates = 200
+        new_point_analytic, _ = optimize_acqf(
+            acq_function=qUCB,
+            bounds=torch.tensor([[0.0] * 8, [1.0] * 8]).cuda(),
+            q=candidates,
+            num_restarts=1,
+            raw_samples=100,
+            options={},
+        )
+        train_x = torch.cat((train_x,new_point_analytic),0)
+        new_point_analytic = new_point_analytic.cpu().numpy()
+        for candi_n in range(candidates):
+            para_n = 0
+            for parameter in parameters:
+                if parameter in ['EclipticLatitude']:
+                    pGBs[parameter] = np.arcsin((new_point_analytic[candi_n][para_n]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
+                elif parameter in ['Inclination']:
+                    pGBs[parameter] = np.arccos((new_point_analytic[candi_n][para_n]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
+                else:
+                    pGBs[parameter] = (new_point_analytic[candi_n][para_n]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0]
+                para_n += 1
+            loglike = loglikelihood(pGBs)
+            # print('new point',i, new_point_analytic[candi_n], loglike)
+
+            loglike = (loglike-nu)/sigma
+            loglike = torch.tensor([loglike]).float().cuda()
+            train_y = torch.cat((train_y,loglike),0)
+
 
 # Get into evaluation (predictive posterior) mode
 model.eval()
 likelihood.eval()
-
-# Make predictions by feeding model through likelihood
+observed_pred = {}
+for parameter in parameters:
+    # Make predictions by feeding model through likelihood
+    with torch.no_grad(), gpytorch.settings.fast_pred_var():
+        observed_pred[parameter] = likelihood(model(test_x[parameter]))
+    print('sqrt(MSE) ',parameter, np.sqrt(mean_squared_error(test_y[parameter].cpu().numpy(),(observed_pred[parameter].mean.cpu().numpy()*sigma)+nu)))
+parameter = 'random'
 with torch.no_grad(), gpytorch.settings.fast_pred_var():
-    observed_pred = likelihood(model(test_x))
+    observed_pred[parameter] = likelihood(model(test_x[parameter]))
+print('sqrt(MSE) ','random', np.sqrt(mean_squared_error(test_y[parameter].cpu().numpy(),(observed_pred[parameter].mean.cpu().numpy()*sigma)+nu)))
 
-observed_pred = (observed_pred*sigma)+nu
-train_y = (train_y*sigma)+nu
-print('sqrt(MSE)',np.sqrt(mean_squared_error(test_y.numpy(),observed_pred.mean.numpy())))
 
 for parameter in parameters:
     if parameter in ['EclipticLatitude']:
@@ -500,25 +607,40 @@ ax6.set_xlabel('f [mHz]')
 ax6.set_ylabel('Z-TDI imag [1/Hz]')
 ax6.legend()
 
+fig, ax = plt.subplots(2, 4,figsize=(15,15))
+plt.suptitle("sampled posterior")
+i = 0    
+for parameter in parameters:
+    j = 0
+    if i > 3:
+        j = 1
+    with torch.no_grad():
+        # Get upper and lower confidence bounds
+        lower, upper = observed_pred[parameter].confidence_region()
+        mean = observed_pred[parameter].mean
+        mean = mean.cpu()
+        lower = lower.cpu()
+        upper = upper.cpu()
+        train_x = train_x.cpu()
+        train_y = train_y.cpu()
+        test_x[parameter] = test_x[parameter].cpu()
+        train_y = (train_y*sigma)+nu
+        mean = (mean*sigma)+nu
+        lower = (lower*sigma)+nu
+        upper = (upper*sigma)+nu
+        # Plot training data as black stars
+        # ax[j,i%4].plot(train_x.numpy()[:,i], train_y.numpy(), 'k*')
+        ax[j,i%4].plot(test_x[parameter].numpy()[1:,i], test_y[parameter].numpy()[1:], 'g.')
+        # Plot predictive means as blue line
+        ax[j,i%4].plot(test_x[parameter].numpy()[1:,i], mean.numpy()[1:], 'b.')
+        # Shade between the lower and upper confidence bounds
+        ax[j,i%4].fill_between(test_x[parameter].numpy()[1:,i], lower.numpy()[1:], upper.numpy()[1:], alpha=0.5)
+        ax[j,i%4].legend(['True', 'Mean', 'Confidence'])
+        ax[j,i%4].set_xlabel(parameter)
+    i += 1
+plt.show()
 
-with torch.no_grad():
-    # Initialize plot
-    f, ax = plt.subplots(1, 1, figsize=(4, 3))
-
-    # Get upper and lower confidence bounds
-    lower, upper = observed_pred.confidence_region()
-    # Plot training data as black stars
-    ax.plot(train_x.numpy()[:,3], train_y.numpy(), 'k*')
-    ax.plot(test_x.numpy()[1:,3], test_y.numpy()[1:], 'g.')
-    # Plot predictive means as blue line
-    ax.plot(test_x.numpy()[1:,3], observed_pred.mean.numpy()[1:], 'b.')
-    # Shade between the lower and upper confidence bounds
-    ax.fill_between(test_x.numpy()[1:,3], lower.numpy()[1:], upper.numpy()[1:], alpha=0.5)
-    # ax.set_ylim([-3, 3])
-    ax.legend(['Observed Data','True', 'Mean', 'Confidence'])
-    
-
-prediction = observed_pred.mean.numpy()
+prediction = observed_pred['Frequency'].mean.numpy()
 n_bin = 50
 i = 0    
 fig, axes = plt.subplots(2, 4,figsize=(15,15))
@@ -554,7 +676,7 @@ plt.figure(figsize=(10,8))
 plt.suptitle("sampled posterior")
 plt.subplot(1,1,1)
 plt.axvline(x=pGB[name], color='r')
-plt.plot(samples[name],samples['Likelihood'], '.',label='train',zorder=3)
+plt.plot(samples[name],samples['Likelihood'], '.',label='train',zorder=1)
 plt.plot(test_samples[name],test_samples['Likelihood'],'.',label='true')
 plt.plot(test_samples[name][1:],prediction[1:],label='prediction')
 plt.fill_between(test_samples[name][1:],lower.numpy()[1:],upper.numpy()[1:], color='g', alpha= 0.4)
@@ -566,14 +688,14 @@ plt.legend()
 # plt.xlim(min(samples['Amplitude']),max(samples['Amplitude']))
 # plt.ylim(min(samples['Frequency']),max(samples['Frequency']))
 # plt.colorbar()
-plt.figure()
-# plt.title('sqrt(MSE)',np.round(np.sqrt(mean_squared_error(test_y,prediction)),2))
-plt.scatter(samples['EclipticLatitude'],samples['EclipticLongitude'],c=samples['Likelihood'])
-plt.xlim(min(samples['EclipticLatitude']),max(samples['EclipticLatitude']))
-plt.ylim(min(samples['EclipticLongitude']),max(samples['EclipticLongitude']))
-plt.colorbar()
+# plt.figure()
+# # plt.title('sqrt(MSE)',np.round(np.sqrt(mean_squared_error(test_y,prediction)),2))
+# plt.scatter(samples['EclipticLatitude'],samples['EclipticLongitude'],c=samples['Likelihood'])
+# plt.xlim(min(samples['EclipticLatitude']),max(samples['EclipticLatitude']))
+# plt.ylim(min(samples['EclipticLongitude']),max(samples['EclipticLongitude']))
+# plt.colorbar()
 plt.show()
-
+#%%
 plt.figure()
 plt.suptitle("sampled posterior")
 plt.subplot(231)
