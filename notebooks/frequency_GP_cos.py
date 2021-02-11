@@ -166,8 +166,9 @@ def loglikelihood(pGBs):
     Ys = Ys[index_low:index_low+len(dataY)]
     Zs = Zs[index_low:index_low+len(dataZ)]
     diff = np.abs(dataX - Xs.values)**2 + np.abs(dataY - Ys.values)**2 + np.abs(dataZ - Zs.values)**2
-    # p1 = -float(np.sum(diff / Sn)*Xs.attrs['df'])/2.0
-    p1 = -float(np.sum(diff / (Sn+noise))/len(diff))/2.0
+    # print(Xs.attrs['df'])
+    p1 = -float(np.sum(diff / Sn)*Xs.attrs['df'])/2.0
+    # p1 = -float(np.sum(diff / (Sn+noise))/len(diff))/2.0
     # p1 = np.exp(p1)
     return p1
 
@@ -200,7 +201,8 @@ fmin, fmax = float(Xs.f[0]) , float(Xs.f[-1]+Xs.attrs['df'])
 freq = np.array(Xs.sel(f=slice(fmin, fmax)).f)
 Sn = Nmodel.psd(freq=freq, option='X')
 diff = np.abs(dataX - Xs.values)**2 + np.abs(dataY - Ys.values)**2 + np.abs(dataZ - Zs.values)**2
-p1 = -float(np.sum(diff / (Sn+noise))/len(diff))/2.0
+p1 = -float(np.sum(diff / Sn)*Xs.attrs['df'])/2.0
+# p1 = -float(np.sum(diff / (Sn+noise))/len(diff))/2.0
 # p1 = np.exp(p1)
 
 frequency_lower_boundary = dataX.f[0].values+(dataX.f[-1].values - dataX.f[0].values)*4/10
@@ -309,19 +311,19 @@ def sampler(number_of_samples,parameters,pGB,boundaries,p1, uniform=False, MCMC=
                 pGBs01['InitialPhase'] = samples['InitialPhase'][0]
         else:
             for parameter in parameters:
-                if parameter in ['Frequency']:#,'FrequencyDerivative','Amplitude','EclipticLongitude']:
-                    pGBs01[parameter] = np.random.rand()
+                # if parameter in ['Frequency']:#,'FrequencyDerivative','Amplitude','EclipticLongitude']:
+                #     pGBs01[parameter] = np.random.rand()
                 # elif parameter in ['FrequencyDerivative']:
                 #     pass
-                elif parameter in ['EclipticLatitude']:
+                if parameter in ['EclipticLatitude']:
                     pGBs01[parameter] = np.random.rand()
                 elif parameter in ['Inclination']:
                     pGBs01[parameter] = np.random.rand()
                 else:
                     pGBs01[parameter] = np.random.rand()
         for parameter in parameters:
-            if parameter in ['FrequencyDerivative']:
-                pass
+            # if parameter in ['FrequencyDerivative']:
+            #     pass
             if parameter in ['EclipticLatitude']:
                 pGBs[parameter] = np.arcsin((pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
             elif parameter in ['Inclination']:
@@ -341,7 +343,12 @@ def sampler(number_of_samples,parameters,pGB,boundaries,p1, uniform=False, MCMC=
         # elif True:  # L^i/L^j
             p1 = p_test
             for parameter in parameters:
-                samples[parameter].append(pGBs01[parameter])
+                if parameter in ['EclipticLatitude']:
+                    samples[parameter].append(pGBs[parameter]/(2*np.pi)+0.5)
+                elif parameter in ['Inclination']:
+                    samples[parameter].append(pGBs[parameter]/(2*np.pi))
+                else:
+                    samples[parameter].append(pGBs01[parameter])
             samples['Likelihood'].append(p1)
     print('sampler time',time.time()- start)
     for parameter in parameters:
@@ -364,18 +371,16 @@ class ExactGPModel(gpytorch.models.ExactGP, GPyTorchModel):
     _num_outputs = 1  # to inform GPyTorchModel API
     def __init__(self, train_x, train_y, likelihood):
         super(ExactGPModel, self).__init__(train_x, train_y, likelihood)
-        self.mean_module = gpytorch.means.ZeroMean()
+        self.mean_module = gpytorch.means.ConstantMean()
         kernelA = gpytorch.kernels.RBFKernel(active_dims=(0))
         kernelLat = gpytorch.kernels.PeriodicKernel(active_dims=torch.tensor([1]))
         kernelLong = gpytorch.kernels.PeriodicKernel(active_dims=torch.tensor([2]))
         kernelF = gpytorch.kernels.RBFKernel(active_dims=(3))
         kernelFD = gpytorch.kernels.RBFKernel(active_dims=(4))
         kernelI = gpytorch.kernels.RBFKernel(active_dims=(5))
-        # kernelIP = gpytorch.kernels.PeriodicKernel(active_dims=torch.tensor([6]))
-        kernelIP = gpytorch.kernels.CosineKernel(active_dims=torch.tensor([6]))*gpytorch.kernels.CosineKernel(active_dims=torch.tensor([6]))
-        # kernelP = gpytorch.kernels.PeriodicKernel(active_dims=torch.tensor([7]))
-        kernelP = gpytorch.kernels.CosineKernel(active_dims=torch.tensor([7]))*gpytorch.kernels.CosineKernel(active_dims=torch.tensor([7]))
-        # kernel = kernelA + kernelLat + kernelLong + kernelF + kernelFD + kernelI + kernelIP + kernelP
+        kernelIP = gpytorch.kernels.ScaleKernel(gpytorch.kernels.CosineKernel(active_dims=torch.tensor([6]))*gpytorch.kernels.CosineKernel(active_dims=torch.tensor([6])))
+        kernelP = gpytorch.kernels.ScaleKernel(gpytorch.kernels.CosineKernel(active_dims=torch.tensor([7]))*gpytorch.kernels.CosineKernel(active_dims=torch.tensor([7])))
+        kernel = kernelA + kernelLat + kernelLong + kernelF + kernelFD + kernelI + kernelIP + kernelP
         kernel = kernelA * kernelLat * kernelLong * kernelF * kernelFD * kernelI * kernelIP * kernelP
         self.covar_module = gpytorch.kernels.ScaleKernel(kernel)
         self.to(train_x)  # make sure we're on the right device/dtype
@@ -423,8 +428,8 @@ test_y[parameter] = test_samples['Likelihood']
 test_x[parameter] = torch.from_numpy(test_x[parameter]).float()
 test_x[parameter] = test_x[parameter].cuda()
 test_y[parameter] = torch.from_numpy(test_y[parameter]).float()
-number_of_test_samples2d = 5**2
-parameter2 = 'Frequency'
+number_of_test_samples2d = 25**2
+parameter2 = 'Polarization'
 for parameter in parameters:
     if parameter != parameter2:
         test_samples = sampler(number_of_test_samples2d,parameters,pGB,boundaries,p1, uniform= True, twoD = True, onlyparameter=parameter, secondparameter=parameter2)
@@ -458,21 +463,22 @@ for bo_iter in range(bo_iterations):
     }
     model.initialize(**hypers)
     # Polarization
-    model.covar_module.base_kernel.kernels[1].kernels[0].period_length = torch.tensor([[2.0]]).cuda()
-    list(model.covar_module.base_kernel.kernels[1].kernels[0].parameters())[0].requires_grad=False
-    model.covar_module.base_kernel.kernels[1].kernels[1].period_length = torch.tensor([[2.0]]).cuda()
-    list(model.covar_module.base_kernel.kernels[1].kernels[1].parameters())[0].requires_grad=False
+    model.covar_module.base_kernel.kernels[1].outputscale = torch.tensor([[1.0]]).cuda()
+    list(model.covar_module.base_kernel.kernels[1].parameters())[0].requires_grad=False
+    model.covar_module.base_kernel.kernels[1].base_kernel.kernels[0].period_length = torch.tensor([[2.0]]).cuda()
+    list(model.covar_module.base_kernel.kernels[1].base_kernel.kernels[0].parameters())[0].requires_grad=False
+    model.covar_module.base_kernel.kernels[1].base_kernel.kernels[1].period_length = torch.tensor([[2.0]]).cuda()
+    list(model.covar_module.base_kernel.kernels[1].base_kernel.kernels[1].parameters())[0].requires_grad=False
     # InitialPhase
-    model.covar_module.base_kernel.kernels[0].kernels[1].kernels[0].period_length = torch.tensor([[1.0]]).cuda()
-    list(model.covar_module.base_kernel.kernels[0].kernels[1].kernels[0].parameters())[0].requires_grad=False
-    model.covar_module.base_kernel.kernels[0].kernels[1].kernels[1].period_length = torch.tensor([[1.0]]).cuda()
-    list(model.covar_module.base_kernel.kernels[0].kernels[1].kernels[1].parameters())[0].requires_grad=False
-    # # Polarization
-    # model.covar_module.base_kernel.kernels[1].period_length = torch.tensor([[1.0]]).cuda()
-    # list(model.covar_module.base_kernel.kernels[1].parameters())[1].requires_grad=False
-    # # InitialPhase
-    # model.covar_module.base_kernel.kernels[0].kernels[1].period_length = torch.tensor([[1.0]]).cuda()
-    # list(model.covar_module.base_kernel.kernels[0].kernels[1].parameters())[1].requires_grad=False
+    model.covar_module.base_kernel.kernels[0].kernels[1].outputscale = torch.tensor([[1.0]]).cuda()
+    list(model.covar_module.base_kernel.kernels[0].kernels[1].parameters())[0].requires_grad=False
+    model.covar_module.base_kernel.kernels[0].kernels[1].base_kernel.kernels[0].period_length = torch.tensor([[1.0]]).cuda()
+    list(model.covar_module.base_kernel.kernels[0].kernels[1].base_kernel.kernels[0].parameters())[0].requires_grad=False
+    model.covar_module.base_kernel.kernels[0].kernels[1].base_kernel.kernels[1].period_length = torch.tensor([[1.0]]).cuda()
+    list(model.covar_module.base_kernel.kernels[0].kernels[1].base_kernel.kernels[1].parameters())[0].requires_grad=False
+    # Inclination
+    model.covar_module.base_kernel.kernels[0].kernels[0].kernels[1].lengthscale = torch.tensor([[2.0]]).cuda()
+    list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[1].parameters())[0].requires_grad=False
     # Frequency
     model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].lengthscale = torch.tensor([[0.066]]).cuda()
     list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].parameters())[0].requires_grad=False
@@ -537,7 +543,6 @@ for bo_iter in range(bo_iterations):
     mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
 
     for i in range(training_iter):
-        torch.cuda.empty_cache()
         # Zero gradients from previous iteration
         optimizer.zero_grad()
         # Output from model
@@ -549,7 +554,7 @@ for bo_iter in range(bo_iterations):
         # i + 1, training_iter, loss.item(),
         # model.likelihood.noise.item()
         # ))
-        print('Iter %d/%d - Loss: %.3f   Al: %.3f Lal: %.3f Lap: %.3f  Lol: %.3f Lop: %.3f  Fl: %.3f  FDl: %.3f  Il: %.3f  IPp: %.3f Pp: %.3f   noise: %.3f' % (
+        print('Iter %d/%d - Loss: %.3f   Al: %.3f Lal: %.3f Lap: %.3f  Lol: %.3f Lop: %.3f  Fl: %.3f  FDl: %.3f  Il: %.3f   IPo: %.3f IPp: %.3f  Po: %.3f   Pp: %.3f   noise: %.3f' % (
             i + 1, training_iter, loss.item(),
             model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].lengthscale.item(),
             model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].lengthscale.item(),
@@ -559,8 +564,10 @@ for bo_iter in range(bo_iterations):
             model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].lengthscale.item(),
             model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[1].lengthscale.item(),
             model.covar_module.base_kernel.kernels[0].kernels[0].kernels[1].lengthscale.item(),
-            model.covar_module.base_kernel.kernels[0].kernels[1].kernels[0].period_length.item(),
-            model.covar_module.base_kernel.kernels[1].kernels[0].period_length.item(),
+            model.covar_module.base_kernel.kernels[0].kernels[1].outputscale.item(),
+            model.covar_module.base_kernel.kernels[0].kernels[1].base_kernel.kernels[0].period_length.item(),
+            model.covar_module.base_kernel.kernels[1].outputscale.item(),
+            model.covar_module.base_kernel.kernels[1].base_kernel.kernels[0].period_length.item(),
             model.likelihood.noise.item()
         ))
         optimizer.step()
