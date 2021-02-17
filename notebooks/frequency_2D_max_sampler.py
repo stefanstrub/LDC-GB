@@ -176,7 +176,7 @@ def loglikelihood(pGBs):
 n_bin = 50
 # Total number of proposed samples.
 number_of_samples = 8*10 **1
-cutoff_ratio = 1000
+cutoff_ratio = 2000
 
 parameters = ['Amplitude','EclipticLatitude','EclipticLongitude','Frequency','FrequencyDerivative','Inclination','InitialPhase','Polarization']
 parametersfd = ['Amplitude','EclipticLatitude','EclipticLongitude','Frequency','Inclination','InitialPhase','Polarization']
@@ -191,19 +191,19 @@ boundaries = {'Amplitude': [10**-22.0, 5*10**-21.0],'EclipticLatitude': [-1.0, 1
 # previous_max = [0.4000, 0.3667, 0.6667, 0.5276, 0.7168, 0.8667, 0.0970, 0.0000]
 # previous_max = [0.4000, 0.3667, 0.6667, 0.5276, 0.7667, 0.8667, 0.0970, 0.0000]
 # previous_max = [0.2333, 0.3667, 0.6667, 0.5276, 0.9667, 0.8667, 0.0970, 0.0000]
-previous_max = [0.333,0.54,0.134,0.7345,0.6456,0.2645,0.8216,0.000]
-i = 0
-for parameter in parameters:
-    if parameter in ['FrequencyDerivative']:
-        i -= 1
-    elif parameter in ['EclipticLatitude']:
-        pGB[parameter] = np.arcsin((previous_max[i]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
-    elif parameter in ['Inclination']:
-        pGB[parameter] = np.arccos((previous_max[i]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
-    else:
-        pGB[parameter] = (previous_max[i]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0]
-        print(parameter, pGB[parameter],previous_max[i])
-    i += 1
+# previous_max = [0.333,0.54,0.134,0.7345,0.6456,0.2645,0.8216,0.000]
+# i = 0
+# for parameter in parameters:
+#     if parameter in ['FrequencyDerivative']:
+#         i -= 1
+#     elif parameter in ['EclipticLatitude']:
+#         pGB[parameter] = np.arcsin((previous_max[i]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
+#     elif parameter in ['Inclination']:
+#         pGB[parameter] = np.arccos((previous_max[i]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
+#     else:
+#         pGB[parameter] = (previous_max[i]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0]
+#         print(parameter, pGB[parameter],previous_max[i])
+#     i += 1
 
 # print(pGB)
 # pGB['EclipticLatitude'] = 0.0
@@ -227,7 +227,7 @@ dataX = tdi_fs["X"].isel(f=slice(Xs.kmin, Xs.kmin+len(Xs)))[highSNR]
 dataY = tdi_fs["Y"].isel(f=slice(Ys.kmin, Ys.kmin+len(Ys)))[highSNR]
 dataZ = tdi_fs["Z"].isel(f=slice(Zs.kmin, Zs.kmin+len(Zs)))[highSNR]
 spd_data = np.abs(dataX)**2 + np.abs(dataY)**2 + np.abs(dataZ)**2
-noise = (np.mean(spd_data[:2])+np.mean(spd_data[-3:])).values/2
+noise = (np.mean(spd_data[:4])+np.mean(spd_data[-4:])).values/2
 Xs, Ys, Zs = Xs[highSNR], Ys[highSNR], Zs[highSNR]
 fmin, fmax = float(Xs.f[0]) , float(Xs.f[-1]+Xs.attrs['df'])
 freq = np.array(Xs.sel(f=slice(fmin, fmax)).f)
@@ -297,7 +297,7 @@ ax6=plt.subplot(236)
 ax6.plot(dataZ.f*1000,dataZ.values.imag, label='binary')
 ax6.plot(Zs.f*1000, Zs.values.imag, label='start')
 print('p1',p1)
-
+plt.show()
 def sampler(number_of_samples,parameters,pGB,boundaries,p1, uniform=False, MCMC=False, only=False, onlyparameter='Frequency', twoD=False, secondparameter='Amplitude'):
     samples = xr.Dataset(dict([(name,xr.DataArray(np.zeros(number_of_samples), dims=('number_of_sample'), coords={"number_of_sample": range(number_of_samples)},
                          )) for name, titles in pGB.items()]))
@@ -514,15 +514,11 @@ for i in range(40):
     if i > 11:
         plane = 'Frequency'
         resolution = 30**2
-    parameter1 = parametersfd[random.randint(0,6)]
-    plane = parametersfd[random.randint(0,6)]
-    plane = 'InitialPhase'
-    while plane == parameter1:
         plane = parametersfd[random.randint(0,6)]
-    parametersreduced = [parameter1]
+    parametersreduced = parametersfd
     previous_max, max_loglike = planemaxsearch(maxpGB,parametersreduced,plane,resolution)
     maxpGB = scaletooriginal(previous_max,boundaries)
-    # plotplanes(parametersreduced,plane)
+    plotplanes(parametersreduced,plane)
     print(i,max_loglike,maxpGB)
     print(previous_max)
 
