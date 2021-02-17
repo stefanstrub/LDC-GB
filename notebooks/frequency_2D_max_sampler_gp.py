@@ -183,14 +183,15 @@ boundaries = {'Amplitude': [10**-22.0, 5*10**-21.0],'EclipticLatitude': [-1.0, 1
 'EclipticLongitude': [0.0, 2.0*np.pi],'Frequency': [0.0004725, 0.0004727],'FrequencyDerivative': [10**-20.0, 10**-18.0],
 'Inclination': [-1.0, 1.0],'InitialPhase': [0.0, 2.0*np.pi],'Polarization': [0.0, 1.0*np.pi]}
 
-# previous_max = [0.2090, 0.1000, 0.8469, 0.5276, 0.7168, 0.9667, 0.0970, 0.0000]
+previous_max = [0.2090, 0.1000, 0.8469, 0.5276, 0.7168, 0.9667, 0.0970, 0.0000]
 # previous_max = [0.2090, 0.2667, 0.7333, 0.5276, 0.7168, 0.9667, 0.0970, 0.0000]
 # previous_max = [0.2090, 0.3333, 0.7333, 0.5276, 0.7168, 0.8667, 0.0970, 0.0000]
 # previous_max = [0.2090, 0.3667, 0.6667, 0.5276, 0.7168, 0.8667, 0.0970, 0.0000]
 # previous_max = [0.4000, 0.3667, 0.6667, 0.5276, 0.7168, 0.8667, 0.0970, 0.0000]
 # previous_max = [0.4000, 0.3667, 0.6667, 0.5276, 0.7667, 0.8667, 0.0970, 0.0000]
 # previous_max = [0.2333, 0.3667, 0.6667, 0.5276, 0.9667, 0.8667, 0.0970, 0.0000]
-previous_max = [0.333,0.54,0.134,0.7345,0.6456,0.2645,0.8216,0.000]
+# previous_max = [0.333,0.54,0.134,0.7345,0.6456,0.2645,0.8216,0.000]
+previous_max = [0.2090, 0.1000, 0.8469, 0.3276, 0.7168, 0.9667, 0.0970, 0.0000]
 i = 0
 for parameter in parameters:
     if parameter in ['FrequencyDerivative']:
@@ -222,12 +223,14 @@ pGBs = deepcopy(pGB)
 Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs, oversample=4, simulator='synthlisa')
 psd_signal = np.abs(Xs.values)**2 + np.abs(Ys.values)**2 + np.abs(Zs.values)**2
 highSNR = psd_signal > np.max(psd_signal)/cutoff_ratio
-dataX = tdi_fs["X"].isel(f=slice(Xs.kmin, Xs.kmin+len(Xs)))[highSNR]
-dataY = tdi_fs["Y"].isel(f=slice(Ys.kmin, Ys.kmin+len(Ys)))[highSNR]
-dataZ = tdi_fs["Z"].isel(f=slice(Zs.kmin, Zs.kmin+len(Zs)))[highSNR]
+lowerindex = np.where(highSNR)[0][0]-10
+higherindex = np.where(highSNR)[0][-1]+10
+dataX = tdi_fs["X"].isel(f=slice(Xs.kmin, Xs.kmin+len(Xs)))[lowerindex:higherindex]
+dataY = tdi_fs["Y"].isel(f=slice(Ys.kmin, Ys.kmin+len(Ys)))[lowerindex:higherindex]
+dataZ = tdi_fs["Z"].isel(f=slice(Zs.kmin, Zs.kmin+len(Zs)))[lowerindex:higherindex]
 spd_data = np.abs(dataX)**2 + np.abs(dataY)**2 + np.abs(dataZ)**2
-noise = (np.mean(spd_data[:2])+np.mean(spd_data[-3:])).values/2
-Xs, Ys, Zs = Xs[highSNR], Ys[highSNR], Zs[highSNR]
+noise = (np.mean(spd_data[:5])+np.mean(spd_data[-5:])).values/2
+Xs, Ys, Zs = Xs[lowerindex:higherindex], Ys[lowerindex:higherindex], Zs[lowerindex:higherindex]
 fmin, fmax = float(Xs.f[0]) , float(Xs.f[-1]+Xs.attrs['df'])
 freq = np.array(Xs.sel(f=slice(fmin, fmax)).f)
 Sn = Nmodel.psd(freq=freq, option='X')
@@ -297,7 +300,7 @@ ax6.plot(dataZ.f*1000,dataZ.values.imag, label='binary')
 ax6.plot(Zs.f*1000, Zs.values.imag, label='start')
 print('p1',p1)
 
-def sampler(number_of_samples,parameters,pGB,boundaries,p1, uniform=False, MCMC=False, only=False, onlyparameter='Frequency', twoD=False, secondparameter='Amplitude'):
+def sampler(number_of_samples,parameters,pGB,boundaries,p1, uniform=False, MCMC=False, only=False, onlyparameter='Frequency', twoD=False, secondparameter='Amplitude', calculate_loglikelihood=True):
     samples = xr.Dataset(dict([(name,xr.DataArray(np.zeros(number_of_samples), dims=('number_of_sample'), coords={"number_of_sample": range(number_of_samples)},
                          )) for name, titles in pGB.items()]))
     samples = {}
@@ -362,12 +365,11 @@ def sampler(number_of_samples,parameters,pGB,boundaries,p1, uniform=False, MCMC=
                 pGBs[parameter] = np.arccos((pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
             else:
                 pGBs[parameter] = (pGBs01[parameter]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0]
-        p_test = loglikelihood(pGBs)
-        p1 = p_test
-        s = 1/p1
+        if calculate_loglikelihood:
+            p1 = loglikelihood(pGBs)
+            samples['Likelihood'].append(p1)
         for parameter in parameters:
             samples[parameter].append(pGBs01[parameter])
-        samples['Likelihood'].append(p1)
     print('sampler time',time.time()- start)
     for parameter in parameters:
         samples[parameter] = np.asarray(samples[parameter])
@@ -385,8 +387,8 @@ class ExactGPModel(gpytorch.models.ExactGP, GPyTorchModel):
         super(ExactGPModel, self).__init__(train_x, train_y, likelihood)
         self.mean_module = gpytorch.means.ConstantMean()
         kernelA = gpytorch.kernels.RBFKernel(active_dims=(0),lengthscale_constraint=gpytorch.constraints.GreaterThan(0.2))
-        kernelLat = gpytorch.kernels.PeriodicKernel(active_dims=torch.tensor([1]))
-        kernelLong = gpytorch.kernels.PeriodicKernel(active_dims=torch.tensor([2]))
+        kernelLat = gpytorch.kernels.PeriodicKernel(active_dims=torch.tensor([1]),lengthscale_constraint=gpytorch.constraints.GreaterThan(0.8))
+        kernelLong = gpytorch.kernels.PeriodicKernel(active_dims=torch.tensor([2]),lengthscale_constraint=gpytorch.constraints.GreaterThan(0.8))
         kernelF = gpytorch.kernels.RBFKernel(active_dims=(3),lengthscale_constraint=gpytorch.constraints.Interval(0.06,0.1))
         # kernelFD = gpytorch.kernels.RBFKernel(active_dims=(4))
         kernelI = gpytorch.kernels.PolynomialKernel(power= 2,active_dims=(4))
@@ -396,8 +398,9 @@ class ExactGPModel(gpytorch.models.ExactGP, GPyTorchModel):
         # kernelP = gpytorch.kernels.CosineKernel(active_dims=torch.tensor([6]))*gpytorch.kernels.CosineKernel(active_dims=torch.tensor([6]))
         kernelP = gpytorch.kernels.ScaleKernel(gpytorch.kernels.CosineKernel(active_dims=torch.tensor([6]),period_length_constraint=gpytorch.constraints.Interval(0.249,0.251)), outputscale_constraint=gpytorch.constraints.Interval(0.9,1.1))
         # kernel = kernelA + kernelLat + kernelLong + kernelF + kernelFD + kernelI + kernelIP + kernelP
-        # kernel = kernelA * kernelLat * kernelLong * kernelF * kernelI * kernelIP * kernelP
-        self.covar_module = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel(ard_num_dims=8))
+        kernel = kernelA * kernelLat * kernelLong * kernelF * kernelI * kernelIP * kernelP
+        # self.covar_module = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel(ard_num_dims=8))
+        self.covar_module = gpytorch.kernels.ScaleKernel(kernel)
         self.to(train_x)  # make sure we're on the right device/dtype
   
     def forward(self, x):
@@ -405,17 +408,6 @@ class ExactGPModel(gpytorch.models.ExactGP, GPyTorchModel):
         covar_x = self.covar_module(x)
         return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
 
-
-train_x = np.zeros((len(samples['Amplitude'])-1,len(parameters)))
-i = 0
-for name in parametersfd:
-    train_x[:,i] = samples[name][1:]
-    i +=1
-nu = np.mean(samples['Likelihood'][1:])
-sigma = np.std(samples['Likelihood'][1:])
-train_y = (samples['Likelihood'][1:]-nu)/sigma
-train_x = torch.from_numpy(train_x).float()
-train_y = torch.from_numpy(train_y).float()
 
 number_of_test_samples = 20
 test_x = {}
@@ -432,23 +424,15 @@ for parameter in parametersfd:
     test_x[parameter] = test_x[parameter]
     test_y[parameter] = torch.from_numpy(test_y[parameter]).float()
 
-# test_samples = sampler(number_of_test_samples,parameters,pGB,boundaries,p1)
-# parameter = 'random'
-# test_x[parameter] = np.zeros((number_of_test_samples,len(parameters)))
-# i = 0
-# for name in parametersfd:
-#     test_x[parameter][:,i] = test_samples[name]
-#     i +=1
-# test_y[parameter] = test_samples['Likelihood']
-# test_x[parameter] = torch.from_numpy(test_x[parameter]).float()
-# test_x[parameter] = test_x[parameter]
-# test_y[parameter] = torch.from_numpy(test_y[parameter]).float()
-
-def planemaxsearch(maxpGB,parameterstocheck, parameter2, resolution):
+def planemaxsearch(maxpGB,parameterstocheck, parameter2, resolution, boundaries):
     for parameter in parameterstocheck:
         # if parameter != parameter2:
-        train_samples = sampler(resolution,parameters,maxpGB,boundaries,p1, uniform= False, twoD = True, onlyparameter=parameter, secondparameter=parameter2)
-        train_x = np.zeros((resolution,len(parameters)))
+        resolution_reduced = int(20**2)
+        if 'Frequency' in [parameter,parameter2]:
+            resolution_reduced = int(20**2)
+        resolution_reduced = resolution
+        train_samples = sampler(resolution_reduced,parameters,maxpGB,boundaries,p1, uniform= True, twoD = True, onlyparameter=parameter, secondparameter=parameter2)
+        train_x = np.zeros((resolution_reduced,len(parameters)))
         i = 0
         for name in parametersfd:
             train_x[:,i] = train_samples[name]
@@ -458,43 +442,44 @@ def planemaxsearch(maxpGB,parameterstocheck, parameter2, resolution):
         train_y = torch.from_numpy(train_y).float()
     for parameter in parameterstocheck:
         # if parameter != parameter2:
-        test_samples = sampler(resolution,parameters,maxpGB,boundaries,p1, uniform= True, twoD = True, onlyparameter=parameter, secondparameter=parameter2)
+        test_samples = sampler(resolution,parameters,maxpGB,boundaries,p1, uniform= True, twoD = True, onlyparameter=parameter, secondparameter=parameter2, calculate_loglikelihood=False)
         test_x[parameter+parameter2] = np.zeros((resolution,len(parameters)))
         i = 0
         for name in parametersfd:
             test_x[parameter+parameter2][:,i] = test_samples[name]
             i +=1
-        test_y[parameter+parameter2] = test_samples['Likelihood']
+        # test_y[parameter+parameter2] = test_samples['Likelihood']
         test_x[parameter+parameter2] = torch.from_numpy(test_x[parameter+parameter2]).float()
-        test_y[parameter+parameter2] = torch.from_numpy(test_y[parameter+parameter2]).float()
-
-    kernel = gpytorch.kernels.RBFKernel(ard_num_dims=2)
+        # test_y[parameter+parameter2] = torch.from_numpy(test_y[parameter+parameter2]).float()
     
-    nu = np.mean(train_y.numpy())
-    sigma = np.std(train_y.numpy())
-    train_y = (train_y-nu)/sigma
-    model, likelihood = traingpmodel(train_x,train_y, kernel)
-    model.eval()
-    likelihood.eval()
-    observed_pred = {}
-    with torch.no_grad(), gpytorch.settings.fast_pred_var():
-        observed_pred[parameter+parameter2] = likelihood(model(test_x[parameter+parameter2]))
-        observed_pred_print = (observed_pred[parameter+parameter2].mean*sigma)+nu
-    print('sqrt(MSE) ',parameter+parameter2, np.sqrt(mean_squared_error(test_y[parameter+parameter2].numpy(),observed_pred_print.numpy())))
+    # kernel = gpytorch.kernels.RBFKernel(ard_num_dims=2)
+    
+    # nu = np.mean(train_y.numpy())
+    # sigma = np.std(train_y.numpy())
+    # train_y = (train_y-nu)/sigma
+    # model, likelihood = traingpmodel(train_x,train_y, kernel, sigma, nu)
+    # model.eval()
+    # likelihood.eval()
+    # observed_pred = {}
+    # observed_pred_mean = {}
+    # with torch.no_grad(), gpytorch.settings.fast_pred_var():
+    #     observed_pred[parameter+parameter2] = likelihood(model(test_x[parameter+parameter2]))
+    #     observed_pred_mean[parameter+parameter2] = (observed_pred[parameter+parameter2].mean*sigma)+nu
+    # print('sqrt(MSE) ',parameter+parameter2, np.sqrt(mean_squared_error(test_y[parameter+parameter2].numpy(),observed_pred_mean[parameter+parameter2].numpy())))
 
     flatsamples = np.zeros((len(parameterstocheck),resolution))
     flatsamplesparameters = []
     i = 0
     for parameter in parameterstocheck:
         if parameter != parameter2:
-            flatsamples[i,:] = test_y[parameter+parameter2].numpy()
-            flatsamplesparameters.append(test_x[parameter+parameter2].numpy())
+            flatsamples[i,:] = train_y.numpy()
+            # flatsamples[i,:] = observed_pred_mean[parameter+parameter2].numpy()
+            flatsamplesparameters.append(train_x.numpy())
             i+=1
     maxindx = np.unravel_index(flatsamples.argmax(), flatsamples.shape)
     max_parameters = flatsamplesparameters[maxindx[0]][maxindx[1]]
     max_loglike = flatsamples.max()
-    return max_parameters, max_loglike
-
+    return max_parameters, max_loglike, train_x
 
 def scaletooriginal(previous_max,boundaries):
     i = 0
@@ -510,7 +495,8 @@ def scaletooriginal(previous_max,boundaries):
             maxpGB[parameter] = (previous_max[i]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0]
         i += 1
     return maxpGB
-def plotplanes(parameterstocheck,parameter2):
+
+def plotplanes(parameterstocheck,parameter2, plot_x, plot_y):
     fig, ax = plt.subplots(2, 4,figsize=(15,15))
     plt.suptitle("loglikelihood true")
     i = 0    
@@ -522,7 +508,7 @@ def plotplanes(parameterstocheck,parameter2):
             with torch.no_grad():
                 ax[j,i%4].axvline(x=previous_max[parametersfd.index(parameter)], color='k')
                 ax[j,i%4].axhline(y=previous_max[parametersfd.index(parameter2)], color='k')
-                im = ax[j,i%4].scatter(test_x[parameter+parameter2].numpy()[:,parametersfd.index(parameter)],test_x[parameter+parameter2].numpy()[:,parametersfd.index(parameter2)],c=test_y[parameter+parameter2].numpy()[:])
+                im = ax[j,i%4].scatter(plot_x[parameter+parameter2].numpy()[:,parametersfd.index(parameter)],plot_x[parameter+parameter2].numpy()[:,parametersfd.index(parameter2)],c=plot_y[parameter+parameter2].numpy()[:])
                 ax[j,i%4].set_xlabel(parameter)
                 ax[j,i%4].set_ylabel(parameter2)
                 fig.colorbar(im, ax=ax[j,i%4])
@@ -533,21 +519,41 @@ def plotplanes(parameterstocheck,parameter2):
 
 
 
-train_x = train_x
-train_y = train_y
-def traingpmodel(train_x,train_y,kernel):
-    bo_iterations = 2
+def traingpmodel(train_x,train_y,kernel, sigma, nu):
+    bo_iterations = 1
     for bo_iter in range(bo_iterations):
         # initialize likelihood and model
         likelihood = gpytorch.likelihoods.GaussianLikelihood()
         model = ExactGPModel(train_x, train_y, likelihood, kernel)
 
-        training_iter = 50
+        training_iter = 1
 
         hypers = {
             'likelihood.noise': torch.tensor(0.0001),
         }
         model.initialize(**hypers)
+        # Polarization
+        model.covar_module.base_kernel.kernels[1].outputscale = torch.tensor([[1.0]])
+        list(model.covar_module.base_kernel.kernels[1].parameters())[0].requires_grad=False
+        model.covar_module.base_kernel.kernels[1].base_kernel.period_length = torch.tensor([[0.25]])
+        list(model.covar_module.base_kernel.kernels[1].base_kernel.parameters())[0].requires_grad=False
+        # InitialPhase
+        # model.covar_module.base_kernel.kernels[0].kernels[1].kernels[0].period_length = torch.tensor([[1.0]])
+        # list(model.covar_module.base_kernel.kernels[0].kernels[1].kernels[0].parameters())[0].requires_grad=False
+        # model.covar_module.base_kernel.kernels[0].kernels[1].kernels[1].period_length = torch.tensor([[1.0]])
+        # list(model.covar_module.base_kernel.kernels[0].kernels[1].kernels[1].parameters())[0].requires_grad=False
+        # Frequency
+        model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[1].lengthscale = torch.tensor([[0.066]])
+        list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[1].parameters())[0].requires_grad=False
+        # # Longitude
+        model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].period_length = torch.tensor([[1.5]])
+        # list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].parameters())[1].requires_grad=False
+        # Latitude
+        model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].period_length = torch.tensor([[2.0]])
+        list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].parameters())[1].requires_grad=False
+        # Amplitude
+        model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].lengthscale = torch.tensor([[0.4]])
+        list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].parameters())[0].requires_grad=False
 
         # Find optimal model hyperparameters
         model.train()
@@ -556,7 +562,7 @@ def traingpmodel(train_x,train_y,kernel):
         # Use the adam optimizer
         optimizer = torch.optim.Adam([
             {"params": model.mean_module.parameters()},
-            {"params": model.covar_module.parameters()},
+            # {"params": model.covar_module.parameters()},
         ], lr=0.1)  # Includes GaussianLikelihood parameters
         # optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
 
@@ -572,19 +578,34 @@ def traingpmodel(train_x,train_y,kernel):
             # Calc loss and backprop gradients
             loss = -mll(output, train_y)
             loss.backward()
-            print('Iter %d/%d - Loss: %.3f     noise: %.3f' % (
+            # print('Iter %d/%d - Loss: %.3f      noise: %.3f' % (
+            # i + 1, training_iter, loss.item(),
+            # model.likelihood.noise.item(),
+            # ))
+            print('Iter %d/%d - Loss: %.3f   Al: %.3f  Lal: %.3f Lap: %.3f  Lol: %.3f Lop: %.3f  Fl: %.3f  Il: %.3f  IPp: %.3f Po: %.3f  Pp: %.3f   out: %.3f' % (
             i + 1, training_iter, loss.item(),
-            model.likelihood.noise.item()
+            model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].lengthscale.item(),
+            model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].lengthscale.item(),
+            model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].period_length.item(),
+            model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].lengthscale.item(),
+            model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].period_length.item(),
+            model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[1].lengthscale.item(),
+            model.covar_module.base_kernel.kernels[0].kernels[0].kernels[1].offset.item(),
+            model.covar_module.base_kernel.kernels[0].kernels[1].base_kernel.period_length.item(),
+            model.covar_module.base_kernel.kernels[1].outputscale.item(),
+            model.covar_module.base_kernel.kernels[1].base_kernel.period_length.item(),
+            # model.mean_module.constant.item(),
+            model.covar_module.outputscale.item()
             ))
             optimizer.step()
 
         best_value = train_y.max()
-        print('best value',bo_iter, (best_value*sigma)+nu, )
+        print('best value',bo_iter, (best_value*sigma)+nu, train_x[train_y.argmax()])
         best_value = best_value
         if bo_iter < bo_iterations-1:
             qEI = qExpectedImprovement(model=model, best_f=best_value)
             qUCB = qUpperConfidenceBound(model=model, beta=1)
-            candidates = 200
+            candidates = 10
             new_point_analytic, _ = optimize_acqf(
                 acq_function=qUCB,
                 bounds=torch.tensor([[0.0] * 8, [1.0] * 8]),
@@ -614,7 +635,9 @@ def traingpmodel(train_x,train_y,kernel):
     return model, likelihood
 
 maxpGB = deepcopy(pGB)
-for i in range(40):
+notreduced = True
+boundaries_reduced = deepcopy(boundaries)
+for i in range(100):
     resolution = 21**2
     parameter2 = 'Polarization'
     if i > 3:
@@ -626,17 +649,36 @@ for i in range(40):
     if i > 11:
         parameter2 = 'Frequency'
         resolution = 30**2
-    parameter1 = parametersfd[np.random.randint(0,6)]
+    resolution = 15**2
+    parameter1 = parametersfd[i%7]
     parameter2 = parametersfd[np.random.randint(0,6)]
-    parameter2 = 'InitialPhase'
+    # parameter2 = 'InitialPhase'
+    # parameter1 = 'Inclination'
     while parameter2 == parameter1:
         parameter2 = parametersfd[np.random.randint(0,6)]
     parametersreduced = [parameter1]
-    previous_max, max_loglike = planemaxsearch(maxpGB,parametersreduced,parameter2,resolution)
+    previous_max, max_loglike, observed_pred = planemaxsearch(maxpGB,parametersreduced,parameter2,resolution, boundaries_reduced)
     maxpGB = scaletooriginal(previous_max,boundaries)
-    # plotplanes(parametersreduced,parameter2)
-    
-    print(i,max_loglike,maxpGB)
+    real_loglike = loglikelihood(maxpGB)
+    # plotplanes(parametersreduced,parameter2, test_x, test_y)
+    # plotplanes(parametersreduced,parameter2, test_x, observed_pred)
+    if real_loglike > -0.9 and notreduced:
+        notreduced = False
+        ratio = 20
+        for parameter in parameters:
+            length = boundaries[parameter][1]-boundaries[parameter][0]
+            if parameter == 'EclipticLatitude':
+                boundaries_reduced[parameter] = [np.sin(maxpGB[parameter])-length/ratio, np.sin(maxpGB[parameter])+length/ratio] 
+            elif parameter == 'Inclination':
+                boundaries_reduced[parameter] = [np.cos(maxpGB[parameter])-length/ratio, np.cos(maxpGB[parameter])+length/ratio] 
+            else:
+                boundaries_reduced[parameter] = [maxpGB[parameter]-length/ratio, maxpGB[parameter]+length/ratio] 
+            if boundaries_reduced[parameter][0] <  boundaries[parameter][0]:
+                boundaries_reduced[parameter][0] =  boundaries[parameter][0]
+            if boundaries_reduced[parameter][1] >  boundaries[parameter][1]:
+                boundaries_reduced[parameter][1] =  boundaries[parameter][1]
+        boundaries = boundaries_reduced
+    print(i,max_loglike, real_loglike, maxpGB)
     print(previous_max)
 
 
