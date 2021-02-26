@@ -25,6 +25,7 @@ from botorch.models.gpytorch import GPyTorchModel
 from botorch.acquisition.monte_carlo import qExpectedImprovement, qUpperConfidenceBound
 from botorch.optim import optimize_acqf
 
+import optuna
 
 
 # use a GPU if available
@@ -49,53 +50,14 @@ tdi_ts = xr.Dataset(dict([(k,TimeSeries(tdi_ts[k], dt=dt)) for k in ["X", "Y", "
 # tdi_ts = xr.Dataset(dict([(k,TimeSeries(tdi_ts[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
 tdi_fs = xr.Dataset(dict([(k,tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 
-# tdi_ts_training, tdi_descr_training = hdfio.load_array(sangria_fn_training, name="obs/tdi")
-# tdi_ts_training = xr.Dataset(dict([(k,TimeSeries(tdi_ts_training[k], dt=dt)) for k in ["X", "Y", "Z"]]))
-# tdi_fs_training = xr.Dataset(dict([(k,tdi_ts_training[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
-
-
 noise_model = "MRDv1"
 Nmodel = get_noise_model(noise_model, np.logspace(-5, -1, 100))
 Npsd = Nmodel.psd()
-# plt.figure(figsize=(12,6))
-# plt.subplot(131)
-# f, psdX =  scipy.signal.welch(tdi_ts["X"], fs=1.0/dt, window='hanning', nperseg=256*256)
-# plt.loglog(f, np.sqrt(psdX), label="TDI X")
-# plt.loglog(Nmodel.freq, np.sqrt(Npsd), label=noise_model, alpha=2)
-# plt.legend()
-# plt.xlabel("freq [Hz]")
-# plt.ylabel("PSD")
-# plt.axis([1e-5, None, 4e-22, 2e-19])
-# plt.subplot(132)
-# f, psdX =  scipy.signal.welch(tdi_ts["Y"], fs=1.0/dt, window='hanning', nperseg=256*256)
-# plt.loglog(f, np.sqrt(psdX), label="TDI Y")
-# plt.loglog(Nmodel.freq, np.sqrt(Npsd), label=noise_model, alpha=2)
-# plt.legend()
-# plt.xlabel("freq [Hz]")
-# plt.ylabel("PSD")
-# plt.axis([1e-5, None, 4e-22, 2e-19])
-# plt.subplot(133)
-# f, psdX =  scipy.signal.welch(tdi_ts["Z"], fs=1.0/dt, window='hanning', nperseg=256*256)
-# plt.loglog(f, np.sqrt(psdX), label="TDI Z")
-# plt.loglog(Nmodel.freq, np.sqrt(Npsd), label=noise_model, alpha=2)
-# plt.legend()
-# plt.xlabel("freq [Hz]")
-# plt.ylabel("PSD")
-# plt.axis([1e-5, None, 4e-22, 2e-19])
-
 
 vgb, units = hdfio.load_array(sangria_fn_training, name="sky/vgb/cat")
 GB = fastGB.FastGB(delta_t=dt, T=float(tdi_ts["X"].t[-1])) # in seconds
-pGB = dict(zip(vgb.dtype.names, vgb[5])) # we take the source #8
-#modify pGB
-# pGB['InitialPhase'] = np.random.rand()*np.pi*2
-# pGB['Amplitude'] *= 1.01
-# pGB['Frequency'] *= 1.05
-# pGB['FrequencyDerivative'] *= 1.1
-# pGB['Polarization'] = np.random.rand()*np.pi*2
-# pGB['EclipticLatitude'] += 0.5
-# pGB['EclipticLongitude'] += 0.5
-# pGB['Inclination'] += 0.1
+pGB = dict(zip(vgb.dtype.names, vgb[8])) # we take the source #8
+
 Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB, oversample=4, simulator='synthlisa')
 fmin, fmax = float(Xs.f[0]) , float(Xs.f[-1]+Xs.attrs['df'])
 source = dict({"X":Xs, "Y":Ys, "Z":Zs})
@@ -103,59 +65,12 @@ start = time.time()
 Xs_td, Ys_td, Zs_td = GB.get_td_tdixyz(template=pGB, simulator='synthlisa')
 
 
-# plt.figure(figsize=(12,3))
-# # plt.plot(Xs_td.t, Xs_td2, label="TDI X")
-# # plt.plot(tdi_ts_training['X'].t, tdi_ts_training['X'], label="data")
-# plt.plot(tdi_ts['X'].t/86400, tdi_ts['X'], label="Verification Binaries")
-# plt.plot(Xs_td.t/86400, Xs_td, label="Binary")
-# # plt.plot(Xp.t, amplitude_envelope, label="envelope")
-# # plt.plot(Xs_td.t[::100], amplitude_envelope2[::100], label="envelope 2")
-# plt.ylabel('X TDI strain')
-# plt.xlabel('time [days]')
-# # plt.ylim(-10**-20,10**-20)
-# plt.legend()
-# plt.show()
-
-# plt.figure(figsize=(12,6))
-# plt.subplot(121)
-# plt.title("real part")
-# plt.plot(tdi_fs["X"].f, tdi_fs["X"].real, label="TDI X")
-# plt.plot(Xs.f, (tdi_fs["X"][Xs.kmin:Xs.kmin+len(Xs)]-Xs.values).real, label="TDI X - fast "+pGB["Name"])
-# plt.axis([pGB["Frequency"]-6e-7, pGB["Frequency"]+6e-7, -3e-17, 5e-17])
-# plt.legend(loc="lower right")
-# plt.xlabel("freq [Hz]")
-# plt.subplot(122)
-# plt.title("imaginary part")
-# plt.plot(tdi_fs["X"].f, tdi_fs["X"].imag, label="TDI X")
-# plt.plot(Xs.f, (tdi_fs["X"].isel(f=slice(Xs.kmin, Xs.kmin+len(Xs)))-Xs.values).imag, label="TDI X - fast "+pGB["Name"])
-# plt.axis([pGB["Frequency"]-6e-7, pGB["Frequency"]+6e-7, -3e-17, 5e-17])
-# plt.legend(loc="lower left")
-# plt.xlabel("freq [Hz]")
-
-# vgb, units = hdfio.load_array(sangria_fn_training, name="sky/vgb/cat")
-# GB = fastGB.FastGB(delta_t=dt, T=float(tdi_ts["X"].t[-1])) # in seconds
-# noise_model = "MRDv1"
-# f_noise = np.logspace(-5, -1, 100)
-# Nmodel = get_noise_model(noise_model, f_noise)
-# SNR2 = np.zeros((len(vgb), 2)) # snr square
-# for j,s in enumerate(vgb):
-#     pGB = dict(zip(vgb.dtype.names, s))
-#     Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB, oversample=4, simulator='synthlisa')
-#     fmin, fmax = float(Xs.f[0]) , float(Xs.f[-1]+Xs.attrs['df'])
-#     source = dict({"X":Xs, "Y":Ys, "Z":Zs})
-#     SNR2[j,1] = compute_tdi_snr(source, Nmodel, data=tdi_fs, fmin=fmin, fmax=fmax)["tot2"]
-#     SNR2[j,0] = compute_tdi_snr(source, Nmodel)["tot2"] 
-
 f_noise = np.logspace(-5, -1, 100)
 Nmodel = get_noise_model(noise_model, f_noise)
 freq = np.array(source["X"].sel(f=slice(fmin, fmax)).f)
 
 Sn = Nmodel.psd(freq=freq, option='X')
 
-# plt.figure(figsize=(12,6))
-# plt.semilogx(freq, Sn)
-# plt.semilogx(source['X'].f,source['X']/np.sqrt(Nmodel.psd(freq=freq, option='X')))
-# plt.show()
 ######################################################
 #%%
 #find GB parameters
@@ -179,8 +94,8 @@ cutoff_ratio = 1000
 
 parameters = ['Amplitude','EclipticLatitude','EclipticLongitude','Frequency','FrequencyDerivative','Inclination','InitialPhase','Polarization']
 parametersfd = ['Amplitude','EclipticLatitude','EclipticLongitude','Frequency','Inclination','InitialPhase','Polarization']
-boundaries = {'Amplitude': [10**-23.0, 5*10**-21.0],'EclipticLatitude': [-1.0, 1.0],
-'EclipticLongitude': [0.0, 2.0*np.pi],'Frequency': [pGB['Frequency']-0.0000002,pGB['Frequency']+0.0000002],'FrequencyDerivative': [10**-20.0, 10**-16.0],
+boundaries = {'Amplitude': [10**-22.0, 5*10**-21.0],'EclipticLatitude': [-1.0, 1.0],
+'EclipticLongitude': [0.0, 2.0*np.pi],'Frequency': [pGB['Frequency']-0.0000001,pGB['Frequency']+0.0000001],'FrequencyDerivative': [10**-20.0, 10**-16.0],
 'Inclination': [-1.0, 1.0],'InitialPhase': [0.0, 2.0*np.pi],'Polarization': [0.0, 1.0*np.pi]}
 
 previous_max = [0.2090, 0.1000, 0.8469, 0.5276, 0.7168, 0.9667, 0.0970, 0.0000]
@@ -194,9 +109,9 @@ previous_max = [0.2090, 0.1000, 0.8469, 0.5276, 0.7168, 0.9667, 0.0970, 0.0000]
 # previous_max = [0.2090, 0.1000, 0.8469, 0.3276, 0.7168, 0.9667, 0.0970, 0.0000]
 previous_max = [0.45090, 0.5600, 0.123469, 0.87276, 0.2341168, 0.56667, 0.5689970, 0.0000]
 previous_max = [0.45090, 0.5600, 0.123469, 0.3276, 0.2341168, 0.56667, 0.9689970, 0.0000]
-previous_max = [0.86436456, 0.3156825,  0.6350386,  0.55715334, 0.5604474,  0.7789818, 0.03608589, 0.0]
+# previous_max = [0.86436456, 0.3156825,  0.6350386,  0.55715334, 0.5604474,  0.7789818, 0.03608589, 0.0]
 # previous_max =[0.80888367, 0.35581076, 0.62365836, 0.5551591,  0.5607991,  0.76172084,0.03608589, 0.0]
-previous_max = np.random.rand(8)
+# previous_max = np.random.rand(8)
 i = 0
 pGBs = deepcopy(pGB)
 for parameter in parameters:
@@ -229,8 +144,8 @@ for parameter in parameters:
 Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs, oversample=4, simulator='synthlisa')
 psd_signal = np.abs(Xs.values)**2 + np.abs(Ys.values)**2 + np.abs(Zs.values)**2
 highSNR = psd_signal > np.max(psd_signal)/cutoff_ratio
-lowerindex = np.where(highSNR)[0][0]-5
-higherindex = np.where(highSNR)[0][-1]+5
+lowerindex = np.where(highSNR)[0][0]-10
+higherindex = np.where(highSNR)[0][-1]+10
 dataX = tdi_fs["X"].isel(f=slice(Xs.kmin, Xs.kmin+len(Xs)))[lowerindex:higherindex]
 dataY = tdi_fs["Y"].isel(f=slice(Ys.kmin, Ys.kmin+len(Ys)))[lowerindex:higherindex]
 dataZ = tdi_fs["Z"].isel(f=slice(Zs.kmin, Zs.kmin+len(Zs)))[lowerindex:higherindex]
@@ -296,7 +211,6 @@ def sampler(number_of_samples,parameters,pGB,boundaries,p1, uniform=False, MCMC=
     samples['Likelihood'] = []
     p1 = loglikelihood(pGB)
     samples['Likelihood'].append(p1)
-    start = time.time()
     j = 0
     number_of_sampels_sqrt = np.sqrt(number_of_samples)
     for i in range(1, number_of_samples):
@@ -357,7 +271,6 @@ def sampler(number_of_samples,parameters,pGB,boundaries,p1, uniform=False, MCMC=
             samples['Likelihood'].append(p1)
         for parameter in parameters:
             samples[parameter].append(pGBs01[parameter])
-    print('sampler time',time.time()- start)
     for parameter in parameters:
         samples[parameter] = np.asarray(samples[parameter])
     samples['Likelihood'] = np.asarray(samples['Likelihood'])
@@ -409,14 +322,14 @@ test_y = {}
 #     test_x[parameter] = test_x[parameter]
 #     test_y[parameter] = torch.from_numpy(test_y[parameter]).float()
 
-def planemaxsearch(maxpGB,parameterstocheck, parameter2, resolution, boundaries):
+def planeAdam(minpGB,parameterstocheck, parameter2, resolution, boundaries):
     for parameter in parameterstocheck:
         # if parameter != parameter2:
         resolution_reduced = int(20**2)
         resolution_reduced = resolution
         # if 'Frequency' in [parameter,parameter2]:
         #     resolution_reduced = int(15**2)
-        train_samples = sampler(resolution_reduced,parameters,maxpGB,boundaries,p1, uniform= False, twoD = True, onlyparameter=parameter, secondparameter=parameter2)
+        train_samples = sampler(resolution_reduced,parameters,minpGB,boundaries,p1, uniform= False, twoD = True, onlyparameter=parameter, secondparameter=parameter2)
         train_x = np.zeros((resolution_reduced,len(parameters)))
         i = 0
         for name in parametersfd:
@@ -427,7 +340,7 @@ def planemaxsearch(maxpGB,parameterstocheck, parameter2, resolution, boundaries)
         train_y = torch.from_numpy(train_y).float()
     for parameter in parameterstocheck:
         # if parameter != parameter2:
-        test_samples = sampler(resolution,parameters,maxpGB,boundaries,p1, uniform= True, twoD = True, onlyparameter=parameter, secondparameter=parameter2, calculate_loglikelihood=False)
+        test_samples = sampler(resolution,parameters,minpGB,boundaries,p1, uniform= True, twoD = True, onlyparameter=parameter, secondparameter=parameter2, calculate_loglikelihood=False)
         test_x[parameter+parameter2] = np.zeros((resolution,len(parameters)))
         i = 0
         for name in parametersfd:
@@ -463,23 +376,48 @@ def planemaxsearch(maxpGB,parameterstocheck, parameter2, resolution, boundaries)
             # flatsamples[i,:] = observed_pred_mean[parameter+parameter2].numpy()
             flatsamplesparameters.append(train_x.numpy())
             i+=1
-    maxindx = np.unravel_index(flatsamples.argmax(), flatsamples.shape)
-    max_parameters = flatsamplesparameters[maxindx[0]][maxindx[1]]
-    max_loglike = flatsamples.max()
-    print(max_loglike,loglikelihood(scaletooriginal(max_parameters,boundaries)))
-    return max_parameters, max_loglike, test_y
+    minindx = np.unravel_index(flatsamples.argmin(), flatsamples.shape)
+    min_parameters = flatsamplesparameters[minindx[0]][minindx[1]]
+    min_loglike = flatsamples.min()
+    print(min_loglike,loglikelihood(scaletooriginal(min_parameters,boundaries)))
+    return min_parameters, min_loglike, test_y
 
-def scaletooriginal(previous_max,boundaries):
+def objective(trial, changeableparameters):
+    for parameter in changeableparameters:
+        parametervalue = trial.suggest_uniform(parameter,boundaries[parameter][0],boundaries[parameter][1])
+        minpGB2[parameter] = parametervalue
+        if parameter in ['EclipticLatitude']:
+            minpGB2[parameter] = np.arcsin(parametervalue)
+        elif parameter in ['Inclination']:
+            minpGB2[parameter] = np.arccos(parametervalue)
+    p = loglikelihood(minpGB2)
+    return p
+
+def model(optimize_parameters):
     i = 0
-    maxpGB = deepcopy(pGBs)
+    for parameter in changeableparameters:
+        parametervalue = optimize_parameters[i]
+        minpGB2[parameter] = (parametervalue*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0]
+        if parameter in ['EclipticLatitude']:
+            minpGB2[parameter] = troch.arcsin(parametervalue)
+        elif parameter in ['Inclination']:
+            minpGB2[parameter] = torch.arccos(parametervalue)
+    p = loglikelihood(minpGB2)
+    i += 1
+    return p
+
+
+def scaletooriginal(previous_min,boundaries):
+    i = 0
+    minpGB = deepcopy(pGBs)
     for parameter in parametersfd:
         if parameter in ['EclipticLatitude']:
-            maxpGB[parameter] = np.arcsin((previous_max[parametersfd.index(parameter)]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
+            minpGB[parameter] = np.arcsin((previous_min[parametersfd.index(parameter)]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
         elif parameter in ['Inclination']:
-            maxpGB[parameter] = np.arccos((previous_max[parametersfd.index(parameter)]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
+            minpGB[parameter] = np.arccos((previous_min[parametersfd.index(parameter)]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0])
         else:
-            maxpGB[parameter] = (previous_max[parametersfd.index(parameter)]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0]
-    return maxpGB
+            minpGB[parameter] = (previous_min[parametersfd.index(parameter)]*(boundaries[parameter][1]-boundaries[parameter][0]))+boundaries[parameter][0]
+    return minpGB
 
 def plotplanes(parameterstocheck,parameter2, plot_x, plot_y):
     fig, ax = plt.subplots(2, 4,figsize=(15,15))
@@ -584,15 +522,15 @@ def traingpmodel(train_x,train_y,kernel, sigma, nu):
             # ))
             optimizer.step()
 
-        best_value = train_y.max()
-        print('best value',bo_iter, (best_value*sigma)+nu, train_x[train_y.argmax()])
+        best_value = train_y.min()
+        print('best value',bo_iter, (best_value*sigma)+nu, train_x[train_y.argmin()])
         best_value = best_value
         if bo_iter < bo_iterations-1:
             qEI = qExpectedImprovement(model=model, best_f=best_value)
             qUCB = qUpperConfidenceBound(model=model, beta=1)
             candidates = 10
             new_point_analytic, _ = optimize_acqf(
-                acq_function=qUCB,
+                acq_function=qEI,
                 bounds=torch.tensor([[0.0] * 8, [1.0] * 8]),
                 q=candidates,
                 num_restarts=1,
@@ -619,82 +557,115 @@ def traingpmodel(train_x,train_y,kernel, sigma, nu):
                 train_y = torch.cat((train_y,loglike),0)
     return model, likelihood
 
-maxpGB = deepcopy(pGBs)
+minpGB = deepcopy(pGBs)
+minpGB2 = deepcopy(pGBs)
 notreduced = False
 notreduced2 = False
 boundaries_reduced = deepcopy(boundaries)
-for i in range(100):
-    resolution = 21**2
-    parameter2 = 'Polarization'
-    if i > 3:
-        parameter2 = 'EclipticLatitude'
-        resolution = 19**2
-    if i > 7:
-        parameter2 = 'EclipticLatitude'
-        resolution = 23**2
-    if i > 11:
-        parameter2 = 'Frequency'
-        resolution = 30**2
-    resolution = 2**9
-    parameter1 = parametersfd[i%7]
-    parameter2 = parametersfd[np.random.randint(0,6)]
-    # parameter2 = 'InitialPhase'
-    # parameter1 = 'Inclination'
-    while parameter2 == parameter1:
+previous_best = p1
+def outobjective(outtrial):
+    for parameter in parametersfd:
+        parametervalue = outtrial.suggest_uniform(parameter,boundaries[parameter][0],boundaries[parameter][1])
+        minpGB[parameter] = parametervalue
+        if parameter in ['EclipticLatitude']:
+            minpGB[parameter] = np.arcsin(parametervalue)
+        elif parameter in ['Inclination']:
+            minpGB[parameter] = np.arccos(parametervalue)
+    for i in range(50):
+        resolution = 100
+        parameter1 = parametersfd[i%7]
         parameter2 = parametersfd[np.random.randint(0,6)]
-    # if parameter1 == 'Frequency':
-    #     parameter2 = 'Polarization'
-    parametersreduced = [parameter1]
-    previous_max, max_loglike, observed_pred = planemaxsearch(maxpGB,parametersreduced,parameter2,resolution, boundaries)
-    maxpGB = scaletooriginal(previous_max,boundaries)
-    real_loglike = loglikelihood(maxpGB)
-    # plotplanes(parametersreduced,parameter2, test_x, test_y)
-    # if parameter1 == 'Frequency':
-    # plotplanes(parametersreduced,parameter2, test_x, observed_pred)
-    if real_loglike > -0.9 and notreduced:
-        notreduced = False
-        ratio = 0.2
-        for parameter in parameters:
-            length = boundaries[parameter][1]-boundaries[parameter][0]
-            if parameter == 'EclipticLatitude':
-                boundaries_reduced[parameter] = [np.sin(maxpGB[parameter])-length*ratio/2, np.sin(maxpGB[parameter])+length*ratio/2] 
-            elif parameter == 'Inclination':
-                boundaries_reduced[parameter] = [np.cos(maxpGB[parameter])-length*ratio/2, np.cos(maxpGB[parameter])+length*ratio/2] 
-            else:
-                boundaries_reduced[parameter] = [maxpGB[parameter]-length*ratio/2, maxpGB[parameter]+length*ratio/2] 
-            if boundaries_reduced[parameter][0] <  boundaries[parameter][0]:
-                boundaries_reduced[parameter][0] =  boundaries[parameter][0]
-            if boundaries_reduced[parameter][1] >  boundaries[parameter][1]:
-                boundaries_reduced[parameter][1] =  boundaries[parameter][1]
-        boundaries = boundaries_reduced
-    if real_loglike > -0.8 and notreduced2:
-        notreduced2 = False
-        ratio = 0.5
-        for parameter in parameters:
-            length = boundaries[parameter][1]-boundaries[parameter][0]
-            if parameter == 'EclipticLatitude':
-                boundaries_reduced[parameter] = [np.sin(maxpGB[parameter])-length*ratio/2, np.sin(maxpGB[parameter])+length*ratio/2] 
-            elif parameter == 'Inclination':
-                boundaries_reduced[parameter] = [np.cos(maxpGB[parameter])-length*ratio/2, np.cos(maxpGB[parameter])+length*ratio/2] 
-            else:
-                boundaries_reduced[parameter] = [maxpGB[parameter]-length*ratio/2, maxpGB[parameter]+length*ratio/2] 
-            if boundaries_reduced[parameter][0] <  boundaries[parameter][0]:
-                boundaries_reduced[parameter][0] =  boundaries[parameter][0]
-            if boundaries_reduced[parameter][1] >  boundaries[parameter][1]:
-                boundaries_reduced[parameter][1] =  boundaries[parameter][1]
-        boundaries = boundaries_reduced
-    print(i,max_loglike, real_loglike, maxpGB)
-    print(previous_max)
+        parameter3 = parametersfd[np.random.randint(0,6)]
+        # parameter2 = 'InitialPhase'
+        # parameter1 = 'Inclination'
+        while parameter2 == parameter1:
+            parameter2 = parametersfd[np.random.randint(0,6)]
+        while parameter3 == parameter1 or parameter3 == parameter2:
+            parameter3 = parametersfd[np.random.randint(0,6)]
+        # if parameter1 == 'Frequency':
+        #     parameter2 = 'Polarization'
+        parametersreduced = [parameter1]
+        changeableparameters = [parameter1,parameter2]
+        params = np.zeros(len(changeableparameters))
 
-ratio = 0.1
+        # optuna.logging.set_verbosity(optuna.logging.WARNING)
+        # start = time.time()
+        # study = optuna.create_study(sampler=optuna.samplers.RandomSampler())
+        # study.optimize(objective(), n_trials=50)
+        # print('optuna time', time.time()-start)
+        # if study.best_value < previous_best:
+        #     previous_best = study.best_value
+        #     for parameter in changeableparameters:
+        #         minpGB[parameter] = study.best_params[parameter]
+        #         if parameter in ['EclipticLatitude']:
+        #             minpGB[parameter] = np.arcsin(study.best_params[parameter])
+        #         elif parameter in ['Inclination']:
+        #             minpGB[parameter] = np.arccos(study.best_params[parameter])
+        # start = time.time()
+        # print(i, previous_best, loglikelihood(minpGB), minpGB)
+        # minpGB2 = deepcopy(minpGB)
+        start = time.time()
+        previous_min, min_loglike, observed_pred = planeAdam(minpGB,parametersreduced,parameter2,resolution, boundaries)
+        minpGB3 = scaletooriginal(previous_min,boundaries)
+        for parameter in changeableparameters:
+            minpGB[parameter] = minpGB3[parameter]
+        # print('random time',time.time()-start)
+        # print(i,min_loglike, minpGB)
+        # print(previous_min)
+        real_loglike = loglikelihood(minpGB)
+    return min_loglike
+
+start = time.time()
+outstudy = optuna.create_study(sampler=optuna.samplers.RandomSampler(), pruner= optuna.pruners.HyperbandPruner())
+outstudy.optimize(outobjective, n_trials=20)
+print('optuna time', time.time()-start)
+
+
+# plotplanes(parametersreduced,parameter2, test_x, test_y)
+# if parameter1 == 'Frequency':
+# plotplanes(parametersreduced,parameter2, test_x, observed_pred)
+# if real_loglike > -0.9 and notreduced:
+#     notreduced = False
+#     ratio = 0.2
+#     for parameter in parameters:
+#         length = boundaries[parameter][1]-boundaries[parameter][0]
+#         if parameter == 'EclipticLatitude':
+#             boundaries_reduced[parameter] = [np.sin(minpGB[parameter])-length*ratio/2, np.sin(minpGB[parameter])+length*ratio/2] 
+#         elif parameter == 'Inclination':
+#             boundaries_reduced[parameter] = [np.cos(minpGB[parameter])-length*ratio/2, np.cos(minpGB[parameter])+length*ratio/2] 
+#         else:
+#             boundaries_reduced[parameter] = [minpGB[parameter]-length*ratio/2, minpGB[parameter]+length*ratio/2] 
+#         if boundaries_reduced[parameter][0] <  boundaries[parameter][0]:
+#             boundaries_reduced[parameter][0] =  boundaries[parameter][0]
+#         if boundaries_reduced[parameter][1] >  boundaries[parameter][1]:
+#             boundaries_reduced[parameter][1] =  boundaries[parameter][1]
+#     boundaries = boundaries_reduced
+# if real_loglike > -0.8 and notreduced2:
+#     notreduced2 = False
+#     ratio = 0.5
+#     for parameter in parameters:
+#         length = boundaries[parameter][1]-boundaries[parameter][0]
+#         if parameter == 'EclipticLatitude':
+#             boundaries_reduced[parameter] = [np.sin(minpGB[parameter])-length*ratio/2, np.sin(minpGB[parameter])+length*ratio/2] 
+#         elif parameter == 'Inclination':
+#             boundaries_reduced[parameter] = [np.cos(minpGB[parameter])-length*ratio/2, np.cos(minpGB[parameter])+length*ratio/2] 
+#         else:
+#             boundaries_reduced[parameter] = [minpGB[parameter]-length*ratio/2, minpGB[parameter]+length*ratio/2] 
+#         if boundaries_reduced[parameter][0] <  boundaries[parameter][0]:
+#             boundaries_reduced[parameter][0] =  boundaries[parameter][0]
+#         if boundaries_reduced[parameter][1] >  boundaries[parameter][1]:
+#             boundaries_reduced[parameter][1] =  boundaries[parameter][1]
+#     boundaries = boundaries_reduced
+
+ratio = 0.2
 for parameter in parameters:
     length = boundaries[parameter][1]-boundaries[parameter][0]
     if parameter == 'EclipticLatitude':
-        boundaries_reduced[parameter] = [np.sin(maxpGB[parameter])-length*ratio/2, np.sin(maxpGB[parameter])+length*ratio/2] 
+        boundaries_reduced[parameter] = [np.sin(minpGB[parameter])-length*ratio/2, np.sin(minpGB[parameter])+length*ratio/2] 
     elif parameter == 'Inclination':
-        boundaries_reduced[parameter] = [np.cos(maxpGB[parameter])-length*ratio/2, np.cos(maxpGB[parameter])+length*ratio/2] 
+        boundaries_reduced[parameter] = [np.cos(minpGB[parameter])-length*ratio/2, np.cos(minpGB[parameter])+length*ratio/2] 
     else:
-        boundaries_reduced[parameter] = [maxpGB[parameter]-length*ratio/2, maxpGB[parameter]+length*ratio/2] 
+        boundaries_reduced[parameter] = [minpGB[parameter]-length*ratio/2, minpGB[parameter]+length*ratio/2] 
     if boundaries_reduced[parameter][0] <  boundaries[parameter][0]:
         boundaries_reduced[parameter][0] =  boundaries[parameter][0]
     if boundaries_reduced[parameter][1] >  boundaries[parameter][1]:
@@ -706,7 +677,7 @@ resolution_reduced = int(20**2)
 resolution_reduced = resolution
 # if 'Frequency' in [parameter,parameter2]:
 #     resolution_reduced = int(15**2)
-train_samples = sampler(resolution_reduced,parameters,maxpGB,boundaries,p1, uniform= False, twoD = False, onlyparameter=parameter, secondparameter=parameter2)
+train_samples = sampler(resolution_reduced,parameters,minpGB,boundaries,p1, uniform= False, twoD = False)
 train_x = np.zeros((resolution_reduced,len(parameters)))
 i = 0
 for name in parametersfd:
@@ -717,7 +688,7 @@ train_x = torch.from_numpy(train_x).float()
 train_y = torch.from_numpy(train_y).float()
 # if parameter != parameter2:
 resolution = 100
-test_samples = sampler(resolution,parameters,maxpGB,boundaries,p1, uniform= False, twoD = False, onlyparameter=parameter, secondparameter=parameter2, calculate_loglikelihood=True)
+test_samples = sampler(resolution,parameters,minpGB,boundaries,p1, uniform= False, twoD = False, onlyparameter=parameter, secondparameter=parameter2, calculate_loglikelihood=True)
 test_x[parameter+parameter2] = np.zeros((resolution,len(parameters)))
 i = 0
 for name in parametersfd:
@@ -743,7 +714,7 @@ with torch.no_grad(), gpytorch.settings.fast_pred_var():
 print('sqrt(MSE) ',parameter+parameter2, np.sqrt(mean_squared_error(test_y[parameter+parameter2].numpy(),observed_pred_mean[parameter+parameter2].numpy())))
 
 resolution = 10**5
-test_samples = sampler(resolution,parameters,maxpGB,boundaries,p1, uniform= False, twoD = False, onlyparameter=parameter, secondparameter=parameter2, calculate_loglikelihood=False)
+test_samples = sampler(resolution,parameters,minpGB,boundaries,p1, uniform= False, twoD = False, onlyparameter=parameter, secondparameter=parameter2, calculate_loglikelihood=False)
 test_x = np.zeros((resolution,len(parameters)))
 i = 0
 for name in parametersfd:
@@ -762,11 +733,11 @@ i = 0
 flatsamples[i,:] = observed_pred_mean.numpy()
 flatsamplesparameters.append(test_x.numpy())
 i+=1
-maxindx = np.unravel_index(flatsamples.argmax(), flatsamples.shape)
-max_parameters = flatsamplesparameters[maxindx[0]][maxindx[1]]
-max_loglike = flatsamples.max()
-maxpGB = scaletooriginal(max_parameters,boundaries)
-print('pred',max_loglike,'true',loglikelihood(scaletooriginal(max_parameters,boundaries)), maxpGB)
+minindx = np.unravel_index(flatsamples.argmin(), flatsamples.shape)
+min_parameters = flatsamplesparameters[minindx[0]][minindx[1]]
+min_loglike = flatsamples.min()
+minpGB = scaletooriginal(min_parameters,boundaries)
+print('pred',min_loglike,'true',loglikelihood(scaletooriginal(min_parameters,boundaries)), minpGB)
 
 
 Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB, oversample=4, simulator='synthlisa')
@@ -796,7 +767,7 @@ ax6=plt.subplot(236)
 # plt.plot(dataZ_training.f*1000,dataZ_training.values.imag, label='data')
 ax6.plot(dataZ.f*1000,dataZ.values.imag, label='data')
 ax6.plot(Zs.f*1000, Zs.values.imag, label='binary')
-Xs, Ys, Zs = GB.get_fd_tdixyz(template=maxpGB, oversample=4, simulator='synthlisa')
+Xs, Ys, Zs = GB.get_fd_tdixyz(template=minpGB, oversample=4, simulator='synthlisa')
 ax1.plot(Xs.f*1000, Xs, label='solution')
 ax1.set_xlabel('f [mHz]')
 ax1.set_ylabel('X-TDI real [1/Hz]')

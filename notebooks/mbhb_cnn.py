@@ -153,6 +153,7 @@ class Sangria:
         plt.figure(figsize=(12,6))
         plt.plot(self.tdi_ts["X"].t, self.tdi_ts["X"], label="TDI X")
         plt.plot(Xs.t, (tdi_ts["X"]-Xs), label="TDI X - fast %d"%s_index)
+        plt.plot(Xs.t, (Xs), label="TDI X fast MBHB %d"%s_index)
         plt.axis([self.pMBHB["CoalescenceTime"]-1000, self.pMBHB["CoalescenceTime"]+600, None, None])
         plt.legend(loc="lower right")
         plt.xlabel("time [s]")
