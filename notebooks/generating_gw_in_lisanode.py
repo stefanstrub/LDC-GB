@@ -53,69 +53,33 @@ print(config)
 secondsperyear = 60*60*24*365.25
 s_index = 0
 pMBHB = dict(zip(mbhb.dtype.names, mbhb[s_index]))
-# units = default_units
 dt = 5 # waveform sampling
-pMBHB['CoalescenceTime'] += 0
-t_max = pMBHB["CoalescenceTime"]*1.0001#60*60*24*365 # time of observation = 1yr
-t_min = pMBHB["CoalescenceTime"]*0.9998
-# pMBHB["CoalescenceTime"] -= t_min
-shift = 0#secondsperyear#int(pMBHB["CoalescenceTime"]*0.9998)
-t_max = pMBHB["CoalescenceTime"]*1.0001-shift
+t_max = pMBHB["CoalescenceTime"]+2000#*1.0001#60*60*24*365 # time of observation = 1yr
+t_min = pMBHB["CoalescenceTime"]-2000#*0.9998
+shift = t_min#int(pMBHB["CoalescenceTime"]*0.9998)
+t_max -= shift
 t_min -= shift 
-t_min = 0
+# t_min = 0
 coalescencetime = pMBHB['CoalescenceTime']
 pMBHB['CoalescenceTime'] -= shift
-# pMBHB['Redshift'] -= 1
 initial_position = 2*np.pi*(((shift)/secondsperyear)%1)
-config = {"initial_position": initial_position, "initial_rotation": initial_position, 
+config = {"initial_position": initial_position, "initial_rotation": 0, 
           "nominal_arm_length": 2500000000, "orbit_type": 'analytic'}
 lisa_orbits = Orbits.type(config)
-# s_index = 3 # take the fourth, which merge before 1 yr 
-# pMBHB = dict(zip(cat.dtype.names, cat[s_index]))
 pMBHB["ObservationDuration"] = t_max
 pMBHB["Cadence"] = dt
-# start = time.time()
-# MBHB = HpHc.type("demo", "MBHB", "IMRPhenomD")
-# MBHB.set_param(pMBHB)
-# projector = ProjectedStrain(lisa_orbits)
-# yArm = projector.arm_response(t_min, t_max, dt, MBHB.split())
-# # projector.to_file("my_mbhb_for_lisanode.h5")
-# print(time.time()-start)
+pMBHB['Redshift'] += 0.0001
 
-trange = np.arange(t_min, t_max, dt)
-# start = time.time()
-# tdi_X = projector.compute_tdi_x(trange)
-# print(time.time()-start)
-# tdi_X = TimeSeries(tdi_X, dt=dt)
-
+trangeshift = np.arange(t_min, t_max, dt)
 start = time.time()
 tdi_X = semi_fast_tdi(config, pMBHB, t_min, t_max, dt)
 print(time.time()- start)
 
-shift = 10**6#int(pMBHB["CoalescenceTime"]*0.9998)
-t_max = pMBHB["CoalescenceTime"]*1.0001-shift
-t_min -= shift 
-t_min = 0
-coalescencetime = pMBHB['CoalescenceTime']
-pMBHB['CoalescenceTime'] -= shift
-initial_position = 2*np.pi*(((shift)/secondsperyear)%1)*1.1
-config = {"initial_position": initial_position, "initial_rotation": initial_position, 
-          "nominal_arm_length": 2500000000, "orbit_type": 'analytic'}
-lisa_orbits = Orbits.type(config)
-pMBHB["ObservationDuration"] = t_max
-pMBHB["Cadence"] = dt
-
-trangeshift = np.arange(t_min, t_max, dt)
-start = time.time()
-tdi_Xs = semi_fast_tdi(config, pMBHB, t_min, t_max, dt)
-print(time.time()- start)
-
-index_low = np.searchsorted(tdi_ts.t,  t_min)
+index_low = np.searchsorted(tdi_ts.t,  t_min+shift)
 
 plt.figure()
 plt.plot(tdi_ts.t[index_low:index_low+len(tdi_X)], tdi_ts['X'][index_low:index_low+len(tdi_X)])
-plt.plot(trange, tdi_X, label="strain to TDI", alpha=0.5)
-plt.plot(trangeshift+shift, tdi_Xs, label="strain to TDI", alpha=0.5)
+plt.plot(trangeshift+shift, tdi_X, label="strain to TDI shifted", alpha=0.5)
 # plt.plot(trange-t_min, Xs, label="strain to TDI", alpha=0.5)
 plt.xlabel("Time [s]")
 # plt.axis([coalescencetime-1000, coalescencetime+600, None, None])
@@ -125,9 +89,8 @@ plt.legend()
 tdi_Xfd = tdi_X.ts.fft(win=window)
 tdi_fsX = tdi_ts['X'][index_low:index_low+len(tdi_X)].ts.fft(win=window)
 plt.figure()
-plt.plot(tdi_fsX.f, tdi_fsX)
-plt.plot(tdi_Xfd.f, tdi_Xfd, label="strain to TDI", alpha=0.5)
-# plt.plot(trange-t_min, Xs, label="strain to TDI", alpha=0.5)
+plt.semilogx(tdi_fsX.f, tdi_fsX)
+plt.semilogx(tdi_Xfd.f, tdi_Xfd, label="strain to TDI", alpha=0.5)
 plt.xlabel("f[Hz]")
 # plt.axis([coalescencetime-1000, coalescencetime+600, None, None])
 plt.ylabel("TDI X")
