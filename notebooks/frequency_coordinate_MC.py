@@ -63,17 +63,17 @@ dtype = torch.float
 
 DATAPATH = "/home/stefan/LDC/Sangria/data"
 sangria_fn = DATAPATH+"/dgb-tdi.h5"
-# sangria_fn = DATAPATH+"/LDC2_sangria_blind_v1.h5"
-# sangria_fn = DATAPATH+"/LDC2_sangria_gdb-tdi_v1_v3U3MxS.h5"
-# tdi_ts_dgb, tdi_descr_dgb = hdfio.load_array(sangria_fn)
-# sangria_fn = DATAPATH+"/LDC2_sangria_idb-tdi_v1_DgtGV85.h5"
-# tdi_ts_igb, tdi_descr_igb = hdfio.load_array(sangria_fn)
-# sangria_fn = DATAPATH+"/LDC2_sangria_mbhb-tdi_v1_MN5aIPz.h5"
-# tdi_ts_mbhb, tdi_descr_mbhb = hdfio.load_array(sangria_fn)
+sangria_fn = DATAPATH+"/LDC2_sangria_blind_v1.h5"
+sangria_fn = DATAPATH+"/LDC2_sangria_gdb-tdi_v1_v3U3MxS.h5"
+tdi_ts_dgb, tdi_descr_dgb = hdfio.load_array(sangria_fn)
+sangria_fn = DATAPATH+"/LDC2_sangria_idb-tdi_v1_DgtGV85.h5"
+tdi_ts_igb, tdi_descr_igb = hdfio.load_array(sangria_fn)
+sangria_fn = DATAPATH+"/LDC2_sangria_mbhb-tdi_v1_MN5aIPz.h5"
+tdi_ts_mbhb, tdi_descr_mbhb = hdfio.load_array(sangria_fn)
 sangria_fn = DATAPATH+"/LDC2_sangria_training_v1.h5"
 tdi_ts, tdi_descr = hdfio.load_array(sangria_fn, name="obs/tdi")
-# sangria_fn = DATAPATH+"/LDC2_sangria_vgb-tdi_v1_sgsEVXb.h5"
-# tdi_ts_vgb, tdi_descr_vgb = hdfio.load_array(sangria_fn)
+sangria_fn = DATAPATH+"/LDC2_sangria_vgb-tdi_v1_sgsEVXb.h5"
+tdi_ts_vgb, tdi_descr_vgb = hdfio.load_array(sangria_fn)
 sangria_fn_training = DATAPATH+"/LDC2_sangria_training_v1.h5"
 dt = int(1/(tdi_descr["sampling_frequency"]))
 
@@ -82,19 +82,35 @@ tdi_ts = xr.Dataset(dict([(k,TimeSeries(tdi_ts[k], dt=dt)) for k in ["X", "Y", "
 # tdi_ts = xr.Dataset(dict([(k,TimeSeries(tdi_ts[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
 tdi_fs = xr.Dataset(dict([(k,tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 
-# tdi_ts_mbhb = xr.Dataset(dict([(k,TimeSeries(tdi_ts_mbhb[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
-# tdi_fs_mbhb = xr.Dataset(dict([(k,tdi_ts_mbhb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
-# tdi_ts_dgb = xr.Dataset(dict([(k,TimeSeries(tdi_ts_dgb[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
-# tdi_fs_dgb = xr.Dataset(dict([(k,tdi_ts_dgb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
-# tdi_ts_igb = xr.Dataset(dict([(k,TimeSeries(tdi_ts_igb[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
-# tdi_fs_igb = xr.Dataset(dict([(k,tdi_ts_igb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
-# tdi_ts_vgb = xr.Dataset(dict([(k,TimeSeries(tdi_ts_vgb[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
-# tdi_fs_vgb = xr.Dataset(dict([(k,tdi_ts_vgb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+tdi_ts_mbhb = xr.Dataset(dict([(k,TimeSeries(tdi_ts_mbhb[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
+tdi_fs_mbhb = xr.Dataset(dict([(k,tdi_ts_mbhb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+tdi_ts_dgb = xr.Dataset(dict([(k,TimeSeries(tdi_ts_dgb[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
+tdi_fs_dgb = xr.Dataset(dict([(k,tdi_ts_dgb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+tdi_ts_igb = xr.Dataset(dict([(k,TimeSeries(tdi_ts_igb[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
+tdi_fs_igb = xr.Dataset(dict([(k,tdi_ts_igb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+tdi_ts_vgb = xr.Dataset(dict([(k,TimeSeries(tdi_ts_vgb[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
+tdi_fs_vgb = xr.Dataset(dict([(k,tdi_ts_vgb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 
 noise_model = "MRDv1"
 Nmodel = get_noise_model(noise_model, np.logspace(-5, -1, 100))
 Npsd = Nmodel.psd()
 
+secondsperday = 24*3600
+# plt.figure(figsize=np.asarray(fig_size)*1.3)
+# # plt.loglog(tdi_fs["X"].f, (np.abs(tdi_fs["X"].values)**2/(len(tdi_fs["X"])*dt)), label="Data")
+# plt.plot(tdi_ts["X"].t/secondsperday, tdi_ts["X"], label="Data")
+# plt.plot(tdi_ts_vgb["X"].t/secondsperday, tdi_ts_vgb["X"], label="VGBs",zorder=5)
+# plt.plot(tdi_ts_mbhb["X"].t/secondsperday, tdi_ts_mbhb["X"], label="MBHBs",zorder=4)
+# # f, psdX =  scipy.signal.welch(tdi_ts_dgb["X"].values+tdi_ts_igb["X"].values, fs=1.0/dt, window='hanning', nperseg=len(tdi_ts["X"])/10)
+# plt.plot(tdi_ts_dgb["X"].t/secondsperday, tdi_ts_dgb["X"].values+tdi_ts_igb["X"].values, label="GBs")
+# # plt.loglog(Nmodel.freq, Npsd, alpha=2, color='black', label='Instr. noise')
+# plt.legend()
+# plt.xlabel("Time (days)")
+# plt.xlim(tdi_ts_dgb["X"].t[0]/secondsperday,tdi_ts_dgb["X"].t[-1]/secondsperday)
+# plt.ylabel("X-TDI strain")
+# plt.grid(True)
+# plt.tight_layout()
+# plt.show()
 # plt.figure(figsize=np.asarray(fig_size)*1.3)
 # f, psdX =  scipy.signal.welch(tdi_ts["X"], fs=1.0/dt, window='hanning', nperseg=len(tdi_ts["X"])/10)
 # # plt.loglog(tdi_fs["X"].f, (np.abs(tdi_fs["X"].values)**2/(len(tdi_fs["X"])*dt)), label="Data")
@@ -1084,32 +1100,32 @@ Zs = Zs[index_low:index_low+len(dataZ)]
 ax1.plot(Xs.f*1000, Xs, label='Found GB')
 ax1.xaxis.set_major_locator(plt.MaxNLocator(3))
 ax1.set_xlabel('f (mHz)')
-ax1.set_ylabel('X-TDI real (1/Hz)]')
+ax1.set_ylabel('X-TDI real (1/Hz)')
 ax1.legend(loc='upper left',numpoints=0.5)
 ax2.plot(Ys.f*1000, Ys, label='Found Response')
 ax2.xaxis.set_major_locator(plt.MaxNLocator(3))
 ax2.set_xlabel('f (mHz)')
-ax2.set_ylabel('Y-TDI real (1/Hz)]')
+ax2.set_ylabel('Y-TDI real (1/Hz)')
 # ax2.legend()
 ax3.plot(Zs.f*1000, Zs, label='Found Response')
 ax3.xaxis.set_major_locator(plt.MaxNLocator(3))
 ax3.set_xlabel('f (mHz)')
-ax3.set_ylabel('Z-TDI real (1/Hz)]')
+ax3.set_ylabel('Z-TDI real (1/Hz)')
 # ax3.legend()
 ax4.plot(Xs.f*1000, Xs.imag, label='Found Response')
 ax4.xaxis.set_major_locator(plt.MaxNLocator(3))
 ax4.set_xlabel('f (mHz)')
-ax4.set_ylabel('X-TDI imag (1/Hz)]')
+ax4.set_ylabel('X-TDI imag (1/Hz)')
 # ax4.legend()
 ax5.plot(Ys.f*1000, Ys.imag, label='Found Response')
 ax5.xaxis.set_major_locator(plt.MaxNLocator(3))
 ax5.set_xlabel('f (mHz)')
-ax5.set_ylabel('Y-TDI imag (1/Hz)]')
+ax5.set_ylabel('Y-TDI imag (1/Hz)')
 # ax5.legend()
 ax6.plot(Zs.f*1000, Zs.imag, label='Found Response')
 ax6.xaxis.set_major_locator(plt.MaxNLocator(3))
 ax6.set_xlabel('f (mHz)')
-ax6.set_ylabel('Z-TDI imag (1/Hz)]')
+ax6.set_ylabel('Z-TDI imag (1/Hz)')
 # ax6.legend()
 plt.tight_layout()
 plt.show()

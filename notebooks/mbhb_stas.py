@@ -61,7 +61,7 @@ def GetParams(pGW):
     incl = pGW.get('Inclination')
     # print ("Compare DL:", pGW.getConvert('Distance',LC.convDistance,'mpc'))
 
-    bet, lam, incl, psi = GenTDIFD.GetSkyAndOrientation(p)
+    bet, lam, incl, psi = GenTDIFD.GetSkyAndOrientation(pGW)
 
     return(m1, m2, tc, chi1, chi2, dist, incl, bet, lam, psi, phi0, DL)
 

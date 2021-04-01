@@ -13,6 +13,8 @@ from copy import deepcopy
 import torch
 import gpytorch
 from sklearn.metrics import mean_squared_error
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import DotProduct, WhiteKernel, RBF
 
 from botorch.models.gpytorch import GPyTorchModel
 from botorch.acquisition.monte_carlo import qExpectedImprovement, qUpperConfidenceBound
@@ -617,7 +619,6 @@ def model(optimize_parameters):
 
 
 def scaletooriginal(previous_max, boundaries):
-    i = 0
     maxpGB = deepcopy(pGBs)
     for parameter in parametersfd:
         if parameter in ["EclipticLatitude"]:
@@ -652,7 +653,14 @@ def plotplanes(parameterstocheck, parameter2, plot_x, plot_y):
         i += 1
     plt.show()
 
-
+def traingpmodelsk(train_x, train_y, kernel, sigma, nu):
+    train_x = train_x.numpy()
+    train_y = train_y.numpy()
+    kernel = RBF(length_scale=[1,1,1,1,1,1,1,1])
+    gpr = GaussianProcessRegressor(kernel=kernel,
+            random_state=0).fit(train_x, train_y)
+    gpr.score(train_x, train_y)
+    return gpr
 def traingpmodel(train_x, train_y, kernel, sigma, nu):
     bo_iterations = 1
     for bo_iter in range(bo_iterations):
@@ -660,7 +668,7 @@ def traingpmodel(train_x, train_y, kernel, sigma, nu):
         likelihood = gpytorch.likelihoods.GaussianLikelihood()
         model = ExactGPModel(train_x, train_y, likelihood, kernel)
 
-        training_iter = 50
+        training_iter = 15
 
         hypers = {
             "likelihood.noise": torch.tensor(0.0001),
@@ -676,7 +684,7 @@ def traingpmodel(train_x, train_y, kernel, sigma, nu):
                 # {"params": model.mean_module.parameters()},
                 {"params": model.covar_module.parameters()},
             ],
-            lr=0.05,
+            lr=0.1,
         )  # Includes GaussianLikelihood parameters
         # optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
 
@@ -755,7 +763,7 @@ best_params = deepcopy(pGBs)
 best_value = p1
 parameters_recorded = []
 best_run = 0
-for n in range(8):
+for n in range(15):
     parameters_recorded1 = {}
     no_improvement_counter = 0
     for parameter in parametersfd:
@@ -773,7 +781,6 @@ for n in range(8):
     previous_best = loglikelihood(maxpGB)
     maxpGB2 = deepcopy(maxpGB)
     for i in range(100):
-        resolution = 300
         parameter1 = parametersfd[i % 7]
         parameter2 = parametersfd[np.random.randint(0, 6)]
         parameter3 = parametersfd[np.random.randint(0, 6)]
@@ -786,7 +793,7 @@ for n in range(8):
         # if parameter1 == 'Frequency':
         #     parameter2 = 'Polarization'
         parametersreduced = [parameter1]
-        changeableparameters = [parameter1, parameter2]
+        changeableparameters = [parameter1, parameter2, parameter3]
         params = np.zeros(len(changeableparameters))
 
         optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -826,7 +833,7 @@ for n in range(8):
                 no_improvement_counter = 0
                 pass
              
-        if i in [30,40,50]:
+        if i in [20,30,40,50]:
             past_mean = 0
             sum_count = 0
             for l in range(n):
@@ -839,11 +846,11 @@ for n in range(8):
             try:
                 past_mean = past_mean / sum_count
                 if previous_best > past_mean:
-                    no_improvement_counter = 0
+                    pass
                 else:
                     break
             except:
-                no_improvement_counter = 0
+                pass
 
         start = time.time()
         print(i, previous_best, loglikelihood(maxpGB), maxpGB)
@@ -911,24 +918,25 @@ for parameter in parameters:
         ]
     elif parameter == "Inclination":
         boundaries_reduced[parameter] = [
-            np.cos(maxpGB[parameter]) - length * ratio / 2*4,
-            np.cos(maxpGB[parameter]) + length * ratio / 2*4,
+            np.cos(maxpGB[parameter]) - length * ratio / 2,
+            np.cos(maxpGB[parameter]) + length * ratio / 2,
         ]
     elif parameter == "Frequency":
         boundaries_reduced[parameter] = [
-            maxpGB[parameter] - length * ratio / 16,
-            maxpGB[parameter] + length * ratio / 16,
+            maxpGB[parameter] - length * ratio / 8,
+            maxpGB[parameter] + length * ratio / 8,
         ]
     elif parameter == "Amplitude":
         boundaries_reduced[parameter] = [
-            maxpGB[parameter] - length * ratio / 2*4,
-            maxpGB[parameter] + length * ratio / 2*4,
+            maxpGB[parameter] - length * ratio / 2,
+            maxpGB[parameter] + length * ratio / 2,
         ]
     # elif parameter in ["InitialPhase",'Polarization']:
     #     boundaries_reduced[parameter] = [
     #         pGB[parameter] - length * ratio / 2*4,
     #         pGB[parameter] + length * ratio / 2*4,
     #     ]
+    #     boundaries_reduced[parameter] = boundaries[parameter]
     else:
         boundaries_reduced[parameter] = [
             maxpGB[parameter] - length * ratio / 2,
@@ -939,7 +947,7 @@ for parameter in parameters:
     if boundaries_reduced[parameter][1] > boundaries[parameter][1]:
         boundaries_reduced[parameter][1] = boundaries[parameter][1]
 
-resolution = 900
+resolution = 2000
 # if parameter != parameter2:
 resolution_reduced = int(20 ** 2)
 resolution_reduced = resolution
@@ -968,7 +976,7 @@ train_y = train_samples["Likelihood"]
 train_x = torch.from_numpy(train_x).float()
 train_y = torch.from_numpy(train_y).float()
 # if parameter != parameter2:
-resolution = 500
+resolution = 1000
 test_samples = sampler(
     resolution,
     parameters,
@@ -992,30 +1000,29 @@ test_y[parameter + parameter2] = torch.from_numpy(test_y[parameter + parameter2]
 
 kernel = gpytorch.kernels.RBFKernel(ard_num_dims=2)
 
-# train_y = np.exp(train_y-loglikelihood(maxpGB)
+# train_y = np.exp(train_y-loglikelihood(maxpGB))
 nu = np.mean(train_y.numpy())
 sigma = np.std(train_y.numpy())
 train_y = (train_y - nu) / sigma
 model, likelihood = traingpmodel(train_x, train_y, kernel, sigma, nu)
+start = time.time()
+gpr = traingpmodelsk(train_x, train_y, kernel, sigma, nu)
+print(time.time() - start)
 model.eval()
 likelihood.eval()
+start = time.time()
+observed_pred_sk = gpr.predict(test_x[parameter + parameter2])
+print(time.time() - start)
+observed_pred_sk_scaled = observed_pred_sk*sigma +nu
+print("sqrt(MSE) ",parameter + parameter2,np.sqrt(mean_squared_error(test_y[parameter + parameter2].numpy(),observed_pred_sk_scaled)))
 observed_pred = {}
 observed_pred_mean = {}
 with torch.no_grad(), gpytorch.settings.fast_pred_var():
     observed_pred[parameter + parameter2] = likelihood(model(test_x[parameter + parameter2]))
     observed_pred_mean[parameter + parameter2] = (observed_pred[parameter + parameter2].mean * sigma) + nu
-print(
-    "sqrt(MSE) ",
-    parameter + parameter2,
-    np.sqrt(
-        mean_squared_error(
-            test_y[parameter + parameter2].numpy(),
-            observed_pred_mean[parameter + parameter2].numpy(),
-        )
-    ),
-)
+print("sqrt(MSE) ",parameter + parameter2,np.sqrt(mean_squared_error(test_y[parameter + parameter2].numpy(),observed_pred_mean[parameter + parameter2].numpy())))
 
-resolution = 10 ** 6
+resolution = 10 ** 7
 start = time.time()
 test_samples = sampler(
     resolution,
@@ -1029,22 +1036,30 @@ test_samples = sampler(
     secondparameter=parameter2,
     calculate_loglikelihood=False,
 )
-print('time sample', time.time()-start)
+print('sample time', time.time()-start)
 test_x_m = np.zeros((resolution, len(parameters)))
 i = 0
 for name in parametersfd:
     test_x_m[:, i] = test_samples[name]
     i += 1
 test_x_m = torch.from_numpy(test_x_m).float()
-with torch.no_grad(), gpytorch.settings.fast_pred_var():
-    observed_pred = likelihood(model(test_x_m))
-    observed_pred_mean = (observed_pred.mean * sigma) + nu
+start = time.time()
+observed_pred_sk = gpr.predict(test_x_m[:5*10**5])
+for i in range(int(resolution/(5*10**5))-1):
+    observed_pred_sk = np.append(observed_pred_sk,gpr.predict(test_x_m[(i+1)*5*10**5:(i+2)*5*10**5]))
+# observed_pred_sk = gpr.predict(test_x_m[:5*10**5])
+# observed_pred_sk = gpr.predict(test_x_m)
+observed_pred_mean = observed_pred_sk*sigma +nu
+print('eval time', time.time()-start)
+# with torch.no_grad(), gpytorch.settings.fast_pred_var():
+#     observed_pred = likelihood(model(test_x_m))
+#     observed_pred_mean = (observed_pred.mean * sigma) + nu
 
 flatsamples = np.zeros((1, resolution))
 flatsamplesparameters = []
 i = 0
 # flatsamples[i,:] = train_y.numpy()
-flatsamples[i, :] = observed_pred_mean.numpy()
+flatsamples[i, :] = observed_pred_mean
 flatsamplesparameters.append(test_x_m.numpy())
 i += 1
 maxindx = np.unravel_index(flatsamples.argmax(), flatsamples.shape)
@@ -1065,12 +1080,12 @@ print(
 )
 
 start = time.time()
-normalizer = sum(np.exp(observed_pred_mean.numpy()-best_value))
+normalizer = sum(np.exp(observed_pred_mean-best_value))
 flatsamples_normalized = np.exp(flatsamples[0]-best_value)/normalizer
 mcmc_samples = np.zeros((resolution, len(parameters)))
 mcmc_samples[0] = flatsamplesparameters[0][0]
 previous_p = flatsamples_normalized[0]
-for i in range(10**6-1):
+for i in range(10**7-1):
     # print(flatsamples_normalized[i+1],previous_p,previous_p / flatsamples_normalized[i+1])
     if (flatsamples_normalized[i+1] / previous_p)**(1/2) > np.random.uniform():
         previous_p = flatsamples_normalized[i+1]
@@ -1079,22 +1094,32 @@ for i in range(10**6-1):
         mcmc_samples[i+1] = mcmc_samples[i]
 print('time MHMC', time.time()-start)
 start = time.time()
-mcmc_samples_rescaled = np.zeros(np.shape(mcmc_samples))
-for k in range(len(mcmc_samples)):
-    rescaled = scaletooriginal(mcmc_samples[k], boundaries_reduced)
+# mcmc_samples_rescaled = np.zeros(np.shape(mcmc_samples))
+# for k in range(len(mcmc_samples)):
+#     rescaled = scaletooriginal(mcmc_samples[k], boundaries_reduced)
+#     i = 0
+#     for parameter in parameters:
+#         mcmc_samples_rescaled[k,i]  =  rescaled[parameter]
+#         i += 1
+for parameter in parametersfd:
     i = 0
-    for parameter in parameters:
-        mcmc_samples_rescaled[k,i]  =  rescaled[parameter]
+    if parameter in ["EclipticLatitude"]:
+        mcmc_samples_rescaled[:,i] = np.arcsin((mcmc_samples[:,parametersfd.index(parameter)] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
+    elif parameter in ["Inclination"]:
+        mcmc_samples_rescaled[:,i] = np.arccos((mcmc_samples[:,parametersfd.index(parameter)] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
+    else:
+        mcmc_samples_rescaled[:,i] = (mcmc_samples[:,parametersfd.index(parameter)] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0]
         i += 1
-
 print('time rescale', time.time()-start)
-datS = np.zeros((resolution, 6))
+datS = np.zeros((resolution, 8))
 datS[:,0] = mcmc_samples_rescaled[:,2]
 datS[:,1] = mcmc_samples_rescaled[:,1]
 datS[:,2] = mcmc_samples_rescaled[:,3]
-datS[:,3] = mcmc_samples_rescaled[:,4]
+datS[:,3] = np.log10(mcmc_samples_rescaled[:,4])
 datS[:,4] = mcmc_samples_rescaled[:,5]
 datS[:,5] = np.log10(mcmc_samples_rescaled[:,0])
+datS[:,6] = mcmc_samples_rescaled[:,6]
+datS[:,7] = mcmc_samples_rescaled[:,7]
 fig2 =  corner.corner(datS,  bins=40, hist_kwargs={'density':True, 'lw':3}, plot_datapoints=False, fill_contours=False,  show_titles=True, \
                         color='#348ABD', use_math_test=True,\
                         levels=[0.9], title_kwargs={"fontsize": 12})
@@ -1103,7 +1128,7 @@ plt.show()
 parameters_recorded[best_run]["Loglikelihood"].append(loglikelihood(maxpGB))
 for parameter in parametersfd:
     parameters_recorded[best_run][parameter].append(maxpGB[parameter])
-fig, ax = plt.subplots(2, 4, figsize=np.asarray(fig_size) * 2)
+fig, ax = plt.subplots(2, 5, figsize=np.asarray(fig_size) * 2)
 # plt.suptitle("Intermediate Parameters")
 for n in range(len(parameters_recorded)):
     i = 0
@@ -1112,12 +1137,12 @@ for n in range(len(parameters_recorded)):
         if i > 3:
             j = 1
         if parameter in ["Frequency"]:
-            ax[j, i % 4].plot(
+            ax[j, i % 5].plot(
                 np.asarray(parameters_recorded[n][parameter]) * 10 ** 3,
                 np.arange(0, len(parameters_recorded[n][parameter])),
             )
         else:
-            ax[j, i % 4].plot(
+            ax[j, i % 5].plot(
                 parameters_recorded[n][parameter],
                 np.arange(0, len(parameters_recorded[n][parameter])),
             )
@@ -1128,36 +1153,36 @@ for parameter in parametersfd + ["Log-likelihood"]:
     if i > 3:
         j = 1
     if parameter in ["Log-likelihood"]:
-        ax[j, i % 4].axvline(x=loglikelihood(pGB), color="k", label="True")
+        ax[j, i % 5].axvline(x=loglikelihood(pGB), color="k", label="True")
     elif parameter in ["Frequency"]:
-        ax[j, i % 4].axvline(x=pGB[parameter] * 10 ** 3, color="k", label="True")
+        ax[j, i % 5].axvline(x=pGB[parameter] * 10 ** 3, color="k", label="True")
     else:
-        ax[j, i % 4].axvline(x=pGB[parameter], color="k", label="True")
+        ax[j, i % 5].axvline(x=pGB[parameter], color="k", label="True")
     if parameter in ["Amplitude"]:
-        ax[j, i % 4].set_xlabel(parameter, ha="right", va="top")
+        ax[j, i % 5].set_xlabel(parameter, ha="right", va="top")
     elif parameter in ["Frequency"]:
-        ax[j, i % 4].xaxis.set_major_locator(plt.MaxNLocator(3))
-        ax[j, i % 4].set_xlabel(parameter + " (mHz)", ha="right", va="top")
+        ax[j, i % 5].xaxis.set_major_locator(plt.MaxNLocator(3))
+        ax[j, i % 5].set_xlabel(parameter + " (mHz)", ha="right", va="top")
     else:
-        ax[j, i % 4].xaxis.set_major_locator(plt.MaxNLocator(3))
-        ax[j, i % 4].set_xlabel(parameter)
+        ax[j, i % 5].xaxis.set_major_locator(plt.MaxNLocator(3))
+        ax[j, i % 5].set_xlabel(parameter)
     # if parameter in ['Log-likelihood']:
-    #     ax[j,i%4].set_xlabel('$$')
+    #     ax[j,i%5].set_xlabel('$$')
     ax[j, i % 1].set_ylabel("Step")
-    ax[j, i % 4].set_ylim(0, 100)
+    ax[j, i % 5].set_ylim(0, 100)
     if parameter in ["Log-likelihood"]:
         pass
     elif parameter == "EclipticLatitude":
-        ax[j, i % 4].set_xlim(np.arcsin(boundaries[parameter][0]), np.arcsin(boundaries[parameter][1]))
+        ax[j, i % 5].set_xlim(np.arcsin(boundaries[parameter][0]), np.arcsin(boundaries[parameter][1]))
     elif parameter == "Inclination":
-        ax[j, i % 4].set_xlim(np.arccos(boundaries[parameter][1]), np.arccos(boundaries[parameter][0]))
+        ax[j, i % 5].set_xlim(np.arccos(boundaries[parameter][1]), np.arccos(boundaries[parameter][0]))
     elif parameter in ["Frequency"]:
-        ax[j, i % 4].set_xlim(boundaries[parameter][0] * 10 ** 3, boundaries[parameter][1] * 10 ** 3)
+        ax[j, i % 5].set_xlim(boundaries[parameter][0] * 10 ** 3, boundaries[parameter][1] * 10 ** 3)
     else:
-        ax[j, i % 4].set_xlim(boundaries[parameter][0], boundaries[parameter][1])
+        ax[j, i % 5].set_xlim(boundaries[parameter][0], boundaries[parameter][1])
     i += 1
 ax[0, 0].legend()
-plt.tight_layout()
+# plt.tight_layout()
 plt.show()
 
 Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB, oversample=4, simulator="synthlisa")
@@ -1283,13 +1308,17 @@ for parameter in parametersfd:
     test_y2[parameter] = torch.from_numpy(test_y2[parameter]).float()
 number_of_test_samples2d = 50 ** 2
 
-parameter = "EclipticLatitude"
+parameter = "EclipticLongitude"
 parameters_reduced = [
-    "EclipticLongitude",
+    "EclipticLatitude",
     "Frequency",
     "Inclination",
     "Amplitude",
+    'InitialPhase',
+    'Polarization'
 ]
+observed_pred_mean = {}
+pred_sigma = {}
 for n in range(len(parameters_reduced)):
     for parameter2 in parameters_reduced:
         print(parameter+parameter2)
@@ -1312,20 +1341,29 @@ for n in range(len(parameters_reduced)):
                 test_x[parameter + parameter2][:, i] = test_samples[name]
                 i += 1
             test_x[parameter + parameter2] = torch.from_numpy(test_x[parameter + parameter2]).float()
-            with torch.no_grad(), gpytorch.settings.fast_pred_var():
-                observed_pred[parameter + parameter2] = likelihood(model(test_x[parameter + parameter2]))
+
+            observed_pred_sk, pred_sigma[parameter + parameter2] = gpr.predict(test_x[parameter + parameter2],return_std=True)
+            observed_pred_mean[parameter + parameter2] = observed_pred_sk*sigma +nu
+            pred_sigma[parameter + parameter2] = pred_sigma[parameter + parameter2]*sigma +nu
+            # with torch.no_grad(), gpytorch.settings.fast_pred_var():
+            #     observed_pred[parameter + parameter2] = likelihood(model(test_x[parameter + parameter2]))
     parameter = parameters_reduced[0]
     parameters_reduced.pop(0)
 
+
 for parameter in parametersfd:
     # Make predictions by feeding model through likelihood
-    with torch.no_grad(), gpytorch.settings.fast_pred_var():
-        observed_pred[parameter] = likelihood(model(test_x[parameter]))
-        observed_pred_print = (observed_pred[parameter].mean.numpy() * sigma) + nu
+    observed_pred_sk, pred_sigma[parameter] = gpr.predict(test_x[parameter],return_std=True)
+    observed_pred_mean[parameter] = observed_pred_sk*sigma +nu
+    pred_sigma[parameter] = pred_sigma[parameter]*sigma +nu
+    # with torch.no_grad(), gpytorch.settings.fast_pred_var():
+    #     observed_pred[parameter] = likelihood(model(test_x[parameter]))
+    #     observed_pred_print = (observed_pred[parameter].mean.numpy() * sigma) + nu
+
     print(
         "sqrt(MSE) ",
         parameter,
-        np.sqrt(mean_squared_error(test_y[parameter].numpy(), observed_pred_print)),
+        np.sqrt(mean_squared_error(test_y[parameter].numpy(), observed_pred_mean[parameter])),
     )
     # if parameter != parameter2:
     #     with torch.no_grad(), gpytorch.settings.fast_pred_var():
@@ -1364,8 +1402,6 @@ for parameter in parameters:
         pGB01[parameter] = (pGB[parameter] - boundaries[parameter][0]) / (boundaries[parameter][1] - boundaries[parameter][0])
 
 
-
-mean = {}
 fig, ax = plt.subplots(2, 4, figsize=np.asarray(fig_size) * 2.5)
 # plt.suptitle("loglikelihood")
 i = 0
@@ -1374,53 +1410,46 @@ for parameter in parametersfd:
     j = 0
     if i > 3:
         j = 1
-    with torch.no_grad():
-        # Get upper and lower confidence bounds
-        lower, upper = observed_pred[parameter].confidence_region()
-        mean2 = observed_pred[parameter].mean
-        mean[parameter] = (mean2 * sigma) + nu
-        lower = (lower * sigma) + nu
-        upper = (upper * sigma) + nu
-        test_x_rescaled = []
-        for k in range(len(test_x[parameter])):
-            test_x_rescaled.append(scaletooriginal(test_x[parameter][k].numpy(), boundaries_reduced)[parameter])
-        test_x2_rescaled = []
-        for k in range(len(test_x2[parameter])):
-            test_x2_rescaled.append(scaletooriginal(test_x2[parameter][k].numpy(), boundaries)[parameter])
-        # Plot training data as black stars
-        if parameter == "Frequency":
-            ax[j, i % 4].axvline(x=pGB[parameter] * 10 ** 3, color="k", label="GB")
-            ax[j, i % 4].plot(
-                np.asarray(test_x_rescaled[1:]) * 10 ** 3,
-                np.exp(test_y[parameter].numpy()[1:]-best_value)/normalizer,
-                "g",
-                label="True",
-            )
-            ax[j, i % 4].plot(
-                np.asarray(test_x_rescaled[1:]) * 10 ** 3,
-                np.exp(mean[parameter].numpy()[1:]-best_value)/normalizer,
-                "b",
-                label="Mean",
-            )
-            # ax[j, i % 4].fill_between(
-            #     np.asarray(test_x_rescaled[1:]) * 10 ** 3,
-            #     np.exp(lower.numpy()[1:]-best_value)/normalizer,
-            #     np.exp(upper.numpy()[1:]-best_value)/normalizer,
-            #     alpha=0.5,
-            #     label="Confidence",
-            # )
-        else:
-            ax[j, i % 4].axvline(x=pGB[parameter], color="k", label="GB")
-            ax[j, i % 4].plot(test_x_rescaled[1:], np.exp(test_y[parameter].numpy()[1:]-best_value)/normalizer, "g", label="True")
-            ax[j, i % 4].plot(test_x_rescaled[1:], np.exp(mean[parameter].numpy()[1:]-best_value)/normalizer, "b", label="Mean")
-            # ax[j, i % 4].fill_between(
-            #     test_x_rescaled[1:],
-            #     np.exp(lower.numpy()[1:]-best_value)/normalizer,
-            #     np.exp(upper.numpy()[1:]-best_value)/normalizer,
-            #     alpha=0.5,
-            #     label="Confidence",
-            # )
-        ax[0, 0].legend()
+    test_x_rescaled = []
+    for k in range(len(test_x[parameter])):
+        test_x_rescaled.append(scaletooriginal(test_x[parameter][k].numpy(), boundaries_reduced)[parameter])
+    test_x2_rescaled = []
+    for k in range(len(test_x2[parameter])):
+        test_x2_rescaled.append(scaletooriginal(test_x2[parameter][k].numpy(), boundaries)[parameter])
+    # Plot training data as black stars
+    if parameter == "Frequency":
+        ax[j, i % 4].axvline(x=pGB[parameter] * 10 ** 3, color="k", label="GB")
+        ax[j, i % 4].plot(
+            np.asarray(test_x_rescaled[1:]) * 10 ** 3,
+            np.exp(test_y[parameter].numpy()[1:]-best_value)/normalizer,
+            "g",linewidth=3, alpha=0.5,
+            label="True",
+        )
+        ax[j, i % 4].plot(
+            np.asarray(test_x_rescaled[1:]) * 10 ** 3,
+            np.exp(observed_pred_mean[parameter][1:]-best_value)/normalizer,
+            "b",
+            label="Mean",
+        )
+        # ax[j, i % 4].fill_between(
+        #     np.asarray(test_x_rescaled[1:]) * 10 ** 3,
+        #     np.exp(observed_pred_mean[parameter][1:]+pred_sigma[parameter][1:]-best_value)/normalizer,
+        #     np.exp(observed_pred_mean[parameter][1:]-pred_sigma[parameter][1:]-best_value)/normalizer,
+        #     alpha=0.5,
+        #     label="Confidence",
+        # )
+    else:
+        ax[j, i % 4].axvline(x=pGB[parameter], color="k", label="GB")
+        ax[j, i % 4].plot(test_x_rescaled[1:], np.exp(test_y[parameter].numpy()[1:]-best_value)/normalizer, "g",linewidth=5, alpha=0.5, label="True")
+        ax[j, i % 4].plot(test_x_rescaled[1:], np.exp(observed_pred_mean[parameter][1:]-best_value)/normalizer, "b", label="Mean")
+        # ax[j, i % 4].fill_between(
+        #     test_x_rescaled[1:],
+        #     np.exp(observed_pred_mean[parameter][1:]+pred_sigma[parameter][1:]-best_value)/normalizer,
+        #     np.exp(observed_pred_mean[parameter][1:]-pred_sigma[parameter][1:]-best_value)/normalizer,
+        #     alpha=0.5,
+        #     label="Confidence",
+        # )
+    ax[0, 0].legend()
     if parameter in ["Amplitude"]:
         ax[j, i % 4].set_xlabel(parameter, ha="right", va="top")
     elif parameter in ["Frequency"]:
@@ -1437,61 +1466,18 @@ for parameter in parametersfd:
     else:
         ax[j, i % 4].set_xlim(boundaries_reduced[parameter][0], boundaries_reduced[parameter][1])
     i += 1
-
-parameter = "Inclination"
-parameter2 = "Amplitude"
-with torch.no_grad():
-    # Get upper and lower confidence bounds
-    mean2 = observed_pred[parameter + parameter2].mean
-    mean[parameter + parameter2] = (mean2 * sigma) + nu
-    test_x_rescaled1 = []
-    test_x_rescaled2 = []
-    for k in range(len(test_x[parameter + parameter2])):
-        test_x_rescaled1.append(scaletooriginal(test_x[parameter + parameter2][k].numpy(), boundaries_reduced)[parameter])
-        test_x_rescaled2.append(scaletooriginal(test_x[parameter + parameter2][k].numpy(), boundaries_reduced)[parameter2])
-    ax[j, i % 4].axvline(x=pGB[parameter], color="k")
-    ax[j, i % 4].axhline(y=pGB[parameter2], color="k")
-    im = ax[j, i % 4].scatter(test_x_rescaled1, test_x_rescaled2, c=np.exp(mean[parameter + parameter2][:]-best_value)/normalizer)
-    ax[j, i % 4].set_xlabel(parameter)
-    if parameter == 'Frequency':
-        ax[j, i % 4].set_xlabel(parameter + " (mHz)", ha="right", va="top")
-    ax[j, i % 4].set_ylabel(parameter2)
-    fig.colorbar(im, ax=ax[j, i % 4])
-
-    if parameter == "EclipticLatitude":
-        ax[j, i % 4].set_xlim(np.arcsin(boundaries_reduced[parameter][0]), np.arcsin(boundaries_reduced[parameter][1]))
-    elif parameter == "Inclination":
-        ax[j, i % 4].set_xlim(np.arccos(boundaries_reduced[parameter][1]), np.arccos(boundaries_reduced[parameter][0]))
-    elif parameter in ["Frequency"]:
-        ax[j, i % 4].set_xlim(boundaries_reduced[parameter][0] * 10 ** 3, boundaries_reduced[parameter][1] * 10 ** 3)
-    else:
-        ax[j, i % 4].set_xlim(boundaries_reduced[parameter][0], boundaries_reduced[parameter][1])
-    if parameter2 == "EclipticLatitude":
-        ax[j, i % 4].set_ylim(np.arcsin(boundaries_reduced[parameter2][0]), np.arcsin(boundaries_reduced[parameter2][1]))
-    elif parameter2 == "Inclination":
-        ax[j, i % 4].set_ylim(np.arccos(boundaries_reduced[parameter2][1]), np.arccos(boundaries_reduced[parameter2][0]))
-    elif parameter2 in ["Frequency"]:
-        ax[j, i % 4].set_ylim(boundaries_reduced[parameter2][0] * 10 ** 3, boundaries_reduced[parameter2][1] * 10 ** 3)
-    else:
-        ax[j, i % 4].set_ylim(boundaries_reduced[parameter2][0], boundaries_reduced[parameter2][1])
 plt.tight_layout()
 plt.show()
-mean = {}
+
 fig, ax = plt.subplots(2, 4, figsize=np.asarray(fig_size) * 2.5)
 # plt.suptitle("loglikelihood")
 i = 0
-mean = {}
 for parameter in parametersfd:
     j = 0
     if i > 3:
         j = 1
     with torch.no_grad():
         # Get upper and lower confidence bounds
-        lower, upper = observed_pred[parameter].confidence_region()
-        mean2 = observed_pred[parameter].mean
-        mean[parameter] = (mean2 * sigma) + nu
-        lower = (lower * sigma) + nu
-        upper = (upper * sigma) + nu
         test_x_rescaled = []
         for k in range(len(test_x[parameter])):
             test_x_rescaled.append(scaletooriginal(test_x[parameter][k].numpy(), boundaries_reduced)[parameter])
@@ -1509,28 +1495,28 @@ for parameter in parametersfd:
             )
             ax[j, i % 4].plot(
                 np.asarray(test_x_rescaled[1:]) * 10 ** 3,
-                mean[parameter].numpy()[1:],
+                observed_pred_mean[parameter][1:],
                 "b",
                 label="Mean",
             )
-            ax[j, i % 4].fill_between(
-                np.asarray(test_x_rescaled[1:]) * 10 ** 3,
-                lower.numpy()[1:],
-                upper.numpy()[1:],
-                alpha=0.5,
-                label="Confidence",
-            )
+            # ax[j, i % 4].fill_between(
+            #     np.asarray(test_x_rescaled[1:]) * 10 ** 3,
+            #     observed_pred_mean[parameter][1:]+pred_sigma[parameter][1:],
+            #     observed_pred_mean[parameter][1:]-pred_sigma[parameter][1:],
+            #     alpha=0.5,
+            #     label="Confidence",
+            # )
         else:
             ax[j, i % 4].axvline(x=pGB[parameter], color="k", label="GB")
             ax[j, i % 4].plot(test_x2_rescaled[1:], test_y2[parameter].numpy()[1:], "g", label="True")
-            ax[j, i % 4].plot(test_x_rescaled[1:], mean[parameter].numpy()[1:], "b", label="Mean")
-            ax[j, i % 4].fill_between(
-                test_x_rescaled[1:],
-                lower.numpy()[1:],
-                upper.numpy()[1:],
-                alpha=0.5,
-                label="Confidence",
-            )
+            ax[j, i % 4].plot(test_x_rescaled[1:], observed_pred_mean[parameter][1:], "b", label="Mean")
+            # ax[j, i % 4].fill_between(
+            #     test_x_rescaled[1:],
+            #     observed_pred_mean[parameter][1:]+pred_sigma[parameter][1:],
+            #     observed_pred_mean[parameter][1:]-pred_sigma[parameter][1:],
+            #     alpha=0.5,
+            #     label="Confidence",
+            # )
         ax[0, 0].legend()
     if parameter in ["Amplitude"]:
         ax[j, i % 4].set_xlabel(parameter, ha="right", va="top")
@@ -1548,43 +1534,6 @@ for parameter in parametersfd:
     # else:
     #     ax[j, i % 4].set_xlim(boundaries_reduced[parameter][0], boundaries_reduced[parameter][1])
     i += 1
-
-parameter = "Inclination"
-parameter2 = "Amplitude"
-with torch.no_grad():
-    # Get upper and lower confidence bounds
-    mean2 = observed_pred[parameter + parameter2].mean
-    mean[parameter + parameter2] = (mean2 * sigma) + nu
-    test_x_rescaled1 = []
-    test_x_rescaled2 = []
-    for k in range(len(test_x[parameter + parameter2])):
-        test_x_rescaled1.append(scaletooriginal(test_x[parameter + parameter2][k].numpy(), boundaries_reduced)[parameter])
-        test_x_rescaled2.append(scaletooriginal(test_x[parameter + parameter2][k].numpy(), boundaries_reduced)[parameter2])
-    ax[j, i % 4].axvline(x=pGB[parameter], color="k")
-    ax[j, i % 4].axhline(y=pGB[parameter2], color="k")
-    im = ax[j, i % 4].scatter(test_x_rescaled1, test_x_rescaled2, c=mean[parameter + parameter2][:])
-    ax[j, i % 4].set_xlabel(parameter)
-    if parameter == 'Frequency':
-        ax[j, i % 4].set_xlabel(parameter + " (mHz)", ha="right", va="top")
-    ax[j, i % 4].set_ylabel(parameter2)
-    fig.colorbar(im, ax=ax[j, i % 4])
-
-    if parameter == "EclipticLatitude":
-        ax[j, i % 4].set_xlim(np.arcsin(boundaries_reduced[parameter][0]), np.arcsin(boundaries_reduced[parameter][1]))
-    elif parameter == "Inclination":
-        ax[j, i % 4].set_xlim(np.arccos(boundaries_reduced[parameter][1]), np.arccos(boundaries_reduced[parameter][0]))
-    elif parameter in ["Frequency"]:
-        ax[j, i % 4].set_xlim(boundaries_reduced[parameter][0] * 10 ** 3, boundaries_reduced[parameter][1] * 10 ** 3)
-    else:
-        ax[j, i % 4].set_xlim(boundaries_reduced[parameter][0], boundaries_reduced[parameter][1])
-    if parameter2 == "EclipticLatitude":
-        ax[j, i % 4].set_ylim(np.arcsin(boundaries_reduced[parameter2][0]), np.arcsin(boundaries_reduced[parameter2][1]))
-    elif parameter2 == "Inclination":
-        ax[j, i % 4].set_ylim(np.arccos(boundaries_reduced[parameter2][1]), np.arccos(boundaries_reduced[parameter2][0]))
-    elif parameter2 in ["Frequency"]:
-        ax[j, i % 4].set_ylim(boundaries_reduced[parameter2][0] * 10 ** 3, boundaries_reduced[parameter2][1] * 10 ** 3)
-    else:
-        ax[j, i % 4].set_ylim(boundaries_reduced[parameter2][0], boundaries_reduced[parameter2][1])
 plt.tight_layout()
 plt.show()
 # fig, ax = plt.subplots(2, 4,figsize=(15,15))
@@ -1689,7 +1638,7 @@ for parameter in parametersfd:
 plt.show()
 
 
-fig, ax = plt.subplots(5, 5, figsize=np.asarray(fig_size)*3)
+fig, ax = plt.subplots(7, 7, figsize=np.asarray(fig_size)*3)
 ax[0,1].axis('off')
 ax[0,2].axis('off')
 ax[0,3].axis('off')
@@ -1700,61 +1649,57 @@ ax[1,4].axis('off')
 ax[2,3].axis('off')
 ax[2,4].axis('off')
 ax[3,4].axis('off')
+i = 0
+parameter = "EclipticLatitude"
 parameters_reduced = [
-    "EclipticLatitude",
     "EclipticLongitude",
+    "EclipticLatitude",
     "Frequency",
     "Inclination",
     "Amplitude",
+    'InitialPhase',
+    'Polarization'
 ]
-i = 0
 for parameter in parameters_reduced:
-    with torch.no_grad():
-        # Get upper and lower confidence bounds
-        lower, upper = observed_pred[parameter].confidence_region()
-        mean2 = observed_pred[parameter].mean
-        mean[parameter] = (mean2 * sigma) + nu
-        lower = (lower * sigma) + nu
-        upper = (upper * sigma) + nu
-        test_x_rescaled = []
-        for k in range(len(test_x[parameter])):
-            test_x_rescaled.append(scaletooriginal(test_x[parameter][k].numpy(), boundaries_reduced)[parameter])
-        test_x2_rescaled = []
-        for k in range(len(test_x2[parameter])):
-            test_x2_rescaled.append(scaletooriginal(test_x2[parameter][k].numpy(), boundaries)[parameter])
-        # Plot training data as black stars
-        if parameter == "Frequency":
-            ax[i,i].axvline(x=pGB[parameter] * 10 ** 3, color="k", label="GB")
-            ax[i,i].plot(
-                np.asarray(test_x_rescaled[1:]) * 10 ** 3,
-                np.exp(test_y[parameter].numpy()[1:]-best_value)/normalizer,
-                "g",
-                label="Target",
-            )
-            ax[i,i].plot(
-                np.asarray(test_x_rescaled[1:]) * 10 ** 3,
-                np.exp(mean[parameter].numpy()[1:]-best_value)/normalizer,
-                "b",
-                label="Mean",
-            )
-            # ax[i,i].fill_between(
-            #     np.asarray(test_x_rescaled[1:]) * 10 ** 3,
-            #     np.exp(lower.numpy()[1:]-best_value)/normalizer,
-            #     np.exp(upper.numpy()[1:]-best_value)/normalizer,
-            #     alpha=0.5,
-            #     label="Confidence",
-            # )
-        else:
-            ax[i,i].axvline(x=pGB[parameter], color="r", label="GB")
-            ax[i,i].plot(test_x_rescaled[1:], np.exp(test_y[parameter].numpy()[1:]-best_value)/normalizer, "g", label="Target")
-            ax[i,i].plot(test_x_rescaled[1:], np.exp(mean[parameter].numpy()[1:]-best_value)/normalizer, "b", label="Mean")
-            # ax[i,i].fill_between(
-            #     test_x_rescaled[1:],
-            #     np.exp(lower.numpy()[1:]-best_value)/normalizer,
-            #     np.exp(upper.numpy()[1:]-best_value)/normalizer,
-            #     alpha=0.5,
-            #     label="Confidence",
-            # )
+    test_x_rescaled = []
+    for k in range(len(test_x[parameter])):
+        test_x_rescaled.append(scaletooriginal(test_x[parameter][k].numpy(), boundaries_reduced)[parameter])
+    test_x2_rescaled = []
+    for k in range(len(test_x2[parameter])):
+        test_x2_rescaled.append(scaletooriginal(test_x2[parameter][k].numpy(), boundaries)[parameter])
+    # Plot training data as black stars
+    if parameter == "Frequency":
+        ax[i,i].axvline(x=pGB[parameter] * 10 ** 3, color="k", label="GB")
+        ax[i,i].plot(
+            np.asarray(test_x_rescaled[1:]) * 10 ** 3,
+            np.exp(test_y[parameter].numpy()[1:]-best_value)/normalizer,
+            "g",
+            label="Target",
+        )
+        ax[i,i].plot(
+            np.asarray(test_x_rescaled[1:]) * 10 ** 3,
+            np.exp(observed_pred_mean[parameter][1:]-best_value)/normalizer,
+            "b",
+            label="Mean",
+        )
+        # ax[i,i].fill_between(
+        #     np.asarray(test_x_rescaled[1:]) * 10 ** 3,
+        #     np.exp(lower.numpy()[1:]-best_value)/normalizer,
+        #     np.exp(upper.numpy()[1:]-best_value)/normalizer,
+        #     alpha=0.5,
+        #     label="Confidence",
+        # )
+    else:
+        ax[i,i].axvline(x=pGB[parameter], color="r", label="GB")
+        ax[i,i].plot(test_x_rescaled[1:], np.exp(test_y[parameter].numpy()[1:]-best_value)/normalizer, "g", label="Target")
+        ax[i,i].plot(test_x_rescaled[1:], np.exp(observed_pred_mean[parameter][1:]-best_value)/normalizer, "b", label="Mean")
+        # ax[i,i].fill_between(
+        #     test_x_rescaled[1:],
+        #     np.exp(lower.numpy()[1:]-best_value)/normalizer,
+        #     np.exp(upper.numpy()[1:]-best_value)/normalizer,
+        #     alpha=0.5,
+        #     label="Confidence",
+        # )
     ax[4, 4].legend()
     ax[4,4].set_xlabel("Amplitude", ha="right", va="top")
     ax[0,0].set_ylabel('Likelihood')
@@ -1772,87 +1717,83 @@ for parameter in parameters_reduced:
     else:
         ax[i,i].set_xlim(boundaries_reduced[parameter][0], boundaries_reduced[parameter][1])
     i += 1
-
-parameter = "EclipticLatitude"
 parameters_reduced = [
-    "EclipticLongitude",
+    "EclipticLatitude",
     "Frequency",
     "Inclination",
     "Amplitude",
+    'InitialPhase',
+    'Polarization'
 ]
+parameter = "EclipticLongitude"
 for n in range(len(parameters_reduced)):
     print(n)
     print(parameter2)
     i = n+1
     for parameter2 in parameters_reduced:
-        with torch.no_grad():
-            print(parameter+parameter2)
-            # Get upper and lower confidence bounds
-            mean2 = observed_pred[parameter + parameter2].mean
-            mean[parameter + parameter2] = (mean2 * sigma) + nu
-            test_x_rescaled1 = []
-            test_x_rescaled2 = []
-            for k in range(len(test_x[parameter + parameter2])):
-                test_x_rescaled1.append(scaletooriginal(test_x[parameter + parameter2][k].numpy(), boundaries_reduced)[parameter])
-                test_x_rescaled2.append(scaletooriginal(test_x[parameter + parameter2][k].numpy(), boundaries_reduced)[parameter2])
-            ax[i,n].axvline(x=pGB[parameter], color="r")
-            ax[i,n].axhline(y=pGB[parameter2], color="r")
-            ax[i,n].scatter(test_x_rescaled1, test_x_rescaled2, c=np.exp(mean[parameter + parameter2][:]-best_value)/normalizer)
-            if parameter == 'Frequency':
-                ax[i,n].scatter(np.asarray(test_x_rescaled1)*1e3, test_x_rescaled2, c=np.exp(mean[parameter + parameter2][:]-best_value)/normalizer)
-                ax[i,n].axvline(x=pGB[parameter]*1e3, color="r")
-            if parameter2 == 'Frequency':
-                ax[i,n].scatter(test_x_rescaled1, np.asarray(test_x_rescaled2)*1e3, c=np.exp(mean[parameter + parameter2][:]-best_value)/normalizer)
-            ax[i,n].axhline(y=pGB[parameter2]*1e3, color="r")
-            if i == 4:
-                ax[i,n].set_xlabel(parameter)
-                if parameter in ["Frequency"]:
-                    ax[i,n].set_xlabel(parameter + " (mHz)", ha="right", va="top" )
-                    ax[i,n].xaxis.set_major_locator(plt.MaxNLocator(2))
-            else:
-                ax[i,n].xaxis.set_ticklabels([])
-            if n == 0:
-                ax[i,n].set_ylabel(parameter2)
-                if parameter in ["Frequency"]:
-                    ax[i,n].set_ylabel(parameter + " (mHz)")
-            else:
-                ax[i,n].yaxis.set_ticklabels([])
-            # fig.colorbar(im, ax=ax[i,n])
+        test_x_rescaled1 = []
+        test_x_rescaled2 = []
+        for k in range(len(test_x[parameter + parameter2])):
+            test_x_rescaled1.append(scaletooriginal(test_x[parameter + parameter2][k].numpy(), boundaries_reduced)[parameter])
+            test_x_rescaled2.append(scaletooriginal(test_x[parameter + parameter2][k].numpy(), boundaries_reduced)[parameter2])
+        ax[i,n].axvline(x=pGB[parameter], color="r")
+        ax[i,n].axhline(y=pGB[parameter2], color="r")
+        ax[i,n].scatter(test_x_rescaled1, test_x_rescaled2, c=np.exp(observed_pred_mean[parameter + parameter2][:]-best_value)/normalizer)
+        if parameter == 'Frequency':
+            ax[i,n].scatter(np.asarray(test_x_rescaled1)*1e3, test_x_rescaled2, c=np.exp(observed_pred_mean[parameter + parameter2][:]-best_value)/normalizer)
+            ax[i,n].axvline(x=pGB[parameter]*1e3, color="r")
+        if parameter2 == 'Frequency':
+            ax[i,n].scatter(test_x_rescaled1, np.asarray(test_x_rescaled2)*1e3, c=np.exp(observed_pred_mean[parameter + parameter2][:]-best_value)/normalizer)
+        ax[i,n].axhline(y=pGB[parameter2]*1e3, color="r")
+        if i == 6:
+            ax[i,n].set_xlabel(parameter)
+            if parameter in ["Frequency"]:
+                ax[i,n].set_xlabel(parameter + " (mHz)", ha="right", va="top" )
+                ax[i,n].xaxis.set_major_locator(plt.MaxNLocator(2))
+        else:
+            ax[i,n].xaxis.set_ticklabels([])
+        if n == 0:
+            ax[i,n].set_ylabel(parameter2)
+            if parameter in ["Frequency"]:
+                ax[i,n].set_ylabel(parameter + " (mHz)")
+        else:
+            ax[i,n].yaxis.set_ticklabels([])
+        # fig.colorbar(im, ax=ax[i,n])
 
-            if parameter == "EclipticLatitude":
-                ax[i,n].set_xlim(
-                    np.arcsin(boundaries_reduced[parameter][0]),
-                    np.arcsin(boundaries_reduced[parameter][1]),
-                )
-            elif parameter == "Inclination":
-                ax[i,n].set_xlim(
-                    np.arccos(boundaries_reduced[parameter][1]),
-                    np.arccos(boundaries_reduced[parameter][0]),
-                )
-            elif parameter in ["Frequency"]:
-                ax[i,n].set_xlim(
-                    boundaries_reduced[parameter][0] * 10 ** 3,
-                    boundaries_reduced[parameter][1] * 10 ** 3,
-                )
-            else:
-                ax[i,n].set_xlim(boundaries_reduced[parameter][0], boundaries_reduced[parameter][1])
-            if parameter2 == "EclipticLatitude":
-                ax[i,n].set_ylim(
-                    np.arcsin(boundaries_reduced[parameter2][0]),
-                    np.arcsin(boundaries_reduced[parameter2][1]),
-                )
-            elif parameter2 == "Inclination":
-                ax[i,n].set_ylim(
-                    np.arccos(boundaries_reduced[parameter2][1]),
-                    np.arccos(boundaries_reduced[parameter2][0]),
-                )
-            elif parameter2 in ["Frequency"]:
-                ax[i,n].set_ylim(
-                    boundaries_reduced[parameter2][0] * 10 ** 3,
-                    boundaries_reduced[parameter2][1] * 10 ** 3,
-                )
-            else:
-                ax[i,n].set_ylim(boundaries_reduced[parameter2][0], boundaries_reduced[parameter2][1])
+        if parameter == "EclipticLatitude":
+            ax[i,n].set_xlim(
+                np.arcsin(boundaries_reduced[parameter][0]),
+                np.arcsin(boundaries_reduced[parameter][1]),
+            )
+        elif parameter == "Inclination":
+            ax[i,n].set_xlim(
+                np.arccos(boundaries_reduced[parameter][1]),
+                np.arccos(boundaries_reduced[parameter][0]),
+            )
+        elif parameter in ["Frequency"]:
+            ax[i,n].set_xlim(
+                boundaries_reduced[parameter][0] * 10 ** 3,
+                boundaries_reduced[parameter][1] * 10 ** 3,
+            )
+        else:
+            ax[i,n].set_xlim(boundaries_reduced[parameter][0], boundaries_reduced[parameter][1])
+        if parameter2 == "EclipticLatitude":
+            ax[i,n].set_ylim(
+                np.arcsin(boundaries_reduced[parameter2][0]),
+                np.arcsin(boundaries_reduced[parameter2][1]),
+            )
+        elif parameter2 == "Inclination":
+            ax[i,n].set_ylim(
+                np.arccos(boundaries_reduced[parameter2][1]),
+                np.arccos(boundaries_reduced[parameter2][0]),
+            )
+        elif parameter2 in ["Frequency"]:
+            ax[i,n].set_ylim(
+                boundaries_reduced[parameter2][0] * 10 ** 3,
+                boundaries_reduced[parameter2][1] * 10 ** 3,
+            )
+        else:
+            ax[i,n].set_ylim(boundaries_reduced[parameter2][0], boundaries_reduced[parameter2][1])
         i += 1
     parameter = parameters_reduced[0]
     parameters_reduced.pop(0)
