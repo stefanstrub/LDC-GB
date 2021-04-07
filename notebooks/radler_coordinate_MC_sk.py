@@ -105,7 +105,7 @@ FD5 = LISAhdf5(sangria_fn)
 Nsrc = FD5.getSourcesNum()
 GWs = FD5.getSourcesName()
 print("Found %d GW sources: " % Nsrc, GWs)
-### TODO make sure GalBin is there
+### TOD make sure GalBin is there
 if GWs[0] != "GalBinaries":
     raise NotImplementedError
 p = FD5.getSourceParameters(GWs[0])
@@ -153,7 +153,7 @@ Npsd = Nmodel.psd()
 # plt.show()
 
 pGB = {}
-ind = 0
+ind = 8
 for parameter in parameters:
     pGB[parameter] = p.get(parameter)[ind]
 
@@ -241,7 +241,7 @@ boundaries = {
     "EclipticLatitude": [-1.0, 1.0],
     "EclipticLongitude": [-np.pi, np.pi],
     "Frequency": [pGB["Frequency"] * 0.9999, pGB["Frequency"] * 1.0001],
-    "FrequencyDerivative": [10 ** -20.0, 10 ** -16.0],
+    "FrequencyDerivative": [10 ** -20.0, 10 ** -15.0],
     "Inclination": [-1.0, 1.0],
     "InitialPhase": [0.0, 1.0 * np.pi],
     "Polarization": [np.pi, 2.0 * np.pi],
@@ -282,7 +282,7 @@ Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs, oversample=4, simulator="synthlisa"
 psd_signal = np.abs(Xs.values) ** 2 + np.abs(Ys.values) ** 2 + np.abs(Zs.values) ** 2
 highSNR = psd_signal > np.max(psd_signal) / cutoff_ratio
 lowerindex = np.where(highSNR)[0][0] - 10
-higherindex = np.where(highSNR)[0][-1] + 10
+higherindex = np.where(highSNR)[0][-1] + 40
 dataX = tdi_fs["X"].isel(f=slice(Xs.kmin, Xs.kmin + len(Xs)))[lowerindex:higherindex]
 dataY = tdi_fs["Y"].isel(f=slice(Ys.kmin, Ys.kmin + len(Ys)))[lowerindex:higherindex]
 dataZ = tdi_fs["Z"].isel(f=slice(Zs.kmin, Zs.kmin + len(Zs)))[lowerindex:higherindex]
@@ -316,7 +316,7 @@ p1 = -p1
 #     Ys = Ys[index_low:index_low+len(dataY)]
 #     Zs = Zs[index_low:index_low+len(dataZ)]
 #     # fr = np.arange(Af.kmin, Af.kmin+len(Af))*df
-#     ### TODO I assume that the frequency range is the same for A and E templates
+#     # TOD I assume that the frequency range is the same for A and E templates
 
 # #     SA = tdi.noisepsd_AE(fr, model='Proposal', includewd=None)
 #     SA = tdi.noisepsd(Xs.f, model='Proposal', includewd=None)
@@ -356,27 +356,34 @@ p1 = -p1
 #         boundaries_small[parameter] = [pGB[parameter]-(boundaries[parameter][1]-boundaries[parameter][0])/part_ratio,pGB[parameter]+(boundaries[parameter][1]-boundaries[parameter][0])/part_ratio]
 # boundaries = boundaries_small
 
+# Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB, oversample=4, simulator="synthlisa")
+# index_low = np.searchsorted(Xs.f, dataX.f[0])
+# Xs = Xs[index_low : index_low + len(dataX)]
+# Ys = Ys[index_low : index_low + len(dataY)]
+# Zs = Zs[index_low : index_low + len(dataZ)]
+
+plt.figure(figsize=fig_size)
+ax1 = plt.subplot(111)
+# plt.plot(dataX_training.f*1000,dataX_training.values, label='data')
+ax1.plot(dataX.f * 1000, dataX.values, label="data", marker=".", zorder=5)
+
+ax1.plot(Xs.f * 1000, Xs.values, label="start", marker=".", zorder=5)
 Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB, oversample=4, simulator="synthlisa")
 index_low = np.searchsorted(Xs.f, dataX.f[0])
 Xs = Xs[index_low : index_low + len(dataX)]
 Ys = Ys[index_low : index_low + len(dataY)]
 Zs = Zs[index_low : index_low + len(dataZ)]
-
-# plt.figure(figsize=fig_size)
-# ax1 = plt.subplot(111)
-# # plt.plot(dataX_training.f*1000,dataX_training.values, label='data')
-# ax1.plot(dataX.f * 1000, dataX.values, label="data", marker=".", zorder=5)
-# ax1.plot(Xs.f * 1000, Xs.values, label="VGB", marker=".", zorder=5)
-# ax1.plot(
-#     Xs.f * 1000,
-#     dataX.values - Xs.values,
-#     label="residual",
-#     alpha=0.8,
-#     color="red",
-#     marker=".",
-# )
-# plt.legend()
-# plt.show()
+ax1.plot(Xs.f * 1000, Xs.values, label="VGB", marker=".", zorder=5)
+ax1.plot(
+    Xs.f * 1000,
+    dataX.values - Xs.values,
+    label="residual",
+    alpha=0.8,
+    color="red",
+    marker=".",
+)
+plt.legend()
+plt.show()
 
 # plt.figure()
 # ax1=plt.subplot(111)
@@ -656,11 +663,12 @@ def plotplanes(parameterstocheck, parameter2, plot_x, plot_y):
 def traingpmodelsk(train_x, train_y, kernel, sigma, nu):
     train_x = train_x.numpy()
     train_y = train_y.numpy()
-    kernel = RBF(length_scale=[1,1,1,1,1,1,1,1])
+    kernel = RBF(length_scale=[1,1,1,1,1,1,1,1],length_scale_bounds=[(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10)])
     gpr = GaussianProcessRegressor(kernel=kernel,
             random_state=0).fit(train_x, train_y)
     gpr.score(train_x, train_y)
     return gpr
+
 def traingpmodel(train_x, train_y, kernel, sigma, nu):
     bo_iterations = 1
     for bo_iter in range(bo_iterations):
@@ -763,7 +771,7 @@ best_params = deepcopy(pGBs)
 best_value = p1
 parameters_recorded = []
 best_run = 0
-for n in range(15):
+for n in range(12):
     parameters_recorded1 = {}
     no_improvement_counter = 0
     for parameter in parametersfd:
@@ -793,7 +801,7 @@ for n in range(15):
         # if parameter1 == 'Frequency':
         #     parameter2 = 'Polarization'
         parametersreduced = [parameter1]
-        changeableparameters = [parameter1, parameter2, parameter3]
+        changeableparameters = [parameter1, parameter2]#, parameter3]
         params = np.zeros(len(changeableparameters))
 
         optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -1022,7 +1030,7 @@ with torch.no_grad(), gpytorch.settings.fast_pred_var():
     observed_pred_mean[parameter + parameter2] = (observed_pred[parameter + parameter2].mean * sigma) + nu
 print("sqrt(MSE) ",parameter + parameter2,np.sqrt(mean_squared_error(test_y[parameter + parameter2].numpy(),observed_pred_mean[parameter + parameter2].numpy())))
 
-resolution = 10 ** 7
+resolution = 10 ** 6
 start = time.time()
 test_samples = sampler(
     resolution,
@@ -1085,7 +1093,7 @@ flatsamples_normalized = np.exp(flatsamples[0]-best_value)/normalizer
 mcmc_samples = np.zeros((resolution, len(parameters)))
 mcmc_samples[0] = flatsamplesparameters[0][0]
 previous_p = flatsamples_normalized[0]
-for i in range(10**7-1):
+for i in range(len(flatsamples_normalized)-1):
     # print(flatsamples_normalized[i+1],previous_p,previous_p / flatsamples_normalized[i+1])
     if (flatsamples_normalized[i+1] / previous_p)**(1/2) > np.random.uniform():
         previous_p = flatsamples_normalized[i+1]
@@ -1094,32 +1102,34 @@ for i in range(10**7-1):
         mcmc_samples[i+1] = mcmc_samples[i]
 print('time MHMC', time.time()-start)
 start = time.time()
-# mcmc_samples_rescaled = np.zeros(np.shape(mcmc_samples))
+mcmc_samples_rescaled = np.zeros(np.shape(mcmc_samples))
 # for k in range(len(mcmc_samples)):
 #     rescaled = scaletooriginal(mcmc_samples[k], boundaries_reduced)
 #     i = 0
 #     for parameter in parameters:
 #         mcmc_samples_rescaled[k,i]  =  rescaled[parameter]
 #         i += 1
+i = 0
 for parameter in parametersfd:
-    i = 0
     if parameter in ["EclipticLatitude"]:
         mcmc_samples_rescaled[:,i] = np.arcsin((mcmc_samples[:,parametersfd.index(parameter)] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
     elif parameter in ["Inclination"]:
         mcmc_samples_rescaled[:,i] = np.arccos((mcmc_samples[:,parametersfd.index(parameter)] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
     else:
         mcmc_samples_rescaled[:,i] = (mcmc_samples[:,parametersfd.index(parameter)] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0]
-        i += 1
+    i += 1
 print('time rescale', time.time()-start)
-datS = np.zeros((resolution, 8))
-datS[:,0] = mcmc_samples_rescaled[:,2]
-datS[:,1] = mcmc_samples_rescaled[:,1]
-datS[:,2] = mcmc_samples_rescaled[:,3]
-datS[:,3] = np.log10(mcmc_samples_rescaled[:,4])
-datS[:,4] = mcmc_samples_rescaled[:,5]
-datS[:,5] = np.log10(mcmc_samples_rescaled[:,0])
-datS[:,6] = mcmc_samples_rescaled[:,6]
-datS[:,7] = mcmc_samples_rescaled[:,7]
+np.random.shuffle(mcmc_samples_rescaled)
+length = 1*10**6
+datS = np.zeros((length, 8))
+datS[:,0] = mcmc_samples_rescaled[:length,2]
+datS[:,1] = mcmc_samples_rescaled[:length,1]
+datS[:,2] = mcmc_samples_rescaled[:length,3]
+datS[:,3] = np.log10(mcmc_samples_rescaled[:length,4])
+datS[:,4] = mcmc_samples_rescaled[:length,5]
+datS[:,5] = np.log10(mcmc_samples_rescaled[:length,0])
+datS[:,6] = mcmc_samples_rescaled[:length,6]
+datS[:,7] = mcmc_samples_rescaled[:length,7]
 fig2 =  corner.corner(datS,  bins=40, hist_kwargs={'density':True, 'lw':3}, plot_datapoints=False, fill_contours=False,  show_titles=True, \
                         color='#348ABD', use_math_test=True,\
                         levels=[0.9], title_kwargs={"fontsize": 12})
