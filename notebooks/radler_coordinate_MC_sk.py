@@ -9,6 +9,7 @@ from astropy import units as u
 import pandas as pd
 import time
 from copy import deepcopy
+import multiprocessing as mp
 
 import torch
 import gpytorch
@@ -153,7 +154,7 @@ Npsd = Nmodel.psd()
 # plt.show()
 
 pGB = {}
-ind = 8
+ind = 1
 for parameter in parameters:
     pGB[parameter] = p.get(parameter)[ind]
 
@@ -241,10 +242,10 @@ boundaries = {
     "EclipticLatitude": [-1.0, 1.0],
     "EclipticLongitude": [-np.pi, np.pi],
     "Frequency": [pGB["Frequency"] * 0.9999, pGB["Frequency"] * 1.0001],
-    "FrequencyDerivative": [10 ** -20.0, 10 ** -15.0],
+    "FrequencyDerivative": [10 ** -20.0, 10 ** -17.0],
     "Inclination": [-1.0, 1.0],
     "InitialPhase": [0.0, 1.0 * np.pi],
-    "Polarization": [np.pi, 2.0 * np.pi],
+    "Polarization": [0.0, 1.0 * np.pi],
 }
 
 previous_max = [0.2090, 0.1000, 0.8469, 0.5276, 0.7168, 0.9667, 0.0970, 0.0000]
@@ -282,7 +283,7 @@ Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs, oversample=4, simulator="synthlisa"
 psd_signal = np.abs(Xs.values) ** 2 + np.abs(Ys.values) ** 2 + np.abs(Zs.values) ** 2
 highSNR = psd_signal > np.max(psd_signal) / cutoff_ratio
 lowerindex = np.where(highSNR)[0][0] - 10
-higherindex = np.where(highSNR)[0][-1] + 40
+higherindex = np.where(highSNR)[0][-1] + 10
 dataX = tdi_fs["X"].isel(f=slice(Xs.kmin, Xs.kmin + len(Xs)))[lowerindex:higherindex]
 dataY = tdi_fs["Y"].isel(f=slice(Ys.kmin, Ys.kmin + len(Ys)))[lowerindex:higherindex]
 dataZ = tdi_fs["Z"].isel(f=slice(Zs.kmin, Zs.kmin + len(Zs)))[lowerindex:higherindex]
@@ -599,7 +600,7 @@ test_x = {}
 test_y = {}
 
 
-def objective(trial):
+def objective(trial,changeableparameters, maxpGB2):
     for parameter in changeableparameters:
         parametervalue = trial.suggest_uniform(parameter, boundaries[parameter][0], boundaries[parameter][1])
         maxpGB2[parameter] = parametervalue
@@ -763,15 +764,13 @@ def traingpmodel(train_x, train_y, kernel, sigma, nu):
     return model, likelihood
 
 
-maxpGB = deepcopy(pGBs)
 notreduced = False
 notreduced2 = False
 boundaries_reduced = deepcopy(boundaries)
 best_params = deepcopy(pGBs)
-best_value = p1
-parameters_recorded = []
 best_run = 0
-for n in range(12):
+def CoordinateMC(n):
+    maxpGB = deepcopy(pGBs)
     parameters_recorded1 = {}
     no_improvement_counter = 0
     for parameter in parametersfd:
@@ -786,6 +785,10 @@ for n in range(12):
     parameters_recorded1["Loglikelihood"] = []
     if n == 0:
         maxpGB = deepcopy(pGBs)
+    try:
+        best_value
+    except:
+        best_value = p1
     previous_best = loglikelihood(maxpGB)
     maxpGB2 = deepcopy(maxpGB)
     for i in range(100):
@@ -807,8 +810,8 @@ for n in range(12):
         optuna.logging.set_verbosity(optuna.logging.WARNING)
         start = time.time()
         study = optuna.create_study(sampler=optuna.samplers.RandomSampler(), direction="maximize")
-        study.optimize(objective, n_trials=50)
-        print("optuna time", time.time() - start)
+        study.optimize(lambda trial: objective(trial, changeableparameters, maxpGB2), n_trials=50)
+        # print("optuna time", time.time() - start)
         if study.best_value > previous_best:
             no_improvement_counter = 0
             previous_best = study.best_value
@@ -835,11 +838,11 @@ for n in range(12):
                 if previous_best > past_mean:
                     no_improvement_counter = 0
                 else:
-                    print("no improvement")
+                    # print("no improvement")
                     break
             except:
-                no_improvement_counter = 0
-                pass
+                # no_improvement_counter = 0
+                break
              
         if i in [20,30,40,50]:
             past_mean = 0
@@ -861,7 +864,7 @@ for n in range(12):
                 pass
 
         start = time.time()
-        print(i, previous_best, loglikelihood(maxpGB), maxpGB)
+        # print(n, i, previous_best, loglikelihood(maxpGB), maxpGB)
         parameters_recorded1["Loglikelihood"].append(loglikelihood(maxpGB))
         for parameter in parametersfd:
             parameters_recorded1[parameter].append(maxpGB[parameter])
@@ -872,50 +875,25 @@ for n in range(12):
         best_run = n
         best_value = previous_best
         best_params = deepcopy(maxpGB)
-    parameters_recorded.append(parameters_recorded1)
-    # previous_max, max_loglike, observed_pred = planeAdam(maxpGB,parametersreduced,parameter2,resolution, boundaries)
-    # maxpGB = scaletooriginal(previous_max,boundaries)
-    # print('random time',time.time()-start)
-    # print(i,max_loglike, maxpGB)
-    # print(previous_max)
-    # real_loglike = loglikelihood(maxpGB)
-    # plotplanes(parametersreduced,parameter2, test_x, test_y)
-    # if parameter1 == 'Frequency':
-    # plotplanes(parametersreduced,parameter2, test_x, observed_pred)
-    # if real_loglike > -0.9 and notreduced:
-    #     notreduced = False
-    #     ratio = 0.2
-    #     for parameter in parameters:
-    #         length = boundaries[parameter][1]-boundaries[parameter][0]
-    #         if parameter == 'EclipticLatitude':
-    #             boundaries_reduced[parameter] = [np.sin(maxpGB[parameter])-length*ratio/2, np.sin(maxpGB[parameter])+length*ratio/2]
-    #         elif parameter == 'Inclination':
-    #             boundaries_reduced[parameter] = [np.cos(maxpGB[parameter])-length*ratio/2, np.cos(maxpGB[parameter])+length*ratio/2]
-    #         else:
-    #             boundaries_reduced[parameter] = [maxpGB[parameter]-length*ratio/2, maxpGB[parameter]+length*ratio/2]
-    #         if boundaries_reduced[parameter][0] <  boundaries[parameter][0]:
-    #             boundaries_reduced[parameter][0] =  boundaries[parameter][0]
-    #         if boundaries_reduced[parameter][1] >  boundaries[parameter][1]:
-    #             boundaries_reduced[parameter][1] =  boundaries[parameter][1]
-    #     boundaries = boundaries_reduced
-    # if real_loglike > -0.8 and notreduced2:
-    #     notreduced2 = False
-    #     ratio = 0.5
-    #     for parameter in parameters:
-    #         length = boundaries[parameter][1]-boundaries[parameter][0]
-    #         if parameter == 'EclipticLatitude':
-    #             boundaries_reduced[parameter] = [np.sin(maxpGB[parameter])-length*ratio/2, np.sin(maxpGB[parameter])+length*ratio/2]
-    #         elif parameter == 'Inclination':
-    #             boundaries_reduced[parameter] = [np.cos(maxpGB[parameter])-length*ratio/2, np.cos(maxpGB[parameter])+length*ratio/2]
-    #         else:
-    #             boundaries_reduced[parameter] = [maxpGB[parameter]-length*ratio/2, maxpGB[parameter]+length*ratio/2]
-    #         if boundaries_reduced[parameter][0] <  boundaries[parameter][0]:
-    #             boundaries_reduced[parameter][0] =  boundaries[parameter][0]
-    #         if boundaries_reduced[parameter][1] >  boundaries[parameter][1]:
-    #             boundaries_reduced[parameter][1] =  boundaries[parameter][1]
-    #     boundaries = boundaries_reduced
+    parameters_recorded[n] = parameters_recorded1
+    return parameters_recorded1
 
-maxpGB = best_params
+parameters_recorded = [None] * 64
+pool = mp.Pool(mp.cpu_count())
+start = time.time()
+parameters_recorded = pool.map(CoordinateMC, [n for n in range(64)])
+pool.close()
+print('parallel time', time.time()-start)
+
+bestloglikelihood = parameters_recorded[0]['Loglikelihood'][-1]
+best_run = 0
+for i in range(len(parameters_recorded)):
+    if bestloglikelihood < parameters_recorded[i]['Loglikelihood'][-1]:
+        bestloglikelihood = parameters_recorded[i]['Loglikelihood'][-1]
+        best_run = i
+
+for parameter in parameters:
+    maxpGB[parameter] = parameters_recorded[best_run][parameter][-1]
 ratio = 0.1
 for parameter in parameters:
     length = boundaries[parameter][1] - boundaries[parameter][0]
@@ -963,17 +941,7 @@ resolution_reduced = resolution
 #     resolution_reduced = int(15**2)
 start = time.time()
 parameter = "Frequency"
-train_samples = sampler(
-    resolution_reduced,
-    parameters,
-    maxpGB,
-    boundaries_reduced,
-    p1,
-    uniform=False,
-    twoD=False,
-    onlyparameter=parameter,
-    secondparameter=parameter2,
-)
+train_samples = sampler(resolution_reduced,parameters,maxpGB, boundaries_reduced, p1, uniform=False, twoD=False)
 print(time.time() - start)
 train_x = np.zeros((resolution_reduced, len(parameters)))
 i = 0
@@ -993,18 +961,16 @@ test_samples = sampler(
     p1,
     uniform=False,
     twoD=False,
-    onlyparameter=parameter,
-    secondparameter=parameter2,
     calculate_loglikelihood=True,
 )
-test_x[parameter + parameter2] = np.zeros((resolution, len(parameters)))
+test_x = np.zeros((resolution, len(parameters)))
 i = 0
 for name in parametersfd:
-    test_x[parameter + parameter2][:, i] = test_samples[name]
+    test_x[:, i] = test_samples[name]
     i += 1
-test_y[parameter + parameter2] = test_samples["Likelihood"]
-test_x[parameter + parameter2] = torch.from_numpy(test_x[parameter + parameter2]).float()
-test_y[parameter + parameter2] = torch.from_numpy(test_y[parameter + parameter2]).float()
+test_y = test_samples["Likelihood"]
+test_x = torch.from_numpy(test_x).float()
+test_y = torch.from_numpy(test_y).float()
 
 kernel = gpytorch.kernels.RBFKernel(ard_num_dims=2)
 
@@ -1019,16 +985,16 @@ print(time.time() - start)
 model.eval()
 likelihood.eval()
 start = time.time()
-observed_pred_sk = gpr.predict(test_x[parameter + parameter2])
+observed_pred_sk = gpr.predict(test_x)
 print(time.time() - start)
 observed_pred_sk_scaled = observed_pred_sk*sigma +nu
-print("sqrt(MSE) ",parameter + parameter2,np.sqrt(mean_squared_error(test_y[parameter + parameter2].numpy(),observed_pred_sk_scaled)))
+print("sqrt(MSE) ",np.sqrt(mean_squared_error(test_y.numpy(),observed_pred_sk_scaled)))
 observed_pred = {}
 observed_pred_mean = {}
 with torch.no_grad(), gpytorch.settings.fast_pred_var():
-    observed_pred[parameter + parameter2] = likelihood(model(test_x[parameter + parameter2]))
-    observed_pred_mean[parameter + parameter2] = (observed_pred[parameter + parameter2].mean * sigma) + nu
-print("sqrt(MSE) ",parameter + parameter2,np.sqrt(mean_squared_error(test_y[parameter + parameter2].numpy(),observed_pred_mean[parameter + parameter2].numpy())))
+    observed_pred = likelihood(model(test_x))
+    observed_pred_mean = (observed_pred.mean * sigma) + nu
+print("sqrt(MSE) ",np.sqrt(mean_squared_error(test_y.numpy(),observed_pred_mean.numpy())))
 
 resolution = 10 ** 6
 start = time.time()
@@ -1040,8 +1006,6 @@ test_samples = sampler(
     p1,
     uniform=False,
     twoD=False,
-    onlyparameter=parameter,
-    secondparameter=parameter2,
     calculate_loglikelihood=False,
 )
 print('sample time', time.time()-start)
@@ -1120,7 +1084,7 @@ for parameter in parametersfd:
     i += 1
 print('time rescale', time.time()-start)
 np.random.shuffle(mcmc_samples_rescaled)
-length = 1*10**6
+length = resolution
 datS = np.zeros((length, 8))
 datS[:,0] = mcmc_samples_rescaled[:length,2]
 datS[:,1] = mcmc_samples_rescaled[:length,1]
@@ -1578,8 +1542,6 @@ for parameter in parametersfd:
             j = 1
         with torch.no_grad():
             # Get upper and lower confidence bounds
-            mean2 = observed_pred[parameter + parameter2].mean
-            mean[parameter + parameter2] = (mean2 * sigma) + nu
             test_x_rescaled1 = []
             test_x_rescaled2 = []
             for k in range(len(test_x[parameter + parameter2])):
@@ -1587,7 +1549,7 @@ for parameter in parametersfd:
                 test_x_rescaled2.append(scaletooriginal(test_x[parameter + parameter2][k].numpy(), boundaries_reduced)[parameter2])
             ax[j, i % 4].axvline(x=pGB[parameter], color="k")
             ax[j, i % 4].axhline(y=pGB[parameter2], color="k")
-            im = ax[j, i % 4].scatter(test_x_rescaled1, test_x_rescaled2, c=mean[parameter + parameter2][:])
+            im = ax[j, i % 4].scatter(test_x_rescaled1, test_x_rescaled2, c=observed_pred_mean[parameter + parameter2][:])
             ax[j, i % 4].set_xlabel(parameter)
             ax[j, i % 4].set_ylabel(parameter2)
             fig.colorbar(im, ax=ax[j, i % 4])
@@ -1634,7 +1596,7 @@ for parameter in parametersfd:
             lower = (lower * sigma) + nu
             upper = (upper * sigma) + nu
             ax[j, i % 4].plot(test_x[parameter].numpy()[1:, i], test_y[parameter].numpy()[1:], "g.")
-            ax[j, i % 4].plot(test_x[parameter].numpy()[1:, i], mean[parameter].numpy()[1:], "b.")
+            ax[j, i % 4].plot(test_x[parameter].numpy()[1:, i], observed_pred_mean[parameter].numpy()[1:], "b.")
             ax[j, i % 4].fill_between(
                 test_x[parameter].numpy()[1:, i],
                 lower.numpy()[1:],
