@@ -16,7 +16,9 @@ import torch
 import gpytorch
 from sklearn.metrics import mean_squared_error
 from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import DotProduct, WhiteKernel, RBF
+from sklearn.gaussian_process.kernels import DotProduct, WhiteKernel, Matern, RationalQuadratic, ExpSineSquared, RBF
+from sklearn.kernel_approximation import Nystroem
+from sklearn import linear_model, pipeline
 
 from botorch.models.gpytorch import GPyTorchModel
 from botorch.acquisition.monte_carlo import qExpectedImprovement, qUpperConfidenceBound
@@ -155,7 +157,7 @@ Npsd = Nmodel.psd()
 # plt.show()
 
 pGB = {}
-ind = 1
+ind = 0
 for parameter in parameters:
     pGB[parameter] = p.get(parameter)[ind]
 print('pGB', pGB)
@@ -664,10 +666,9 @@ def plotplanes(parameterstocheck, parameter2, plot_x, plot_y):
         i += 1
     plt.show()
 
-def traingpmodelsk(train_x, train_y, kernel, sigma, nu):
+def traingpmodelsk(train_x, train_y, kernel):
     train_x = train_x.numpy()
     train_y = train_y.numpy()
-    kernel = RBF(length_scale=[1,1,1,1,1,1,1,1],length_scale_bounds=[(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10)])
     gpr = GaussianProcessRegressor(kernel=kernel,
             random_state=0).fit(train_x, train_y)
     gpr.score(train_x, train_y)
@@ -886,7 +887,7 @@ def CoordinateMC(n):
     parameters_recorded[n] = parameters_recorded1
     return parameters_recorded1
 
-parameters_recorded = [None] * 128
+parameters_recorded = [None] * 32
 pool = mp.Pool(mp.cpu_count())
 start = time.time()
 parameters_recorded = pool.map(CoordinateMC, [n for n in range(len(parameters_recorded))])
@@ -996,7 +997,7 @@ print(loglikelihood(maxpGB3))
 res = scipy.optimize.minimize(function, x, method='SLSQP', tol=1e-6, bounds=((0,1),(0,1),(0,1),(0,1),(0,1),(0,1),(0,1),(0,1)), options={'xatol': 1e-8, 'disp': True} )
 
 maxpGB = scaletooriginal(res.x,boundaries_reduced)
-print(loglikelihood(maxpGB))
+print('optimized loglikelihood', loglikelihood(maxpGB))
 
 ratio = 0.1
 for parameter in parameters:
@@ -1008,8 +1009,8 @@ for parameter in parameters:
         ]
     elif parameter == "Inclination":
         boundaries_reduced[parameter] = [
-            np.cos(maxpGB[parameter]) - length * ratio / 2*4,
-            np.cos(maxpGB[parameter]) + length * ratio / 2*4,
+            np.cos(maxpGB[parameter]) - length * ratio / 2*2,
+            np.cos(maxpGB[parameter]) + length * ratio / 2*2,
         ]
     elif parameter == "Frequency":
         boundaries_reduced[parameter] = [
@@ -1017,15 +1018,17 @@ for parameter in parameters:
             maxpGB[parameter] + length * ratio / 8,
         ]
     elif parameter == "FrequencyDerivative":
-        boundaries_reduced[parameter] = [boundaries[parameter][0],-16.5]
-        boundaries_reduced[parameter] = [
-            np.log10(maxpGB[parameter]) - length * ratio / 2*4,
-            np.log10(maxpGB[parameter]) + length * ratio / 2*4,
-        ]
+        boundaries_reduced[parameter] = [boundaries[parameter][0],-17]
+        boundaries_reduced[parameter] = [-17,-16]
+        boundaries_reduced[parameter] = [-16,-15]
+        # boundaries_reduced[parameter] = [
+        #     np.log10(maxpGB[parameter]) - length * ratio / 2,
+        #     np.log10(maxpGB[parameter]) + length * ratio / 2,
+        # ]
     elif parameter == "Amplitude":
         boundaries_reduced[parameter] = [
-            maxpGB[parameter] - length * ratio / 2*4,
-            maxpGB[parameter] + length * ratio / 2*4,
+            maxpGB[parameter] - length * ratio / 2*2,
+            maxpGB[parameter] + length * ratio / 2*2,
         ]
     elif parameter in ["InitialPhase",'Polarization']:
         boundaries_reduced[parameter] = [
@@ -1052,7 +1055,7 @@ resolution_reduced = resolution
 start = time.time()
 parameter = "Frequency"
 train_samples = sampler(resolution_reduced,parameters,maxpGB, boundaries_reduced, p1, uniform=False, twoD=False)
-print(time.time() - start)
+print('sample time of', resolution, 'samples ',time.time() - start)
 train_x = np.zeros((resolution_reduced, len(parameters)))
 i = 0
 for name in parametersfd:
@@ -1097,12 +1100,25 @@ train_y = (train_y - nu) / sigma
 #     observed_pred = likelihood(model(test_x))
 #     observed_pred_mean = (observed_pred.mean * sigma) + nu
 # print("sqrt(MSE) ",np.sqrt(mean_squared_error(test_y.numpy(),observed_pred_mean.numpy())))
+kernel = RBF(length_scale=[0.5,2,1,1,1,1,1,1],length_scale_bounds=[(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10)])
 start = time.time()
-gpr = traingpmodelsk(train_x, train_y, kernel, sigma, nu)
-print(time.time() - start)
+gpr = traingpmodelsk(train_x, train_y, kernel)
+print('train',time.time() - start)
 start = time.time()
 observed_pred_sk = gpr.predict(test_x)
-print(time.time() - start)
+print('eval',time.time() - start)
+observed_pred_sk_scaled = observed_pred_sk*sigma +nu
+print("sqrt(MSE) ",np.sqrt(mean_squared_error(test_y.numpy(),observed_pred_sk_scaled)))
+
+feature_map_nystroem = Nystroem(kernel=kernel, random_state=1 )
+nystroem_approx_blr = pipeline.Pipeline([("feature_map", feature_map_nystroem), ("blr",  linear_model.BayesianRidge())])
+nystroem_approx_blr.set_params(feature_map__n_components=2000)
+start = time.time()
+nystroem_approx_blr.fit(train_x.numpy(), train_y.numpy())
+print('train',time.time() - start)
+start = time.time()
+observed_pred_sk = nystroem_approx_blr.predict(test_x)
+print('eval',time.time() - start)
 observed_pred_sk_scaled = observed_pred_sk*sigma +nu
 print("sqrt(MSE) ",np.sqrt(mean_squared_error(test_y.numpy(),observed_pred_sk_scaled)))
 
@@ -1112,11 +1128,13 @@ test_x_m = np.random.uniform(size=(resolution,len(parameters)))
 test_x_m[0] = np.ones(len(parameters))*0.5
 print('sample time', time.time()-start)
 start = time.time()
-observed_pred_sk = gpr.predict(test_x_m[:5*10**5])
-for i in range(int(resolution/(5*10**5))-1):
-    observed_pred_sk = np.append(observed_pred_sk,gpr.predict(test_x_m[(i+1)*5*10**5:(i+2)*5*10**5]))
+observed_pred_sk = gpr.predict(test_x_m[:2*10**5]).tolist()
+for i in range(int(resolution/(2*10**5))-1):
+    lis = gpr.predict(test_x_m[(i+1)*2*10**5:(i+2)*2*10**5]).tolist()
+    observed_pred_sk = [*observed_pred_sk, *lis]
 # observed_pred_sk = gpr.predict(test_x_m[:5*10**5])
 # observed_pred_sk = gpr.predict(test_x_m)
+observed_pred_sk = np.asarray(observed_pred_sk)
 observed_pred_mean = observed_pred_sk*sigma +nu
 print('eval time', time.time()-start)
 # with torch.no_grad(), gpytorch.settings.fast_pred_var():
