@@ -976,71 +976,6 @@ def function(pGBs01):
     p = -loglikelihood(pGBs)
     return p
 
-def partial_derivative(func, var=0, point=[]):
-    args = point[:]
-    def wraps(x):
-        args[var] = x
-        return func(args)
-    return misc.derivative(wraps, point[var], dx = 1e-7)
-
-#----------------------------------------------------------------------------------------#
-# Gradient Descent
-
-alpha = 0.00002 # learning rate
-nb_max_iter = 400 # Nb max d'iteration
-eps = 0.000001 # stop condition
-
-x = []
-pGBs01 = {}
-for parameter in parameters:
-    if parameter in ["EclipticLatitude"]:
-        pGBs01[parameter] = (np.sin(maxpGB[parameter]) - boundaries_reduced[parameter][0]) / (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])
-    elif parameter in ["Inclination"]:
-        pGBs01[parameter] = (np.cos(maxpGB[parameter]) - boundaries_reduced[parameter][0]) / (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])
-    elif parameter in ["FrequencyDerivative"]:
-        pGBs01[parameter] = (np.log10(maxpGB[parameter]) - boundaries_reduced[parameter][0]) / (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])
-    else:
-        pGBs01[parameter] = (maxpGB[parameter] - boundaries_reduced[parameter][0]) / (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])
-for parameter in parameters:
-    x.append(pGBs01[parameter])
-x[0] = 0.7 # start point
-# x2_0 = 0.5
-# x3_0 = 0.8
-# x4_0 = 0.2
-x[5] = 0.7
-# x6_0 = 0.7
-# x7_0 = 0.5
-# x8_0 = 0.5
-z0 = function(x)
-plt.scatter(x[5],x[0])
-
-cond = eps + 10.0 # start with cond greater than eps (assumption)
-nb_iter = 0
-tmp_z0 = z0
-while cond > eps and nb_iter < nb_max_iter:
-    x[0] = x[0] - alpha * partial_derivative(function, 0, x)
-    x[1] = x[1] - alpha * partial_derivative(function, 1, x)
-    x[2] = x[2] - alpha * partial_derivative(function, 2, x)
-    x[3] = x[3] - alpha * partial_derivative(function, 3, x)
-    x[4] = x[4] - alpha * partial_derivative(function, 4, x)
-    x[5] = x[5] - alpha * partial_derivative(function, 5, x)
-    x[6] = x[6] - alpha * partial_derivative(function, 6, x)
-    x[7] = x[7] - alpha * partial_derivative(function, 7, x)
-    if nb_iter%50 == 0:
-        print(z0)
-    z0 = function(x)
-    nb_iter = nb_iter + 1
-    cond = abs( tmp_z0 - z0 )
-    tmp_z0 = z0
-    plt.scatter(x[5],x[0])
-
-plt.title("Gradient Descent")
-
-print(z0)
-plt.show()
-
-maxpGB = scaletooriginal(x,boundaries_reduced)
-
 x = []
 pGBs01 = {}
 for parameter in parameters:
@@ -1055,7 +990,7 @@ for parameter in parameters:
 for parameter in parameters:
     x.append(pGBs01[parameter])
 
-x = np.random.rand(8)
+# x = np.random.rand(8)
 maxpGB3 = scaletooriginal(x,boundaries_reduced)
 print(loglikelihood(maxpGB3))
 res = scipy.optimize.minimize(function, x, method='SLSQP', tol=1e-6, bounds=((0,1),(0,1),(0,1),(0,1),(0,1),(0,1),(0,1),(0,1)), options={'xatol': 1e-8, 'disp': True} )
