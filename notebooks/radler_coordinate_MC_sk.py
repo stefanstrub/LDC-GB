@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib import rcParams
 import scipy
+from scipy import misc
 import numpy as np
 import xarray as xr
 from astropy import units as u
@@ -157,7 +158,7 @@ pGB = {}
 ind = 1
 for parameter in parameters:
     pGB[parameter] = p.get(parameter)[ind]
-
+print('pGB', pGB)
 GB = fastGB.FastGB(delta_t=dt, T=float(tdi_ts["X"].t[-1]))  # in seconds
 
 Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB, oversample=4, simulator="synthlisa")
@@ -241,8 +242,8 @@ boundaries = {
     "Amplitude": [10 ** -23.0, 2 * 10 ** -22.0],
     "EclipticLatitude": [-1.0, 1.0],
     "EclipticLongitude": [-np.pi, np.pi],
-    "Frequency": [pGB["Frequency"] * 0.9999, pGB["Frequency"] * 1.0001],
-    "FrequencyDerivative": [10 ** -20.0, 10 ** -17.0],
+    "Frequency": [pGB["Frequency"] * 0.99995, pGB["Frequency"] * 1.00015],
+    "FrequencyDerivative": [-20.0,-15.0],
     "Inclination": [-1.0, 1.0],
     "InitialPhase": [0.0, 1.0 * np.pi],
     "Polarization": [0.0, 1.0 * np.pi],
@@ -274,7 +275,6 @@ for parameter in parameters:
         pGBs[parameter] = np.arccos((previous_max[i] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
     else:
         pGBs[parameter] = (previous_max[i] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0]
-        print(parameter, pGBs[parameter], previous_max[i])
     i += 1
 
 
@@ -282,8 +282,8 @@ Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs, oversample=4, simulator="synthlisa"
 # dataX2,dataY2,dataZ2 = GB.get_fd_tdixyz(template=pGB, oversample=4, simulator='synthlisa')
 psd_signal = np.abs(Xs.values) ** 2 + np.abs(Ys.values) ** 2 + np.abs(Zs.values) ** 2
 highSNR = psd_signal > np.max(psd_signal) / cutoff_ratio
-lowerindex = np.where(highSNR)[0][0] - 10
-higherindex = np.where(highSNR)[0][-1] + 10
+lowerindex = np.where(highSNR)[0][0] - 30
+higherindex = np.where(highSNR)[0][-1] + 30
 dataX = tdi_fs["X"].isel(f=slice(Xs.kmin, Xs.kmin + len(Xs)))[lowerindex:higherindex]
 dataY = tdi_fs["Y"].isel(f=slice(Ys.kmin, Ys.kmin + len(Ys)))[lowerindex:higherindex]
 dataZ = tdi_fs["Z"].isel(f=slice(Zs.kmin, Zs.kmin + len(Zs)))[lowerindex:higherindex]
@@ -366,23 +366,16 @@ p1 = -p1
 plt.figure(figsize=fig_size)
 ax1 = plt.subplot(111)
 # plt.plot(dataX_training.f*1000,dataX_training.values, label='data')
-ax1.plot(dataX.f * 1000, dataX.values, label="data", marker=".", zorder=5)
+ax1.plot(dataX.f * 1000, dataX.values.real, label="data", marker=".", zorder=5)
 
-ax1.plot(Xs.f * 1000, Xs.values, label="start", marker=".", zorder=5)
+ax1.plot(Xs.f * 1000, Xs.values.real, label="start", marker=".", zorder=5)
 Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB, oversample=4, simulator="synthlisa")
 index_low = np.searchsorted(Xs.f, dataX.f[0])
 Xs = Xs[index_low : index_low + len(dataX)]
 Ys = Ys[index_low : index_low + len(dataY)]
 Zs = Zs[index_low : index_low + len(dataZ)]
-ax1.plot(Xs.f * 1000, Xs.values, label="VGB", marker=".", zorder=5)
-ax1.plot(
-    Xs.f * 1000,
-    dataX.values - Xs.values,
-    label="residual",
-    alpha=0.8,
-    color="red",
-    marker=".",
-)
+ax1.plot(Xs.f * 1000, Xs.values.real, label="VGB", marker=".", zorder=5)
+# ax1.plot(Xs.f * 1000, dataX.values.real - Xs.values.real, label="residual", alpha=0.8, color="red", marker=".")
 plt.legend()
 plt.show()
 
@@ -421,6 +414,8 @@ for parameter in parameters:
         samples[parameter][0] = (np.sin(pGBs[parameter]) - boundaries[parameter][0]) / (boundaries[parameter][1] - boundaries[parameter][0])
     elif parameter in ["Inclination"]:
         samples[parameter][0] = (np.cos(pGBs[parameter]) - boundaries[parameter][0]) / (boundaries[parameter][1] - boundaries[parameter][0])
+    elif parameter in ["FrequencyDerivative"]:
+        samples[parameter][0] = (np.log10(pGBs[parameter]) - boundaries[parameter][0]) / (boundaries[parameter][1] - boundaries[parameter][0])
     else:
         samples[parameter][0] = (pGBs[parameter] - boundaries[parameter][0]) / (boundaries[parameter][1] - boundaries[parameter][0])
     pGBs01[parameter] = samples[parameter][0]
@@ -467,6 +462,8 @@ def sampler(
             samples[parameter].append((np.sin(pGB[parameter]) - boundaries[parameter][0]) / (boundaries[parameter][1] - boundaries[parameter][0]))
         elif parameter in ["Inclination"]:
             samples[parameter].append((np.cos(pGB[parameter]) - boundaries[parameter][0]) / (boundaries[parameter][1] - boundaries[parameter][0]))
+        elif parameter in ["FrequencyDerivative"]:
+            samples[parameter].append((np.log10(pGB[parameter]) - boundaries[parameter][0]) / (boundaries[parameter][1] - boundaries[parameter][0]))
         else:
             samples[parameter].append((pGB[parameter] - boundaries[parameter][0]) / (boundaries[parameter][1] - boundaries[parameter][0]))
         pGBs01[parameter] = samples[parameter][0]
@@ -519,6 +516,8 @@ def sampler(
                 pGBs[parameter] = np.arcsin((pGBs01[parameter] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
             elif parameter in ["Inclination"]:
                 pGBs[parameter] = np.arccos((pGBs01[parameter] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
+            elif parameter in ["FrequencyDerivative"]:
+                pGBs[parameter] = 10**((pGBs01[parameter] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
             else:
                 pGBs[parameter] = (pGBs01[parameter] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0]
         # pGBs01array = np.zeros(len(parametersfd))
@@ -608,6 +607,8 @@ def objective(trial,changeableparameters, maxpGB2):
             maxpGB2[parameter] = np.arcsin(parametervalue)
         elif parameter in ["Inclination"]:
             maxpGB2[parameter] = np.arccos(parametervalue)
+        elif parameter in ["FrequencyDerivative"]:
+            maxpGB2[parameter] = 10**(parametervalue)
     p = loglikelihood(maxpGB2)
     return p
 
@@ -633,6 +634,8 @@ def scaletooriginal(previous_max, boundaries):
             maxpGB[parameter] = np.arcsin((previous_max[parametersfd.index(parameter)] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
         elif parameter in ["Inclination"]:
             maxpGB[parameter] = np.arccos((previous_max[parametersfd.index(parameter)] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
+        elif parameter in ["FrequencyDerivative"]:
+            maxpGB[parameter] = 10**((previous_max[parametersfd.index(parameter)] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
         else:
             maxpGB[parameter] = (previous_max[parametersfd.index(parameter)] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0]
     return maxpGB
@@ -773,6 +776,7 @@ def CoordinateMC(n):
     maxpGB = deepcopy(pGBs)
     parameters_recorded1 = {}
     no_improvement_counter = 0
+    np.random.seed(n)
     for parameter in parametersfd:
         parametervalue = np.random.uniform(boundaries[parameter][0], boundaries[parameter][1])
         maxpGB[parameter] = parametervalue
@@ -780,6 +784,8 @@ def CoordinateMC(n):
             maxpGB[parameter] = np.arcsin(parametervalue)
         elif parameter in ["Inclination"]:
             maxpGB[parameter] = np.arccos(parametervalue)
+        elif parameter in ["FrequencyDerivative"]:
+            maxpGB[parameter] = 10**(parametervalue)
         parameters_recorded1[parameter] = []
         parameters_recorded1[parameter].append(maxpGB[parameter])
     parameters_recorded1["Loglikelihood"] = []
@@ -791,7 +797,7 @@ def CoordinateMC(n):
         best_value = p1
     previous_best = loglikelihood(maxpGB)
     maxpGB2 = deepcopy(maxpGB)
-    for i in range(100):
+    for i in range(150):
         parameter1 = parametersfd[i % 7]
         parameter2 = parametersfd[np.random.randint(0, 6)]
         parameter3 = parametersfd[np.random.randint(0, 6)]
@@ -821,6 +827,8 @@ def CoordinateMC(n):
                     maxpGB[parameter] = np.arcsin(study.best_params[parameter])
                 elif parameter in ["Inclination"]:
                     maxpGB[parameter] = np.arccos(study.best_params[parameter])
+                elif parameter in ["FrequencyDerivative"]:
+                    maxpGB[parameter] = 10**(study.best_params[parameter])
         else:
             no_improvement_counter += 1
         if no_improvement_counter > 16:
@@ -843,8 +851,8 @@ def CoordinateMC(n):
             except:
                 # no_improvement_counter = 0
                 break
-             
-        if i in [20,30,40,50]:
+
+        if i in [20,30,40,50,60,70]:
             past_mean = 0
             sum_count = 0
             for l in range(n):
@@ -878,22 +886,37 @@ def CoordinateMC(n):
     parameters_recorded[n] = parameters_recorded1
     return parameters_recorded1
 
-parameters_recorded = [None] * 64
+parameters_recorded = [None] * 128
 pool = mp.Pool(mp.cpu_count())
 start = time.time()
-parameters_recorded = pool.map(CoordinateMC, [n for n in range(64)])
+parameters_recorded = pool.map(CoordinateMC, [n for n in range(len(parameters_recorded))])
 pool.close()
 print('parallel time', time.time()-start)
 
-bestloglikelihood = parameters_recorded[0]['Loglikelihood'][-1]
+best_value = parameters_recorded[0]['Loglikelihood'][-1]
 best_run = 0
+loglikelihoodofruns = np.zeros(len(parameters_recorded))
 for i in range(len(parameters_recorded)):
-    if bestloglikelihood < parameters_recorded[i]['Loglikelihood'][-1]:
-        bestloglikelihood = parameters_recorded[i]['Loglikelihood'][-1]
-        best_run = i
+    loglikelihoodofruns[i] = parameters_recorded[i]['Loglikelihood'][-1]
+best_value = np.max(loglikelihoodofruns)
+best_run = np.argmax(loglikelihoodofruns)
+good_runs = loglikelihoodofruns > best_value*1.8
+indices = (-loglikelihoodofruns).argsort()[:len(good_runs)]
+pGBmodes = []
+for i in range(len(good_runs)):
+    if good_runs[i]:
+        pGBmodes.append({})
+indices = (-loglikelihoodofruns).argsort()[:len(pGBmodes)]
+pGBmodes = []
+for i in indices:
+    pGBmodes.append({})
+    for parameter in parameters + ["Loglikelihood"]:
+        pGBmodes[-1][parameter] = parameters_recorded[i][parameter][-1]
 
+maxpGB = {}
 for parameter in parameters:
     maxpGB[parameter] = parameters_recorded[best_run][parameter][-1]
+
 ratio = 0.1
 for parameter in parameters:
     length = boundaries[parameter][1] - boundaries[parameter][0]
@@ -912,17 +935,169 @@ for parameter in parameters:
             maxpGB[parameter] - length * ratio / 8,
             maxpGB[parameter] + length * ratio / 8,
         ]
+    elif parameter == "FrequencyDerivative":
+        boundaries_reduced[parameter] = [
+            np.log10(maxpGB[parameter]) - length * ratio / 2*3,
+            np.log10(maxpGB[parameter]) + length * ratio / 2*3,
+        ]
     elif parameter == "Amplitude":
         boundaries_reduced[parameter] = [
             maxpGB[parameter] - length * ratio / 2,
             maxpGB[parameter] + length * ratio / 2,
         ]
-    # elif parameter in ["InitialPhase",'Polarization']:
-    #     boundaries_reduced[parameter] = [
-    #         pGB[parameter] - length * ratio / 2*4,
-    #         pGB[parameter] + length * ratio / 2*4,
-    #     ]
-    #     boundaries_reduced[parameter] = boundaries[parameter]
+    elif parameter in ["InitialPhase",'Polarization']:
+        boundaries_reduced[parameter] = [
+            maxpGB[parameter] - length * ratio / 2,
+            maxpGB[parameter] + length * ratio / 2,
+        ]
+        # boundaries_reduced[parameter] = boundaries[parameter]
+    else:
+        boundaries_reduced[parameter] = [
+            maxpGB[parameter] - length * ratio / 2,
+            maxpGB[parameter] + length * ratio / 2,
+        ]
+    if boundaries_reduced[parameter][0] < boundaries[parameter][0]:
+        boundaries_reduced[parameter][0] = boundaries[parameter][0]
+    if boundaries_reduced[parameter][1] > boundaries[parameter][1]:
+        boundaries_reduced[parameter][1] = boundaries[parameter][1]
+
+def function(pGBs01):
+    i = 0
+    for parameter in parameters:
+        if parameter in ["EclipticLatitude"]:
+            pGBs[parameter] = np.arcsin((pGBs01[i] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0])
+        elif parameter in ["Inclination"]:
+            pGBs[parameter] = np.arccos((pGBs01[i] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0])
+        elif parameter in ["FrequencyDerivative"]:
+            pGBs[parameter] = 10**((pGBs01[i] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0])
+        else:
+            pGBs[parameter] = (pGBs01[i] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0]
+        i += 1
+    p = -loglikelihood(pGBs)
+    return p
+
+def partial_derivative(func, var=0, point=[]):
+    args = point[:]
+    def wraps(x):
+        args[var] = x
+        return func(args)
+    return misc.derivative(wraps, point[var], dx = 1e-7)
+
+#----------------------------------------------------------------------------------------#
+# Gradient Descent
+
+alpha = 0.00002 # learning rate
+nb_max_iter = 400 # Nb max d'iteration
+eps = 0.000001 # stop condition
+
+x = []
+pGBs01 = {}
+for parameter in parameters:
+    if parameter in ["EclipticLatitude"]:
+        pGBs01[parameter] = (np.sin(maxpGB[parameter]) - boundaries_reduced[parameter][0]) / (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])
+    elif parameter in ["Inclination"]:
+        pGBs01[parameter] = (np.cos(maxpGB[parameter]) - boundaries_reduced[parameter][0]) / (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])
+    elif parameter in ["FrequencyDerivative"]:
+        pGBs01[parameter] = (np.log10(maxpGB[parameter]) - boundaries_reduced[parameter][0]) / (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])
+    else:
+        pGBs01[parameter] = (maxpGB[parameter] - boundaries_reduced[parameter][0]) / (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])
+for parameter in parameters:
+    x.append(pGBs01[parameter])
+x[0] = 0.7 # start point
+# x2_0 = 0.5
+# x3_0 = 0.8
+# x4_0 = 0.2
+x[5] = 0.7
+# x6_0 = 0.7
+# x7_0 = 0.5
+# x8_0 = 0.5
+z0 = function(x)
+plt.scatter(x[5],x[0])
+
+cond = eps + 10.0 # start with cond greater than eps (assumption)
+nb_iter = 0
+tmp_z0 = z0
+while cond > eps and nb_iter < nb_max_iter:
+    x[0] = x[0] - alpha * partial_derivative(function, 0, x)
+    x[1] = x[1] - alpha * partial_derivative(function, 1, x)
+    x[2] = x[2] - alpha * partial_derivative(function, 2, x)
+    x[3] = x[3] - alpha * partial_derivative(function, 3, x)
+    x[4] = x[4] - alpha * partial_derivative(function, 4, x)
+    x[5] = x[5] - alpha * partial_derivative(function, 5, x)
+    x[6] = x[6] - alpha * partial_derivative(function, 6, x)
+    x[7] = x[7] - alpha * partial_derivative(function, 7, x)
+    if nb_iter%50 == 0:
+        print(z0)
+    z0 = function(x)
+    nb_iter = nb_iter + 1
+    cond = abs( tmp_z0 - z0 )
+    tmp_z0 = z0
+    plt.scatter(x[5],x[0])
+
+plt.title("Gradient Descent")
+
+print(z0)
+plt.show()
+
+maxpGB = scaletooriginal(x,boundaries_reduced)
+
+x = []
+pGBs01 = {}
+for parameter in parameters:
+    if parameter in ["EclipticLatitude"]:
+        pGBs01[parameter] = (np.sin(maxpGB[parameter]) - boundaries_reduced[parameter][0]) / (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])
+    elif parameter in ["Inclination"]:
+        pGBs01[parameter] = (np.cos(maxpGB[parameter]) - boundaries_reduced[parameter][0]) / (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])
+    elif parameter in ["FrequencyDerivative"]:
+        pGBs01[parameter] = (np.log10(maxpGB[parameter]) - boundaries_reduced[parameter][0]) / (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])
+    else:
+        pGBs01[parameter] = (maxpGB[parameter] - boundaries_reduced[parameter][0]) / (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])
+for parameter in parameters:
+    x.append(pGBs01[parameter])
+
+x = np.random.rand(8)
+maxpGB3 = scaletooriginal(x,boundaries_reduced)
+print(loglikelihood(maxpGB3))
+res = scipy.optimize.minimize(function, x, method='SLSQP', tol=1e-6, bounds=((0,1),(0,1),(0,1),(0,1),(0,1),(0,1),(0,1),(0,1)), options={'xatol': 1e-8, 'disp': True} )
+
+maxpGB = scaletooriginal(res.x,boundaries_reduced)
+print(loglikelihood(maxpGB))
+
+ratio = 0.1
+for parameter in parameters:
+    length = boundaries[parameter][1] - boundaries[parameter][0]
+    if parameter == "EclipticLatitude":
+        boundaries_reduced[parameter] = [
+            np.sin(maxpGB[parameter]) - length * ratio / 2,
+            np.sin(maxpGB[parameter]) + length * ratio / 2,
+        ]
+    elif parameter == "Inclination":
+        boundaries_reduced[parameter] = [
+            np.cos(maxpGB[parameter]) - length * ratio / 2*4,
+            np.cos(maxpGB[parameter]) + length * ratio / 2*4,
+        ]
+    elif parameter == "Frequency":
+        boundaries_reduced[parameter] = [
+            maxpGB[parameter] - length * ratio / 8,
+            maxpGB[parameter] + length * ratio / 8,
+        ]
+    elif parameter == "FrequencyDerivative":
+        boundaries_reduced[parameter] = [boundaries[parameter][0],-16.5]
+        boundaries_reduced[parameter] = [
+            np.log10(maxpGB[parameter]) - length * ratio / 2*4,
+            np.log10(maxpGB[parameter]) + length * ratio / 2*4,
+        ]
+    elif parameter == "Amplitude":
+        boundaries_reduced[parameter] = [
+            maxpGB[parameter] - length * ratio / 2*4,
+            maxpGB[parameter] + length * ratio / 2*4,
+        ]
+    elif parameter in ["InitialPhase",'Polarization']:
+        boundaries_reduced[parameter] = [
+            maxpGB[parameter] - length * ratio / 2,
+            maxpGB[parameter] + length * ratio / 2,
+        ]
+        # boundaries_reduced[parameter] = boundaries[parameter]
     else:
         boundaries_reduced[parameter] = [
             maxpGB[parameter] - length * ratio / 2,
@@ -978,43 +1153,29 @@ kernel = gpytorch.kernels.RBFKernel(ard_num_dims=2)
 nu = np.mean(train_y.numpy())
 sigma = np.std(train_y.numpy())
 train_y = (train_y - nu) / sigma
-model, likelihood = traingpmodel(train_x, train_y, kernel, sigma, nu)
+# model, likelihood = traingpmodel(train_x, train_y, kernel, sigma, nu)
+# model.eval()
+# likelihood.eval()
+# observed_pred = {}
+# observed_pred_mean = {}
+# with torch.no_grad(), gpytorch.settings.fast_pred_var():
+#     observed_pred = likelihood(model(test_x))
+#     observed_pred_mean = (observed_pred.mean * sigma) + nu
+# print("sqrt(MSE) ",np.sqrt(mean_squared_error(test_y.numpy(),observed_pred_mean.numpy())))
 start = time.time()
 gpr = traingpmodelsk(train_x, train_y, kernel, sigma, nu)
 print(time.time() - start)
-model.eval()
-likelihood.eval()
 start = time.time()
 observed_pred_sk = gpr.predict(test_x)
 print(time.time() - start)
 observed_pred_sk_scaled = observed_pred_sk*sigma +nu
 print("sqrt(MSE) ",np.sqrt(mean_squared_error(test_y.numpy(),observed_pred_sk_scaled)))
-observed_pred = {}
-observed_pred_mean = {}
-with torch.no_grad(), gpytorch.settings.fast_pred_var():
-    observed_pred = likelihood(model(test_x))
-    observed_pred_mean = (observed_pred.mean * sigma) + nu
-print("sqrt(MSE) ",np.sqrt(mean_squared_error(test_y.numpy(),observed_pred_mean.numpy())))
 
 resolution = 10 ** 6
 start = time.time()
-test_samples = sampler(
-    resolution,
-    parameters,
-    maxpGB,
-    boundaries_reduced,
-    p1,
-    uniform=False,
-    twoD=False,
-    calculate_loglikelihood=False,
-)
+test_x_m = np.random.uniform(size=(resolution,len(parameters)))
+test_x_m[0] = np.ones(len(parameters))*0.5
 print('sample time', time.time()-start)
-test_x_m = np.zeros((resolution, len(parameters)))
-i = 0
-for name in parametersfd:
-    test_x_m[:, i] = test_samples[name]
-    i += 1
-test_x_m = torch.from_numpy(test_x_m).float()
 start = time.time()
 observed_pred_sk = gpr.predict(test_x_m[:5*10**5])
 for i in range(int(resolution/(5*10**5))-1):
@@ -1032,7 +1193,7 @@ flatsamplesparameters = []
 i = 0
 # flatsamples[i,:] = train_y.numpy()
 flatsamples[i, :] = observed_pred_mean
-flatsamplesparameters.append(test_x_m.numpy())
+flatsamplesparameters.append(test_x_m)
 i += 1
 maxindx = np.unravel_index(flatsamples.argmax(), flatsamples.shape)
 max_parameters = flatsamplesparameters[maxindx[0]][maxindx[1]]
@@ -1076,11 +1237,13 @@ mcmc_samples_rescaled = np.zeros(np.shape(mcmc_samples))
 i = 0
 for parameter in parametersfd:
     if parameter in ["EclipticLatitude"]:
-        mcmc_samples_rescaled[:,i] = np.arcsin((mcmc_samples[:,parametersfd.index(parameter)] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
+        mcmc_samples_rescaled[:,i] = np.arcsin((mcmc_samples[:,parametersfd.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0])
     elif parameter in ["Inclination"]:
-        mcmc_samples_rescaled[:,i] = np.arccos((mcmc_samples[:,parametersfd.index(parameter)] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
+        mcmc_samples_rescaled[:,i] = np.arccos((mcmc_samples[:,parametersfd.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0])
+    elif parameter in ["FrequencyDerivative"]:
+        mcmc_samples_rescaled[:,i] = 10**((mcmc_samples[:,parametersfd.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0])
     else:
-        mcmc_samples_rescaled[:,i] = (mcmc_samples[:,parametersfd.index(parameter)] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0]
+        mcmc_samples_rescaled[:,i] = (mcmc_samples[:,parametersfd.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0]
     i += 1
 print('time rescale', time.time()-start)
 np.random.shuffle(mcmc_samples_rescaled)
@@ -1094,9 +1257,23 @@ datS[:,4] = mcmc_samples_rescaled[:length,5]
 datS[:,5] = np.log10(mcmc_samples_rescaled[:length,0])
 datS[:,6] = mcmc_samples_rescaled[:length,6]
 datS[:,7] = mcmc_samples_rescaled[:length,7]
+rng = []
+lbls = [r'$\lambda$', r'$\beta$', 'f(Hz)', r'$\dot{f}$', r'$\iota$', r'$A$', r'$\phi$', r'$\Phi$']
+for i in range(len(lbls)):
+    oner = ( datS[:,i].min(), datS[:, i].max())
+    rng.append(oner)
+tr_s = np.zeros(len(parameters))
+i = 0
+for parameter in ['EclipticLongitude','EclipticLatitude','Frequency','FrequencyDerivative','Inclination','Amplitude','InitialPhase','Polarization']:
+    if parameter in ['Amplitude','FrequencyDerivative']:
+        tr_s[i] = np.log10(pGB[parameter])
+    else:
+        tr_s[i] = pGB[parameter]
+    i += 1
 fig2 =  corner.corner(datS,  bins=40, hist_kwargs={'density':True, 'lw':3}, plot_datapoints=False, fill_contours=False,  show_titles=True, \
-                        color='#348ABD', use_math_test=True,\
-                        levels=[0.9], title_kwargs={"fontsize": 12})
+                        color='#348ABD', truths= tr_s, truth_color='k', use_math_test=True, labels= lbls,\
+                        range=rng, levels=[0.9], title_kwargs={"fontsize": 12})
+
 plt.show()
 
 parameters_recorded[best_run]["Loglikelihood"].append(loglikelihood(maxpGB))
@@ -1143,7 +1320,64 @@ for parameter in parametersfd + ["Log-likelihood"]:
     # if parameter in ['Log-likelihood']:
     #     ax[j,i%5].set_xlabel('$$')
     ax[j, i % 1].set_ylabel("Step")
-    ax[j, i % 5].set_ylim(0, 100)
+    ax[j, i % 5].set_ylim(0, 150)
+    if parameter in ["Log-likelihood"]:
+        pass
+    elif parameter == "EclipticLatitude":
+        ax[j, i % 5].set_xlim(np.arcsin(boundaries[parameter][0]), np.arcsin(boundaries[parameter][1]))
+    elif parameter == "Inclination":
+        ax[j, i % 5].set_xlim(np.arccos(boundaries[parameter][1]), np.arccos(boundaries[parameter][0]))
+    elif parameter in ["Frequency"]:
+        ax[j, i % 5].set_xlim(boundaries[parameter][0] * 10 ** 3, boundaries[parameter][1] * 10 ** 3)
+    else:
+        ax[j, i % 5].set_xlim(boundaries[parameter][0], boundaries[parameter][1])
+    i += 1
+ax[0, 0].legend()
+# plt.tight_layout()
+plt.show()
+
+fig, ax = plt.subplots(2, 5, figsize=np.asarray(fig_size) * 2)
+# plt.suptitle("Intermediate Parameters")
+for n in range(len(pGBmodes)):
+    i = 0
+    for parameter in parametersfd + ["Loglikelihood"]:
+        j = 0
+        if i > 3:
+            j = 1
+        if parameter in ["Frequency"]:
+            ax[j, i % 5].plot(
+                np.asarray(pGBmodes[n][parameter]) * 10 ** 3,
+                0.5,'.'
+            )
+        else:
+            ax[j, i % 5].plot(
+                pGBmodes[n][parameter],
+                0.5,'.'
+            )
+        i += 1
+i = 0
+for parameter in parametersfd + ["Log-likelihood"]:
+    j = 0
+    if i > 3:
+        j = 1
+    if parameter in ["Log-likelihood"]:
+        ax[j, i % 5].axvline(x=loglikelihood(pGB), color="k", label="True")
+    elif parameter in ["Frequency"]:
+        ax[j, i % 5].axvline(x=pGB[parameter] * 10 ** 3, color="k", label="True")
+    else:
+        ax[j, i % 5].axvline(x=pGB[parameter], color="k", label="True")
+    if parameter in ["Amplitude"]:
+        ax[j, i % 5].set_xlabel(parameter, ha="right", va="top")
+    elif parameter in ["Frequency"]:
+        ax[j, i % 5].xaxis.set_major_locator(plt.MaxNLocator(3))
+        ax[j, i % 5].set_xlabel(parameter + " (mHz)", ha="right", va="top")
+    else:
+        ax[j, i % 5].xaxis.set_major_locator(plt.MaxNLocator(3))
+        ax[j, i % 5].set_xlabel(parameter)
+    # if parameter in ['Log-likelihood']:
+    #     ax[j,i%5].set_xlabel('$$')
+    ax[j, i % 1].set_ylabel("Step")
+    ax[j, i % 5].set_ylim(0, 1)
     if parameter in ["Log-likelihood"]:
         pass
     elif parameter == "EclipticLatitude":
@@ -1228,9 +1462,7 @@ ax6.set_ylabel("Z-TDI imag (1/Hz)")
 plt.tight_layout()
 plt.show()
 
-# Get into evaluation (predictive posterior) mode
-model.eval()
-likelihood.eval()
+
 observed_pred = {}
 
 number_of_test_samples = 100
