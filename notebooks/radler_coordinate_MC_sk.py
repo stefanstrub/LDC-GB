@@ -20,6 +20,8 @@ from sklearn.gaussian_process.kernels import DotProduct, WhiteKernel, Matern, Ra
 from sklearn.kernel_approximation import Nystroem
 from sklearn import linear_model, pipeline
 
+from pure_sklearn.map import convert_estimator
+
 from botorch.models.gpytorch import GPyTorchModel
 from botorch.acquisition.monte_carlo import qExpectedImprovement, qUpperConfidenceBound
 from botorch.optim import optimize_acqf
@@ -157,7 +159,7 @@ Npsd = Nmodel.psd()
 # plt.show()
 
 pGB = {}
-ind = 0
+ind = 1
 for parameter in parameters:
     pGB[parameter] = p.get(parameter)[ind]
 print('pGB', pGB)
@@ -241,7 +243,7 @@ parametersfd = [
     "Polarization",
 ]
 boundaries = {
-    "Amplitude": [10 ** -23.0, 2 * 10 ** -22.0],
+    "Amplitude": [-23.0,-21.7],
     "EclipticLatitude": [-1.0, 1.0],
     "EclipticLongitude": [-np.pi, np.pi],
     "Frequency": [pGB["Frequency"] * 0.99995, pGB["Frequency"] * 1.00015],
@@ -275,6 +277,8 @@ for parameter in parameters:
         pGBs[parameter] = np.arcsin((previous_max[i] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
     elif parameter in ["Inclination"]:
         pGBs[parameter] = np.arccos((previous_max[i] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
+    elif parameter in ['Amplitude',"FrequencyDerivative"]:
+        pGBs[parameter] = 10**((previous_max[i] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
     else:
         pGBs[parameter] = (previous_max[i] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0]
     i += 1
@@ -305,8 +309,6 @@ fmin, fmax = float(Xs.f[0]), float(Xs.f[-1] + Xs.attrs["df"])
 freq = np.array(Xs.sel(f=slice(fmin, fmax)).f)
 Nmodel = get_noise_model(noise_model, freq)
 Sn = Nmodel.psd(freq=freq, option="X")
-diffd = np.abs(dataX) ** 2 + np.abs(dataY) ** 2 + np.abs(dataZ) ** 2
-pd = float(np.sum(diffd / (Sn + noise)) * Xs.df) / 2.0
 diff = np.abs(dataX - Xs.values) ** 2 + np.abs(dataY - Ys.values) ** 2 + np.abs(dataZ - Zs.values) ** 2
 p1 = float(np.sum(diff / (Sn + noise)) * Xs.df) / 2.0
 p1 = -p1
@@ -416,7 +418,7 @@ for parameter in parameters:
         samples[parameter][0] = (np.sin(pGBs[parameter]) - boundaries[parameter][0]) / (boundaries[parameter][1] - boundaries[parameter][0])
     elif parameter in ["Inclination"]:
         samples[parameter][0] = (np.cos(pGBs[parameter]) - boundaries[parameter][0]) / (boundaries[parameter][1] - boundaries[parameter][0])
-    elif parameter in ["FrequencyDerivative"]:
+    elif parameter in ['Amplitude',"FrequencyDerivative"]:
         samples[parameter][0] = (np.log10(pGBs[parameter]) - boundaries[parameter][0]) / (boundaries[parameter][1] - boundaries[parameter][0])
     else:
         samples[parameter][0] = (pGBs[parameter] - boundaries[parameter][0]) / (boundaries[parameter][1] - boundaries[parameter][0])
@@ -464,7 +466,7 @@ def sampler(
             samples[parameter].append((np.sin(pGB[parameter]) - boundaries[parameter][0]) / (boundaries[parameter][1] - boundaries[parameter][0]))
         elif parameter in ["Inclination"]:
             samples[parameter].append((np.cos(pGB[parameter]) - boundaries[parameter][0]) / (boundaries[parameter][1] - boundaries[parameter][0]))
-        elif parameter in ["FrequencyDerivative"]:
+        elif parameter in ['Amplitude',"FrequencyDerivative"]:
             samples[parameter].append((np.log10(pGB[parameter]) - boundaries[parameter][0]) / (boundaries[parameter][1] - boundaries[parameter][0]))
         else:
             samples[parameter].append((pGB[parameter] - boundaries[parameter][0]) / (boundaries[parameter][1] - boundaries[parameter][0]))
@@ -518,7 +520,7 @@ def sampler(
                 pGBs[parameter] = np.arcsin((pGBs01[parameter] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
             elif parameter in ["Inclination"]:
                 pGBs[parameter] = np.arccos((pGBs01[parameter] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
-            elif parameter in ["FrequencyDerivative"]:
+            elif parameter in ['Amplitude',"FrequencyDerivative"]:
                 pGBs[parameter] = 10**((pGBs01[parameter] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
             else:
                 pGBs[parameter] = (pGBs01[parameter] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0]
@@ -609,7 +611,7 @@ def objective(trial,changeableparameters, maxpGB2):
             maxpGB2[parameter] = np.arcsin(parametervalue)
         elif parameter in ["Inclination"]:
             maxpGB2[parameter] = np.arccos(parametervalue)
-        elif parameter in ["FrequencyDerivative"]:
+        elif parameter in ['Amplitude',"FrequencyDerivative"]:
             maxpGB2[parameter] = 10**(parametervalue)
     p = loglikelihood(maxpGB2)
     return p
@@ -636,7 +638,7 @@ def scaletooriginal(previous_max, boundaries):
             maxpGB[parameter] = np.arcsin((previous_max[parametersfd.index(parameter)] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
         elif parameter in ["Inclination"]:
             maxpGB[parameter] = np.arccos((previous_max[parametersfd.index(parameter)] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
-        elif parameter in ["FrequencyDerivative"]:
+        elif parameter in ['Amplitude',"FrequencyDerivative"]:
             maxpGB[parameter] = 10**((previous_max[parametersfd.index(parameter)] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
         else:
             maxpGB[parameter] = (previous_max[parametersfd.index(parameter)] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0]
@@ -667,8 +669,8 @@ def plotplanes(parameterstocheck, parameter2, plot_x, plot_y):
     plt.show()
 
 def traingpmodelsk(train_x, train_y, kernel):
-    train_x = train_x.numpy()
-    train_y = train_y.numpy()
+    # train_x = train_x.numpy()
+    # train_y = train_y.numpy()
     gpr = GaussianProcessRegressor(kernel=kernel,
             random_state=0).fit(train_x, train_y)
     gpr.score(train_x, train_y)
@@ -785,7 +787,7 @@ def CoordinateMC(n):
             maxpGB[parameter] = np.arcsin(parametervalue)
         elif parameter in ["Inclination"]:
             maxpGB[parameter] = np.arccos(parametervalue)
-        elif parameter in ["FrequencyDerivative"]:
+        elif parameter in ['Amplitude',"FrequencyDerivative"]:
             maxpGB[parameter] = 10**(parametervalue)
         parameters_recorded1[parameter] = []
         parameters_recorded1[parameter].append(maxpGB[parameter])
@@ -798,7 +800,7 @@ def CoordinateMC(n):
         best_value = p1
     previous_best = loglikelihood(maxpGB)
     maxpGB2 = deepcopy(maxpGB)
-    for i in range(150):
+    for i in range(100):
         parameter1 = parametersfd[i % 7]
         parameter2 = parametersfd[np.random.randint(0, 6)]
         parameter3 = parametersfd[np.random.randint(0, 6)]
@@ -828,7 +830,7 @@ def CoordinateMC(n):
                     maxpGB[parameter] = np.arcsin(study.best_params[parameter])
                 elif parameter in ["Inclination"]:
                     maxpGB[parameter] = np.arccos(study.best_params[parameter])
-                elif parameter in ["FrequencyDerivative"]:
+                elif parameter in ['Amplitude',"FrequencyDerivative"]:
                     maxpGB[parameter] = 10**(study.best_params[parameter])
         else:
             no_improvement_counter += 1
@@ -887,7 +889,7 @@ def CoordinateMC(n):
     parameters_recorded[n] = parameters_recorded1
     return parameters_recorded1
 
-parameters_recorded = [None] * 32
+parameters_recorded = [None] * 124
 pool = mp.Pool(mp.cpu_count())
 start = time.time()
 parameters_recorded = pool.map(CoordinateMC, [n for n in range(len(parameters_recorded))])
@@ -918,6 +920,7 @@ maxpGB = {}
 for parameter in parameters:
     maxpGB[parameter] = parameters_recorded[best_run][parameter][-1]
 
+# maxpGB = pGB
 ratio = 0.1
 for parameter in parameters:
     length = boundaries[parameter][1] - boundaries[parameter][0]
@@ -928,8 +931,8 @@ for parameter in parameters:
         ]
     elif parameter == "Inclination":
         boundaries_reduced[parameter] = [
-            np.cos(maxpGB[parameter]) - length * ratio / 2,
-            np.cos(maxpGB[parameter]) + length * ratio / 2,
+            np.cos(maxpGB[parameter]) - length * ratio / 2*5,
+            np.cos(maxpGB[parameter]) + length * ratio / 2*5,
         ]
     elif parameter == "Frequency":
         boundaries_reduced[parameter] = [
@@ -937,25 +940,25 @@ for parameter in parameters:
             maxpGB[parameter] + length * ratio / 8,
         ]
     elif parameter == "FrequencyDerivative":
-        boundaries_reduced[parameter] = [
-            np.log10(maxpGB[parameter]) - length * ratio / 2*3,
-            np.log10(maxpGB[parameter]) + length * ratio / 2*3,
-        ]
+        boundaries_reduced[parameter] = [boundaries[parameter][0],-16]
+        # boundaries_reduced[parameter] = [
+        #     np.log10(maxpGB[parameter]) - length * ratio / 2*3,
+        #     np.log10(maxpGB[parameter]) + length * ratio / 2*3,
+        # ]
     elif parameter == "Amplitude":
         boundaries_reduced[parameter] = [
-            maxpGB[parameter] - length * ratio / 2,
-            maxpGB[parameter] + length * ratio / 2,
+            np.log10(maxpGB[parameter]) - length * ratio / 2*5,
+            np.log10(maxpGB[parameter]) + length * ratio / 2*5,
         ]
     elif parameter in ["InitialPhase",'Polarization']:
         boundaries_reduced[parameter] = [
-            maxpGB[parameter] - length * ratio / 2,
-            maxpGB[parameter] + length * ratio / 2,
+            maxpGB[parameter] - length * ratio / 8,
+            maxpGB[parameter] + length * ratio / 8,
         ]
-        # boundaries_reduced[parameter] = boundaries[parameter]
-    else:
+    elif parameter == "EclipticLongitude":
         boundaries_reduced[parameter] = [
-            maxpGB[parameter] - length * ratio / 2,
-            maxpGB[parameter] + length * ratio / 2,
+            maxpGB[parameter] - length * ratio / 10,
+            maxpGB[parameter] + length * ratio / 10,
         ]
     if boundaries_reduced[parameter][0] < boundaries[parameter][0]:
         boundaries_reduced[parameter][0] = boundaries[parameter][0]
@@ -969,7 +972,7 @@ def function(pGBs01):
             pGBs[parameter] = np.arcsin((pGBs01[i] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0])
         elif parameter in ["Inclination"]:
             pGBs[parameter] = np.arccos((pGBs01[i] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0])
-        elif parameter in ["FrequencyDerivative"]:
+        elif parameter in ['Amplitude',"FrequencyDerivative"]:
             pGBs[parameter] = 10**((pGBs01[i] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0])
         else:
             pGBs[parameter] = (pGBs01[i] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0]
@@ -984,7 +987,7 @@ for parameter in parameters:
         pGBs01[parameter] = (np.sin(maxpGB[parameter]) - boundaries_reduced[parameter][0]) / (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])
     elif parameter in ["Inclination"]:
         pGBs01[parameter] = (np.cos(maxpGB[parameter]) - boundaries_reduced[parameter][0]) / (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])
-    elif parameter in ["FrequencyDerivative"]:
+    elif parameter in ['Amplitude',"FrequencyDerivative"]:
         pGBs01[parameter] = (np.log10(maxpGB[parameter]) - boundaries_reduced[parameter][0]) / (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])
     else:
         pGBs01[parameter] = (maxpGB[parameter] - boundaries_reduced[parameter][0]) / (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])
@@ -999,107 +1002,45 @@ res = scipy.optimize.minimize(function, x, method='SLSQP', tol=1e-6, bounds=((0,
 maxpGB = scaletooriginal(res.x,boundaries_reduced)
 print('optimized loglikelihood', loglikelihood(maxpGB))
 
-ratio = 0.1
-for parameter in parameters:
-    length = boundaries[parameter][1] - boundaries[parameter][0]
-    if parameter == "EclipticLatitude":
-        boundaries_reduced[parameter] = [
-            np.sin(maxpGB[parameter]) - length * ratio / 2,
-            np.sin(maxpGB[parameter]) + length * ratio / 2,
-        ]
-    elif parameter == "Inclination":
-        boundaries_reduced[parameter] = [
-            np.cos(maxpGB[parameter]) - length * ratio / 2*2,
-            np.cos(maxpGB[parameter]) + length * ratio / 2*2,
-        ]
-    elif parameter == "Frequency":
-        boundaries_reduced[parameter] = [
-            maxpGB[parameter] - length * ratio / 8,
-            maxpGB[parameter] + length * ratio / 8,
-        ]
-    elif parameter == "FrequencyDerivative":
-        boundaries_reduced[parameter] = [boundaries[parameter][0],-17]
-        boundaries_reduced[parameter] = [-17,-16]
-        boundaries_reduced[parameter] = [-16,-15]
-        # boundaries_reduced[parameter] = [
-        #     np.log10(maxpGB[parameter]) - length * ratio / 2,
-        #     np.log10(maxpGB[parameter]) + length * ratio / 2,
-        # ]
-    elif parameter == "Amplitude":
-        boundaries_reduced[parameter] = [
-            maxpGB[parameter] - length * ratio / 2*2,
-            maxpGB[parameter] + length * ratio / 2*2,
-        ]
-    elif parameter in ["InitialPhase",'Polarization']:
-        boundaries_reduced[parameter] = [
-            maxpGB[parameter] - length * ratio / 2,
-            maxpGB[parameter] + length * ratio / 2,
-        ]
-        # boundaries_reduced[parameter] = boundaries[parameter]
-    else:
-        boundaries_reduced[parameter] = [
-            maxpGB[parameter] - length * ratio / 2,
-            maxpGB[parameter] + length * ratio / 2,
-        ]
-    if boundaries_reduced[parameter][0] < boundaries[parameter][0]:
-        boundaries_reduced[parameter][0] = boundaries[parameter][0]
-    if boundaries_reduced[parameter][1] > boundaries[parameter][1]:
-        boundaries_reduced[parameter][1] = boundaries[parameter][1]
+boundaries_reduced1 = deepcopy(boundaries_reduced)
+boundaries_reduced1['FrequencyDerivative'] = [boundaries_reduced['FrequencyDerivative'][0], -17.3]
+boundaries_reduced2 = deepcopy(boundaries_reduced)
+boundaries_reduced2['FrequencyDerivative'] = [-17.3, boundaries_reduced['FrequencyDerivative'][1]]
 
-resolution = 2000
-# if parameter != parameter2:
+resolution = 3000
 resolution_reduced = int(20 ** 2)
 resolution_reduced = resolution
-# if 'Frequency' in [parameter,parameter2]:
-#     resolution_reduced = int(15**2)
 start = time.time()
 parameter = "Frequency"
-train_samples = sampler(resolution_reduced,parameters,maxpGB, boundaries_reduced, p1, uniform=False, twoD=False)
+train_samples = sampler(resolution_reduced,parameters,maxpGB, boundaries_reduced1, p1, uniform=False, twoD=False)
 print('sample time of', resolution, 'samples ',time.time() - start)
 train_x = np.zeros((resolution_reduced, len(parameters)))
 i = 0
-for name in parametersfd:
-    train_x[:, i] = train_samples[name]
+boundary_ratio = (boundaries_reduced1['FrequencyDerivative'][1]-boundaries_reduced1['FrequencyDerivative'][0])/(boundaries_reduced2['FrequencyDerivative'][1]-boundaries_reduced1['FrequencyDerivative'][0])
+for parameter in parametersfd:
+    if parameter == 'FrequencyDerivative':
+        train_x[:, i] = train_samples[parameter]*boundary_ratio
+    else:
+        train_x[:, i] = train_samples[parameter]
     i += 1
 train_y = train_samples["Likelihood"]
-train_x = torch.from_numpy(train_x).float()
-train_y = torch.from_numpy(train_y).float()
-# if parameter != parameter2:
-resolution = 1000
-test_samples = sampler(
-    resolution,
-    parameters,
-    maxpGB,
-    boundaries_reduced,
-    p1,
-    uniform=False,
-    twoD=False,
-    calculate_loglikelihood=True,
-)
+resolution = 500
+test_samples = sampler(resolution, parameters, maxpGB, boundaries_reduced1, p1, uniform=False, twoD=False, calculate_loglikelihood=True)
 test_x = np.zeros((resolution, len(parameters)))
 i = 0
-for name in parametersfd:
-    test_x[:, i] = test_samples[name]
+for parameter in parametersfd:
+    if parameter == 'FrequencyDerivative':
+        test_x[:, i] = test_samples[parameter]*boundary_ratio
+    else:
+        test_x[:, i] = test_samples[parameter]
     i += 1
 test_y = test_samples["Likelihood"]
-test_x = torch.from_numpy(test_x).float()
-test_y = torch.from_numpy(test_y).float()
 
 kernel = gpytorch.kernels.RBFKernel(ard_num_dims=2)
 
-# train_y = np.exp(train_y-loglikelihood(maxpGB))
-nu = np.mean(train_y.numpy())
-sigma = np.std(train_y.numpy())
+nu = np.mean(train_y)
+sigma = np.std(train_y)
 train_y = (train_y - nu) / sigma
-# model, likelihood = traingpmodel(train_x, train_y, kernel, sigma, nu)
-# model.eval()
-# likelihood.eval()
-# observed_pred = {}
-# observed_pred_mean = {}
-# with torch.no_grad(), gpytorch.settings.fast_pred_var():
-#     observed_pred = likelihood(model(test_x))
-#     observed_pred_mean = (observed_pred.mean * sigma) + nu
-# print("sqrt(MSE) ",np.sqrt(mean_squared_error(test_y.numpy(),observed_pred_mean.numpy())))
 kernel = RBF(length_scale=[0.5,2,1,1,1,1,1,1],length_scale_bounds=[(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10)])
 start = time.time()
 gpr = traingpmodelsk(train_x, train_y, kernel)
@@ -1108,35 +1049,100 @@ start = time.time()
 observed_pred_sk = gpr.predict(test_x)
 print('eval',time.time() - start)
 observed_pred_sk_scaled = observed_pred_sk*sigma +nu
-print("sqrt(MSE) ",np.sqrt(mean_squared_error(test_y.numpy(),observed_pred_sk_scaled)))
+print("sqrt(MSE) ",np.sqrt(mean_squared_error(test_y,observed_pred_sk_scaled)))
 
-feature_map_nystroem = Nystroem(kernel=kernel, random_state=1 )
-nystroem_approx_blr = pipeline.Pipeline([("feature_map", feature_map_nystroem), ("blr",  linear_model.BayesianRidge())])
-nystroem_approx_blr.set_params(feature_map__n_components=2000)
+resolution = 4000
+resolution_reduced = int(20 ** 2)
+resolution_reduced = resolution
 start = time.time()
-nystroem_approx_blr.fit(train_x.numpy(), train_y.numpy())
+parameter = "Frequency"
+train_samples2 = sampler(resolution_reduced,parameters,maxpGB, boundaries_reduced2, p1, uniform=False, twoD=False)
+print('sample time of', resolution, 'samples ',time.time() - start)
+train_x = np.zeros((resolution_reduced, len(parameters)))
+i = 0
+for parameter in parametersfd:
+    if parameter == 'FrequencyDerivative':
+        train_x[:, i] = train_samples2[parameter]*(1-boundary_ratio)+boundary_ratio
+    else:
+        train_x[:, i] = train_samples2[parameter]
+    i += 1
+train_y = train_samples2["Likelihood"]
+resolution = 500
+test_samples2 = sampler(
+    resolution,
+    parameters,
+    maxpGB,
+    boundaries_reduced2,
+    p1,
+    uniform=False,
+    twoD=False,
+    calculate_loglikelihood=True,
+)
+test_x = np.zeros((resolution, len(parameters)))
+i = 0
+for parameter in parametersfd:
+    if parameter == 'FrequencyDerivative':
+        test_x[:, i] = test_samples2[parameter]*(1-boundary_ratio)+boundary_ratio
+    else:
+        test_x[:, i] = test_samples2[parameter]
+    i += 1
+test_y = test_samples2["Likelihood"]
+
+kernel = gpytorch.kernels.RBFKernel(ard_num_dims=2)
+
+nu = np.mean(train_y)
+sigma = np.std(train_y)
+train_y = (train_y - nu) / sigma
+kernel = RBF(length_scale=[0.5,2,1,1,1,1,1,1],length_scale_bounds=[(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10)])
+start = time.time()
+gpr2 = traingpmodelsk(train_x, train_y, kernel)
 print('train',time.time() - start)
 start = time.time()
-observed_pred_sk = nystroem_approx_blr.predict(test_x)
+observed_pred_sk = gpr2.predict(test_x)
 print('eval',time.time() - start)
-observed_pred_sk_scaled = observed_pred_sk*sigma +nu
-print("sqrt(MSE) ",np.sqrt(mean_squared_error(test_y.numpy(),observed_pred_sk_scaled)))
+observed_pred_sk_scaled2 = observed_pred_sk*sigma +nu
+print("sqrt(MSE) ",np.sqrt(mean_squared_error(test_y,observed_pred_sk_scaled2)))
 
-resolution = 10 ** 6
+resolution = 5*10 ** 6
 start = time.time()
 test_x_m = np.random.uniform(size=(resolution,len(parameters)))
-test_x_m[0] = np.ones(len(parameters))*0.5
+numberinlowerbatch = int(resolution*boundary_ratio)
+numberinupperbatch = resolution-numberinlowerbatch
+test_x_m[:numberinlowerbatch,4] = np.random.uniform(size=(numberinlowerbatch), low=0,high=boundary_ratio)
+test_x_m[numberinlowerbatch:,4] = np.random.uniform(size=(numberinupperbatch), low=boundary_ratio,high=1)
+test_x_m1 = test_x_m[:numberinlowerbatch]
+test_x_m2 = test_x_m[numberinlowerbatch:]
 print('sample time', time.time()-start)
+
+partial_length = 1*10**4
 start = time.time()
-observed_pred_sk = gpr.predict(test_x_m[:2*10**5]).tolist()
-for i in range(int(resolution/(2*10**5))-1):
-    lis = gpr.predict(test_x_m[(i+1)*2*10**5:(i+2)*2*10**5]).tolist()
-    observed_pred_sk = [*observed_pred_sk, *lis]
-# observed_pred_sk = gpr.predict(test_x_m[:5*10**5])
-# observed_pred_sk = gpr.predict(test_x_m)
+observed_pred_sk = np.zeros(resolution)
+def Evaluate(i):
+    prediction = gpr.predict(test_x_m1[(i)*partial_length:(i+1)*partial_length])
+    return prediction
+def Evaluate2(i):
+    prediction = gpr2.predict(test_x_m2[(i)*partial_length:(i+1)*partial_length])
+    return prediction
+pool = mp.Pool(mp.cpu_count())
+observed_pred_sk = pool.map(Evaluate, [n for n in range(int(numberinlowerbatch/partial_length))])
+pool.close()
+print('eval time', time.time()-start)
+try:
+    observed_pred_sk = np.append(observed_pred_sk, gpr.predict(test_x_m1[int(numberinlowerbatch/partial_length)*partial_length:]))
+except:
+    pass
+start = time.time()
+pool = mp.Pool(mp.cpu_count())
+observed_pred_sk2 = pool.map(Evaluate2, [n for n in range(int(numberinupperbatch/partial_length))])
+pool.close()
+print('eval time', time.time()-start)
+observed_pred_sk = np.append(observed_pred_sk, observed_pred_sk2)
+try:
+    observed_pred_sk = np.append(observed_pred_sk, gpr2.predict(test_x_m2[int(numberinupperbatch/partial_length)*partial_length:]))
+except:
+    pass
 observed_pred_sk = np.asarray(observed_pred_sk)
 observed_pred_mean = observed_pred_sk*sigma +nu
-print('eval time', time.time()-start)
 # with torch.no_grad(), gpytorch.settings.fast_pred_var():
 #     observed_pred = likelihood(model(test_x_m))
 #     observed_pred_mean = (observed_pred.mean * sigma) + nu
@@ -1154,7 +1160,7 @@ max_loglike = flatsamples.max()
 maxpGBpredicted = scaletooriginal(max_parameters, boundaries_reduced)
 if loglikelihood(maxpGBpredicted) > loglikelihood(maxpGB):
     maxpGB = maxpGBpredicted
-    best_value = loglikelihood(maxpGB)
+best_value = loglikelihood(maxpGB)
 print(
     "pred",
     max_loglike,
@@ -1165,20 +1171,53 @@ print(
     maxpGB,
 )
 
+#correction
+counter = 0
+for i in range(len(flatsamples[0])):
+    if flatsamples[0,i] > best_value*1.01:
+        flatsamples[0,i] = loglikelihood(scaletooriginal(flatsamplesparameters[0][i], boundaries_reduced))
+        counter += 1
+
+
+# start = time.time()
+# normalizer = sum(np.exp(observed_pred_mean-best_value))
+# flatsamples_normalized = np.exp(flatsamples[0]-best_value)/normalizer
+# mcmc_samples = np.zeros((resolution, len(parameters)))
+# mcmc_samples[0] = flatsamplesparameters[0][0]
+# previous_p = flatsamples_normalized[0]
+# rejection_count = 0
+# for i in range(len(flatsamples_normalized)-1):
+#     # print(flatsamples_normalized[i+1],previous_p,previous_p / flatsamples_normalized[i+1])
+#     if (flatsamples_normalized[i+1] / previous_p) > np.random.uniform():
+#         previous_p = flatsamples_normalized[i+1]
+#         mcmc_samples[i+1] = flatsamplesparameters[0][i+1]
+#     else:
+#         rejection_count += 1
+#         mcmc_samples[i+1] = mcmc_samples[i]
+# print('time MHMC', time.time()-start)
+
 start = time.time()
 normalizer = sum(np.exp(observed_pred_mean-best_value))
 flatsamples_normalized = np.exp(flatsamples[0]-best_value)/normalizer
-mcmc_samples = np.zeros((resolution, len(parameters)))
-mcmc_samples[0] = flatsamplesparameters[0][0]
+mcmc_samples = []
+mcmc_samples.append(flatsamplesparameters[0][0])
 previous_p = flatsamples_normalized[0]
+rejection_count = 0
+current_parameters = flatsamplesparameters[0][0]
 for i in range(len(flatsamples_normalized)-1):
     # print(flatsamples_normalized[i+1],previous_p,previous_p / flatsamples_normalized[i+1])
-    if (flatsamples_normalized[i+1] / previous_p)**(1/2) > np.random.uniform():
+    if (flatsamples_normalized[i+1] / previous_p) > np.random.uniform():
         previous_p = flatsamples_normalized[i+1]
-        mcmc_samples[i+1] = flatsamplesparameters[0][i+1]
+        current_parameters = flatsamplesparameters[0][i+1]
+        rejection_count = 0
     else:
-        mcmc_samples[i+1] = mcmc_samples[i]
+        rejection_count += 1
+        if rejection_count == 20:
+            mcmc_samples.append(current_parameters)
+            rejection_count = 0
+mcmc_samples = np.asarray(mcmc_samples)
 print('time MHMC', time.time()-start)
+
 start = time.time()
 mcmc_samples_rescaled = np.zeros(np.shape(mcmc_samples))
 # for k in range(len(mcmc_samples)):
@@ -1193,15 +1232,21 @@ for parameter in parametersfd:
         mcmc_samples_rescaled[:,i] = np.arcsin((mcmc_samples[:,parametersfd.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0])
     elif parameter in ["Inclination"]:
         mcmc_samples_rescaled[:,i] = np.arccos((mcmc_samples[:,parametersfd.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0])
-    elif parameter in ["FrequencyDerivative"]:
+    elif parameter in ['Amplitude',"FrequencyDerivative"]:
         mcmc_samples_rescaled[:,i] = 10**((mcmc_samples[:,parametersfd.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0])
     else:
         mcmc_samples_rescaled[:,i] = (mcmc_samples[:,parametersfd.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0]
     i += 1
 print('time rescale', time.time()-start)
+start = time.time()
 np.random.shuffle(mcmc_samples_rescaled)
+df = pd.DataFrame(data=mcmc_samples_rescaled, columns=parametersfd)
+df.to_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/Strub/gb'+str(int(maxpGB['Frequency']*10**8))+'.csv',index=False)
+print('saving time', time.time()-start)
+
+mcmc_samples_rescaled   
 length = resolution
-datS = np.zeros((length, 8))
+datS = np.zeros(np.shape(mcmc_samples))
 datS[:,0] = mcmc_samples_rescaled[:length,2]
 datS[:,1] = mcmc_samples_rescaled[:length,1]
 datS[:,2] = mcmc_samples_rescaled[:length,3]
@@ -1223,7 +1268,7 @@ for parameter in ['EclipticLongitude','EclipticLatitude','Frequency','FrequencyD
     else:
         tr_s[i] = pGB[parameter]
     i += 1
-fig2 =  corner.corner(datS,  bins=40, hist_kwargs={'density':True, 'lw':3}, plot_datapoints=False, fill_contours=False,  show_titles=True, \
+fig =  corner.corner(datS,  bins=40, hist_kwargs={'density':True, 'lw':3}, plot_datapoints=False, fill_contours=False,  show_titles=True, \
                         color='#348ABD', truths= tr_s, truth_color='k', use_math_test=True, labels= lbls,\
                         range=rng, levels=[0.9], title_kwargs={"fontsize": 12})
 
@@ -2017,3 +2062,5 @@ plt.legend()
 # plt.ylim(max(samples['EclipticLongitude']),max(samples['EclipticLongitude']))
 # plt.colorbar()
 plt.show()
+
+# %%
