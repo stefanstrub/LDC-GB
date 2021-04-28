@@ -166,7 +166,7 @@ Npsd = Nmodel.psd()
 # plt.show()
 
 pGB = {}
-ind = 8
+ind = 0
 for parameter in parameters:
     pGB[parameter] = p.get(parameter)[ind]
 print('pGB', pGB)
@@ -926,7 +926,7 @@ def CoordinateMC(n):
 #     maxpGB[parameter] = parameters_recorded[best_run][parameter][-1]
 
 #vgb0
-# maxpGB = {'Amplitude': 1.080513721009205e-22, 'EclipticLatitude': 0.35146042068944394, 'EclipticLongitude': -2.7339382470202227, 'Frequency': 0.0013596195825758522, 'FrequencyDerivative': 1.149294847024252e-17, 'Inclination': 0.5085588022277326, 'InitialPhase': 2.08481566510721, 'Polarization': 3.1035650828185584}
+maxpGB = {'Amplitude': 1.080513721009205e-22, 'EclipticLatitude': 0.35146042068944394, 'EclipticLongitude': -2.7339382470202227, 'Frequency': 0.0013596195825758522, 'FrequencyDerivative': 1.149294847024252e-17, 'Inclination': 0.5085588022277326, 'InitialPhase': 2.08481566510721, 'Polarization': 3.1035650828185584}
 # maxpGB = {'Amplitude': 1.1387744606299033e-22, 'EclipticLatitude': 0.34065690302493784, 'EclipticLongitude': -2.7525936350006894, 'Frequency': 0.0013596198275430923, 'FrequencyDerivative': 7.043152913703897e-18, 'Inclination': 0.6115962268957064, 'InitialPhase': 2.987037385921129, 'Polarization': 0.3988720064203186}
 # vgb1
 # maxpGB = {'Amplitude': 1.8878124482548156e-22, 'EclipticLatitude': -0.4945665539262134, 'EclipticLongitude': -2.556425644869919, 'Frequency': 0.0012531299256783774, 'FrequencyDerivative': 2.612138275081537e-18, 'Inclination': 0.8378469295715183, 'InitialPhase': 1.05572105044955, 'Polarization': 1.4407699699324252}
@@ -939,7 +939,7 @@ def CoordinateMC(n):
 #vgb7
 # maxpGB = {'Amplitude': 6.712522478939933e-23, 'EclipticLatitude': 0.43272984046449575, 'EclipticLongitude': 2.3119366800112173, 'Frequency': 0.0016834931242863315, 'FrequencyDerivative': 1.607079720227523e-16, 'Inclination': 1.6380039800624906, 'InitialPhase': 2.7981190242628093, 'Polarization': 3.1035650828185584}
 #vgb8
-maxpGB = {'Amplitude': 5.958188508736942e-23, 'EclipticLatitude': -0.20876046473326043, 'EclipticLongitude': 2.100206957505942, 'Frequency': 0.006220292548425058, 'FrequencyDerivative': 2.6882778683832e-16, 'Inclination': 0.7227920918062414, 'InitialPhase': 3.0927903442057665, 'Polarization': 2.6779311950651894}
+# maxpGB = {'Amplitude': 5.958188508736942e-23, 'EclipticLatitude': -0.20876046473326043, 'EclipticLongitude': 2.100206957505942, 'Frequency': 0.006220292548425058, 'FrequencyDerivative': 2.6882778683832e-16, 'Inclination': 0.7227920918062414, 'InitialPhase': 3.0927903442057665, 'Polarization': 2.6779311950651894}
 # maxpGB = {'Amplitude': 8.126656596001908e-23, 'EclipticLatitude': -0.04484340674690194, 'EclipticLongitude': 2.1005306165381326, 'Frequency': 0.00622027634608126, 'FrequencyDerivative': 8.500086694814612e-16, 'Inclination': 0.9365397412117447, 'InitialPhase': 1.6731189287589059, 'Polarization': 2.2592867175778575}
 #vgb9
 # maxpGB = {'Amplitude': 1.6569883812641871e-22, 'EclipticLatitude': 0.19959021519888565, 'EclipticLongitude': 1.7866188257135631, 'Frequency': 0.0026130062714148075, 'FrequencyDerivative': 1.1463323442476781e-16, 'Inclination': 1.536127072699318, 'InitialPhase': 2.652971140157701, 'Polarization': 0.6738994920582831}
@@ -1182,7 +1182,7 @@ print("RMSE ",np.sqrt(mean_squared_error(test_y,observed_pred_sk_scaled2)))
 resolution = 5*10 ** 6
 start = time.time()
 test_x_m = np.random.uniform(size=(resolution,len(parameters)))
-test_x_m = np.random.normal(loc= 0.5,scale=0.2,size=(resolution,len(parameters)))
+# test_x_m = np.random.normal(loc= 0.5,scale=0.2,size=(resolution,len(parameters)))
 # test_x_m = scipy.stats.truncnorm.rvs((0-0.5)/0.2,(1-0.5)/0.2,loc=0.5,scale=0.2,size=(resolution,len(parameters)))
 # test_x_m = test_x_m[test_x_m[:,4].argsort()]
 # def next(arr, target):
@@ -1203,8 +1203,8 @@ test_x_m = np.random.normal(loc= 0.5,scale=0.2,size=(resolution,len(parameters))
 # numberinlowerbatch = next(test_x_m[:,4],boundary_ratio)
 numberinlowerbatch = int(resolution*boundary_ratio)
 numberinupperbatch = resolution-numberinlowerbatch
-# test_x_m[:numberinlowerbatch,4] = np.random.uniform(size=(numberinlowerbatch), low=0,high=boundary_ratio)
-# test_x_m[numberinlowerbatch:,4] = np.random.uniform(size=(numberinupperbatch), low=boundary_ratio,high=1)
+test_x_m[:numberinlowerbatch,4] = np.random.uniform(size=(numberinlowerbatch), low=0,high=boundary_ratio)
+test_x_m[numberinlowerbatch:,4] = np.random.uniform(size=(numberinupperbatch), low=boundary_ratio,high=1)
 test_x_m1 = test_x_m[:numberinlowerbatch]
 test_x_m2 = test_x_m[numberinlowerbatch:]
 print('sample time', time.time()-start)
