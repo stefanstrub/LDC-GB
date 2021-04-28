@@ -1183,24 +1183,25 @@ resolution = 5*10 ** 6
 start = time.time()
 test_x_m = np.random.uniform(size=(resolution,len(parameters)))
 test_x_m = np.random.normal(loc= 0.5,scale=0.2,size=(resolution,len(parameters)))
-test_x_m = scipy.stats.truncnorm.rvs((0-0.5)/0.2,(1-0.5)/0.2,loc=0.5,scale=0.2,size=(resolution,len(parameters)))
-test_x_m = test_x_m[test_x_m[:,4].argsort()]
-def next(arr, target):
-    start = 0
-    end = len(arr) - 1
-    ans = -1
-    while (start <= end):
-        mid = (start + end) // 2
-        # Move to right side if target is
-        # greater.
-        if (arr[mid] <= target):
-            start = mid + 1
-        # Move left side.
-        else:
-            ans = mid
-            end = mid - 1
-    return ans
-numberinlowerbatch = next(test_x_m[:,4],boundary_ratio)
+# test_x_m = scipy.stats.truncnorm.rvs((0-0.5)/0.2,(1-0.5)/0.2,loc=0.5,scale=0.2,size=(resolution,len(parameters)))
+# test_x_m = test_x_m[test_x_m[:,4].argsort()]
+# def next(arr, target):
+#     start = 0
+#     end = len(arr) - 1
+#     ans = -1
+#     while (start <= end):
+#         mid = (start + end) // 2
+#         # Move to right side if target is
+#         # greater.
+#         if (arr[mid] <= target):
+#             start = mid + 1
+#         # Move left side.
+#         else:
+#             ans = mid
+#             end = mid - 1
+#     return ans
+# numberinlowerbatch = next(test_x_m[:,4],boundary_ratio)
+numberinlowerbatch = int(resolution*boundary_ratio)
 numberinupperbatch = resolution-numberinlowerbatch
 # test_x_m[:numberinlowerbatch,4] = np.random.uniform(size=(numberinlowerbatch), low=0,high=boundary_ratio)
 # test_x_m[numberinlowerbatch:,4] = np.random.uniform(size=(numberinupperbatch), low=boundary_ratio,high=1)
@@ -1307,13 +1308,12 @@ if previous_p == 0:
     previous_p == 1e-300
 rejection_count = 0
 current_parameters = flatsamplesparameters[0,1:]
-probability = scipy.stats.multivariate_normal.pdf(flatsamplesparameters[:,1:], mean=[0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5], cov=[0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1])
-previous_probability = probability[0]
+# probability = scipy.stats.multivariate_normal.pdf(flatsamplesparameters[:,1:], mean=[0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5], cov=[0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1])
+# previous_probability = probability[0]
 for i in range(len(flatsamples_normalized)-1):
     # print(flatsamples_normalized[i+1],previous_p,previous_p / flatsamples_normalized[i+1])
-    if (flatsamples_normalized[i+1] / previous_p * previous_probability/probability[i+1]) > np.random.uniform():
+    if (flatsamples_normalized[i+1] / previous_p) > np.random.uniform():
         previous_p = flatsamples_normalized[i+1]
-        previous_probability = probability[i+1]
         current_parameters = flatsamplesparameters[i+1,1:]
         rejection_count = 0
     else:
