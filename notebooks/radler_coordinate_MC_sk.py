@@ -609,8 +609,8 @@ def Reduce_boundaries(maxpGB, boundaries, ratio=0.1):
         length = boundaries[parameter][1] - boundaries[parameter][0]
         if parameter == "EclipticLatitude":
             boundaries_reduced[parameter] = [
-                np.sin(maxpGB[parameter]) - length * ratio / 2.5,
-                np.sin(maxpGB[parameter]) + length * ratio / 2.5,
+                np.sin(maxpGB[parameter]) - length * ratio / 2,
+                np.sin(maxpGB[parameter]) + length * ratio / 2,
             ]
         # elif parameter == "Inclination":
         #     boundaries_reduced[parameter] = [
@@ -759,8 +759,9 @@ GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
 pGB = {}
 ind = 0
 
-# for ind in range(len(p.get('Frequency'))):
-for ind in [2]:
+first_start = time.time()
+# for ind in range(1,len(p.get('Frequency'))):
+for ind in [8]: #[3,8,9]
     print('index',ind)
     for parameter in parameters:
         pGB[parameter] = p.get(parameter)[ind]
@@ -883,35 +884,35 @@ for ind in [2]:
     boundaries_reduced = deepcopy(boundaries)
     best_params = deepcopy(pGBs)
 
-    parameters_recorded = [None] * 64
-    pbar = tqdm(total=len(parameters_recorded))
-    pool = mp.Pool(mp.cpu_count())
-    start = time.time()
-    parameters_recorded = pool.map(CoordinateMC, [n for n in range(len(parameters_recorded))])
-    pool.close()
-    pool.join()
-    pbar.close()
-    print('parallel time', time.time()-start)
+    # parameters_recorded = [None] * 64
+    # pbar = tqdm(total=len(parameters_recorded))
+    # pool = mp.Pool(mp.cpu_count())
+    # start = time.time()
+    # parameters_recorded = pool.map(CoordinateMC, [n for n in range(len(parameters_recorded))])
+    # pool.close()
+    # pool.join()
+    # pbar.close()
+    # print('parallel time', time.time()-start)
 
-    best_value = parameters_recorded[0]['Loglikelihood'][-1]
-    best_run = 0
-    loglikelihoodofruns = np.zeros(len(parameters_recorded))
-    for i in range(len(parameters_recorded)):
-        loglikelihoodofruns[i] = parameters_recorded[i]['Loglikelihood'][-1]
-    best_value = np.max(loglikelihoodofruns)
-    best_run = np.argmax(loglikelihoodofruns)
-    good_runs = loglikelihoodofruns > best_value*1.8
-    indices = (-loglikelihoodofruns).argsort()[:len(good_runs)]
-    pGBmodes = []
-    for i in range(len(good_runs)):
-        if good_runs[i]:
-            pGBmodes.append({})
-    indices = (-loglikelihoodofruns).argsort()[:len(pGBmodes)]
-    pGBmodes = []
-    for i in indices:
-        pGBmodes.append({})
-        for parameter in parameters + ["Loglikelihood"]:
-            pGBmodes[-1][parameter] = parameters_recorded[i][parameter][-1]
+    # best_value = parameters_recorded[0]['Loglikelihood'][-1]
+    # best_run = 0
+    # loglikelihoodofruns = np.zeros(len(parameters_recorded))
+    # for i in range(len(parameters_recorded)):
+    #     loglikelihoodofruns[i] = parameters_recorded[i]['Loglikelihood'][-1]
+    # best_value = np.max(loglikelihoodofruns)
+    # best_run = np.argmax(loglikelihoodofruns)
+    # good_runs = loglikelihoodofruns > best_value*1.8
+    # indices = (-loglikelihoodofruns).argsort()[:len(good_runs)]
+    # pGBmodes = []
+    # for i in range(len(good_runs)):
+    #     if good_runs[i]:
+    #         pGBmodes.append({})
+    # indices = (-loglikelihoodofruns).argsort()[:len(pGBmodes)]
+    # pGBmodes = []
+    # for i in indices:
+    #     pGBmodes.append({})
+    #     for parameter in parameters + ["Loglikelihood"]:
+    #         pGBmodes[-1][parameter] = parameters_recorded[i][parameter][-1]
 
 
     #vgb0
@@ -933,11 +934,12 @@ for ind in [2]:
     #vgb7
     # maxpGB = {'Amplitude': 6.712522478939933e-23, 'EclipticLatitude': 0.43272984046449575, 'EclipticLongitude': 2.3119366800112173, 'Frequency': 0.0016834931242863315, 'FrequencyDerivative': 1.607079720227523e-16, 'Inclination': 1.6380039800624906, 'InitialPhase': 2.7981190242628093, 'Polarization': 3.1035650828185584}
     #vgb8
+    maxpGB = {'Amplitude': 5.916085522914226e-23, 'EclipticLatitude': -0.08794877047292846, 'EclipticLongitude': 2.102955853197464, 'Frequency': 0.0062202800609208134, 'FrequencyDerivative': 7.497316758880453e-16, 'Inclination': 0.5298895406862852, 'InitialPhase': 0.6952592815551397, 'Polarization': 1.664743447592667}
     # maxpGB = {'Amplitude': 5.958188508736942e-23, 'EclipticLatitude': -0.20876046473326043, 'EclipticLongitude': 2.100206957505942, 'Frequency': 0.006220292548425058, 'FrequencyDerivative': 2.6882778683832e-16, 'Inclination': 0.7227920918062414, 'InitialPhase': 3.0927903442057665, 'Polarization': 2.6779311950651894}
     # maxpGB = {'Amplitude': 8.126656596001908e-23, 'EclipticLatitude': -0.04484340674690194, 'EclipticLongitude': 2.1005306165381326, 'Frequency': 0.00622027634608126, 'FrequencyDerivative': 8.500086694814612e-16, 'Inclination': 0.9365397412117447, 'InitialPhase': 1.6731189287589059, 'Polarization': 2.2592867175778575}
     #vgb9
     # maxpGB = {'Amplitude': 1.6569883812641871e-22, 'EclipticLatitude': 0.19959021519888565, 'EclipticLongitude': 1.7866188257135631, 'Frequency': 0.0026130062714148075, 'FrequencyDerivative': 1.1463323442476781e-16, 'Inclination': 1.536127072699318, 'InitialPhase': 2.652971140157701, 'Polarization': 0.6738994920582831}
-    # pGBmodes = [maxpGB]
+    pGBmodes = [maxpGB]
     if len(pGBmodes) > 10:
         pGBmodes = pGBmodes[:10]
     for i in range(len(pGBmodes)):
@@ -1155,7 +1157,7 @@ for ind in [2]:
     print("RMSE ",np.sqrt(mean_squared_error(test_y,observed_pred_sk_scaled2)))
 
 
-    resolution = 2*10 ** 6
+    resolution = 1*10 ** 6
     start = time.time()
     test_x_m = np.random.uniform(size=(resolution,len(parameters)))
     # test_x_m = np.random.normal(loc= 0.5,scale=0.2,size=(resolution,len(parameters)))
@@ -1183,7 +1185,7 @@ for ind in [2]:
     test_x_m2 = test_x_m[numberinlowerbatch:]
     print('sample time', time.time()-start)
 
-    partial_length = 1*10**4
+    partial_length = 1*10**3
     start = time.time()
     observed_pred_mean = np.zeros(resolution)
     observed_pred_sk = np.zeros(resolution)
@@ -1275,26 +1277,29 @@ for ind in [2]:
     # plt.figure()
     # plt.scatter(mcmc_samples[:10**4,3],mcmc_samples[:10**4,4])
     for round in range(2):
-        resolution = 5*10 ** 5
+        resolution = 2*10**6
+        numPoints = 33
         if round == 1:
-            resolution = 10**6
+            resolution = 1*10**5
+            numPoints = 2**6+1
         test_x_m = np.zeros((resolution,len(parameters)))
+        ax = np.linspace(-0.15,1.15,numPoints)
         from fastkde import fastKDE
-        mypdf,axes = fastKDE.pdf(mcmc_samples[:,1],mcmc_samples[:,2], numPoints= 65, axisExpansionFactor=0.5)
+        mypdf,axes = fastKDE.pdf(mcmc_samples[:,1],mcmc_samples[:,2], axes=[ax,ax])
         dist = Distribution(mypdf, transform=lambda i:i/len(mypdf[0,:])*(axes[0][-1]-axes[0][0])+axes[0][0])
         data, pdfs = dist(resolution)
         test_x_m[:,1] = data[1]
         test_x_m[:,2] = data[0]
         probability = pdfs
-        mypdf,axes = fastKDE.pdf(mcmc_samples[:,0],mcmc_samples[:,5],numPoints= 65, axisExpansionFactor=0.5)
+        mypdf,axes = fastKDE.pdf(mcmc_samples[:,0],mcmc_samples[:,5], axes=[ax,ax])
         dist = Distribution(mypdf, transform=lambda i:i/len(mypdf[0,:])*(axes[0][-1]-axes[0][0])+axes[0][0])
         data, pdfs = dist(resolution)
         test_x_m[:,0] = data[1]
         test_x_m[:,5] = data[0]
         # plt.figure()
-        # plt.scatter(np.log10(test_x_m[:1000,0]),np.arccos(test_x_m[:1000,5]), c=pdfs[:1000])
+        # plt.scatter(np.log10(test_x_m[:10000,0]),np.arccos(test_x_m[:10000,5]* (boundaries_reduced['Inclination'][1] - boundaries_reduced['Inclination'][0]) + boundaries_reduced['Inclination'][0]), c=pdfs[:10000])
         probability *= pdfs
-        mypdf,axes = fastKDE.pdf(mcmc_samples[:,3],mcmc_samples[:,4],numPoints= 65, axisExpansionFactor=0.5)
+        mypdf,axes = fastKDE.pdf(mcmc_samples[:,3],mcmc_samples[:,4], axes=[ax,ax])
         dist = Distribution(mypdf, transform=lambda i:i/len(mypdf[0,:])*(axes[0][-1]-axes[0][0])+axes[0][0])
         data, pdfs = dist(resolution)
         test_x_m[:,3] = data[1]
@@ -1318,98 +1323,122 @@ for ind in [2]:
             index = np.where(test_x_m[:,n] < 1)
             test_x_m = test_x_m[index]
             probability = probability[index]
-        start = time.time()
         
-        # test_x_m = np.random.normal(loc= 0.5,scale=0.2,size=(resolution,len(parameters)))
-        # std_scale = 0.4
-        # test_x_m = scipy.stats.truncnorm.rvs((0-0.5)/std_scale,(1-0.5)/std_scale,loc=0.5,scale=std_scale,size=(resolution,len(parameters)))
-        new_index = test_x_m[:,4].argsort()
-        test_x_m = test_x_m[new_index]
-        probability = probability[new_index]
-        numberinlowerbatch = next(test_x_m[:,4],boundary_ratio)
-        numberinupperbatch = len(probability)-numberinlowerbatch
-        test_x_m1 = test_x_m[:numberinlowerbatch]
-        test_x_m2 = test_x_m[numberinlowerbatch:]
-        print('sample time', time.time()-start)
-        partial_length = 1*10**4
-        start = time.time()
-        observed_pred_mean = np.zeros(len(probability))
-        observed_pred_sk = np.zeros(len(probability))
-        def Evaluate(i):
-            prediction = gpr.predict(test_x_m1[(i)*partial_length:(i+1)*partial_length])
-            return prediction
-        def Evaluate2(i):
-            prediction = gpr2.predict(test_x_m2[(i)*partial_length:(i+1)*partial_length])
-            return prediction
-        pool = mp.Pool(mp.cpu_count()-1)
-        observed_pred_sk = pool.map(Evaluate, [n for n in range(int(numberinlowerbatch/partial_length))])
-        pool.close()
-        pool.join()
-        print('eval time', time.time()-start)
-        try:
-            observed_pred_sk = np.append(observed_pred_sk, gpr.predict(test_x_m1[int(numberinlowerbatch/partial_length)*partial_length:]))
-        except:
-            pass
-        observed_pred_sk = np.asarray(observed_pred_sk)
-        observed_pred_sk = observed_pred_sk.reshape(numberinlowerbatch)
-        observed_pred_mean[:numberinlowerbatch] = observed_pred_sk[:numberinlowerbatch]*sigma +nu
-        start = time.time()
-        pool = mp.Pool(mp.cpu_count()-1)
-        observed_pred_sk2 = pool.map(Evaluate2, [n for n in range(int(numberinupperbatch/partial_length))])
-        pool.close()
-        pool.join()
-        print('eval time', time.time()-start)
-        try:
-            observed_pred_sk2 = np.append(observed_pred_sk2, gpr2.predict(test_x_m2[int(numberinupperbatch/partial_length)*partial_length:]))
-        except:
-            pass
-        observed_pred_sk2 = np.asarray(observed_pred_sk2)
-        observed_pred_sk2 = observed_pred_sk2.reshape((numberinupperbatch))
-        observed_pred_mean[-numberinupperbatch:] = observed_pred_sk2*sigma2 +nu2
+        # fig =  corner.corner(test_x_m,  bins=40, hist_kwargs={'density':True, 'lw':3}, plot_datapoints=False, fill_contours=False,  show_titles=True, \
+        #                 color='#348ABD',  truth_color='k', use_math_test=True, \
+        #                  levels=[0.9], title_kwargs={"fontsize": 12})
+        # plt.show()
+        if round == 0:
+            start = time.time()
+            
+            # test_x_m = np.random.normal(loc= 0.5,scale=0.2,size=(resolution,len(parameters)))
+            # std_scale = 0.4
+            # test_x_m = scipy.stats.truncnorm.rvs((0-0.5)/std_scale,(1-0.5)/std_scale,loc=0.5,scale=std_scale,size=(resolution,len(parameters)))
+            new_index = test_x_m[:,4].argsort()
+            test_x_m = test_x_m[new_index]
+            probability = probability[new_index]
+            numberinlowerbatch = next(test_x_m[:,4],boundary_ratio)
+            numberinupperbatch = len(probability)-numberinlowerbatch
+            test_x_m1 = test_x_m[:numberinlowerbatch]
+            test_x_m2 = test_x_m[numberinlowerbatch:]
+            print('sample time', time.time()-start)
+            partial_length = 1*10**3
+            start = time.time()
+            observed_pred_mean = np.zeros(len(probability))
+            observed_pred_sk = np.zeros(len(probability))
+            def Evaluate(i):
+                prediction = gpr.predict(test_x_m1[(i)*partial_length:(i+1)*partial_length])
+                return prediction
+            def Evaluate2(i):
+                prediction = gpr2.predict(test_x_m2[(i)*partial_length:(i+1)*partial_length])
+                return prediction
+            pool = mp.Pool(mp.cpu_count()-1)
+            observed_pred_sk = pool.map(Evaluate, [n for n in range(int(numberinlowerbatch/partial_length))])
+            pool.close()
+            pool.join()
+            print('eval time', time.time()-start)
+            try:
+                observed_pred_sk = np.append(observed_pred_sk, gpr.predict(test_x_m1[int(numberinlowerbatch/partial_length)*partial_length:]))
+            except:
+                pass
+            observed_pred_sk = np.asarray(observed_pred_sk)
+            observed_pred_sk = observed_pred_sk.reshape(numberinlowerbatch)
+            observed_pred_mean[:numberinlowerbatch] = observed_pred_sk[:numberinlowerbatch]*sigma +nu
+            start = time.time()
+            pool = mp.Pool(mp.cpu_count()-1)
+            observed_pred_sk2 = pool.map(Evaluate2, [n for n in range(int(numberinupperbatch/partial_length))])
+            pool.close()
+            pool.join()
+            print('eval time', time.time()-start)
+            try:
+                observed_pred_sk2 = np.append(observed_pred_sk2, gpr2.predict(test_x_m2[int(numberinupperbatch/partial_length)*partial_length:]))
+            except:
+                pass
+            observed_pred_sk2 = np.asarray(observed_pred_sk2)
+            observed_pred_sk2 = observed_pred_sk2.reshape((numberinupperbatch))
+            observed_pred_mean[-numberinupperbatch:] = observed_pred_sk2*sigma2 +nu2
 
-        flatsamples = np.zeros(len(probability))
-        flatsamplesparameters = np.zeros((len(probability),len(parameters)+1))
-        flatsamples[:] = observed_pred_mean
-        flatsamplesparameters[:,1:] = test_x_m
-        flatsamplesparameters[:,0] = observed_pred_mean
+            flatsamples = np.zeros(len(probability))
+            flatsamplesparameters = np.zeros((len(probability),len(parameters)+1))
+            flatsamples[:] = observed_pred_mean
+            flatsamplesparameters[:,1:] = test_x_m
+            flatsamplesparameters[:,0] = observed_pred_mean
 
-        maxindx = np.unravel_index(flatsamplesparameters[:,0].argmax(), flatsamplesparameters[:,0].shape)
-        max_parameters = flatsamplesparameters[maxindx[0],1:]
-        max_loglike = flatsamplesparameters[:,0].max()
-        maxpGBpredicted = scaletooriginal(max_parameters, boundaries_reduced)
-        if loglikelihood(maxpGBpredicted) > loglikelihood(maxpGB):
-            maxpGB = maxpGBpredicted
-        best_value = loglikelihood(maxpGB)
-        print("pred", max_loglike, "true", loglikelihood(scaletooriginal(max_parameters, boundaries_reduced)), "max", loglikelihood(maxpGB), maxpGB)
+            maxindx = np.unravel_index(flatsamplesparameters[:,0].argmax(), flatsamplesparameters[:,0].shape)
+            max_parameters = flatsamplesparameters[maxindx[0],1:]
+            max_loglike = flatsamplesparameters[:,0].max()
+            maxpGBpredicted = scaletooriginal(max_parameters, boundaries_reduced)
+            if loglikelihood(maxpGBpredicted) > loglikelihood(maxpGB):
+                maxpGB = maxpGBpredicted
+            best_value = loglikelihood(maxpGB)
+            print("pred", max_loglike, "true", loglikelihood(scaletooriginal(max_parameters, boundaries_reduced)), "max", loglikelihood(maxpGB), maxpGB)
 
-        indexes = np.arange(len(probability))
-        np.random.shuffle(indexes)
-        flatsamplesparameters = flatsamplesparameters[indexes]
-        probability = probability[indexes]
-        start = time.time()
-        normalizer = sum(np.exp(flatsamplesparameters[:,0]-best_value))
-        flatsamples_normalized = np.exp(flatsamplesparameters[:,0]-best_value)/normalizer
-        mcmc_samples = []
-        mcmc_samples.append(flatsamplesparameters[0,1:])
-        previous_p = flatsamples_normalized[0]
-        if previous_p == 0:
-            previous_p == 1e-300
-        rejection_count = 0
-        current_parameters = flatsamplesparameters[0,1:]
-        accepted = 0
-        previous_probability = probability[0]
-        for i in range(len(flatsamples_normalized)-1):
-            if (flatsamples_normalized[i+1] / previous_p * previous_probability/probability[i+1]) > np.random.uniform():
-                previous_p = flatsamples_normalized[i+1]
-                previous_probability = probability[i+1]
-                current_parameters = flatsamplesparameters[i+1,1:]
-                mcmc_samples.append(current_parameters)
-                accepted += 1
-            else:
-                mcmc_samples.append(current_parameters)
-        mcmc_samples = np.asarray(mcmc_samples)
-        print('time MHMC', time.time()-start)
-        print('acceptance rate %',accepted/len(probability)*100)
+            indexes = np.arange(len(probability))
+            np.random.shuffle(indexes)
+            flatsamplesparameters = flatsamplesparameters[indexes]
+            probability = probability[indexes]
+            start = time.time()
+            normalizer = sum(np.exp(flatsamplesparameters[:,0]-best_value))
+            flatsamples_normalized = np.exp(flatsamplesparameters[:,0]-best_value)/normalizer
+            mcmc_samples = []
+            mcmc_samples.append(flatsamplesparameters[0,1:])
+            previous_p = flatsamples_normalized[0]
+            if previous_p == 0:
+                previous_p == 1e-300
+            rejection_count = 0
+            current_parameters = flatsamplesparameters[0,1:]
+            accepted = 0
+            previous_probability = probability[0]
+            for i in range(len(flatsamples_normalized)-1):
+                if (flatsamples_normalized[i+1] / previous_p) * (previous_probability/probability[i+1]) > np.random.uniform():
+                    previous_p = flatsamples_normalized[i+1]
+                    previous_probability = probability[i+1]
+                    current_parameters = flatsamplesparameters[i+1,1:]
+                    mcmc_samples.append(current_parameters)
+                    accepted += 1
+                else:
+                    mcmc_samples.append(current_parameters)
+            mcmc_samples = np.asarray(mcmc_samples)
+            print('time MHMC', time.time()-start)
+            print('acceptance rate %',accepted/len(probability)*100)
+            start = time.time()
+            mcmc_samples_rescaled = np.zeros(np.shape(mcmc_samples))
+            i = 0
+            for parameter in parametersfd:
+                if parameter in ["EclipticLatitude"]:
+                    mcmc_samples_rescaled[:,i] = np.arcsin((mcmc_samples[:,parametersfd.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0])
+                elif parameter in ["Inclination"]:
+                    mcmc_samples_rescaled[:,i] = np.arccos((mcmc_samples[:,parametersfd.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0])
+                elif parameter in ['Amplitude',"FrequencyDerivative"]:
+                    mcmc_samples_rescaled[:,i] = 10**((mcmc_samples[:,parametersfd.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0])
+                else:
+                    mcmc_samples_rescaled[:,i] = (mcmc_samples[:,parametersfd.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0]
+                i += 1
+            print('time rescale', time.time()-start)
+            start = time.time()
+            df = pd.DataFrame(data=mcmc_samples_rescaled, columns=parametersfd)
+            df.to_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/Stefan_full/GW'+str(int(np.round(maxpGB['Frequency']*10**8)))+'.csv',index=False)
+            print('saving time', time.time()-start)
 
     # mcmc_samples_reshaped = mcmc_samples.reshape((len(parameters),len(mcmc_samples[:,0])))
     # kernel = scipy.stats.gaussian_kde(mcmc_samples_reshaped)
@@ -1425,6 +1454,7 @@ for ind in [2]:
     #     filter_arr.append(accepted)
     # new_samples = new_samples[filter_arr]
     # mcmc_samples = new_samples
+    mcmc_samples = test_x_m
     start = time.time()
     mcmc_samples_rescaled = np.zeros(np.shape(mcmc_samples))
     i = 0
@@ -1440,11 +1470,11 @@ for ind in [2]:
         i += 1
     print('time rescale', time.time()-start)
     start = time.time()
-    np.random.shuffle(mcmc_samples_rescaled)
     df = pd.DataFrame(data=mcmc_samples_rescaled, columns=parametersfd)
     df.to_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/Stefan/GW'+str(int(np.round(maxpGB['Frequency']*10**8)))+'.csv',index=False)
     print('saving time', time.time()-start)
 
+print('full time', time.time()-first_start)
 length = len(probability)
 datS = np.zeros(np.shape(mcmc_samples))
 datS[:,0] = mcmc_samples_rescaled[:,2]
@@ -2278,5 +2308,6 @@ plt.legend()
 # plt.ylim(max(samples['EclipticLongitude']),max(samples['EclipticLongitude']))
 # plt.colorbar()
 plt.show()
+
 
 # %%
