@@ -103,32 +103,31 @@ parameters = [
     "Polarization",
 ]
 
-DATAPATH = "/home/stefan/LDC/Radler/data"
-sangria_fn = DATAPATH + "/dgb-tdi.h5"
-sangria_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
-# sangria_fn = DATAPATH + "/LDC1-3_VGB_v2_FD_noiseless.hdf5"
-FD5 = LISAhdf5(sangria_fn)
-Nsrc = FD5.getSourcesNum()
-GWs = FD5.getSourcesName()
-print("Found %d GW sources: " % Nsrc, GWs)
-### TOD make sure GalBin is there
-if GWs[0] != "GalBinaries":
-    raise NotImplementedError
-p = FD5.getSourceParameters(GWs[0])
-td = FD5.getPreProcessTDI()
-del_t = float(p.get("Cadence"))
-Tobs = float(p.get("ObservationDuration"))
-
-dt = del_t
-
-# Build timeseries and frequencyseries object for X,Y,Z
-tdi_ts = xr.Dataset(dict([(k, TimeSeries(td[:, n], dt=dt)) for k, n in [["X", 1], ["Y", 2], ["Z", 3]]]))
-# tdi_ts = xr.Dataset(dict([(k,TimeSeries(tdi_ts[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
-tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
-
 noise_model = "MRDv1"
 Nmodel = get_noise_model(noise_model, np.logspace(-5, -1, 100))
 Npsd = Nmodel.psd()
+
+DATAPATH = "/home/stefan/LDC/Sangria/data"
+sangria_fn = DATAPATH+"/dgb-tdi.h5"
+sangria_fn = DATAPATH+"/LDC2_sangria_blind_v1.h5"
+sangria_fn = DATAPATH+"/LDC2_sangria_gdb-tdi_v1_v3U3MxS.h5"
+tdi_ts_dgb, tdi_descr_dgb = hdfio.load_array(sangria_fn)
+sangria_fn = DATAPATH+"/LDC2_sangria_idb-tdi_v1_DgtGV85.h5"
+tdi_ts_igb, tdi_descr_igb = hdfio.load_array(sangria_fn)
+sangria_fn = DATAPATH+"/LDC2_sangria_mbhb-tdi_v1_MN5aIPz.h5"
+tdi_ts_mbhb, tdi_descr_mbhb = hdfio.load_array(sangria_fn)
+sangria_fn = DATAPATH+"/LDC2_sangria_training_v1.h5"
+tdi_ts, tdi_descr = hdfio.load_array(sangria_fn, name="obs/tdi")
+sangria_fn = DATAPATH+"/LDC2_sangria_vgb-tdi_v1_sgsEVXb.h5"
+tdi_ts_vgb, tdi_descr_vgb = hdfio.load_array(sangria_fn)
+tdi_ts, tdi_descr_vgb = hdfio.load_array(sangria_fn)
+sangria_fn_training = DATAPATH+"/LDC2_sangria_training_v1.h5"
+dt = int(1/(tdi_descr["sampling_frequency"]))
+
+# Build timeseries and frequencyseries object for X,Y,Z
+# tdi_ts = xr.Dataset(dict([(k,TimeSeries(tdi_ts[k], dt=dt)) for k in ["X", "Y", "Z"]]))
+tdi_ts = xr.Dataset(dict([(k,TimeSeries(tdi_ts[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
+tdi_fs = xr.Dataset(dict([(k,tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 
 def loglikelihood(pGBs):
     for i in range(len(pGBs)):
@@ -748,54 +747,65 @@ pGBadded2 = {}
 pGBadded2['Amplitude'] = 4*10**-23
 pGBadded2['EclipticLatitude'] = 0.4
 pGBadded2['EclipticLongitude'] = 0.4
-pGBadded['Frequency'] = 0.00459687
-pGBadded['FrequencyDerivative'] = 3*10**-17
-pGBadded['Inclination'] = 0.5
-pGBadded['InitialPhase'] = 3
-pGBadded['Polarization'] = 2
+pGBadded2['Frequency'] = 0.00459687
+pGBadded2['FrequencyDerivative'] = 1*10**-17
+pGBadded2['Inclination'] = 0.9
+pGBadded2['InitialPhase'] = 1
+pGBadded2['Polarization'] = 3
 pGBadded3 = {}
 pGBadded3['Amplitude'] = 4*10**-23
 pGBadded3['EclipticLatitude'] = 0.6
 pGBadded3['EclipticLongitude'] = 3
-pGBadded['Frequency'] = 0.00459687
-pGBadded['FrequencyDerivative'] = 3*10**-17
-pGBadded['Inclination'] = 0.5
-pGBadded['InitialPhase'] = 3
-pGBadded['Polarization'] = 2
+pGBadded3['Frequency'] = 0.00459687
+pGBadded3['FrequencyDerivative'] = 1*10**-17
+pGBadded3['Inclination'] = 0.2
+pGBadded3['InitialPhase'] = 1
+pGBadded3['Polarization'] = 3
 pGBadded4 = {}
 pGBadded4['Amplitude'] = 4*10**-23
 pGBadded4['EclipticLatitude'] = 0.1
 pGBadded4['EclipticLongitude'] = 2
-pGBadded['Frequency'] = 0.00459687
-pGBadded['FrequencyDerivative'] = 3*10**-17
-pGBadded['Inclination'] = 0.5
-pGBadded['InitialPhase'] = 3
-pGBadded['Polarization'] = 2
+pGBadded4['Frequency'] = 0.00459687
+pGBadded4['FrequencyDerivative'] = 1*10**-17
+pGBadded4['Inclination'] = 0.7
+pGBadded4['InitialPhase'] = 1
+pGBadded4['Polarization'] = 3
 number_of_signals = 1
 
-GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
-for pGBadding in [pGBadded, pGBadded2, pGBadded3, pGBadded4]:
-    Xs_added, Ys_added, Zs_added = GB.get_fd_tdixyz(template=pGBadding, oversample=4, simulator="synthlisa")
-    source_added = dict({"X": Xs_added, "Y": Ys_added, "Z": Zs_added})
-    index_low = np.searchsorted(tdi_fs["X"].f, Xs_added.f[0])
-    index_high = index_low+len(Xs_added)
-    # tdi_fs['X'] = tdi_fs['X'] #+ Xs_added
-    for k in ["X", "Y", "Z"]:
-        tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] + source_added[k].data
 
+# tdi_ts_mbhb = xr.Dataset(dict([(k,TimeSeries(tdi_ts_mbhb[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
+# tdi_fs_mbhb = xr.Dataset(dict([(k,tdi_ts_mbhb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+# tdi_ts_dgb = xr.Dataset(dict([(k,TimeSeries(tdi_ts_dgb[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
+# tdi_fs_dgb = xr.Dataset(dict([(k,tdi_ts_dgb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+# tdi_ts_igb = xr.Dataset(dict([(k,TimeSeries(tdi_ts_igb[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
+# tdi_fs_igb = xr.Dataset(dict([(k,tdi_ts_igb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+tdi_ts_vgb = xr.Dataset(dict([(k,TimeSeries(tdi_ts_vgb[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
+tdi_fs_vgb = xr.Dataset(dict([(k,tdi_ts_vgb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+# tdi_ts = tdi_ts_vgb
+# tdi_fs = tdi_fs_vgb
+noise_model = "MRDv1"
+Nmodel = get_noise_model(noise_model, np.logspace(-5, -1, 100))
+Npsd = Nmodel.psd()
+t_max = float(tdi_ts["X"].t[-1]+dt)
+config = {"initial_position": 0, "initial_rotation": 0, 
+          "nominal_arm_length": 2500000000, "orbit_type": 'analytic'}
+lisa_orbits = Orbits.type(config)
 
-tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft(dt=dt)) for k, n in [["X", 1], ["Y", 2], ["Z", 3]]]))
+vgb, units = hdfio.load_array(sangria_fn_training, name="sky/vgb/cat")
+igb, units = hdfio.load_array(sangria_fn_training, name="sky/igb/cat")
+dgb, units = hdfio.load_array(sangria_fn_training, name="sky/dgb/cat")
+GB = fastGB.FastGB(delta_t=dt, T=t_max, orbits=lisa_orbits) # in seconds
+
 
 pGB = {}
 ind = 0
-
+found_sources = []
 first_start = time.time()
 # for ind in range(1,len(p.get('Frequency'))):
-for ind in [0]: #[3,8,9]
+for ind in [8]: #[3,8,9]
     print('index',ind)
-    for parameter in parameters:
-        pGB[parameter] = p.get(parameter)[ind]
-    pGB = pGBadded
+
+    pGB = dict(zip(vgb.dtype.names, vgb[ind])) # we take the source #8
     print('pGB', pGB)
 
     Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB, oversample=4, simulator="synthlisa")
@@ -817,7 +827,7 @@ for ind in [0]: #[3,8,9]
         "Polarization",
     ]
     boundaries = {
-        "Amplitude": [-24.0,-21.4],
+        "Amplitude": [-24.0,-20.4],
         "EclipticLatitude": [-1.0, 1.0],
         "EclipticLongitude": [-np.pi, np.pi],
         # "Frequency": [pGB["Frequency"] * 0.99995, pGB["Frequency"] * 1.00015],
@@ -877,10 +887,19 @@ for ind in [0]: #[3,8,9]
     p1 = float(np.sum(diff / (Sn + noise)) * Xs.df) / 2.0
     p1 = -p1
 
-    index_low = np.searchsorted(Xs_added.f, dataX.f[0])
-    Xs_added = Xs_added[index_low : index_low + len(dataX)]
-    Ys_added = Ys_added[index_low : index_low + len(dataY)]
-    Zs_added = Zs_added[index_low : index_low + len(dataZ)]
+
+    # GBprojected = HpHc.type(pGB["Name"], "GB", "TD_fdot")
+    # GBprojected.set_param(pGB)
+    # projector = ProjectedStrain(lisa_orbits)
+    # yArm = projector.arm_response(0, t_max, dt, GBprojected.split())
+    # projector.links
+    # trange = np.arange(0, t_max, dt)
+    # tdi_X = projector.compute_tdi_x(trange)
+
+    # tdi_ts_X = xr.Dataset(dict([(k,TimeSeries(tdi_X, dt=dt)) for k in ["X"]]))
+    # tdi_fs_X = xr.Dataset(dict([(k,tdi_ts_X[k].ts.fft(win=window)) for k in ["X"]]))
+
+    # projected_LDC_X = tdi_fs_X["X"].isel(f=slice(Xs.kmin, Xs.kmin + len(Xs)))[lowerindex:higherindex]
     plt.figure(figsize=fig_size)
     ax1 = plt.subplot(111)
     # plt.plot(dataX_training.f*1000,dataX_training.values, label='data')
@@ -890,34 +909,18 @@ for ind in [0]: #[3,8,9]
     Xs = Xs[index_low : index_low + len(dataX)]
     Ys = Ys[index_low : index_low + len(dataY)]
     Zs = Zs[index_low : index_low + len(dataZ)]
-    ax1.plot(Xs.f * 1000, Xs.values.real, label="VGB2", marker=".", zorder=5)
-    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBadded2, oversample=4, simulator="synthlisa")
-    index_low = np.searchsorted(Xs.f, dataX.f[0])
-    Xs = Xs[index_low : index_low + len(dataX)]
-    Ys = Ys[index_low : index_low + len(dataY)]
-    Zs = Zs[index_low : index_low + len(dataZ)]
-    ax1.plot(Xs.f * 1000, Xs.values.real, label="VGB3", marker=".", zorder=5)
-    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBadded3, oversample=4, simulator="synthlisa")
-    index_low = np.searchsorted(Xs.f, dataX.f[0])
-    Xs = Xs[index_low : index_low + len(dataX)]
-    Ys = Ys[index_low : index_low + len(dataY)]
-    Zs = Zs[index_low : index_low + len(dataZ)]
-    ax1.plot(Xs.f * 1000, Xs.values.real, label="VG4", marker=".", zorder=5)
-    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBadded4, oversample=4, simulator="synthlisa")
-    index_low = np.searchsorted(Xs.f, dataX.f[0])
-    Xs = Xs[index_low : index_low + len(dataX)]
-    Ys = Ys[index_low : index_low + len(dataY)]
-    Zs = Zs[index_low : index_low + len(dataZ)]
     ax1.plot(Xs.f * 1000, Xs.values.real, label="VGB", marker=".", zorder=5)
-    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs, oversample=4, simulator="synthlisa")
-    index_low = np.searchsorted(Xs.f, dataX.f[0])
-    Xs = Xs[index_low : index_low + len(dataX)]
-    Ys = Ys[index_low : index_low + len(dataY)]
-    Zs = Zs[index_low : index_low + len(dataZ)]
+    ax1.plot(Xs.f * 1000, dataX.values.real-Xs.values.real, label="difference", marker=".", zorder=5)
+    # ax1.plot(projected_LDC_X.f * 1000, projected_LDC_X.values.real, label="VGB", marker=".", zorder=5)
+    # Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs, oversample=4, simulator="synthlisa")
+    # index_low = np.searchsorted(Xs.f, dataX.f[0])
+    # Xs = Xs[index_low : index_low + len(dataX)]
+    # Ys = Ys[index_low : index_low + len(dataY)]
+    # Zs = Zs[index_low : index_low + len(dataZ)]
     # ax1.plot(Xs.f * 1000, Xs.values.real, label="start", marker=".", zorder=5)
     # ax1.plot(Xs_added2.f * 1000, Xs_added2.values.real, label="VGB2", marker=".", zorder=5)
-    ax1.axvline(boundaries['Frequency'][0]* 1000, color= 'red')
-    ax1.axvline(boundaries['Frequency'][1]* 1000, color= 'red')
+    # ax1.axvline(boundaries['Frequency'][0]* 1000, color= 'red')
+    # ax1.axvline(boundaries['Frequency'][1]* 1000, color= 'red')
     # ax1.plot(Xs.f * 1000, dataX.values.real - Xs.values.real, label="residual", alpha=0.8, color="red", marker=".")
     plt.legend()
     plt.show()
@@ -1070,6 +1073,16 @@ for ind in [0]: #[3,8,9]
         print('optimized loglikelihood', loglikelihood(maxpGB),maxpGB)
     
     maxpGB = current_maxpGB[0]
+    found_sources.append(maxpGB)
+    Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=maxpGB, oversample=4, simulator="synthlisa")
+    source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
+    index_low = np.searchsorted(tdi_fs["X"].f, Xs_subtracted.f[0])
+    index_high = index_low+len(Xs_subtracted)
+    for k in ["X", "Y", "Z"]:
+        tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] - source_subtracted[k].data
+
+goon = True
+if goon:
     best_value = loglikelihood([maxpGB])
     boundaries_reduced = Reduce_boundaries(maxpGB, boundaries,ratio=0.1)
     for n in range(2):

@@ -105,7 +105,8 @@ parameters = [
 
 DATAPATH = "/home/stefan/LDC/Radler/data"
 sangria_fn = DATAPATH + "/dgb-tdi.h5"
-sangria_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
+# sangria_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
+sangria_fn = DATAPATH + "/LDC1-4_GB_v2.hdf5"
 # sangria_fn = DATAPATH + "/LDC1-3_VGB_v2_FD_noiseless.hdf5"
 FD5 = LISAhdf5(sangria_fn)
 Nsrc = FD5.getSourcesNum()
@@ -670,7 +671,7 @@ def function(pGBs01, boundaries_reduced):
                 pGBs[signal][parameter] = (pGBs01[signal*8:signal*8+8][i] * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0]
             i += 1
     p = -loglikelihood(pGBs)
-    return p
+    return p/1000000
 
 class Distribution(object):
     """
@@ -736,7 +737,7 @@ class Distribution(object):
 # pGB['Polarization'] = 1.3
 
 pGBadded = {}
-pGBadded['Amplitude'] = 4*10**-23
+pGBadded['Amplitude'] = 4*10**-22
 pGBadded['EclipticLatitude'] = -0.2
 pGBadded['EclipticLongitude'] = 1.4
 pGBadded['Frequency'] = 0.00459687
@@ -745,57 +746,81 @@ pGBadded['Inclination'] = 0.5
 pGBadded['InitialPhase'] = 3
 pGBadded['Polarization'] = 2
 pGBadded2 = {}
-pGBadded2['Amplitude'] = 4*10**-23
+pGBadded2['Amplitude'] = 4*10**-24
 pGBadded2['EclipticLatitude'] = 0.4
 pGBadded2['EclipticLongitude'] = 0.4
-pGBadded['Frequency'] = 0.00459687
-pGBadded['FrequencyDerivative'] = 3*10**-17
-pGBadded['Inclination'] = 0.5
-pGBadded['InitialPhase'] = 3
-pGBadded['Polarization'] = 2
+pGBadded2['Frequency'] = 0.00459687
+pGBadded2['FrequencyDerivative'] = 1*10**-17
+pGBadded2['Inclination'] = 0.5
+pGBadded2['InitialPhase'] = 1
+pGBadded2['Polarization'] = 3
 pGBadded3 = {}
-pGBadded3['Amplitude'] = 4*10**-23
+pGBadded3['Amplitude'] = 4*10**-24
 pGBadded3['EclipticLatitude'] = 0.6
 pGBadded3['EclipticLongitude'] = 3
-pGBadded['Frequency'] = 0.00459687
-pGBadded['FrequencyDerivative'] = 3*10**-17
-pGBadded['Inclination'] = 0.5
-pGBadded['InitialPhase'] = 3
-pGBadded['Polarization'] = 2
+pGBadded3['Frequency'] = 0.00459687
+pGBadded3['FrequencyDerivative'] = 1*10**-17
+pGBadded3['Inclination'] = 0.5
+pGBadded3['InitialPhase'] = 1
+pGBadded3['Polarization'] = 3
 pGBadded4 = {}
-pGBadded4['Amplitude'] = 4*10**-23
+pGBadded4['Amplitude'] = 4*10**-24
 pGBadded4['EclipticLatitude'] = 0.1
 pGBadded4['EclipticLongitude'] = 2
-pGBadded['Frequency'] = 0.00459687
-pGBadded['FrequencyDerivative'] = 3*10**-17
-pGBadded['Inclination'] = 0.5
-pGBadded['InitialPhase'] = 3
-pGBadded['Polarization'] = 2
+pGBadded4['Frequency'] = 0.00459687
+pGBadded4['FrequencyDerivative'] = 1*10**-17
+pGBadded4['Inclination'] = 0.7
+pGBadded4['InitialPhase'] = 1
+pGBadded4['Polarization'] = 3
 number_of_signals = 1
 
 GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
-for pGBadding in [pGBadded, pGBadded2, pGBadded3, pGBadded4]:
-    Xs_added, Ys_added, Zs_added = GB.get_fd_tdixyz(template=pGBadding, oversample=4, simulator="synthlisa")
-    source_added = dict({"X": Xs_added, "Y": Ys_added, "Z": Zs_added})
-    index_low = np.searchsorted(tdi_fs["X"].f, Xs_added.f[0])
-    index_high = index_low+len(Xs_added)
-    # tdi_fs['X'] = tdi_fs['X'] #+ Xs_added
-    for k in ["X", "Y", "Z"]:
-        tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] + source_added[k].data
-
-
-tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft(dt=dt)) for k, n in [["X", 1], ["Y", 2], ["Z", 3]]]))
+# for pGBadding in [pGBadded, pGBadded2, pGBadded3, pGBadded4]:
+#     Xs_added, Ys_added, Zs_added = GB.get_fd_tdixyz(template=pGBadding, oversample=4, simulator="synthlisa")
+#     source_added = dict({"X": Xs_added, "Y": Ys_added, "Z": Zs_added})
+#     index_low = np.searchsorted(tdi_fs["X"].f, Xs_added.f[0])
+#     index_high = index_low+len(Xs_added)
+#     # tdi_fs['X'] = tdi_fs['X'] #+ Xs_added
+#     for k in ["X", "Y", "Z"]:
+#         tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] + source_added[k].data
+# tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft(dt=dt)) for k, n in [["X", 1], ["Y", 2], ["Z", 3]]]))
 
 pGB = {}
 ind = 0
-
+found_sources = []
+target_sources = []
 first_start = time.time()
 # for ind in range(1,len(p.get('Frequency'))):
-for ind in [0]: #[3,8,9]
+for ind in range(4): #[3,8,9]
+    f, psdX =  scipy.signal.welch(tdi_ts["X"], fs=1.0/dt, window='hanning', nperseg=len(tdi_ts["X"])/10)
+    peaks, properties = scipy.signal.find_peaks(np.log(np.sqrt(psdX)/np.mean(np.sqrt(psdX))),width=2,  prominence=(0.93,None))
+    indexes = np.logical_and(f[peaks]>10**-4, f[peaks]<3*10**-2)
+    peaks = peaks[indexes]
+    prominences = properties['prominences'][indexes] 
+    indexes = np.argsort(prominences)
+    plt.figure(figsize=fig_size)
+    ax1 = plt.subplot(111)
+    ax1.loglog(f*1000, np.sqrt(psdX), label="TDI X")
+    ax1.loglog(f[peaks]*1000, np.sqrt(psdX[peaks]),'.', label="peaks")
+    ax1.loglog(f[peaks[indexes[-2]]]*1000, np.sqrt(psdX[peaks[indexes[-2]]]),'.', label="most prominent peak")
+    # ax1.plot(Xs_added2.f * 1000, Xs_added2.values.real, label="VGB2", marker=".", zorder=5)
+    # ax1.axvline(boundaries['Frequency'][0]* 1000, color= 'red')
+    # ax1.axvline(boundaries['Frequency'][1]* 1000, color= 'red')
+    ax1.set_xlim(0.01,100)
+    plt.legend()
+    plt.show()
+    selected_frequency = f[peaks[indexes[-2]]]
+    amplitude = np.sqrt(psdX[peaks[indexes[-2]]])
+    frequencyrange =  [selected_frequency - 3*10e-7, selected_frequency + 3*10e-7]
     print('index',ind)
+    indexes = np.argsort(p.get('Frequency'))
+    index_low = np.searchsorted(p.get('Frequency')[indexes], frequencyrange[0])
+    index_high = np.searchsorted(p.get('Frequency')[indexes], frequencyrange[1])
+    strongest_source_in_window = np.argmax(p.get('Amplitude')[indexes][index_low:index_high])
+    index_closest = np.searchsorted(p.get('Frequency')[indexes], selected_frequency)
     for parameter in parameters:
-        pGB[parameter] = p.get(parameter)[ind]
-    pGB = pGBadded
+        pGB[parameter] = p.get(parameter)[indexes][index_low:index_high][strongest_source_in_window]
+    # pGB = deepcopy(pGBadded)
     print('pGB', pGB)
 
     Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB, oversample=4, simulator="synthlisa")
@@ -817,12 +842,12 @@ for ind in [0]: #[3,8,9]
         "Polarization",
     ]
     boundaries = {
-        "Amplitude": [-24.0,-21.4],
+        "Amplitude": [np.log10(amplitude)-4,np.log10(amplitude)-1],
         "EclipticLatitude": [-1.0, 1.0],
-        "EclipticLongitude": [-np.pi, np.pi],
+        "EclipticLongitude": [0, 2*np.pi],
         # "Frequency": [pGB["Frequency"] * 0.99995, pGB["Frequency"] * 1.00015],
-        "Frequency": [pGB["Frequency"] - 3*10e-8, pGB["Frequency"] + 3*10e-8],
-        "FrequencyDerivative": [-20.0,-15.0],
+        "Frequency": [pGB["Frequency"] - 3e-7, pGB["Frequency"] + 3e-7],
+        "FrequencyDerivative": [-20.0,-13.0],
         "Inclination": [-1.0, 1.0],
         "InitialPhase": [0.0, 1.0 * np.pi],
         "Polarization": [0.0, 1.0 * np.pi],
@@ -850,14 +875,15 @@ for ind in [0]: #[3,8,9]
     # pGBs = {'Amplitude': 2.6276593052303956e-23, 'EclipticLatitude': 0.5928918517326195, 'EclipticLongitude': 1.1369221301520007, 'Frequency': 0.00459712343583406, 'FrequencyDerivative': 1.4865085995582467e-20, 'Inclination': 1.0393779131758538, 'InitialPhase': 1.3936953364718427, 'Polarization': 3.141592653589793}
     # pGBs = [{'Amplitude': 2.46781157049275e-23, 'EclipticLatitude': 0.4104467801802685, 'EclipticLongitude': 0.3948423296067486, 'Frequency': 0.004596868810049262, 'FrequencyDerivative': 4.811406794444395e-17, 'Inclination': 0.02184363779962754, 'InitialPhase': 2.392577293594824, 'Polarization': 0.6009837032821876}, {'Amplitude': 1e-23, 'EclipticLatitude': 0.48726476472805236, 'EclipticLongitude': 0.47166086082735065, 'Frequency': 0.00459689954928269, 'FrequencyDerivative': 1.2905651067898196e-20, 'Inclination': 1.5398089394337329, 'InitialPhase': 1.8231314639851044, 'Polarization': 1.3236758906590815}]
     # pGBs = pGBs[0]
+    # pGBs = {'Amplitude': 9.703591720940899e-23, 'EclipticLatitude': -0.25966411408672363, 'EclipticLongitude': 4.797428185553056, 'Frequency': 0.016246550408182313, 'FrequencyDerivative': 4.026368180706298e-14, 'Inclination': 2.1102475390773274, 'InitialPhase': 3.0869799465136047, 'Polarization': 3.141592653589793}
 
     number_of_samples = 8 * 10 ** 1
     cutoff_ratio = 1000
     Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs, oversample=4, simulator="synthlisa")
     psd_signal = np.abs(Xs.values) ** 2 + np.abs(Ys.values) ** 2 + np.abs(Zs.values) ** 2
     highSNR = psd_signal > np.max(psd_signal) / cutoff_ratio
-    lowerindex = np.where(highSNR)[0][0] - 30
-    higherindex = np.where(highSNR)[0][-1] + 30
+    lowerindex = np.where(highSNR)[0][0] - 100
+    higherindex = np.where(highSNR)[0][-1] + 100
     dataX = tdi_fs["X"].isel(f=slice(Xs.kmin, Xs.kmin + len(Xs)))[lowerindex:higherindex]
     dataY = tdi_fs["Y"].isel(f=slice(Ys.kmin, Ys.kmin + len(Ys)))[lowerindex:higherindex]
     dataZ = tdi_fs["Z"].isel(f=slice(Zs.kmin, Zs.kmin + len(Zs)))[lowerindex:higherindex]
@@ -876,11 +902,13 @@ for ind in [0]: #[3,8,9]
     diff = np.abs(dataX - Xs.values) ** 2 + np.abs(dataY - Ys.values) ** 2 + np.abs(dataZ - Zs.values) ** 2
     p1 = float(np.sum(diff / (Sn + noise)) * Xs.df) / 2.0
     p1 = -p1
+    diff = np.abs(dataX) ** 2 + np.abs(dataY) ** 2 + np.abs(dataZ) ** 2
+    null_hypothesis = -float(np.sum(diff / (Sn + noise)) * Xs.df) / 2.0
 
-    index_low = np.searchsorted(Xs_added.f, dataX.f[0])
-    Xs_added = Xs_added[index_low : index_low + len(dataX)]
-    Ys_added = Ys_added[index_low : index_low + len(dataY)]
-    Zs_added = Zs_added[index_low : index_low + len(dataZ)]
+    # index_low = np.searchsorted(Xs_added.f, dataX.f[0])
+    # Xs_added = Xs_added[index_low : index_low + len(dataX)]
+    # Ys_added = Ys_added[index_low : index_low + len(dataY)]
+    # Zs_added = Zs_added[index_low : index_low + len(dataZ)]
     plt.figure(figsize=fig_size)
     ax1 = plt.subplot(111)
     # plt.plot(dataX_training.f*1000,dataX_training.values, label='data')
@@ -890,31 +918,13 @@ for ind in [0]: #[3,8,9]
     Xs = Xs[index_low : index_low + len(dataX)]
     Ys = Ys[index_low : index_low + len(dataY)]
     Zs = Zs[index_low : index_low + len(dataZ)]
-    ax1.plot(Xs.f * 1000, Xs.values.real, label="VGB2", marker=".", zorder=5)
-    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBadded2, oversample=4, simulator="synthlisa")
-    index_low = np.searchsorted(Xs.f, dataX.f[0])
-    Xs = Xs[index_low : index_low + len(dataX)]
-    Ys = Ys[index_low : index_low + len(dataY)]
-    Zs = Zs[index_low : index_low + len(dataZ)]
-    ax1.plot(Xs.f * 1000, Xs.values.real, label="VGB3", marker=".", zorder=5)
-    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBadded3, oversample=4, simulator="synthlisa")
-    index_low = np.searchsorted(Xs.f, dataX.f[0])
-    Xs = Xs[index_low : index_low + len(dataX)]
-    Ys = Ys[index_low : index_low + len(dataY)]
-    Zs = Zs[index_low : index_low + len(dataZ)]
-    ax1.plot(Xs.f * 1000, Xs.values.real, label="VG4", marker=".", zorder=5)
-    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBadded4, oversample=4, simulator="synthlisa")
-    index_low = np.searchsorted(Xs.f, dataX.f[0])
-    Xs = Xs[index_low : index_low + len(dataX)]
-    Ys = Ys[index_low : index_low + len(dataY)]
-    Zs = Zs[index_low : index_low + len(dataZ)]
-    ax1.plot(Xs.f * 1000, Xs.values.real, label="VGB", marker=".", zorder=5)
+    ax1.plot(Xs.f * 1000, Xs.values.real, label="VGB1", marker=".", zorder=5)
     Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs, oversample=4, simulator="synthlisa")
     index_low = np.searchsorted(Xs.f, dataX.f[0])
     Xs = Xs[index_low : index_low + len(dataX)]
     Ys = Ys[index_low : index_low + len(dataY)]
     Zs = Zs[index_low : index_low + len(dataZ)]
-    # ax1.plot(Xs.f * 1000, Xs.values.real, label="start", marker=".", zorder=5)
+    ax1.plot(Xs.f * 1000, Xs.values.real, label="start", marker=".", zorder=5)
     # ax1.plot(Xs_added2.f * 1000, Xs_added2.values.real, label="VGB2", marker=".", zorder=5)
     ax1.axvline(boundaries['Frequency'][0]* 1000, color= 'red')
     ax1.axvline(boundaries['Frequency'][1]* 1000, color= 'red')
@@ -922,58 +932,46 @@ for ind in [0]: #[3,8,9]
     plt.legend()
     plt.show()
 
-    # f, psdX =  scipy.signal.welch(tdi_ts["X"], fs=1.0/dt, window='hanning', nperseg=len(tdi_ts["X"])/10)
-    # peaks, properties = scipy.signal.find_peaks(np.log(np.sqrt(psdX)/np.mean(np.sqrt(psdX))),width=2,  prominence=(0.93,None))
-    # peaks = peaks[np.logical_and(f[peaks]>10**-4, f[peaks]<2*10**-2)]
-    # plt.figure(figsize=fig_size)
-    # ax1 = plt.subplot(111)
-    # ax1.loglog(f*1000, np.sqrt(psdX), label="TDI X")
-    # ax1.loglog(f[peaks]*1000, np.sqrt(psdX[peaks]),'.', label="peaks")
-    # # ax1.plot(Xs_added2.f * 1000, Xs_added2.values.real, label="VGB2", marker=".", zorder=5)
-    # # ax1.axvline(boundaries['Frequency'][0]* 1000, color= 'red')
-    # # ax1.axvline(boundaries['Frequency'][1]* 1000, color= 'red')
-    # ax1.set_xlim(1,10)
-    # plt.legend()
-    # plt.show()
-
-    print("p start", p1, "p true", loglikelihood([pGB]))
+    null_pGBs = deepcopy(pGBs)
+    null_pGBs['Amplitude'] = 4*10**-25
+    print("p start", p1, loglikelihood([pGBs]), "p true", loglikelihood([pGB]), "null hypothesis", null_hypothesis, loglikelihood([null_pGBs]))
 
     boundaries_reduced = deepcopy(boundaries)
     best_params = deepcopy(pGBs)
 
-    parameters_recorded = [None] * 64
-    pbar = tqdm(total=len(parameters_recorded))
-    pool = mp.Pool(mp.cpu_count())
-    start = time.time()
-    parameters_recorded = pool.map(CoordinateMC, [n for n in range(len(parameters_recorded))])
-    pool.close()
-    pool.join()
-    pbar.close()
-    print('parallel time', time.time()-start)
+    # parameters_recorded = [None] * 64
+    # pbar = tqdm(total=len(parameters_recorded))
+    # pool = mp.Pool(mp.cpu_count())
+    # start = time.time()
+    # parameters_recorded = pool.map(CoordinateMC, [n for n in range(len(parameters_recorded))])
+    # pool.close()
+    # pool.join()
+    # pbar.close()
+    # print('parallel time', time.time()-start)
 
-    best_run = 0
-    loglikelihoodofruns = np.zeros(len(parameters_recorded))
-    for i in range(len(parameters_recorded)):
-        loglikelihoodofruns[i] = parameters_recorded[i][0]['Loglikelihood'][-1]
-    best_value = np.max(loglikelihoodofruns)
-    best_run = np.argmax(loglikelihoodofruns)
-    good_runs = loglikelihoodofruns > best_value*1.8
-    indices = (-loglikelihoodofruns).argsort()[:len(good_runs)]
-    pGBmodes = []
-    for i in range(len(good_runs)):
-        if good_runs[i]:
-            pGBmodes.append({})
-    indices = (-loglikelihoodofruns).argsort()[:len(pGBmodes)]
-    pGBmodes = []
-    for i in range(number_of_signals):
-        pGBmodes.append([])
-        for n in indices:
-            pGBmodes[i].append({})
-            for parameter in parameters + ['Loglikelihood']:
-                if parameter == 'Loglikelihood':
-                    pGBmodes[i][-1][parameter] = parameters_recorded[n][0][parameter][-1]
-                else:
-                    pGBmodes[i][-1][parameter] = parameters_recorded[n][i][parameter][-1]
+    # best_run = 0
+    # loglikelihoodofruns = np.zeros(len(parameters_recorded))
+    # for i in range(len(parameters_recorded)):
+    #     loglikelihoodofruns[i] = parameters_recorded[i][0]['Loglikelihood'][-1]
+    # best_value = np.max(loglikelihoodofruns)
+    # best_run = np.argmax(loglikelihoodofruns)
+    # good_runs = loglikelihoodofruns > best_value*3
+    # indices = (-loglikelihoodofruns).argsort()[:len(good_runs)]
+    # pGBmodes = []
+    # for i in range(len(good_runs)):
+    #     if good_runs[i]:
+    #         pGBmodes.append({})
+    # indices = (-loglikelihoodofruns).argsort()[:len(pGBmodes)]
+    # pGBmodes = []
+    # for i in range(number_of_signals):
+    #     pGBmodes.append([])
+    #     for n in indices:
+    #         pGBmodes[i].append({})
+    #         for parameter in parameters + ['Loglikelihood']:
+    #             if parameter == 'Loglikelihood':
+    #                 pGBmodes[i][-1][parameter] = parameters_recorded[n][0][parameter][-1]
+    #             else:
+    #                 pGBmodes[i][-1][parameter] = parameters_recorded[n][i][parameter][-1]
 
 
     #vgb0
@@ -1001,62 +999,52 @@ for ind in [0]: #[3,8,9]
     #vgb9
     # maxpGB = {'Amplitude': 1.6569883812641871e-22, 'EclipticLatitude': 0.19959021519888565, 'EclipticLongitude': 1.7866188257135631, 'Frequency': 0.0026130062714148075, 'FrequencyDerivative': 1.1463323442476781e-16, 'Inclination': 1.536127072699318, 'InitialPhase': 2.652971140157701, 'Polarization': 0.6738994920582831}
     # pGBmodes = [[maxpGB]]
+    # most prominent
+    # pGBmodes = [[{'Amplitude': 5.195698345518785e-23, 'EclipticLatitude': 0.21046754918149463, 'EclipticLongitude': 4.840678542644478, 'Frequency': 0.016246727959177233, 'FrequencyDerivative': 3.2885321218271075e-14, 'Inclination': 2.3520373844481726, 'InitialPhase': 0.27676533566676315, 'Polarization': 2.1709704298992207, 'Loglikelihood': -7462.626890708114}, {'Amplitude': 4.566029783007174e-23, 'EclipticLatitude': 0.33678258291657687, 'EclipticLongitude': 4.855618578507963, 'Frequency': 0.01624673846957899, 'FrequencyDerivative': 3.471874616079539e-14, 'Inclination': 2.43378722838037, 'InitialPhase': 2.2088565760185928, 'Polarization': 2.379165779888426, 'Loglikelihood': -7690.693104374394}, {'Amplitude': 6.885827784083978e-23, 'EclipticLatitude': -0.18356378941741036, 'EclipticLongitude': 4.876709337156125, 'Frequency': 0.01624688408984251, 'FrequencyDerivative': 2.3280014355923845e-14, 'Inclination': 2.0158488690221903, 'InitialPhase': 1.3819581931343758, 'Polarization': 1.3850251675037506, 'Loglikelihood': -7722.3821911483865}, {'Amplitude': 6.507140893168363e-23, 'EclipticLatitude': -0.5702200642340544, 'EclipticLongitude': 4.848027081335103, 'Frequency': 0.01624660644104508, 'FrequencyDerivative': 4.06017914978703e-14, 'Inclination': 1.9453032026572288, 'InitialPhase': 0.4746502075597811, 'Polarization': 2.8844693398980983, 'Loglikelihood': -7916.662197968047}, {'Amplitude': 4.709180066288009e-23, 'EclipticLatitude': 0.47861099833656506, 'EclipticLongitude': 4.797133106571869, 'Frequency': 0.016246300007809023, 'FrequencyDerivative': 7.707379817851053e-14, 'Inclination': 2.5244997213482114, 'InitialPhase': 1.8806031741376446, 'Polarization': 0.5143774419446131, 'Loglikelihood': -8032.040782303017}, {'Amplitude': 4.7464449689007113e-23, 'EclipticLatitude': -0.26966208073080783, 'EclipticLongitude': 4.822824433606055, 'Frequency': 0.01624629422513999, 'FrequencyDerivative': 4.833447867936889e-14, 'Inclination': 1.9192194322199478, 'InitialPhase': 1.8245718090670116, 'Polarization': 1.2188530085388192, 'Loglikelihood': -8079.26035233914}, {'Amplitude': 5.566564728423689e-23, 'EclipticLatitude': -0.3518679378911831, 'EclipticLongitude': 4.89091790488314, 'Frequency': 0.016246875791918896, 'FrequencyDerivative': 2.257335782611561e-14, 'Inclination': 1.8204079371705597, 'InitialPhase': 0.3376813157648412, 'Polarization': 2.9169313009393374, 'Loglikelihood': -8089.440430977766}, {'Amplitude': 5.664849144577784e-23, 'EclipticLatitude': 0.5672117911817022, 'EclipticLongitude': 5.0370213461480935, 'Frequency': 0.016246408730630654, 'FrequencyDerivative': 9.59026524696912e-14, 'Inclination': 2.2006811358906564, 'InitialPhase': 1.4987058603672696, 'Polarization': 1.1777082106987051, 'Loglikelihood': -8214.963540781995}, {'Amplitude': 4.3046525858505846e-23, 'EclipticLatitude': 0.4351548956813506, 'EclipticLongitude': 5.01230100132012, 'Frequency': 0.016246796341406463, 'FrequencyDerivative': 4.3405419240922235e-14, 'Inclination': 2.4165770127596495, 'InitialPhase': 0.2413137556630892, 'Polarization': 1.264024076855247, 'Loglikelihood': -8248.921703725613}, {'Amplitude': 4.800911339610169e-23, 'EclipticLatitude': 0.6192466040526774, 'EclipticLongitude': 4.907850775606125, 'Frequency': 0.016246319173586043, 'FrequencyDerivative': 8.689791583841066e-14, 'Inclination': 2.361001879355619, 'InitialPhase': 2.988183131592768, 'Polarization': 0.12911994017409392, 'Loglikelihood': -8262.489091362024}]]
+    #second most prominent
+    pGBmodes = [[{'Amplitude': 9.426973175392117e-22, 'EclipticLatitude': 0.25316769516691645, 'EclipticLongitude': 3.9851630248037875, 'Frequency': 0.003406845476446552, 'FrequencyDerivative': 2.3958955535468834e-17, 'Inclination': 0.6479435898765932, 'InitialPhase': 2.916469311671728, 'Polarization': 0.10499651150340712, 'Loglikelihood': -36858.098258911945}, {'Amplitude': 1.021146643987424e-21, 'EclipticLatitude': 0.11618422628090952, 'EclipticLongitude': 4.006185997113402, 'Frequency': 0.003406838623578212, 'FrequencyDerivative': 1.616425675903445e-16, 'Inclination': 0.7939606567018407, 'InitialPhase': 1.8351461766016088, 'Polarization': 3.1035650828185584, 'Loglikelihood': -46921.80313632845}, {'Amplitude': 9.530721747793758e-22, 'EclipticLatitude': 0.2739401037327303, 'EclipticLongitude': 3.9981966788587817, 'Frequency': 0.0034068468250920965, 'FrequencyDerivative': 1.2080336497727683e-18, 'Inclination': 0.7226611600929863, 'InitialPhase': 2.294032130564841, 'Polarization': 2.8844693398980983, 'Loglikelihood': -50700.894129782144}, {'Amplitude': 8.631265615276514e-22, 'EclipticLatitude': 0.35205154071331207, 'EclipticLongitude': 3.9784033714248546, 'Frequency': 0.0034068428588271355, 'FrequencyDerivative': 1.677626700348231e-16, 'Inclination': 0.3267530104048071, 'InitialPhase': 1.3444603945028963, 'Polarization': 2.436388400946684, 'Loglikelihood': -85011.03013529857}, {'Amplitude': 8.233386221232154e-22, 'EclipticLatitude': 0.2753192498908415, 'EclipticLongitude': 4.026062795252397, 'Frequency': 0.003406847903327093, 'FrequencyDerivative': 2.3748058549823454e-19, 'Inclination': 0.34180507297053914, 'InitialPhase': 3.075938309452795, 'Polarization': 0.019572923980729087, 'Loglikelihood': -108593.36266980185}]]
     if len(pGBmodes[0]) > 10:
         for signal in range(number_of_signals):
             pGBmodes[signal] = pGBmodes[signal][:10]
+    bounds = ()
+    for signal in range(number_of_signals):
+        bounds += ((0,1),(0,1),(0,1),(0,1),(0,1),(0,1),(0,1),(0,1))
     for i in range(len(pGBmodes[0])):
         maxpGB = []
         boundaries_reduced = []
         pGBs01 = []
-        x = []
-        for signal in range(number_of_signals):
-            maxpGB.append({})
-            boundaries_reduced.append({})
-            for parameter in parameters:
-                maxpGB[signal][parameter] = pGBmodes[signal][i][parameter]
-            # print(maxpGB)
-            # boundaries_reduced[signal] = Reduce_boundaries(maxpGB[signal], boundaries,ratio=0.1)
-            boundaries_reduced[signal] = deepcopy(boundaries)
-            pGBs01.append({})
-            for parameter in parameters:
-                if parameter in ["EclipticLatitude"]:
-                    pGBs01[signal][parameter] = (np.sin(maxpGB[signal][parameter]) - boundaries_reduced[signal][parameter][0]) / (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])
-                elif parameter in ["Inclination"]:
-                    pGBs01[signal][parameter] = (np.cos(maxpGB[signal][parameter]) - boundaries_reduced[signal][parameter][0]) / (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])
-                elif parameter in ['Amplitude',"FrequencyDerivative"]:
-                    pGBs01[signal][parameter] = (np.log10(maxpGB[signal][parameter]) - boundaries_reduced[signal][parameter][0]) / (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])
-                else:
-                    pGBs01[signal][parameter] = (maxpGB[signal][parameter] - boundaries_reduced[signal][parameter][0]) / (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])
-            for parameter in parameters:
-                x.append(pGBs01[signal][parameter])
-        # print(loglikelihood(maxpGB))
-        bounds = ()
-        for signal in range(number_of_signals):
-            bounds += ((0,1),(0,1),(0,1),(0,1),(0,1),(0,1),(0,1),(0,1))
-        res = scipy.optimize.minimize(function, x, args=boundaries_reduced, method='SLSQP', tol=1e-6, bounds=bounds)
-        for signal in range(number_of_signals):
-            maxpGB[signal] = scaletooriginal(res.x[signal*8:signal*8+8],boundaries_reduced[signal])
-        # print('optimized loglikelihood', loglikelihood(maxpGB))
-        x = []
-        for signal in range(number_of_signals):
-            boundaries_reduced[signal] = Reduce_boundaries(maxpGB[signal], boundaries,ratio=0.1)
-            pGBs01.append({})
-            for parameter in parameters:
-                if parameter in ["EclipticLatitude"]:
-                    pGBs01[signal][parameter] = (np.sin(maxpGB[signal][parameter]) - boundaries_reduced[signal][parameter][0]) / (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])
-                elif parameter in ["Inclination"]:
-                    pGBs01[signal][parameter] = (np.cos(maxpGB[signal][parameter]) - boundaries_reduced[signal][parameter][0]) / (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])
-                elif parameter in ['Amplitude',"FrequencyDerivative"]:
-                    pGBs01[signal][parameter] = (np.log10(maxpGB[signal][parameter]) - boundaries_reduced[signal][parameter][0]) / (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])
-                else:
-                    pGBs01[signal][parameter] = (maxpGB[signal][parameter] - boundaries_reduced[signal][parameter][0]) / (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])
-            for parameter in parameters:
-                x.append(pGBs01[signal][parameter])
+
+        for j in range(3):
+            x = []
+            for signal in range(number_of_signals):
+                if j == 0:
+                    maxpGB.append({})
+                    boundaries_reduced.append({})
+                    for parameter in parameters:
+                        maxpGB[signal][parameter] = pGBmodes[signal][i][parameter]
+                # print(maxpGB)
+                boundaries_reduced[signal] = Reduce_boundaries(maxpGB[signal], boundaries,ratio=0.1)
+                if j == 0:
+                    boundaries_reduced[signal] = deepcopy(boundaries)
+                pGBs01.append({})
+                for parameter in parameters:
+                    if parameter in ["EclipticLatitude"]:
+                        pGBs01[signal][parameter] = (np.sin(maxpGB[signal][parameter]) - boundaries_reduced[signal][parameter][0]) / (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])
+                    elif parameter in ["Inclination"]:
+                        pGBs01[signal][parameter] = (np.cos(maxpGB[signal][parameter]) - boundaries_reduced[signal][parameter][0]) / (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])
+                    elif parameter in ['Amplitude',"FrequencyDerivative"]:
+                        pGBs01[signal][parameter] = (np.log10(maxpGB[signal][parameter]) - boundaries_reduced[signal][parameter][0]) / (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])
+                    else:
+                        pGBs01[signal][parameter] = (maxpGB[signal][parameter] - boundaries_reduced[signal][parameter][0]) / (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])
+                for parameter in parameters:
+                    x.append(pGBs01[signal][parameter])
             # print(loglikelihood(maxpGB))
-            # print(pGBs01)
-        res = scipy.optimize.minimize(function, x, args=boundaries_reduced, method='SLSQP', tol=1e-6, bounds=bounds)
-        for signal in range(number_of_signals):
-            maxpGB[signal] = scaletooriginal(res.x[signal*8:signal*8+8],boundaries_reduced[signal])
+            res = scipy.optimize.minimize(function, x, args=boundaries_reduced, method='SLSQP', bounds=bounds)
+            for signal in range(number_of_signals):
+                maxpGB[signal] = scaletooriginal(res.x[signal*8:signal*8+8],boundaries_reduced[signal])
+            # print('optimized loglikelihood', loglikelihood(maxpGB),maxpGB)
+            # print('boundaries reduced', boundaries_reduced)
+
         best_value = loglikelihood(maxpGB)
         if i == 0:
             current_best_value = best_value
@@ -1070,6 +1058,18 @@ for ind in [0]: #[3,8,9]
         print('optimized loglikelihood', loglikelihood(maxpGB),maxpGB)
     
     maxpGB = current_maxpGB[0]
+    found_sources.append(maxpGB)
+    target_sources.append(pGB)
+    Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=maxpGB, oversample=4, simulator="synthlisa")
+    source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
+    index_low = np.searchsorted(tdi_fs["X"].f, Xs_subtracted.f[0])
+    index_high = index_low+len(Xs_subtracted)
+    for k in ["X", "Y", "Z"]:
+        tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] - source_subtracted[k].data
+    tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
+
+goon = True
+if goon:
     best_value = loglikelihood([maxpGB])
     boundaries_reduced = Reduce_boundaries(maxpGB, boundaries,ratio=0.1)
     for n in range(2):
