@@ -710,7 +710,7 @@ class Search():
     def search(self):
         # np.random.seed(42)
 
-        parameters_recorded = [None] * 10
+        parameters_recorded = [None] * 50
         for n in range(len(parameters_recorded)):
             start = time.time()
             parameters_recorded[n] = CoordinateMC(n, self.pGBs, self.boundaries, parameters_recorded, self.loglikelihood)
@@ -950,7 +950,8 @@ lower_frequency = 3.994*10**-3
 upper_frequency = 3.996*10**-3
 padding = 0.5e-6
 
-maxpGB = [[{'Amplitude': 4.083034100605103e-22, 'EclipticLatitude': 0.8719978986934689, 'EclipticLongitude': 0.4861081602824134, 'Frequency': 0.003995221078275341, 'FrequencyDerivative': 1.0731174323416332e-16, 'Inclination': 1.0240955787764325, 'InitialPhase': 2.3194653376632988, 'Polarization': 2.6588683139548563}]]
+# maxpGB = [[{'Amplitude': 4.083034100605103e-22, 'EclipticLatitude': 0.8719978986934689, 'EclipticLongitude': 0.4861081602824134, 'Frequency': 0.003995221078275341, 'FrequencyDerivative': 1.0731174323416332e-16, 'Inclination': 1.0240955787764325, 'InitialPhase': 2.3194653376632988, 'Polarization': 2.6588683139548563}]]
+maxpGB = [[{'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}]]
 for j in range(signals_per_subtraction):
     for i in range(number_of_signals):
         found_sources.append(maxpGB[j][i])
@@ -1077,7 +1078,7 @@ for ind in range(1): #[3,8,9]
 
 tdi_fs_long_subtracted = deepcopy(tdi_fs_long)
 tdi_fs_subtracted = deepcopy(tdi_fs)
-reduction = 2
+reduction = 1
 Tobs = float(int(p.get("ObservationDuration")/reduction))
 # Build timeseries and frequencyseries object for X,Y,Z
 tdi_ts = {}
@@ -1092,7 +1093,8 @@ tdi_fs = xr.Dataset(tdi_fs)
 # tdi_ts = xr.Dataset(dict([(k,TimeSeries(tdi_ts[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
 GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
 
-maxpGB = [[{'Amplitude': 4.083034100605103e-22, 'EclipticLatitude': 0.8719978986934689, 'EclipticLongitude': 0.4861081602824134, 'Frequency': 0.003995221078275341, 'FrequencyDerivative': 1.0731174323416332e-16, 'Inclination': 1.0240955787764325, 'InitialPhase': 2.3194653376632988, 'Polarization': 2.6588683139548563}]]
+# maxpGB = [[{'Amplitude': 4.083034100605103e-22, 'EclipticLatitude': 0.8719978986934689, 'EclipticLongitude': 0.4861081602824134, 'Frequency': 0.003995221078275341, 'FrequencyDerivative': 1.0731174323416332e-16, 'Inclination': 1.0240955787764325, 'InitialPhase': 2.3194653376632988, 'Polarization': 2.6588683139548563}]]
+maxpGB = [[{'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}]]
 for j in range(signals_per_subtraction):
     for i in range(number_of_signals):
         found_sources.append(maxpGB[j][i])
