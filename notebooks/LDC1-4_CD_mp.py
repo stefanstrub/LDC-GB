@@ -440,8 +440,8 @@ def Reduce_boundaries(maxpGB, boundaries, ratio=0.1):
         #     ]
         elif parameter == "Frequency":
             boundaries_reduced[parameter] = [
-                maxpGB[parameter] - length * ratio / 16,
-                maxpGB[parameter] + length * ratio / 16,
+                maxpGB[parameter] - length * ratio / 16/4,
+                maxpGB[parameter] + length * ratio / 16/4,
             ]
         elif parameter == "FrequencyDerivative":
             boundaries_reduced[parameter] = [boundaries[parameter][0],-16.5]
@@ -531,10 +531,11 @@ class Search():
         signal_peak_index = -signal_peak-1
         selected_frequency = f[peaks[indexes_peaks[signal_peak_index]]]
         amplitude = np.sqrt(psd[peaks[indexes_peaks[signal_peak_index]]])
-        frequencyrange =  [selected_frequency - 5e-7, selected_frequency + 5e-7]
+        frequencyrange =  [selected_frequency - 2e-7, selected_frequency + 2e-7]
         indexes = np.argsort(p.get('Frequency'))
         index_low = np.searchsorted(p.get('Frequency')[indexes], frequencyrange[0])
         index_high = np.searchsorted(p.get('Frequency')[indexes], frequencyrange[1])
+        frequencyrange =  [lower_frequency, upper_frequency]
         strongest_source_in_window = np.argmax(p.get('Amplitude')[indexes][index_low:index_high])
         index_closest = np.searchsorted(p.get('Frequency')[indexes], selected_frequency)
         self.pGB = {}
@@ -545,7 +546,7 @@ class Search():
         print('pGB', self.pGB, signal_peak)
 
         self.boundaries = {
-            "Amplitude": [np.log10(amplitude)-4,np.log10(amplitude)-1],
+            "Amplitude": [np.log10(amplitude)-3,np.log10(amplitude)-1],
             # "Amplitude": [np.log10(self.pGB['Amplitude'])-2,np.log10(self.pGB['Amplitude'])+1],
             "EclipticLatitude": [-1.0, 1.0],
             "EclipticLongitude": [0, 2*np.pi],
@@ -582,37 +583,41 @@ class Search():
                 self.pGBs[parameter] = (previous_max[i] * (self.boundaries[parameter][1] - self.boundaries[parameter][0])) + self.boundaries[parameter][0]
             i += 1
 
-        cutoff_ratio = 1000
-        Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=self.pGBs, oversample=4, simulator="synthlisa")
-        psd_signal = np.abs(Xs.values) ** 2 + np.abs(Ys.values) ** 2 + np.abs(Zs.values) ** 2
-        highSNR = psd_signal > np.max(psd_signal) / cutoff_ratio
-        lowerindex = np.where(highSNR)[0][0] - 30
-        higherindex = np.where(highSNR)[0][-1] + 30
-        self.dataX = tdi_fs["X"].isel(f=slice(Xs.kmin, Xs.kmin + len(Xs)))[lowerindex:higherindex]
-        self.dataY = tdi_fs["Y"].isel(f=slice(Ys.kmin, Ys.kmin + len(Ys)))[lowerindex:higherindex]
-        self.dataZ = tdi_fs["Z"].isel(f=slice(Zs.kmin, Zs.kmin + len(Zs)))[lowerindex:higherindex]
+        # cutoff_ratio = 1000
+        # Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=self.pGBs, oversample=4, simulator="synthlisa")
+        # psd_signal = np.abs(Xs.values) ** 2 + np.abs(Ys.values) ** 2 + np.abs(Zs.values) ** 2
+        # highSNR = psd_signal > np.max(psd_signal) / cutoff_ratio
+        # lowerindex = np.where(highSNR)[0][0] - 30
+        # higherindex = np.where(highSNR)[0][-1] + 30
+        # self.dataX = tdi_fs["X"].isel(f=slice(Xs.kmin, Xs.kmin + len(Xs)))[lowerindex:higherindex]
+        # self.dataY = tdi_fs["Y"].isel(f=slice(Ys.kmin, Ys.kmin + len(Ys)))[lowerindex:higherindex]
+        # self.dataZ = tdi_fs["Z"].isel(f=slice(Zs.kmin, Zs.kmin + len(Zs)))[lowerindex:higherindex]
+        indexes = np.logical_and(tdi_fs['X'].f > frequencyrange[0]-padding, tdi_fs['X'].f < frequencyrange[1]+padding) 
+        self.dataX = tdi_fs["X"][indexes]
+        self.dataY = tdi_fs["Y"][indexes]
+        self.dataZ = tdi_fs["Z"][indexes]
 
-        # DAf = (self.dataZ - self.dataX)/np.sqrt(2.0)
-        # DEf = (self.dataZ - 2.0*self.dataY + self.dataX)/np.sqrt(6.0)
+        self.DAf = (self.dataZ - self.dataX)/np.sqrt(2.0)
+        self.DEf = (self.dataZ - 2.0*self.dataY + self.dataX)/np.sqrt(6.0)
 
-        Xs, Ys, Zs = (
-            Xs[lowerindex:higherindex],
-            Ys[lowerindex:higherindex],
-            Zs[lowerindex:higherindex],
-        )
+        # Xs, Ys, Zs = (
+        #     Xs[lowerindex:higherindex],
+        #     Ys[lowerindex:higherindex],
+        #     Zs[lowerindex:higherindex],
+        # )
         spd_data = np.abs(self.dataX) ** 2 + np.abs(self.dataY) ** 2 + np.abs(self.dataZ) ** 2
         noise = (np.mean(spd_data[:2]) + np.mean(spd_data[-2:])).values / 2
         noise = 0  # (np.mean(spd_data).values)/2
-        fmin, fmax = float(Xs.f[0]), float(Xs.f[-1] + Xs.attrs["df"])
-        freq = np.array(Xs.sel(f=slice(fmin, fmax)).f)
+        fmin, fmax = float(self.dataX.f[0]), float(self.dataX.f[-1] + self.dataX.attrs["df"])
+        freq = np.array(self.dataX.sel(f=slice(fmin, fmax)).f)
         Nmodel = get_noise_model(noise_model, freq)
         self.Sn = Nmodel.psd(freq=freq, option="X")
-        diff = np.abs(self.dataX - Xs.values) ** 2 + np.abs(self.dataY - Ys.values) ** 2 + np.abs(self.dataZ - Zs.values) ** 2
-        p1 = float(np.sum(diff / (self.Sn + noise)) * Xs.df) / 2.0
-        p1 = -p1
-        diff = np.abs(self.dataX) ** 2 + np.abs(self.dataY) ** 2 + np.abs(self.dataZ) ** 2
-        null_pGBs = deepcopy(self.pGBs)
-        null_pGBs['Amplitude'] = 4*10**-25
+        # diff = np.abs(self.dataX - Xs.values) ** 2 + np.abs(self.dataY - Ys.values) ** 2 + np.abs(self.dataZ - Zs.values) ** 2
+        # p1 = float(np.sum(diff / (self.Sn + noise)) * Xs.df) / 2.0
+        # p1 = -p1
+        # diff = np.abs(self.dataX) ** 2 + np.abs(self.dataY) ** 2 + np.abs(self.dataZ) ** 2
+        # null_pGBs = deepcopy(self.pGBs)
+        # null_pGBs['Amplitude'] = 4*10**-25
 
     def plot(self, maxpGBs):
         plt.figure(figsize=fig_size)
@@ -663,7 +668,9 @@ class Search():
                 a,Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)
                 a,Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)
 
-
+        # Af = (Zs_total - Xs_total)/np.sqrt(2.0)
+        # Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
+        # diff = np.abs(self.DAf - Af.values) ** 2 + np.abs(self.DEf - Ef.values) ** 2
         diff = np.abs(self.dataX - Xs_total.values) ** 2 + np.abs(self.dataY - Ys_total.values) ** 2 + np.abs(self.dataZ - Zs_total.values) ** 2
         # p1 = -float(np.sum(diff / Sn)*Xs.attrs['df'])/2.0
         p1 = float(np.sum(diff / self.Sn) * Xs_total.df) / 2.0
@@ -703,7 +710,7 @@ class Search():
     def search(self):
         # np.random.seed(42)
 
-        parameters_recorded = [None] * 4
+        parameters_recorded = [None] * 10
         for n in range(len(parameters_recorded)):
             start = time.time()
             parameters_recorded[n] = CoordinateMC(n, self.pGBs, self.boundaries, parameters_recorded, self.loglikelihood)
@@ -729,25 +736,25 @@ class Search():
                 pGBmodes.append({})
         indices = (-loglikelihoodofruns).argsort()[:len(pGBmodes)]
         pGBmodes = []
-        for i in range(number_of_signals):
+        for n in indices:
             pGBmodes.append([])
-            for n in indices:
-                pGBmodes[i].append({})
+            for i in range(number_of_signals):
+                pGBmodes[-1].append({})
                 for parameter in parameters + ['Loglikelihood']:
                     if parameter == 'Loglikelihood':
-                        pGBmodes[i][-1][parameter] = parameters_recorded[n][0][parameter][-1]
+                        pGBmodes[-1][i][parameter] = parameters_recorded[n][0][parameter][-1]
                     else:
-                        pGBmodes[i][-1][parameter] = parameters_recorded[n][i][parameter][-1]
-        if len(pGBmodes[0]) > 10:
+                        pGBmodes[-1][i][parameter] = parameters_recorded[n][i][parameter][-1]
+        if len(pGBmodes) > 10:
             for signal in range(number_of_signals):
-                pGBmodes[signal] = pGBmodes[signal][:10]
+                pGBmodes = pGBmodes[:10]
         return pGBmodes
 
     def optimize(self, pGBmodes):
         bounds = ()
         for signal in range(number_of_signals):
             bounds += ((0,1),(0,1),(0,1),(0,1),(0,1),(0,1),(0,1),(0,1))
-        for i in range(len(pGBmodes[0])):
+        for i in range(len(pGBmodes)):
             maxpGB = []
             boundaries_reduced = []
             pGBs01 = []
@@ -759,7 +766,7 @@ class Search():
                         maxpGB.append({})
                         boundaries_reduced.append({})
                         for parameter in parameters:
-                            maxpGB[signal][parameter] = pGBmodes[signal][i][parameter]
+                            maxpGB[signal][parameter] = pGBmodes[i][signal][parameter]
                     # print(maxpGB)
                     boundaries_reduced[signal] = Reduce_boundaries(maxpGB[signal], self.boundaries,ratio=0.1)
                     if j == 0:
@@ -899,7 +906,7 @@ if GWs[0] != "GalBinaries":
 p = FD5.getSourceParameters(GWs[0])
 td = FD5.getPreProcessTDI()
 del_t = float(p.get("Cadence"))
-reduction = 1
+reduction = 2
 Tobs = float(int(p.get("ObservationDuration")/reduction))
 
 dt = del_t
@@ -914,7 +921,7 @@ noise_model = "MRDv1"
 Nmodel = get_noise_model(noise_model, np.logspace(-5, -1, 100))
 Npsd = Nmodel.psd()
 
-reduction = 1
+reduction = 2
 Tobs_long = float(int(p.get("ObservationDuration")/reduction))
 tdi_ts_long = xr.Dataset(dict([["X", TimeSeries(td[:int(len(td[:,1])/reduction), 1], dt=dt)],["Y", TimeSeries(td[:int(len(td[:,1])/reduction), 2], dt=dt)],
 ["Z", TimeSeries(td[:int(len(td[:,1])/reduction), 3], dt=dt)]]))
@@ -937,11 +944,33 @@ target_sources = []
 first_start = time.time()
 np.random.seed(40)
 # for ind in range(1,len(p.get('Frequency'))):
-number_of_signals = 2
+number_of_signals = 1
 signals_per_subtraction = 1
 lower_frequency = 3.994*10**-3
 upper_frequency = 3.996*10**-3
-for ind in range(2): #[3,8,9]
+padding = 0.5e-6
+
+maxpGB = [[{'Amplitude': 4.083034100605103e-22, 'EclipticLatitude': 0.8719978986934689, 'EclipticLongitude': 0.4861081602824134, 'Frequency': 0.003995221078275341, 'FrequencyDerivative': 1.0731174323416332e-16, 'Inclination': 1.0240955787764325, 'InitialPhase': 2.3194653376632988, 'Polarization': 2.6588683139548563}]]
+for j in range(signals_per_subtraction):
+    for i in range(number_of_signals):
+        found_sources.append(maxpGB[j][i])
+        Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=maxpGB[j][i], oversample=4, simulator="synthlisa")
+        source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
+        index_low = np.searchsorted(tdi_fs["X"].f, Xs_subtracted.f[0])
+        index_high = index_low+len(Xs_subtracted)
+        for k in ["X", "Y", "Z"]:
+            tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] - source_subtracted[k].data
+        tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
+
+        Xs_subtracted, Ys_subtracted, Zs_subtracted = GB_long.get_fd_tdixyz(template=maxpGB[j][i], oversample=4, simulator="synthlisa")
+        source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
+        index_low = np.searchsorted(tdi_fs["X"].f, Xs_subtracted.f[0])
+        index_high = index_low+len(Xs_subtracted)
+        for k in ["X", "Y", "Z"]:
+            tdi_fs_long[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] - source_subtracted[k].data
+        tdi_ts_long = xr.Dataset(dict([(k, tdi_fs_long[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
+
+for ind in range(1): #[3,8,9]
     signal_peak = -1
     f, psdX =  scipy.signal.welch(tdi_ts["X"], fs=1.0/dt, window='hanning', nperseg=len(tdi_ts["X"])/5)
     f, psdY =  scipy.signal.welch(tdi_ts["Y"], fs=1.0/dt, window='hanning', nperseg=len(tdi_ts["X"])/5)
@@ -961,7 +990,7 @@ for ind in range(2): #[3,8,9]
     index_high = np.searchsorted(p.get('Frequency')[indexes], upper_frequency)
     strongest_source_in_window = np.argmax(p.get('Amplitude')[indexes][index_low:index_high])
 
-    range_index = np.logical_and(tdi_fs.f > lower_frequency-1e-6, tdi_fs.f < upper_frequency+1e-6)
+    range_index = np.logical_and(tdi_fs.f > lower_frequency-padding, tdi_fs.f < upper_frequency+padding)
     # plt.figure(figsize=fig_size)
     # ax1 = plt.subplot(111)
     # ax1.semilogy(tdi_fs.f[range_index],np.abs(tdi_fs['X'][range_index])**2,'k',zorder= 2)
@@ -1012,21 +1041,62 @@ for ind in range(2): #[3,8,9]
     pool.close()
     pool.join()
     print('time parallel', time.time()-start_parallel)
-
     maxpGB = []
     pGB = []
     for j in range(signals_per_subtraction):
         maxpGB.append(maxpGBsearch[j][0])
+        print(maxpGB[-1])
         pGB.append(maxpGBsearch[j][1])
-        search = Search(j,tdi_fs_long,Tobs_long)
+        # search = Search(j,tdi_fs_long,Tobs_long)
         # search.plot(maxpGB[j][0])
-        maxpGB[j], pGB[j] = search.optimize(maxpGB[j])
+        # maxpGB[j], pGB[j] = search.optimize([maxpGB[j]])
 
     for j in range(signals_per_subtraction):
-        found_sources.append(maxpGB[j])
-        print(found_sources[-1])
-        target_sources.append(pGB[j])
-        Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=maxpGB[j], oversample=4, simulator="synthlisa")
+        for i in range(number_of_signals):
+            found_sources.append(maxpGB[j][i])
+            print(found_sources[-1])
+            target_sources.append(pGB[j])
+            Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=maxpGB[j][i], oversample=4, simulator="synthlisa")
+            source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
+            index_low = np.searchsorted(tdi_fs["X"].f, Xs_subtracted.f[0])
+            index_high = index_low+len(Xs_subtracted)
+            for k in ["X", "Y", "Z"]:
+                tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] - source_subtracted[k].data
+            tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
+
+            Xs_subtracted, Ys_subtracted, Zs_subtracted = GB_long.get_fd_tdixyz(template=maxpGB[j][i], oversample=4, simulator="synthlisa")
+            source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
+            index_low = np.searchsorted(tdi_fs["X"].f, Xs_subtracted.f[0])
+            index_high = index_low+len(Xs_subtracted)
+            for k in ["X", "Y", "Z"]:
+                tdi_fs_long[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] - source_subtracted[k].data
+            tdi_ts_long = xr.Dataset(dict([(k, tdi_fs_long[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
+# # found_sourcesrun = [{'Amplitude': 1.5364465535602838e-21, 'EclipticLatitude': 0.22842923568790388, 'EclipticLongitude': 3.9876628102916634, 'Frequency': 0.0034068399355733194, 'FrequencyDerivative': 1.7265154770131203e-16, 'Inclination': 1.140895523332838, 'InitialPhase': 1.3231144225092324, 'Polarization': 2.7082821014391674}, {'Amplitude': 1.8299785587003754e-21, 'EclipticLatitude': -0.5717437471770699, 'EclipticLongitude': 5.013423186770661, 'Frequency': 0.0021468057546732903, 'FrequencyDerivative': 2.5679108781904502e-17, 'Inclination': 2.381977466585251, 'InitialPhase': 1.7795097897215049, 'Polarization': 1.361815899661127}, {'Amplitude': 1.3740545095358953e-21, 'EclipticLatitude': 0.4586355029484734, 'EclipticLongitude': 2.326341135168954, 'Frequency': 0.002171903889305508, 'FrequencyDerivative': 2.656711011190014e-17, 'Inclination': 2.6231811067672464, 'InitialPhase': 2.246734702442237, 'Polarization': 0.4505374916175284}, {'Amplitude': 4.85984439130295e-22, 'EclipticLatitude': -0.6103079146464152, 'EclipticLongitude': 3.8165981027013838, 'Frequency': 0.007219358007407393, 'FrequencyDerivative': 3.215874944181044e-15, 'Inclination': 0.3611841295412159, 'InitialPhase': 2.8258044166152523, 'Polarization': 2.426471942484511}, {'Amplitude': 6.653710374755356e-22, 'EclipticLatitude': -0.359628257716563, 'EclipticLongitude': 4.9343500673177365, 'Frequency': 0.009211757029070448, 'FrequencyDerivative': 4.897974394062554e-15, 'Inclination': 0.8418300854577668, 'InitialPhase': 2.120331638811925, 'Polarization': 1.2267534109224667}, {'Amplitude': 3.312821037152804e-22, 'EclipticLatitude': 0.7326377959505177, 'EclipticLongitude': 6.056532678360872, 'Frequency': 0.004022512317404639, 'FrequencyDerivative': 7.928660484261939e-17, 'Inclination': 2.687294151927051, 'InitialPhase': 1.6080815997044122, 'Polarization': 1.9588214370682089}, {'Amplitude': 4.686184942845765e-22, 'EclipticLatitude': 0.20352748572849222, 'EclipticLongitude': 5.007749923410212, 'Frequency': 0.009211757978548653, 'FrequencyDerivative': 4.895550870611016e-15, 'Inclination': 1.1415963061394274, 'InitialPhase': 3.14159265358979, 'Polarization': 2.2644816658566564}, {'Amplitude': 5.18155313331795e-22, 'EclipticLatitude': 0.19478251263514385, 'EclipticLongitude': 5.219095549872743, 'Frequency': 0.009445485983463868, 'FrequencyDerivative': 7.023800557316083e-15, 'Inclination': 0.5777619297133901, 'InitialPhase': 3.141592653589793, 'Polarization': 2.0928411308295223}, {'Amplitude': 5.876055535475725e-22, 'EclipticLatitude': -0.46618198434204294, 'EclipticLongitude': 4.289702767312378, 'Frequency': 0.003077973937546665, 'FrequencyDerivative': 1.025303603104508e-16, 'Inclination': 0.7494287470138635, 'InitialPhase': 0.056843419329868985, 'Polarization': 2.8300541786136124}, {'Amplitude': 4.0839934840674097e-22, 'EclipticLatitude': 0.8720661480722399, 'EclipticLongitude': 0.4861465045465657, 'Frequency': 0.003995221091227311, 'FrequencyDerivative': 1.0688851160394643e-16, 'Inclination': 1.0242692798927258, 'InitialPhase': 2.319609919910819, 'Polarization': 2.6582674105848603}]
+# # target_sourcesrun = [{'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}]
+# # found_sources19 = [{'Amplitude': 7.158007512978195e-23, 'EclipticLatitude': -0.17879074789424193, 'EclipticLongitude': 4.603147784376865, 'Frequency': 0.00399097103940054, 'FrequencyDerivative': 2.29199470942113e-16, 'Inclination': 2.3395967762010357, 'InitialPhase': 1.6414925267236022, 'Polarization': 1.409625714095948}, {'Amplitude': 5.417316688438823e-23, 'EclipticLatitude': 0.09299982963031442, 'EclipticLongitude': 4.709278461472791, 'Frequency': 0.003991793230604934, 'FrequencyDerivative': 1.85302117460904e-16, 'Inclination': 1.8243956188626644, 'InitialPhase': 0.3119979003693603, 'Polarization': 1.9954273407108052}, {'Amplitude': 2.6586721928556783e-23, 'EclipticLatitude': -0.23347086835824327, 'EclipticLongitude': 4.667459964579811, 'Frequency': 0.003991718511582032, 'FrequencyDerivative': 1e-20, 'Inclination': 2.052394297268333, 'InitialPhase': 2.713778167855026, 'Polarization': 2.6371523097400362}, {'Amplitude': 1.4603651612868757e-23, 'EclipticLatitude': 0.5088538078457533, 'EclipticLongitude': 5.061705367435939, 'Frequency': 0.003991299832643548, 'FrequencyDerivative': 1.422149445394665e-16, 'Inclination': 3.1293675414452404, 'InitialPhase': 0.9692647620129494, 'Polarization': 1.6681641616303722}, {'Amplitude': 3.059691174442375e-23, 'EclipticLatitude': 0.4317147381501876, 'EclipticLongitude': 4.997451644492614, 'Frequency': 0.003989147910089541, 'FrequencyDerivative': 1.8726122581411511e-16, 'Inclination': 1.1753859885192686, 'InitialPhase': 1.6649392950095585e-10, 'Polarization': 1.7744204264185908}, {'Amplitude': 1.0744473573747681e-23, 'EclipticLatitude': -0.04537250792371965, 'EclipticLongitude': 4.75590442505031, 'Frequency': 0.003991905382027591, 'FrequencyDerivative': 1.1687840960558461e-16, 'Inclination': 3.1085189766581087, 'InitialPhase': 2.4798219832899684, 'Polarization': 0.23152794448077565}, {'Amplitude': 6.3758855191988285e-24, 'EclipticLatitude': -0.5711395779756441, 'EclipticLongitude': 4.719785340796603, 'Frequency': 0.003991184090209936, 'FrequencyDerivative': 5.197211730593386e-16, 'Inclination': 0.03112334053551802, 'InitialPhase': 0.1840427721876706, 'Polarization': 2.665465621636476}, {'Amplitude': 2.695963984061525e-23, 'EclipticLatitude': 0.698020789183839, 'EclipticLongitude': 4.544599641191273, 'Frequency': 0.00398921600077084, 'FrequencyDerivative': 2.748523299944693e-17, 'Inclination': 1.566152596953124, 'InitialPhase': 1.6976257328944115, 'Polarization': 0.17969203457850272}, {'Amplitude': 1.7140045975600926e-23, 'EclipticLatitude': 0.5353309026749867, 'EclipticLongitude': 4.661338785721523, 'Frequency': 0.003990068561124402, 'FrequencyDerivative': 1.448478884234823e-20, 'Inclination': 1.0325571150373603, 'InitialPhase': 2.8574124537257295, 'Polarization': 1.2248048144455297}, {'Amplitude': 8.600732555086791e-24, 'EclipticLatitude': -0.464957284959853, 'EclipticLongitude': 4.537557676317077, 'Frequency': 0.0039912439454365765, 'FrequencyDerivative': 1.811792639171847e-16, 'Inclination': 1.009201467440333, 'InitialPhase': 1.7030607900434433e-19, 'Polarization': 3.141592653589793}]
+
+tdi_fs_long_subtracted = deepcopy(tdi_fs_long)
+tdi_fs_subtracted = deepcopy(tdi_fs)
+reduction = 2
+Tobs = float(int(p.get("ObservationDuration")/reduction))
+# Build timeseries and frequencyseries object for X,Y,Z
+tdi_ts = {}
+tdi_fs = {}
+n = 0
+for k in ["X", "Y", "Z"]:
+    n += 1
+    tdi_ts[k] = TimeSeries(td[:int(len(td[:,1])/reduction),n], dt=dt)
+    tdi_fs[k] = tdi_ts[k].ts.fft(win=window)
+tdi_ts = xr.Dataset(tdi_ts)
+tdi_fs = xr.Dataset(tdi_fs)
+# tdi_ts = xr.Dataset(dict([(k,TimeSeries(tdi_ts[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
+GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
+
+maxpGB = [[{'Amplitude': 4.083034100605103e-22, 'EclipticLatitude': 0.8719978986934689, 'EclipticLongitude': 0.4861081602824134, 'Frequency': 0.003995221078275341, 'FrequencyDerivative': 1.0731174323416332e-16, 'Inclination': 1.0240955787764325, 'InitialPhase': 2.3194653376632988, 'Polarization': 2.6588683139548563}]]
+for j in range(signals_per_subtraction):
+    for i in range(number_of_signals):
+        found_sources.append(maxpGB[j][i])
+        Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=maxpGB[j][i], oversample=4, simulator="synthlisa")
         source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
         index_low = np.searchsorted(tdi_fs["X"].f, Xs_subtracted.f[0])
         index_high = index_low+len(Xs_subtracted)
@@ -1034,34 +1104,23 @@ for ind in range(2): #[3,8,9]
             tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] - source_subtracted[k].data
         tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
 
-        Xs_subtracted, Ys_subtracted, Zs_subtracted = GB_long.get_fd_tdixyz(template=maxpGB[j], oversample=4, simulator="synthlisa")
+        Xs_subtracted, Ys_subtracted, Zs_subtracted = GB_long.get_fd_tdixyz(template=maxpGB[j][i], oversample=4, simulator="synthlisa")
         source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
         index_low = np.searchsorted(tdi_fs["X"].f, Xs_subtracted.f[0])
         index_high = index_low+len(Xs_subtracted)
         for k in ["X", "Y", "Z"]:
             tdi_fs_long[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] - source_subtracted[k].data
         tdi_ts_long = xr.Dataset(dict([(k, tdi_fs_long[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
-# # found_sourcesrun = [{'Amplitude': 1.5364465535602838e-21, 'EclipticLatitude': 0.22842923568790388, 'EclipticLongitude': 3.9876628102916634, 'Frequency': 0.0034068399355733194, 'FrequencyDerivative': 1.7265154770131203e-16, 'Inclination': 1.140895523332838, 'InitialPhase': 1.3231144225092324, 'Polarization': 2.7082821014391674}, {'Amplitude': 1.8299785587003754e-21, 'EclipticLatitude': -0.5717437471770699, 'EclipticLongitude': 5.013423186770661, 'Frequency': 0.0021468057546732903, 'FrequencyDerivative': 2.5679108781904502e-17, 'Inclination': 2.381977466585251, 'InitialPhase': 1.7795097897215049, 'Polarization': 1.361815899661127}, {'Amplitude': 1.3740545095358953e-21, 'EclipticLatitude': 0.4586355029484734, 'EclipticLongitude': 2.326341135168954, 'Frequency': 0.002171903889305508, 'FrequencyDerivative': 2.656711011190014e-17, 'Inclination': 2.6231811067672464, 'InitialPhase': 2.246734702442237, 'Polarization': 0.4505374916175284}, {'Amplitude': 4.85984439130295e-22, 'EclipticLatitude': -0.6103079146464152, 'EclipticLongitude': 3.8165981027013838, 'Frequency': 0.007219358007407393, 'FrequencyDerivative': 3.215874944181044e-15, 'Inclination': 0.3611841295412159, 'InitialPhase': 2.8258044166152523, 'Polarization': 2.426471942484511}, {'Amplitude': 6.653710374755356e-22, 'EclipticLatitude': -0.359628257716563, 'EclipticLongitude': 4.9343500673177365, 'Frequency': 0.009211757029070448, 'FrequencyDerivative': 4.897974394062554e-15, 'Inclination': 0.8418300854577668, 'InitialPhase': 2.120331638811925, 'Polarization': 1.2267534109224667}, {'Amplitude': 3.312821037152804e-22, 'EclipticLatitude': 0.7326377959505177, 'EclipticLongitude': 6.056532678360872, 'Frequency': 0.004022512317404639, 'FrequencyDerivative': 7.928660484261939e-17, 'Inclination': 2.687294151927051, 'InitialPhase': 1.6080815997044122, 'Polarization': 1.9588214370682089}, {'Amplitude': 4.686184942845765e-22, 'EclipticLatitude': 0.20352748572849222, 'EclipticLongitude': 5.007749923410212, 'Frequency': 0.009211757978548653, 'FrequencyDerivative': 4.895550870611016e-15, 'Inclination': 1.1415963061394274, 'InitialPhase': 3.14159265358979, 'Polarization': 2.2644816658566564}, {'Amplitude': 5.18155313331795e-22, 'EclipticLatitude': 0.19478251263514385, 'EclipticLongitude': 5.219095549872743, 'Frequency': 0.009445485983463868, 'FrequencyDerivative': 7.023800557316083e-15, 'Inclination': 0.5777619297133901, 'InitialPhase': 3.141592653589793, 'Polarization': 2.0928411308295223}, {'Amplitude': 5.876055535475725e-22, 'EclipticLatitude': -0.46618198434204294, 'EclipticLongitude': 4.289702767312378, 'Frequency': 0.003077973937546665, 'FrequencyDerivative': 1.025303603104508e-16, 'Inclination': 0.7494287470138635, 'InitialPhase': 0.056843419329868985, 'Polarization': 2.8300541786136124}, {'Amplitude': 4.0839934840674097e-22, 'EclipticLatitude': 0.8720661480722399, 'EclipticLongitude': 0.4861465045465657, 'Frequency': 0.003995221091227311, 'FrequencyDerivative': 1.0688851160394643e-16, 'Inclination': 1.0242692798927258, 'InitialPhase': 2.319609919910819, 'Polarization': 2.6582674105848603}]
-# # target_sourcesrun = [{'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}]
-# # found_sources19 = [{'Amplitude': 7.158007512978195e-23, 'EclipticLatitude': -0.17879074789424193, 'EclipticLongitude': 4.603147784376865, 'Frequency': 0.00399097103940054, 'FrequencyDerivative': 2.29199470942113e-16, 'Inclination': 2.3395967762010357, 'InitialPhase': 1.6414925267236022, 'Polarization': 1.409625714095948}, {'Amplitude': 5.417316688438823e-23, 'EclipticLatitude': 0.09299982963031442, 'EclipticLongitude': 4.709278461472791, 'Frequency': 0.003991793230604934, 'FrequencyDerivative': 1.85302117460904e-16, 'Inclination': 1.8243956188626644, 'InitialPhase': 0.3119979003693603, 'Polarization': 1.9954273407108052}, {'Amplitude': 2.6586721928556783e-23, 'EclipticLatitude': -0.23347086835824327, 'EclipticLongitude': 4.667459964579811, 'Frequency': 0.003991718511582032, 'FrequencyDerivative': 1e-20, 'Inclination': 2.052394297268333, 'InitialPhase': 2.713778167855026, 'Polarization': 2.6371523097400362}, {'Amplitude': 1.4603651612868757e-23, 'EclipticLatitude': 0.5088538078457533, 'EclipticLongitude': 5.061705367435939, 'Frequency': 0.003991299832643548, 'FrequencyDerivative': 1.422149445394665e-16, 'Inclination': 3.1293675414452404, 'InitialPhase': 0.9692647620129494, 'Polarization': 1.6681641616303722}, {'Amplitude': 3.059691174442375e-23, 'EclipticLatitude': 0.4317147381501876, 'EclipticLongitude': 4.997451644492614, 'Frequency': 0.003989147910089541, 'FrequencyDerivative': 1.8726122581411511e-16, 'Inclination': 1.1753859885192686, 'InitialPhase': 1.6649392950095585e-10, 'Polarization': 1.7744204264185908}, {'Amplitude': 1.0744473573747681e-23, 'EclipticLatitude': -0.04537250792371965, 'EclipticLongitude': 4.75590442505031, 'Frequency': 0.003991905382027591, 'FrequencyDerivative': 1.1687840960558461e-16, 'Inclination': 3.1085189766581087, 'InitialPhase': 2.4798219832899684, 'Polarization': 0.23152794448077565}, {'Amplitude': 6.3758855191988285e-24, 'EclipticLatitude': -0.5711395779756441, 'EclipticLongitude': 4.719785340796603, 'Frequency': 0.003991184090209936, 'FrequencyDerivative': 5.197211730593386e-16, 'Inclination': 0.03112334053551802, 'InitialPhase': 0.1840427721876706, 'Polarization': 2.665465621636476}, {'Amplitude': 2.695963984061525e-23, 'EclipticLatitude': 0.698020789183839, 'EclipticLongitude': 4.544599641191273, 'Frequency': 0.00398921600077084, 'FrequencyDerivative': 2.748523299944693e-17, 'Inclination': 1.566152596953124, 'InitialPhase': 1.6976257328944115, 'Polarization': 0.17969203457850272}, {'Amplitude': 1.7140045975600926e-23, 'EclipticLatitude': 0.5353309026749867, 'EclipticLongitude': 4.661338785721523, 'Frequency': 0.003990068561124402, 'FrequencyDerivative': 1.448478884234823e-20, 'Inclination': 1.0325571150373603, 'InitialPhase': 2.8574124537257295, 'Polarization': 1.2248048144455297}, {'Amplitude': 8.600732555086791e-24, 'EclipticLatitude': -0.464957284959853, 'EclipticLongitude': 4.537557676317077, 'Frequency': 0.0039912439454365765, 'FrequencyDerivative': 1.811792639171847e-16, 'Inclination': 1.009201467440333, 'InitialPhase': 1.7030607900434433e-19, 'Polarization': 3.141592653589793}]
-
-tdi_fs_subtracted = tdi_fs_long
-Tobs = float(int(p.get("ObservationDuration")/reduction))
-# Build timeseries and frequencyseries object for X,Y,Z
-tdi_ts = xr.Dataset(dict([(k, TimeSeries(td[:int(len(td[:,1])/reduction), n], dt=dt)) for k, n in [["X", 1], ["Y", 2], ["Z", 3]]]))
-# tdi_ts = xr.Dataset(dict([(k,TimeSeries(tdi_ts[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
-tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
-GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
 
 indexes = np.argsort(p.get('Frequency'))
 index_low = np.searchsorted(p.get('Frequency')[indexes], lower_frequency)
 index_high = np.searchsorted(p.get('Frequency')[indexes], upper_frequency)
-range_index = np.logical_and(tdi_fs.f > lower_frequency-1e-6, tdi_fs.f < upper_frequency+1e-6)
+range_index = np.logical_and(tdi_fs.f > lower_frequency-padding, tdi_fs.f < upper_frequency+padding)
 
 plt.figure(figsize=fig_size)
 ax1 = plt.subplot(111)
 ax1.semilogy(tdi_fs.f[range_index],np.abs(tdi_fs['X'][range_index])**2,'k',zorder= 5)
-ax1.semilogy(tdi_fs_subtracted.f[range_index],np.abs(tdi_fs_subtracted['X'][range_index])**2,'b',zorder= 5)
+# ax1.semilogy(tdi_fs_long_subtracted.f[range_index],np.abs(tdi_fs_long_subtracted['X'][range_index])**2,'b',zorder= 5)
 for i in range(len(found_sources)):
     Xs, Ys, Zs = GB.get_fd_tdixyz(template= found_sources[i], oversample=4, simulator="synthlisa")
     ax1.semilogy(Xs.f,np.abs(Xs)**2)
@@ -1073,218 +1132,379 @@ for i in range(len(p.get('Amplitude')[indexes][index_low:index_high])):
     ax1.semilogy(Xs.f,np.abs(Xs)**2,'--')
 plt.show()
 
+plt.figure(figsize=fig_size)
+ax1 = plt.subplot(111)
+for i in range(len(found_sources)):
+    Xs, Ys, Zs = GB.get_fd_tdixyz(template= found_sources[i], oversample=4, simulator="synthlisa")
+    ax1.plot(found_sources[i]['Frequency'],np.log10(found_sources[i]['Amplitude']), marker = 'o', markersize = 3)
+for i in range(len(p.get('Amplitude')[indexes][index_low:index_high])):
+    pGB = {}
+    for parameter in parameters:
+        pGB[parameter] = p.get(parameter)[indexes][index_low:index_high][i]
+    ax1.plot(pGB['Frequency'],np.log10(pGB['Amplitude']),color='grey', marker = 'o', markersize = 5)
+plt.show()
+
+
 # maxpGB = {'Amplitude': 2.360780938411229e-22, 'EclipticLatitude': 0.8726817299401121, 'EclipticLongitude': 0.4857930058990844, 'Frequency': 0.0039952210295307105, 'FrequencyDerivative': 1.0762922030519564e-16, 'Inclination': 0.008495799066858739, 'InitialPhase': 0.013026742125237894, 'Polarization': 1.507449983207914}
-goon = True
-if goon:
-    search1 = Search(0,tdi_fs,Tobs)
-    search1.plot(maxpGB)
-    loglikelihood = search1.loglikelihood
-    boundaries = search1.boundaries
-    best_value = loglikelihood([maxpGB])
-    boundaries_reduced = Reduce_boundaries(maxpGB, boundaries,ratio=0.1)
-    for n in range(2):
+maxpGB = found_sources[1]
+search1 = Search(0,tdi_fs,Tobs)
+search1.plot(maxpGB)
+loglikelihood = search1.loglikelihood
+boundaries = search1.boundaries
+best_value = loglikelihood([maxpGB])
+boundaries_reduced = Reduce_boundaries(maxpGB, boundaries,ratio=0.1)
+for n in range(2):
+    resolution = 2000
+    pGB_centered = True
+    std=0.2
+    if n == 1:
         resolution = 2000
         pGB_centered = True
-        std=0.2
-        if n == 1:
-            resolution = 2000
-            pGB_centered = True
-            std=1
-        resolution_reduced = int(20 ** 2)
-        resolution_reduced = resolution
-        start = time.time()
-        parameter = "Frequency"
-        train_samples = sampler(resolution_reduced,parameters,maxpGB, boundaries_reduced, uniform=False, twoD=False, gaussian=True, pGB_centered=pGB_centered, std=std)
-        print('sample time of', resolution, 'samples ',time.time() - start)
-        train_x = np.zeros((resolution_reduced, len(parameters)))
-        i = 0
-        for parameter in parameters:
-            if parameter == 'FrequencyDerivative':
-                train_x[:, i] = train_samples[parameter]
-            else:
-                train_x[:, i] = train_samples[parameter]
-            i += 1
-        train_y = train_samples["Likelihood"]
-        normalizer = np.mean(train_y - train_y.max())
-        train_y2 = (train_y - train_y.max())/normalizer
-        train_y = train_samples["Likelihood"]
-        nu = np.mean(train_y)
-        sigma = np.std(train_y)
-        train_y = (train_y - nu) / sigma
-        cutoff = 5
-        if n == 1:
-            cutoff = 3
-        for parameter in parameters:
-            ranges = train_x[:,parameters.index(parameter)][train_samples["Likelihood"]>best_value*cutoff]
-            lowerbound = ranges.min()*(boundaries_reduced[parameter][1]-boundaries_reduced[parameter][0])+boundaries_reduced[parameter][0]
-            upperbound = ranges.max()*(boundaries_reduced[parameter][1]-boundaries_reduced[parameter][0])+boundaries_reduced[parameter][0]
-            boundaries_reduced[parameter] = [lowerbound, upperbound]
-        print(boundaries_reduced)
-        print(len(ranges))
-
-    split_fd = -17
-    if boundaries_reduced['FrequencyDerivative'][1] < split_fd:
-        boundaries_reduced['FrequencyDerivative'][0] = -18
-        boundaries_reduced['FrequencyDerivative'][1] = -16
-    if boundaries_reduced['FrequencyDerivative'][0] < split_fd and boundaries_reduced['FrequencyDerivative'][1] > split_fd:
-        boundaries_reduced1 = deepcopy(boundaries_reduced)
-        boundaries_reduced1['FrequencyDerivative'] = [boundaries_reduced['FrequencyDerivative'][0], split_fd]
-        boundaries_reduced2 = deepcopy(boundaries_reduced)
-        boundaries_reduced2['FrequencyDerivative'] = [split_fd, boundaries_reduced['FrequencyDerivative'][1]]
-    else:
-        halfway = boundaries_reduced['FrequencyDerivative'][0]+(boundaries_reduced['FrequencyDerivative'][1]-boundaries_reduced['FrequencyDerivative'][0])/2
-        boundaries_reduced1 = deepcopy(boundaries_reduced)
-        boundaries_reduced1['FrequencyDerivative'] = [boundaries_reduced['FrequencyDerivative'][0], halfway]
-        boundaries_reduced2 = deepcopy(boundaries_reduced)
-        boundaries_reduced2['FrequencyDerivative'] = [halfway, boundaries_reduced['FrequencyDerivative'][1]]
-    print(boundaries_reduced)
-    resolution = 2000
+        std=1
     resolution_reduced = int(20 ** 2)
     resolution_reduced = resolution
     start = time.time()
     parameter = "Frequency"
-    train_samples = sampler(resolution_reduced,parameters,maxpGB, boundaries_reduced1, uniform=False, twoD=False)
+    train_samples = sampler(resolution_reduced,parameters,maxpGB, boundaries_reduced, uniform=False, twoD=False, gaussian=True, pGB_centered=pGB_centered, std=std)
     print('sample time of', resolution, 'samples ',time.time() - start)
     train_x = np.zeros((resolution_reduced, len(parameters)))
     i = 0
-    boundary_ratio = (boundaries_reduced1['FrequencyDerivative'][1]-boundaries_reduced1['FrequencyDerivative'][0])/(boundaries_reduced2['FrequencyDerivative'][1]-boundaries_reduced1['FrequencyDerivative'][0])
     for parameter in parameters:
         if parameter == 'FrequencyDerivative':
-            train_x[:, i] = train_samples[parameter]*boundary_ratio
+            train_x[:, i] = train_samples[parameter]
         else:
             train_x[:, i] = train_samples[parameter]
         i += 1
     train_y = train_samples["Likelihood"]
-    resolution = 500
-    test_samples = sampler(resolution, parameters, maxpGB, boundaries_reduced1, uniform=False, twoD=False, calculate_loglikelihood=True)
-    test_x = np.zeros((resolution, len(parameters)))
-    i = 0
-    for parameter in parameters:
-        if parameter == 'FrequencyDerivative':
-            test_x[:, i] = test_samples[parameter]*boundary_ratio
-        else:
-            test_x[:, i] = test_samples[parameter]
-        i += 1
-    test_y = test_samples["Likelihood"]
-
+    normalizer = np.mean(train_y - train_y.max())
+    train_y2 = (train_y - train_y.max())/normalizer
+    train_y = train_samples["Likelihood"]
     nu = np.mean(train_y)
     sigma = np.std(train_y)
     train_y = (train_y - nu) / sigma
-    kernel = RBF(length_scale=[0.5,2,1,1,1,1,1,1],length_scale_bounds=[(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10)])
-    start = time.time()
-    gpr = GaussianProcessRegressor(kernel=kernel, random_state=0).fit(train_x, train_y)
-    # gpr = traingpmodelsk(train_x, train_y, kernel)
-    print('train',time.time() - start)
-    start = time.time()
-    observed_pred_sk = gpr.predict(test_x)
-    print('eval',time.time() - start)
-    observed_pred_sk_scaled = observed_pred_sk*sigma +nu
-    print("RMSE ",np.sqrt(mean_squared_error(test_y,observed_pred_sk_scaled)))
-
-    # cov_func = pm.gp.cov.ExpQuad(input_dim = 8, ls=[0.5,2,1,1,1,1,1,1])
-    # with pm.Model() as lgcp_model:
-    #     rho = pm.Uniform("rho", lower=0.1, upper=2, shape=8)
-    #     cov_func = pm.gp.cov.ExpQuad(input_dim = 8, ls=rho)
-        
-    # with lgcp_model:
-    #     gp = pm.gp.Marginal(cov_func=cov_func)
-
-    #     # Since the normal noise model and the GP are conjugates, we use `Marginal` with the `.marginal_likelihood` method
-    #     y_ = gp.marginal_likelihood("y", X=train_x, y=train_y, noise=0)
-
-    #     # this line calls an optimizer to find the MAP
-    #     mp = pm.sample(include_transformed=True)
-    #     gp = pm.gp.Marginal(cov_func=cov_func)
-    # sorted([name + ":" + str(mp[name]) for name in mp.keys() if not name.endswith("_")])
-
-    resolution = 2000
-    maxpGBmod = deepcopy(maxpGB)
-    maxpGBmod['FrequencyDerivative'] = 10**(np.random.rand()*(boundaries_reduced2['FrequencyDerivative'][1]-boundaries_reduced2['FrequencyDerivative'][0])+boundaries_reduced2['FrequencyDerivative'][0])
-    start = time.time()
-    parameter = "Frequency"
-    train_samples2 = sampler(resolution,parameters,maxpGBmod, boundaries_reduced2, uniform=False, twoD=False)
-    print('sample time of', resolution, 'samples ',time.time() - start)
-    train_x = np.zeros((resolution, len(parameters)))
-    i = 0
+    cutoff = 5
+    if n == 1:
+        cutoff = 3
     for parameter in parameters:
-        if parameter == 'FrequencyDerivative':
-            train_x[:, i] = train_samples2[parameter]*(1-boundary_ratio)+boundary_ratio
+        ranges = train_x[:,parameters.index(parameter)][train_samples["Likelihood"]>best_value*cutoff]
+        lowerbound = ranges.min()*(boundaries_reduced[parameter][1]-boundaries_reduced[parameter][0])+boundaries_reduced[parameter][0]
+        upperbound = ranges.max()*(boundaries_reduced[parameter][1]-boundaries_reduced[parameter][0])+boundaries_reduced[parameter][0]
+        boundaries_reduced[parameter] = [lowerbound, upperbound]
+    print(boundaries_reduced)
+    print(len(ranges))
+
+split_fd = -17
+if boundaries_reduced['FrequencyDerivative'][1] < split_fd:
+    boundaries_reduced['FrequencyDerivative'][0] = -18
+    boundaries_reduced['FrequencyDerivative'][1] = -16
+if boundaries_reduced['FrequencyDerivative'][0] < split_fd and boundaries_reduced['FrequencyDerivative'][1] > split_fd:
+    boundaries_reduced1 = deepcopy(boundaries_reduced)
+    boundaries_reduced1['FrequencyDerivative'] = [boundaries_reduced['FrequencyDerivative'][0], split_fd]
+    boundaries_reduced2 = deepcopy(boundaries_reduced)
+    boundaries_reduced2['FrequencyDerivative'] = [split_fd, boundaries_reduced['FrequencyDerivative'][1]]
+else:
+    halfway = boundaries_reduced['FrequencyDerivative'][0]+(boundaries_reduced['FrequencyDerivative'][1]-boundaries_reduced['FrequencyDerivative'][0])/2
+    boundaries_reduced1 = deepcopy(boundaries_reduced)
+    boundaries_reduced1['FrequencyDerivative'] = [boundaries_reduced['FrequencyDerivative'][0], halfway]
+    boundaries_reduced2 = deepcopy(boundaries_reduced)
+    boundaries_reduced2['FrequencyDerivative'] = [halfway, boundaries_reduced['FrequencyDerivative'][1]]
+print(boundaries_reduced)
+resolution = 2000
+resolution_reduced = int(20 ** 2)
+resolution_reduced = resolution
+start = time.time()
+parameter = "Frequency"
+train_samples = sampler(resolution_reduced,parameters,maxpGB, boundaries_reduced1, uniform=False, twoD=False)
+print('sample time of', resolution, 'samples ',time.time() - start)
+train_x = np.zeros((resolution_reduced, len(parameters)))
+i = 0
+boundary_ratio = (boundaries_reduced1['FrequencyDerivative'][1]-boundaries_reduced1['FrequencyDerivative'][0])/(boundaries_reduced2['FrequencyDerivative'][1]-boundaries_reduced1['FrequencyDerivative'][0])
+for parameter in parameters:
+    if parameter == 'FrequencyDerivative':
+        train_x[:, i] = train_samples[parameter]*boundary_ratio
+    else:
+        train_x[:, i] = train_samples[parameter]
+    i += 1
+train_y = train_samples["Likelihood"]
+resolution = 500
+test_samples = sampler(resolution, parameters, maxpGB, boundaries_reduced1, uniform=False, twoD=False, calculate_loglikelihood=True)
+test_x = np.zeros((resolution, len(parameters)))
+i = 0
+for parameter in parameters:
+    if parameter == 'FrequencyDerivative':
+        test_x[:, i] = test_samples[parameter]*boundary_ratio
+    else:
+        test_x[:, i] = test_samples[parameter]
+    i += 1
+test_y = test_samples["Likelihood"]
+
+nu = np.mean(train_y)
+sigma = np.std(train_y)
+train_y = (train_y - nu) / sigma
+kernel = RBF(length_scale=[0.5,2,1,1,1,1,1,1],length_scale_bounds=[(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10)])
+start = time.time()
+gpr = GaussianProcessRegressor(kernel=kernel, random_state=0).fit(train_x, train_y)
+# gpr = traingpmodelsk(train_x, train_y, kernel)
+print('train',time.time() - start)
+start = time.time()
+observed_pred_sk = gpr.predict(test_x)
+print('eval',time.time() - start)
+observed_pred_sk_scaled = observed_pred_sk*sigma +nu
+print("RMSE ",np.sqrt(mean_squared_error(test_y,observed_pred_sk_scaled)))
+
+# cov_func = pm.gp.cov.ExpQuad(input_dim = 8, ls=[0.5,2,1,1,1,1,1,1])
+# with pm.Model() as lgcp_model:
+#     rho = pm.Uniform("rho", lower=0.1, upper=2, shape=8)
+#     cov_func = pm.gp.cov.ExpQuad(input_dim = 8, ls=rho)
+    
+# with lgcp_model:
+#     gp = pm.gp.Marginal(cov_func=cov_func)
+
+#     # Since the normal noise model and the GP are conjugates, we use `Marginal` with the `.marginal_likelihood` method
+#     y_ = gp.marginal_likelihood("y", X=train_x, y=train_y, noise=0)
+
+#     # this line calls an optimizer to find the MAP
+#     mp = pm.sample(include_transformed=True)
+#     gp = pm.gp.Marginal(cov_func=cov_func)
+# sorted([name + ":" + str(mp[name]) for name in mp.keys() if not name.endswith("_")])
+
+resolution = 2000
+maxpGBmod = deepcopy(maxpGB)
+maxpGBmod['FrequencyDerivative'] = 10**(np.random.rand()*(boundaries_reduced2['FrequencyDerivative'][1]-boundaries_reduced2['FrequencyDerivative'][0])+boundaries_reduced2['FrequencyDerivative'][0])
+start = time.time()
+parameter = "Frequency"
+train_samples2 = sampler(resolution,parameters,maxpGBmod, boundaries_reduced2, uniform=False, twoD=False)
+print('sample time of', resolution, 'samples ',time.time() - start)
+train_x = np.zeros((resolution, len(parameters)))
+i = 0
+for parameter in parameters:
+    if parameter == 'FrequencyDerivative':
+        train_x[:, i] = train_samples2[parameter]*(1-boundary_ratio)+boundary_ratio
+    else:
+        train_x[:, i] = train_samples2[parameter]
+    i += 1
+train_y = train_samples2["Likelihood"]
+resolution = 500
+test_samples2 = sampler(resolution, parameters, maxpGBmod, boundaries_reduced2, uniform=False, twoD=False, calculate_loglikelihood=True,)
+test_x = np.zeros((resolution, len(parameters)))
+i = 0
+for parameter in parameters:
+    if parameter == 'FrequencyDerivative':
+        test_x[:, i] = test_samples2[parameter]*(1-boundary_ratio)+boundary_ratio
+    else:
+        test_x[:, i] = test_samples2[parameter]
+    i += 1
+test_y = test_samples2["Likelihood"]
+
+nu2 = np.mean(train_y)
+sigma2 = np.std(train_y)
+train_y = (train_y - nu2) / sigma2
+kernel = RBF(length_scale=[0.5,2,1,1,1,1,1,1],length_scale_bounds=[(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,20),(0.1,20)])
+start = time.time()
+gpr2 = traingpmodelsk(train_x, train_y, kernel)
+print('train',time.time() - start)
+start = time.time()
+observed_pred_sk = gpr2.predict(test_x)
+print('eval',time.time() - start)
+observed_pred_sk_scaled2 = observed_pred_sk*sigma2 +nu2
+print("RMSE ",np.sqrt(mean_squared_error(test_y,observed_pred_sk_scaled2)))
+
+
+resolution = 1*10 ** 6
+start = time.time()
+test_x_m = np.random.uniform(size=(resolution,len(parameters)))
+# test_x_m = np.random.normal(loc= 0.5,scale=0.2,size=(resolution,len(parameters)))
+# std_scale = 0.4
+# test_x_m = scipy.stats.truncnorm.rvs((0-0.5)/std_scale,(1-0.5)/std_scale,loc=0.5,scale=std_scale,size=(resolution,len(parameters)))
+test_x_m = test_x_m[test_x_m[:,4].argsort()]
+def next(arr, target):
+    start = 0
+    end = len(arr) - 1
+    ans = -1
+    while (start <= end):
+        mid = (start + end) // 2
+        # Move to right side if target is
+        # greater.
+        if (arr[mid] <= target):
+            start = mid + 1
+        # Move left side.
         else:
-            train_x[:, i] = train_samples2[parameter]
-        i += 1
-    train_y = train_samples2["Likelihood"]
-    resolution = 500
-    test_samples2 = sampler(resolution, parameters, maxpGBmod, boundaries_reduced2, uniform=False, twoD=False, calculate_loglikelihood=True,)
-    test_x = np.zeros((resolution, len(parameters)))
-    i = 0
-    for parameter in parameters:
-        if parameter == 'FrequencyDerivative':
-            test_x[:, i] = test_samples2[parameter]*(1-boundary_ratio)+boundary_ratio
-        else:
-            test_x[:, i] = test_samples2[parameter]
-        i += 1
-    test_y = test_samples2["Likelihood"]
+            ans = mid
+            end = mid - 1
+    return ans
+numberinlowerbatch = next(test_x_m[:,4],boundary_ratio)
+numberinupperbatch = resolution-numberinlowerbatch
+test_x_m1 = test_x_m[:numberinlowerbatch]
+test_x_m2 = test_x_m[numberinlowerbatch:]
+print('sample time', time.time()-start)
 
-    nu2 = np.mean(train_y)
-    sigma2 = np.std(train_y)
-    train_y = (train_y - nu2) / sigma2
-    kernel = RBF(length_scale=[0.5,2,1,1,1,1,1,1],length_scale_bounds=[(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,20),(0.1,20)])
-    start = time.time()
-    gpr2 = traingpmodelsk(train_x, train_y, kernel)
-    print('train',time.time() - start)
-    start = time.time()
-    observed_pred_sk = gpr2.predict(test_x)
-    print('eval',time.time() - start)
-    observed_pred_sk_scaled2 = observed_pred_sk*sigma2 +nu2
-    print("RMSE ",np.sqrt(mean_squared_error(test_y,observed_pred_sk_scaled2)))
+partial_length = 1*10**3
+start = time.time()
+observed_pred_mean = np.zeros(resolution)
+observed_pred_sk = np.zeros(numberinlowerbatch)
+observed_pred_sk2 = np.zeros(numberinupperbatch)
+def Evaluate(i):
+    prediction = gpr.predict(test_x_m1[(i)*partial_length:(i+1)*partial_length])
+    return prediction
+def Evaluate2(i):
+    prediction = gpr2.predict(test_x_m2[(i)*partial_length:(i+1)*partial_length])
+    return prediction
+for n in range(int(numberinlowerbatch/partial_length)):
+    observed_pred_sk[n*partial_length:(n+1)*partial_length] = gpr.predict(test_x_m1[(n)*partial_length:(n+1)*partial_length])
+# pool = mp.Pool(mp.cpu_count())
+# observed_pred_sk = pool.map(Evaluate, [n for n in range(int(numberinlowerbatch/partial_length))])
+# pool.close()
+# pool.join()
+# print('eval time', time.time()-start)
+try:
+    observed_pred_sk[int(numberinlowerbatch/partial_length)*partial_length:] = gpr.predict(test_x_m1[int(numberinlowerbatch/partial_length)*partial_length:])
+except:
+    pass
+observed_pred_sk = np.asarray(observed_pred_sk)
+observed_pred_sk = observed_pred_sk.reshape(numberinlowerbatch)
+observed_pred_mean[:numberinlowerbatch] = observed_pred_sk[:numberinlowerbatch]*sigma +nu
+print('eval time', time.time()-start)
 
+start = time.time()
+for n in range(int(numberinupperbatch/partial_length)):
+    observed_pred_sk2[n*partial_length:(n+1)*partial_length] = gpr2.predict(test_x_m2[(n)*partial_length:(n+1)*partial_length])
+try:
+    observed_pred_sk2[int(numberinupperbatch/partial_length)*partial_length:] = gpr2.predict(test_x_m2[int(numberinupperbatch/partial_length)*partial_length:])
+except:
+    pass
+observed_pred_sk2 = np.asarray(observed_pred_sk2)
+observed_pred_sk2 = observed_pred_sk2.reshape(numberinupperbatch)
+observed_pred_mean[-numberinupperbatch:] = observed_pred_sk2*sigma2 +nu2
+print('eval time', time.time()-start)
 
-    resolution = 1*10 ** 6
+flatsamples = np.zeros(resolution)
+flatsamplesparameters = np.zeros((resolution,len(parameters)+1))
+i = 0
+flatsamples[:] = observed_pred_mean
+flatsamplesparameters[:,1:] = test_x_m
+flatsamplesparameters[:,0] = observed_pred_mean
+
+maxindx = np.unravel_index(flatsamplesparameters[:,0].argmax(), flatsamplesparameters[:,0].shape)
+max_parameters = flatsamplesparameters[maxindx[0],1:]
+max_loglike = flatsamplesparameters[:,0].max()
+maxpGBpredicted = scaletooriginal(max_parameters, boundaries_reduced)
+if loglikelihood([maxpGBpredicted]) > loglikelihood([maxpGB]):
+    maxpGB = maxpGBpredicted
+best_value = loglikelihood([maxpGB])
+print("pred", max_loglike, "true", loglikelihood([scaletooriginal(max_parameters, boundaries_reduced)]), "max", loglikelihood([maxpGB]), maxpGB)
+
+np.random.shuffle(flatsamplesparameters)
+start = time.time()
+normalizer = sum(np.exp(flatsamplesparameters[:,0]-best_value))
+flatsamples_normalized = np.exp(flatsamplesparameters[:,0]-best_value)/normalizer
+mcmc_samples = []
+mcmc_samples.append(flatsamplesparameters[0,1:])
+previous_p = flatsamples_normalized[0]
+if previous_p == 0:
+    previous_p == 1e-300
+rejection_count = 0
+current_parameters = flatsamplesparameters[0,1:]
+# probability = scipy.stats.multivariate_normal.pdf(flatsamplesparameters[:,1:], mean=[0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5], cov=[std_scale,std_scale,std_scale,std_scale,std_scale,std_scale,std_scale,std_scale])
+# previous_probability = probability[0]
+accepted = 0
+for i in range(len(flatsamples_normalized)-1):
+    # if (flatsamples_normalized[i+1] / previous_p * previous_probability/probability[i+1]) > np.random.uniform():
+    #     previous_p = flatsamples_normalized[i+1]
+    #     previous_probability = probability[i+1]
+    #     current_parameters = flatsamplesparameters[i+1,1:]
+    #     mcmc_samples.append(current_parameters)
+    # else:
+    #     mcmc_samples.append(current_parameters)
+    if (flatsamples_normalized[i+1] / previous_p) > np.random.uniform():
+        previous_p = flatsamples_normalized[i+1]
+        # previous_probability = probability[i+1]
+        current_parameters = flatsamplesparameters[i+1,1:]
+        rejection_count = 0
+        accepted += 1
+    mcmc_samples.append(current_parameters)
+    # else:
+    #     rejection_count += 1
+    #     if rejection_count == 10:
+    #         mcmc_samples.append(current_parameters)
+    #         rejection_count = 0
+mcmc_samples = np.asarray(mcmc_samples)
+print('time MHMC', time.time()-start)
+print('acceptance rate %',accepted/resolution*100)
+
+# plt.figure()
+# plt.scatter(mcmc_samples[:10**4,3],mcmc_samples[:10**4,4])
+for round in range(2):
+    resolution = 2*10**6
+    numPoints = 33
+    if round == 1:
+        resolution = 1*10**5
+        numPoints = 2**6+1
+    test_x_m = np.zeros((resolution,len(parameters)))
+    ax = np.linspace(-0.15,1.15,numPoints)
+    from fastkde import fastKDE
+    mypdf,axes = fastKDE.pdf(mcmc_samples[:,1],mcmc_samples[:,2], axes=[ax,ax])
+    dist = Distribution(mypdf, transform=lambda i:i/len(mypdf[0,:])*(axes[0][-1]-axes[0][0])+axes[0][0])
+    data, pdfs = dist(resolution)
+    test_x_m[:,1] = data[1]
+    test_x_m[:,2] = data[0]
+    probability = pdfs
+    mypdf,axes = fastKDE.pdf(mcmc_samples[:,0],mcmc_samples[:,5], axes=[ax,ax])
+    dist = Distribution(mypdf, transform=lambda i:i/len(mypdf[0,:])*(axes[0][-1]-axes[0][0])+axes[0][0])
+    data, pdfs = dist(resolution)
+    test_x_m[:,0] = data[1]
+    test_x_m[:,5] = data[0]
+    # plt.figure()
+    # plt.scatter(np.log10(test_x_m[:10000,0]),np.arccos(test_x_m[:10000,5]* (boundaries_reduced['Inclination'][1] - boundaries_reduced['Inclination'][0]) + boundaries_reduced['Inclination'][0]), c=pdfs[:10000])
+    probability *= pdfs
+    mypdf,axes = fastKDE.pdf(mcmc_samples[:,3],mcmc_samples[:,4], axes=[ax,ax])
+    dist = Distribution(mypdf, transform=lambda i:i/len(mypdf[0,:])*(axes[0][-1]-axes[0][0])+axes[0][0])
+    data, pdfs = dist(resolution)
+    test_x_m[:,3] = data[1]
+    test_x_m[:,4] = data[0]
+    probability *= pdfs
+    # plt.figure()
+    # plt.scatter(test_x_m[:,3],test_x_m[:,4], c=pdfs)
+    # plt.figure()
+    # plt.scatter(test_x_m[:1000,3],test_x_m[:1000,4], c=probability[:1000])
+    # plt.show()
+    # mypdf,axes = fastKDE.pdf(mcmc_samples[:,6],mcmc_samples[:,7],numPoints= 33, axisExpansionFactor=0)
+    # dist = Distribution(mypdf, transform=lambda i:i/len(mypdf[0,:])*(axes[0][-1]-axes[0][0])+axes[0][0])
+    # data, pdfs = dist(resolution)
+    test_x_m[:,6] = np.random.uniform(size=resolution)
+    test_x_m[:,7] = np.random.uniform(size=resolution)
+    # probability *= pdfs
+    for n in range(6):
+        index = np.where(test_x_m[:,n] > 0)
+        test_x_m = test_x_m[index]
+        probability = probability[index]
+        index = np.where(test_x_m[:,n] < 1)
+        test_x_m = test_x_m[index]
+        probability = probability[index]
+    
+    # fig =  corner.corner(test_x_m,  bins=40, hist_kwargs={'density':True, 'lw':3}, plot_datapoints=False, fill_contours=False,  show_titles=True, \
+    #                 color='#348ABD',  truth_color='k', use_math_test=True, \
+    #                  levels=[0.9], title_kwargs={"fontsize": 12})
+    # plt.show()
     start = time.time()
-    test_x_m = np.random.uniform(size=(resolution,len(parameters)))
+    
     # test_x_m = np.random.normal(loc= 0.5,scale=0.2,size=(resolution,len(parameters)))
     # std_scale = 0.4
     # test_x_m = scipy.stats.truncnorm.rvs((0-0.5)/std_scale,(1-0.5)/std_scale,loc=0.5,scale=std_scale,size=(resolution,len(parameters)))
-    test_x_m = test_x_m[test_x_m[:,4].argsort()]
-    def next(arr, target):
-        start = 0
-        end = len(arr) - 1
-        ans = -1
-        while (start <= end):
-            mid = (start + end) // 2
-            # Move to right side if target is
-            # greater.
-            if (arr[mid] <= target):
-                start = mid + 1
-            # Move left side.
-            else:
-                ans = mid
-                end = mid - 1
-        return ans
+    new_index = test_x_m[:,4].argsort()
+    test_x_m = test_x_m[new_index]
+    probability = probability[new_index]
     numberinlowerbatch = next(test_x_m[:,4],boundary_ratio)
-    numberinupperbatch = resolution-numberinlowerbatch
+    numberinupperbatch = len(probability)-numberinlowerbatch
     test_x_m1 = test_x_m[:numberinlowerbatch]
     test_x_m2 = test_x_m[numberinlowerbatch:]
     print('sample time', time.time()-start)
-
     partial_length = 1*10**3
     start = time.time()
-    observed_pred_mean = np.zeros(resolution)
+    observed_pred_mean = np.zeros(len(probability))
     observed_pred_sk = np.zeros(numberinlowerbatch)
     observed_pred_sk2 = np.zeros(numberinupperbatch)
-    def Evaluate(i):
-        prediction = gpr.predict(test_x_m1[(i)*partial_length:(i+1)*partial_length])
-        return prediction
-    def Evaluate2(i):
-        prediction = gpr2.predict(test_x_m2[(i)*partial_length:(i+1)*partial_length])
-        return prediction
     for n in range(int(numberinlowerbatch/partial_length)):
         observed_pred_sk[n*partial_length:(n+1)*partial_length] = gpr.predict(test_x_m1[(n)*partial_length:(n+1)*partial_length])
-    # pool = mp.Pool(mp.cpu_count())
-    # observed_pred_sk = pool.map(Evaluate, [n for n in range(int(numberinlowerbatch/partial_length))])
-    # pool.close()
-    # pool.join()
-    # print('eval time', time.time()-start)
     try:
         observed_pred_sk[int(numberinlowerbatch/partial_length)*partial_length:] = gpr.predict(test_x_m1[int(numberinlowerbatch/partial_length)*partial_length:])
     except:
@@ -1306,9 +1526,9 @@ if goon:
     observed_pred_mean[-numberinupperbatch:] = observed_pred_sk2*sigma2 +nu2
     print('eval time', time.time()-start)
 
-    flatsamples = np.zeros(resolution)
-    flatsamplesparameters = np.zeros((resolution,len(parameters)+1))
-    i = 0
+
+    flatsamples = np.zeros(len(probability))
+    flatsamplesparameters = np.zeros((len(probability),len(parameters)+1))
     flatsamples[:] = observed_pred_mean
     flatsamplesparameters[:,1:] = test_x_m
     flatsamplesparameters[:,0] = observed_pred_mean
@@ -1322,7 +1542,10 @@ if goon:
     best_value = loglikelihood([maxpGB])
     print("pred", max_loglike, "true", loglikelihood([scaletooriginal(max_parameters, boundaries_reduced)]), "max", loglikelihood([maxpGB]), maxpGB)
 
-    np.random.shuffle(flatsamplesparameters)
+    indexes = np.arange(len(probability))
+    np.random.shuffle(indexes)
+    flatsamplesparameters = flatsamplesparameters[indexes]
+    probability = probability[indexes]
     start = time.time()
     normalizer = sum(np.exp(flatsamplesparameters[:,0]-best_value))
     flatsamples_normalized = np.exp(flatsamplesparameters[:,0]-best_value)/normalizer
@@ -1333,190 +1556,38 @@ if goon:
         previous_p == 1e-300
     rejection_count = 0
     current_parameters = flatsamplesparameters[0,1:]
-    # probability = scipy.stats.multivariate_normal.pdf(flatsamplesparameters[:,1:], mean=[0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5], cov=[std_scale,std_scale,std_scale,std_scale,std_scale,std_scale,std_scale,std_scale])
-    # previous_probability = probability[0]
     accepted = 0
+    previous_probability = probability[0]
     for i in range(len(flatsamples_normalized)-1):
-        # if (flatsamples_normalized[i+1] / previous_p * previous_probability/probability[i+1]) > np.random.uniform():
-        #     previous_p = flatsamples_normalized[i+1]
-        #     previous_probability = probability[i+1]
-        #     current_parameters = flatsamplesparameters[i+1,1:]
-        #     mcmc_samples.append(current_parameters)
-        # else:
-        #     mcmc_samples.append(current_parameters)
-        if (flatsamples_normalized[i+1] / previous_p) > np.random.uniform():
+        if (flatsamples_normalized[i+1] / previous_p) * (previous_probability/probability[i+1]) > np.random.uniform():
             previous_p = flatsamples_normalized[i+1]
-            # previous_probability = probability[i+1]
+            previous_probability = probability[i+1]
             current_parameters = flatsamplesparameters[i+1,1:]
-            rejection_count = 0
+            mcmc_samples.append(current_parameters)
             accepted += 1
-        mcmc_samples.append(current_parameters)
-        # else:
-        #     rejection_count += 1
-        #     if rejection_count == 10:
-        #         mcmc_samples.append(current_parameters)
-        #         rejection_count = 0
+        else:
+            mcmc_samples.append(current_parameters)
     mcmc_samples = np.asarray(mcmc_samples)
     print('time MHMC', time.time()-start)
-    print('acceptance rate %',accepted/resolution*100)
-
-    # plt.figure()
-    # plt.scatter(mcmc_samples[:10**4,3],mcmc_samples[:10**4,4])
-    for round in range(2):
-        resolution = 2*10**6
-        numPoints = 33
-        if round == 1:
-            resolution = 1*10**5
-            numPoints = 2**6+1
-        test_x_m = np.zeros((resolution,len(parameters)))
-        ax = np.linspace(-0.15,1.15,numPoints)
-        from fastkde import fastKDE
-        mypdf,axes = fastKDE.pdf(mcmc_samples[:,1],mcmc_samples[:,2], axes=[ax,ax])
-        dist = Distribution(mypdf, transform=lambda i:i/len(mypdf[0,:])*(axes[0][-1]-axes[0][0])+axes[0][0])
-        data, pdfs = dist(resolution)
-        test_x_m[:,1] = data[1]
-        test_x_m[:,2] = data[0]
-        probability = pdfs
-        mypdf,axes = fastKDE.pdf(mcmc_samples[:,0],mcmc_samples[:,5], axes=[ax,ax])
-        dist = Distribution(mypdf, transform=lambda i:i/len(mypdf[0,:])*(axes[0][-1]-axes[0][0])+axes[0][0])
-        data, pdfs = dist(resolution)
-        test_x_m[:,0] = data[1]
-        test_x_m[:,5] = data[0]
-        # plt.figure()
-        # plt.scatter(np.log10(test_x_m[:10000,0]),np.arccos(test_x_m[:10000,5]* (boundaries_reduced['Inclination'][1] - boundaries_reduced['Inclination'][0]) + boundaries_reduced['Inclination'][0]), c=pdfs[:10000])
-        probability *= pdfs
-        mypdf,axes = fastKDE.pdf(mcmc_samples[:,3],mcmc_samples[:,4], axes=[ax,ax])
-        dist = Distribution(mypdf, transform=lambda i:i/len(mypdf[0,:])*(axes[0][-1]-axes[0][0])+axes[0][0])
-        data, pdfs = dist(resolution)
-        test_x_m[:,3] = data[1]
-        test_x_m[:,4] = data[0]
-        probability *= pdfs
-        # plt.figure()
-        # plt.scatter(test_x_m[:,3],test_x_m[:,4], c=pdfs)
-        # plt.figure()
-        # plt.scatter(test_x_m[:1000,3],test_x_m[:1000,4], c=probability[:1000])
-        # plt.show()
-        # mypdf,axes = fastKDE.pdf(mcmc_samples[:,6],mcmc_samples[:,7],numPoints= 33, axisExpansionFactor=0)
-        # dist = Distribution(mypdf, transform=lambda i:i/len(mypdf[0,:])*(axes[0][-1]-axes[0][0])+axes[0][0])
-        # data, pdfs = dist(resolution)
-        test_x_m[:,6] = np.random.uniform(size=resolution)
-        test_x_m[:,7] = np.random.uniform(size=resolution)
-        # probability *= pdfs
-        for n in range(6):
-            index = np.where(test_x_m[:,n] > 0)
-            test_x_m = test_x_m[index]
-            probability = probability[index]
-            index = np.where(test_x_m[:,n] < 1)
-            test_x_m = test_x_m[index]
-            probability = probability[index]
-        
-        # fig =  corner.corner(test_x_m,  bins=40, hist_kwargs={'density':True, 'lw':3}, plot_datapoints=False, fill_contours=False,  show_titles=True, \
-        #                 color='#348ABD',  truth_color='k', use_math_test=True, \
-        #                  levels=[0.9], title_kwargs={"fontsize": 12})
-        # plt.show()
-        start = time.time()
-        
-        # test_x_m = np.random.normal(loc= 0.5,scale=0.2,size=(resolution,len(parameters)))
-        # std_scale = 0.4
-        # test_x_m = scipy.stats.truncnorm.rvs((0-0.5)/std_scale,(1-0.5)/std_scale,loc=0.5,scale=std_scale,size=(resolution,len(parameters)))
-        new_index = test_x_m[:,4].argsort()
-        test_x_m = test_x_m[new_index]
-        probability = probability[new_index]
-        numberinlowerbatch = next(test_x_m[:,4],boundary_ratio)
-        numberinupperbatch = len(probability)-numberinlowerbatch
-        test_x_m1 = test_x_m[:numberinlowerbatch]
-        test_x_m2 = test_x_m[numberinlowerbatch:]
-        print('sample time', time.time()-start)
-        partial_length = 1*10**3
-        start = time.time()
-        observed_pred_mean = np.zeros(len(probability))
-        observed_pred_sk = np.zeros(numberinlowerbatch)
-        observed_pred_sk2 = np.zeros(numberinupperbatch)
-        for n in range(int(numberinlowerbatch/partial_length)):
-            observed_pred_sk[n*partial_length:(n+1)*partial_length] = gpr.predict(test_x_m1[(n)*partial_length:(n+1)*partial_length])
-        try:
-            observed_pred_sk[int(numberinlowerbatch/partial_length)*partial_length:] = gpr.predict(test_x_m1[int(numberinlowerbatch/partial_length)*partial_length:])
-        except:
-            pass
-        observed_pred_sk = np.asarray(observed_pred_sk)
-        observed_pred_sk = observed_pred_sk.reshape(numberinlowerbatch)
-        observed_pred_mean[:numberinlowerbatch] = observed_pred_sk[:numberinlowerbatch]*sigma +nu
-        print('eval time', time.time()-start)
-
-        start = time.time()
-        for n in range(int(numberinupperbatch/partial_length)):
-            observed_pred_sk2[n*partial_length:(n+1)*partial_length] = gpr2.predict(test_x_m2[(n)*partial_length:(n+1)*partial_length])
-        try:
-            observed_pred_sk2[int(numberinupperbatch/partial_length)*partial_length:] = gpr2.predict(test_x_m2[int(numberinupperbatch/partial_length)*partial_length:])
-        except:
-            pass
-        observed_pred_sk2 = np.asarray(observed_pred_sk2)
-        observed_pred_sk2 = observed_pred_sk2.reshape(numberinupperbatch)
-        observed_pred_mean[-numberinupperbatch:] = observed_pred_sk2*sigma2 +nu2
-        print('eval time', time.time()-start)
-
-
-        flatsamples = np.zeros(len(probability))
-        flatsamplesparameters = np.zeros((len(probability),len(parameters)+1))
-        flatsamples[:] = observed_pred_mean
-        flatsamplesparameters[:,1:] = test_x_m
-        flatsamplesparameters[:,0] = observed_pred_mean
-
-        maxindx = np.unravel_index(flatsamplesparameters[:,0].argmax(), flatsamplesparameters[:,0].shape)
-        max_parameters = flatsamplesparameters[maxindx[0],1:]
-        max_loglike = flatsamplesparameters[:,0].max()
-        maxpGBpredicted = scaletooriginal(max_parameters, boundaries_reduced)
-        if loglikelihood([maxpGBpredicted]) > loglikelihood([maxpGB]):
-            maxpGB = maxpGBpredicted
-        best_value = loglikelihood([maxpGB])
-        print("pred", max_loglike, "true", loglikelihood([scaletooriginal(max_parameters, boundaries_reduced)]), "max", loglikelihood([maxpGB]), maxpGB)
-
-        indexes = np.arange(len(probability))
-        np.random.shuffle(indexes)
-        flatsamplesparameters = flatsamplesparameters[indexes]
-        probability = probability[indexes]
-        start = time.time()
-        normalizer = sum(np.exp(flatsamplesparameters[:,0]-best_value))
-        flatsamples_normalized = np.exp(flatsamplesparameters[:,0]-best_value)/normalizer
-        mcmc_samples = []
-        mcmc_samples.append(flatsamplesparameters[0,1:])
-        previous_p = flatsamples_normalized[0]
-        if previous_p == 0:
-            previous_p == 1e-300
-        rejection_count = 0
-        current_parameters = flatsamplesparameters[0,1:]
-        accepted = 0
-        previous_probability = probability[0]
-        for i in range(len(flatsamples_normalized)-1):
-            if (flatsamples_normalized[i+1] / previous_p) * (previous_probability/probability[i+1]) > np.random.uniform():
-                previous_p = flatsamples_normalized[i+1]
-                previous_probability = probability[i+1]
-                current_parameters = flatsamplesparameters[i+1,1:]
-                mcmc_samples.append(current_parameters)
-                accepted += 1
-            else:
-                mcmc_samples.append(current_parameters)
-        mcmc_samples = np.asarray(mcmc_samples)
-        print('time MHMC', time.time()-start)
-        print('acceptance rate %',accepted/len(probability)*100)
-    start = time.time()
-    mcmc_samples_rescaled = np.zeros(np.shape(mcmc_samples))
-    i = 0
-    for parameter in parameters:
-        if parameter in ["EclipticLatitude"]:
-            mcmc_samples_rescaled[:,i] = np.arcsin((mcmc_samples[:,parameters.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0])
-        elif parameter in ["Inclination"]:
-            mcmc_samples_rescaled[:,i] = np.arccos((mcmc_samples[:,parameters.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0])
-        elif parameter in ['Amplitude',"FrequencyDerivative"]:
-            mcmc_samples_rescaled[:,i] = 10**((mcmc_samples[:,parameters.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0])
-        else:
-            mcmc_samples_rescaled[:,i] = (mcmc_samples[:,parameters.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0]
-        i += 1
-    print('time rescale', time.time()-start)
-    start = time.time()
-    df = pd.DataFrame(data=mcmc_samples_rescaled, columns=parameters)
-    df.to_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/Stefan_LDC14/GW'+str(int(np.round(maxpGB['Frequency']*10**8)))+'.csv',index=False)
-    print('saving time', time.time()-start)
+    print('acceptance rate %',accepted/len(probability)*100)
+start = time.time()
+mcmc_samples_rescaled = np.zeros(np.shape(mcmc_samples))
+i = 0
+for parameter in parameters:
+    if parameter in ["EclipticLatitude"]:
+        mcmc_samples_rescaled[:,i] = np.arcsin((mcmc_samples[:,parameters.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0])
+    elif parameter in ["Inclination"]:
+        mcmc_samples_rescaled[:,i] = np.arccos((mcmc_samples[:,parameters.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0])
+    elif parameter in ['Amplitude',"FrequencyDerivative"]:
+        mcmc_samples_rescaled[:,i] = 10**((mcmc_samples[:,parameters.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0])
+    else:
+        mcmc_samples_rescaled[:,i] = (mcmc_samples[:,parameters.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0]
+    i += 1
+print('time rescale', time.time()-start)
+start = time.time()
+df = pd.DataFrame(data=mcmc_samples_rescaled, columns=parameters)
+df.to_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/Stefan_LDC14/GW'+str(int(np.round(maxpGB['Frequency']*10**8)))+'.csv',index=False)
+print('saving time', time.time()-start)
 
 print('full time', time.time()-first_start)
 length = len(probability)
