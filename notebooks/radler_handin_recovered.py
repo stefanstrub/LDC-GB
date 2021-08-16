@@ -668,12 +668,10 @@ class Distribution(object):
     """
     draws samples from a one dimensional probability distribution,
     by means of inversion of a discrete inverstion of a cumulative density function
-
     the pdf can be sorted first to prevent numerical error in the cumulative sum
     this is set as default; for big density functions with high contrast,
     it is absolutely necessary, and for small density functions,
     the overhead is minimal
-
     a call to this distibution object returns indices into density array
     """
     def __init__(self, pdf, sort = True, interpolation = True, transform = lambda x: x):
@@ -746,7 +744,6 @@ pGBadded2['Inclination'] = 0.9
 pGBadded2['InitialPhase'] = 1
 pGBadded2['Polarization'] = 3
 
-
 GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
 # Xs_added, Ys_added, Zs_added = GB.get_fd_tdixyz(template=pGBadded, oversample=4, simulator="synthlisa")
 # source_added = dict({"X": Xs_added, "Y": Ys_added, "Z": Zs_added})
@@ -755,15 +752,6 @@ GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
 # # tdi_fs['X'] = tdi_fs['X'] #+ Xs_added
 # for k in ["X", "Y", "Z"]:
 #     tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] + source_added[k].data
-
-# Xs_added, Ys_added, Zs_added = GB.get_fd_tdixyz(template=pGBadded2, oversample=4, simulator="synthlisa")
-# source_added = dict({"X": Xs_added, "Y": Ys_added, "Z": Zs_added})
-# index_low = np.searchsorted(tdi_fs["X"].f, Xs_added.f[0])
-# index_high = index_low+len(Xs_added)
-# # tdi_fs['X'] = tdi_fs['X'] #+ Xs_added
-# for k in ["X", "Y", "Z"]:
-#     tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] + source_added[k].data
-
 # tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft(dt=dt)) for k, n in [["X", 1], ["Y", 2], ["Z", 3]]]))
 
 pGB = {}
@@ -857,29 +845,23 @@ for ind in [0]: #[3,8,9]
     # Xs_added = Xs_added[index_low : index_low + len(dataX)]
     # Ys_added = Ys_added[index_low : index_low + len(dataY)]
     # Zs_added = Zs_added[index_low : index_low + len(dataZ)]
-    plt.figure(figsize=fig_size)
-    ax1 = plt.subplot(111)
-    # plt.plot(dataX_training.f*1000,dataX_training.values, label='data')
-    ax1.plot(dataX.f * 1000, dataX.values.real, label="data", marker="o", zorder=5)
-    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB, oversample=4, simulator="synthlisa")
-    index_low = np.searchsorted(Xs.f, dataX.f[0])
-    Xs = Xs[index_low : index_low + len(dataX)]
-    Ys = Ys[index_low : index_low + len(dataY)]
-    Zs = Zs[index_low : index_low + len(dataZ)]
-    ax1.plot(Xs.f * 1000, Xs.values.real, label="VGB", marker=".", zorder=5)
-    ax1.plot(Xs.f * 1000, dataX.values.real-Xs.values.real, label="difference", marker=".", zorder=5)
+    # plt.figure(figsize=fig_size)
+    # ax1 = plt.subplot(111)
+    # # plt.plot(dataX_training.f*1000,dataX_training.values, label='data')
+    # ax1.plot(dataX.f * 1000, dataX.values.real, label="data", marker="o", zorder=5)
+    # ax1.plot(Xs.f * 1000, Xs.values.real, label="VGB", marker=".", zorder=5)
     # Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs, oversample=4, simulator="synthlisa")
     # index_low = np.searchsorted(Xs.f, dataX.f[0])
     # Xs = Xs[index_low : index_low + len(dataX)]
     # Ys = Ys[index_low : index_low + len(dataY)]
     # Zs = Zs[index_low : index_low + len(dataZ)]
     # ax1.plot(Xs.f * 1000, Xs.values.real, label="start", marker=".", zorder=5)
-    # ax1.plot(Xs_added2.f * 1000, Xs_added2.values.real, label="VGB2", marker=".", zorder=5)
-    ax1.axvline(boundaries['Frequency'][0]* 1000, color= 'red')
-    ax1.axvline(boundaries['Frequency'][1]* 1000, color= 'red')
-    # ax1.plot(Xs.f * 1000, dataX.values.real - Xs.values.real, label="residual", alpha=0.8, color="red", marker=".")
-    plt.legend()
-    plt.show()
+    # # ax1.plot(Xs_added2.f * 1000, Xs_added2.values.real, label="VGB2", marker=".", zorder=5)
+    # ax1.axvline(boundaries['Frequency'][0]* 1000, color= 'red')
+    # ax1.axvline(boundaries['Frequency'][1]* 1000, color= 'red')
+    # # ax1.plot(Xs.f * 1000, dataX.values.real - Xs.values.real, label="residual", alpha=0.8, color="red", marker=".")
+    # plt.legend()
+    # plt.show()
 
     # f, psdX =  scipy.signal.welch(tdi_ts["X"], fs=1.0/dt, window='hanning', nperseg=len(tdi_ts["X"])/10)
     # peaks, properties = scipy.signal.find_peaks(np.log(np.sqrt(psdX)/np.mean(np.sqrt(psdX))),width=2,  prominence=(0.93,None))
@@ -900,35 +882,35 @@ for ind in [0]: #[3,8,9]
     boundaries_reduced = deepcopy(boundaries)
     best_params = deepcopy(pGBs)
 
-    parameters_recorded = [None] * 16
-    pbar = tqdm(total=len(parameters_recorded))
-    pool = mp.Pool(mp.cpu_count())
-    start = time.time()
-    parameters_recorded = pool.map(CoordinateMC, [n for n in range(len(parameters_recorded))])
-    pool.close()
-    pool.join()
-    pbar.close()
-    print('parallel time', time.time()-start)
+    # parameters_recorded = [None] * 64
+    # pbar = tqdm(total=len(parameters_recorded))
+    # pool = mp.Pool(mp.cpu_count())
+    # start = time.time()
+    # parameters_recorded = pool.map(CoordinateMC, [n for n in range(len(parameters_recorded))])
+    # pool.close()
+    # pool.join()
+    # pbar.close()
+    # print('parallel time', time.time()-start)
 
-    best_value = parameters_recorded[0]['Loglikelihood'][-1]
-    best_run = 0
-    loglikelihoodofruns = np.zeros(len(parameters_recorded))
-    for i in range(len(parameters_recorded)):
-        loglikelihoodofruns[i] = parameters_recorded[i]['Loglikelihood'][-1]
-    best_value = np.max(loglikelihoodofruns)
-    best_run = np.argmax(loglikelihoodofruns)
-    good_runs = loglikelihoodofruns > best_value*1.8
-    indices = (-loglikelihoodofruns).argsort()[:len(good_runs)]
-    pGBmodes = []
-    for i in range(len(good_runs)):
-        if good_runs[i]:
-            pGBmodes.append({})
-    indices = (-loglikelihoodofruns).argsort()[:len(pGBmodes)]
-    pGBmodes = []
-    for i in indices:
-        pGBmodes.append({})
-        for parameter in parameters + ["Loglikelihood"]:
-            pGBmodes[-1][parameter] = parameters_recorded[i][parameter][-1]
+    # best_value = parameters_recorded[0]['Loglikelihood'][-1]
+    # best_run = 0
+    # loglikelihoodofruns = np.zeros(len(parameters_recorded))
+    # for i in range(len(parameters_recorded)):
+    #     loglikelihoodofruns[i] = parameters_recorded[i]['Loglikelihood'][-1]
+    # best_value = np.max(loglikelihoodofruns)
+    # best_run = np.argmax(loglikelihoodofruns)
+    # good_runs = loglikelihoodofruns > best_value*1.8
+    # indices = (-loglikelihoodofruns).argsort()[:len(good_runs)]
+    # pGBmodes = []
+    # for i in range(len(good_runs)):
+    #     if good_runs[i]:
+    #         pGBmodes.append({})
+    # indices = (-loglikelihoodofruns).argsort()[:len(pGBmodes)]
+    # pGBmodes = []
+    # for i in indices:
+    #     pGBmodes.append({})
+    #     for parameter in parameters + ["Loglikelihood"]:
+    #         pGBmodes[-1][parameter] = parameters_recorded[i][parameter][-1]
 
 
     #vgb0
@@ -955,7 +937,7 @@ for ind in [0]: #[3,8,9]
     # maxpGB = {'Amplitude': 8.126656596001908e-23, 'EclipticLatitude': -0.04484340674690194, 'EclipticLongitude': 2.1005306165381326, 'Frequency': 0.00622027634608126, 'FrequencyDerivative': 8.500086694814612e-16, 'Inclination': 0.9365397412117447, 'InitialPhase': 1.6731189287589059, 'Polarization': 2.2592867175778575}
     #vgb9
     # maxpGB = {'Amplitude': 1.6569883812641871e-22, 'EclipticLatitude': 0.19959021519888565, 'EclipticLongitude': 1.7866188257135631, 'Frequency': 0.0026130062714148075, 'FrequencyDerivative': 1.1463323442476781e-16, 'Inclination': 1.536127072699318, 'InitialPhase': 2.652971140157701, 'Polarization': 0.6738994920582831}
-    # pGBmodes = [maxpGB]
+    pGBmodes = [maxpGB]
     if len(pGBmodes) > 10:
         pGBmodes = pGBmodes[:10]
     for i in range(len(pGBmodes)):
