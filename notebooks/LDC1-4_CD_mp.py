@@ -5,6 +5,7 @@ from matplotlib import cm
 from matplotlib import rcParams
 import scipy
 from scipy import misc
+from scipy.stats import multivariate_normal
 import numpy as np
 import xarray as xr
 from astropy import units as u
@@ -47,6 +48,7 @@ import tensorflow.compat.v2 as tf
 import tensorflow_probability as tfp
 import pymc3 as pm
 
+from fastkde import fastKDE
 import corner
 
 # customized settings
@@ -330,8 +332,8 @@ def CoordinateMC(n, pGBs, boundaries, parameters_recorded, loglikelihood):
     maxpGB2 = deepcopy(maxpGB)
     number_per_row = 5
     n_trials = number_per_row**2
-    n_trials = 50
-    for i in range(100):
+    n_trials = 20
+    for i in range(20):
         # if i > 48:
         #     n_trials = 50
         parameter1 = parameters[i % 8]
@@ -556,7 +558,7 @@ class Search():
             "FrequencyDerivative": [-20.0,-13.0],
             # "FrequencyDerivative": [np.log10(5e-6*self.pGB['Frequency']**(13/3)),np.log10(8e-8*self.pGB['Frequency']**(11/3))],
             "Inclination": [-1.0, 1.0],
-            "InitialPhase": [0.0, 1.0 * np.pi],
+            "InitialPhase": [0.0, 2.0 * np.pi],
             "Polarization": [0.0, 1.0 * np.pi],
         }
         if self.boundaries['FrequencyDerivative'][0] > self.boundaries['FrequencyDerivative'][1]:
@@ -650,6 +652,32 @@ class Search():
         plt.show()
         # print("p true", self.loglikelihood([pGB]), "null hypothesis", self.loglikelihood([null_pGBs]))
 
+
+    def SNR(self, pGBs):
+        for i in range(len(pGBs)):
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, simulator="synthlisa")
+            index_low = np.searchsorted(Xs.f, self.dataX.f[0])
+            if i == 0:
+                Xs_total = Xs[index_low : index_low + len(self.dataX)]
+                Ys_total = Ys[index_low : index_low + len(self.dataY)]
+                Zs_total = Zs[index_low : index_low + len(self.dataZ)]
+            else:
+                Xs_total += Xs[index_low : index_low + len(self.dataX)]
+                Ys_total += Ys[index_low : index_low + len(self.dataY)]
+                Zs_total += Zs[index_low : index_low + len(self.dataZ)]
+            if len(Xs_total) < len(self.dataX):
+                a,Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)
+                a,Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)
+                a,Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)
+
+        # Af = (Zs_total - Xs_total)/np.sqrt(2.0)
+        # Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
+        # diff = np.abs(self.DAf - Af.values) ** 2 + np.abs(self.DEf - Ef.values) ** 2
+        diff = np.abs(Xs_total.values) ** 2 + np.abs( Ys_total.values) ** 2 + np.abs(Zs_total.values) ** 2
+        # p1 = -float(np.sum(diff / Sn)*Xs.attrs['df'])/2.0
+        p1 = float(np.sum(diff / self.Sn) * Xs_total.df)
+        # p1 = np.exp(p1)
+        return p1#/10000
 
     def loglikelihood(self, pGBs):
         for i in range(len(pGBs)):
@@ -893,8 +921,8 @@ parameters = [
 
 DATAPATH = "/home/stefan/LDC/Radler/data"
 sangria_fn = DATAPATH + "/dgb-tdi.h5"
-sangria_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
-# sangria_fn = DATAPATH + "/LDC1-4_GB_v2.hdf5"
+# sangria_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
+sangria_fn = DATAPATH + "/LDC1-4_GB_v2.hdf5"
 # sangria_fn = DATAPATH + "/LDC1-3_VGB_v2_FD_noiseless.hdf5"
 FD5 = LISAhdf5(sangria_fn)
 Nsrc = FD5.getSourcesNum()
@@ -948,28 +976,33 @@ number_of_signals = 1
 signals_per_subtraction = 1
 lower_frequency = 1.359*10**-3
 upper_frequency = 1.360*10**-3
+lower_frequency = 0.0039945
+upper_frequency = 0.0039955
 padding = 0.5e-6
 
 # maxpGB = [[{'Amplitude': 4.083034100605103e-22, 'EclipticLatitude': 0.8719978986934689, 'EclipticLongitude': 0.4861081602824134, 'Frequency': 0.003995221078275341, 'FrequencyDerivative': 1.0731174323416332e-16, 'Inclination': 1.0240955787764325, 'InitialPhase': 2.3194653376632988, 'Polarization': 2.6588683139548563}]]
-# maxpGB = [[{'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}]]
-# for j in range(signals_per_subtraction):
-#     for i in range(number_of_signals):
-#         found_sources.append(maxpGB[j][i])
-#         Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=maxpGB[j][i], oversample=4, simulator="synthlisa")
-#         source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
-#         index_low = np.searchsorted(tdi_fs["X"].f, Xs_subtracted.f[0])
-#         index_high = index_low+len(Xs_subtracted)
-#         for k in ["X", "Y", "Z"]:
-#             tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] - source_subtracted[k].data
-#         tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
+maxpGB = [[{'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}]]
+for k in range(1):
+    if k == 1:
+        maxpGB = [[{'Amplitude': 1.1706831455114382e-22, 'EclipticLatitude': -1.182657374135248, 'EclipticLongitude': -2.671010079711571, 'Frequency': 0.0039946199549690566, 'FrequencyDerivative': 9.547621993738103e-17, 'Inclination': 1.9399086433607453, 'InitialPhase': 5.612220707908651, 'Polarization': 0.9418521680342067}]]
+    for j in range(signals_per_subtraction):
+        for i in range(number_of_signals):
+            found_sources.append(maxpGB[j][i])
+            Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=maxpGB[j][i], oversample=4, simulator="synthlisa")
+            source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
+            index_low = np.searchsorted(tdi_fs["X"].f, Xs_subtracted.f[0])
+            index_high = index_low+len(Xs_subtracted)
+            for k in ["X", "Y", "Z"]:
+                tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] - source_subtracted[k].data
+            tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
 
-#         Xs_subtracted, Ys_subtracted, Zs_subtracted = GB_long.get_fd_tdixyz(template=maxpGB[j][i], oversample=4, simulator="synthlisa")
-#         source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
-#         index_low = np.searchsorted(tdi_fs["X"].f, Xs_subtracted.f[0])
-#         index_high = index_low+len(Xs_subtracted)
-#         for k in ["X", "Y", "Z"]:
-#             tdi_fs_long[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] - source_subtracted[k].data
-#         tdi_ts_long = xr.Dataset(dict([(k, tdi_fs_long[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
+            Xs_subtracted, Ys_subtracted, Zs_subtracted = GB_long.get_fd_tdixyz(template=maxpGB[j][i], oversample=4, simulator="synthlisa")
+            source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
+            index_low = np.searchsorted(tdi_fs["X"].f, Xs_subtracted.f[0])
+            index_high = index_low+len(Xs_subtracted)
+            for k in ["X", "Y", "Z"]:
+                tdi_fs_long[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] - source_subtracted[k].data
+            tdi_ts_long = xr.Dataset(dict([(k, tdi_fs_long[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
 
 for ind in range(1): #[3,8,9]
     signal_peak = -1
@@ -1094,44 +1127,33 @@ tdi_fs = xr.Dataset(tdi_fs)
 GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
 
 # maxpGB = [[{'Amplitude': 4.083034100605103e-22, 'EclipticLatitude': 0.8719978986934689, 'EclipticLongitude': 0.4861081602824134, 'Frequency': 0.003995221078275341, 'FrequencyDerivative': 1.0731174323416332e-16, 'Inclination': 1.0240955787764325, 'InitialPhase': 2.3194653376632988, 'Polarization': 2.6588683139548563}]]
-# maxpGB = [[{'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}]]
-# for j in range(signals_per_subtraction):
-#     for i in range(number_of_signals):
-#         Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=maxpGB[j][i], oversample=4, simulator="synthlisa")
-#         source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
-#         index_low = np.searchsorted(tdi_fs["X"].f, Xs_subtracted.f[0])
-#         index_high = index_low+len(Xs_subtracted)
-#         for k in ["X", "Y", "Z"]:
-#             tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] - source_subtracted[k].data
-#         tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
+maxpGB = [[{'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}]]
+for k in range(1):
+    if k == 1:
+        maxpGB = [[{'Amplitude': 1.1706831455114382e-22, 'EclipticLatitude': -1.182657374135248, 'EclipticLongitude': -2.671010079711571, 'Frequency': 0.0039946199549690566, 'FrequencyDerivative': 9.547621993738103e-17, 'Inclination': 1.9399086433607453, 'InitialPhase': 5.612220707908651, 'Polarization': 0.9418521680342067}]]
+    for j in range(signals_per_subtraction):
+        for i in range(number_of_signals):
+            Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=maxpGB[j][i], oversample=4, simulator="synthlisa")
+            source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
+            index_low = np.searchsorted(tdi_fs["X"].f, Xs_subtracted.f[0])
+            index_high = index_low+len(Xs_subtracted)
+            for k in ["X", "Y", "Z"]:
+                tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] - source_subtracted[k].data
+            tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
 
-#         Xs_subtracted, Ys_subtracted, Zs_subtracted = GB_long.get_fd_tdixyz(template=maxpGB[j][i], oversample=4, simulator="synthlisa")
-#         source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
-#         index_low = np.searchsorted(tdi_fs["X"].f, Xs_subtracted.f[0])
-#         index_high = index_low+len(Xs_subtracted)
-#         for k in ["X", "Y", "Z"]:
-#             tdi_fs_long[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] - source_subtracted[k].data
-#         tdi_ts_long = xr.Dataset(dict([(k, tdi_fs_long[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
+            Xs_subtracted, Ys_subtracted, Zs_subtracted = GB_long.get_fd_tdixyz(template=maxpGB[j][i], oversample=4, simulator="synthlisa")
+            source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
+            index_low = np.searchsorted(tdi_fs["X"].f, Xs_subtracted.f[0])
+            index_high = index_low+len(Xs_subtracted)
+            for k in ["X", "Y", "Z"]:
+                tdi_fs_long[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] - source_subtracted[k].data
+            tdi_ts_long = xr.Dataset(dict([(k, tdi_fs_long[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
 
 indexes = np.argsort(p.get('Frequency'))
 index_low = np.searchsorted(p.get('Frequency')[indexes], lower_frequency)
 index_high = np.searchsorted(p.get('Frequency')[indexes], upper_frequency)
 range_index = np.logical_and(tdi_fs.f > lower_frequency-padding, tdi_fs.f < upper_frequency+padding)
 
-plt.figure(figsize=fig_size)
-ax1 = plt.subplot(111)
-ax1.semilogy(tdi_fs.f[range_index],np.abs(tdi_fs['X'][range_index])**2,'k',zorder= 5)
-# ax1.semilogy(tdi_fs_long_subtracted.f[range_index],np.abs(tdi_fs_long_subtracted['X'][range_index])**2,'b',zorder= 5)
-for i in range(len(found_sources)):
-    Xs, Ys, Zs = GB.get_fd_tdixyz(template= found_sources[i], oversample=4, simulator="synthlisa")
-    ax1.semilogy(Xs.f,np.abs(Xs)**2)
-for i in range(len(p.get('Amplitude')[indexes][index_low:index_high])):
-    pGB = {}
-    for parameter in parameters:
-        pGB[parameter] = p.get(parameter)[indexes][index_low:index_high][i]
-    Xs, Ys, Zs = GB.get_fd_tdixyz(template= pGB, oversample=4, simulator="synthlisa")
-    ax1.semilogy(Xs.f,np.abs(Xs)**2,'--')
-plt.show()
 
 # plt.figure(figsize=fig_size)
 # ax1 = plt.subplot(111)
@@ -1148,14 +1170,43 @@ plt.show()
 
 # maxpGB = {'Amplitude': 2.360780938411229e-22, 'EclipticLatitude': 0.8726817299401121, 'EclipticLongitude': 0.4857930058990844, 'Frequency': 0.0039952210295307105, 'FrequencyDerivative': 1.0762922030519564e-16, 'Inclination': 0.008495799066858739, 'InitialPhase': 0.013026742125237894, 'Polarization': 1.507449983207914}
 # maxpGB = found_sources[1]
+#second highest found
+maxpGB = {'Amplitude': 1.1684041146866079e-22, 'EclipticLatitude': -1.181910906694611, 'EclipticLongitude': -2.6694499096862354, 'Frequency': 0.003994618496148221, 'FrequencyDerivative': 1.3469993511889025e-16, 'Inclination': 1.9408782301800371, 'InitialPhase': 2.295524550856767, 'Polarization': 2.5328368226079614}
+# maxpGB = {'Amplitude': 1.2117026142890994e-22, 'EclipticLatitude': -1.2206202633308574, 'EclipticLongitude': -2.6796337238866297, 'Frequency': 0.003994617791176147, 'FrequencyDerivative': 1.2782188418443533e-15, 'Inclination': 1.895745380989841, 'InitialPhase': 2.8823071421535413, 'Polarization': 2.4804104605148782}
+# maxpGB = {'Amplitude': 1.165244087502911e-22, 'EclipticLatitude': -1.1808445115412942, 'EclipticLongitude': -2.6631741296680835, 'Frequency': 0.003994616096440512, 'FrequencyDerivative': 1.9820859862264132e-16, 'Inclination': 1.940250722025412, 'InitialPhase': 2.099175010008629, 'Polarization': 2.5093628935404544}
 # maxpGB = {'Amplitude': 1.248193e-22, 'EclipticLatitude': -1.185356, 'EclipticLongitude': 3.593803, 'Frequency': 0.003994621, 'FrequencyDerivative': 6.709408e-17, 'Inclination': 1.906596, 'InitialPhase': 5.663538, 'Polarization': 0.96414}
-maxpGB = pGB
+# maxpGB = {'Amplitude': 2.5050879071884518e-23, 'EclipticLatitude': 0.26226502465165796, 'EclipticLongitude': 1.55571265787166, 'Frequency': 0.003995000207460324, 'FrequencyDerivative': 8.501729703518769e-17, 'Inclination': 1.960387154895422, 'InitialPhase': 5.722461960271562, 'Polarization': 2.015593509835858}
+# maxpGB = target_sources[0]
+# if maxpGB['EclipticLongitude'] > np.pi:
+#     maxpGB['EclipticLongitude'] -= 2*np.pi
 search1 = Search(0,tdi_fs,Tobs)
+# maxpGB, pGB =  search1.optimize([[maxpGB]])
+# maxpGB = maxpGB[0]
 # search1.plot(maxpGB)
 loglikelihood = search1.loglikelihood
+SNR = search1.SNR
 boundaries = search1.boundaries
 best_value = loglikelihood([maxpGB])
 boundaries_reduced = Reduce_boundaries(maxpGB, boundaries,ratio=0.1)
+
+plt.figure(figsize=fig_size)
+ax1 = plt.subplot(111)
+ax1.plot(tdi_fs.f[range_index],np.abs(tdi_fs['X'][range_index])**2,'k',zorder= 5)
+# ax1.plot(tdi_fs_long_subtracted.f[range_index],np.abs(tdi_fs_long_subtracted['X'][range_index])**2,'b',zorder= 5)
+for i in range(len(found_sources)):
+    Xs, Ys, Zs = GB.get_fd_tdixyz(template= found_sources[i], oversample=4, simulator="synthlisa")
+    ax1.plot(Xs.f,np.abs(Xs)**2)
+for i in range(len(p.get('Amplitude')[indexes][index_low:index_high])):
+    pGB = {}
+    for parameter in parameters:
+        pGB[parameter] = p.get(parameter)[indexes][index_low:index_high][i]
+    print(SNR([pGB]),pGB)
+    Xs, Ys, Zs = GB.get_fd_tdixyz(template= pGB, oversample=4, simulator="synthlisa")
+    ax1.plot(Xs.f,np.abs(Xs)**2,'--',label= str(np.round(SNR([pGB]),0)))
+plt.legend()
+plt.show()
+
+print("max SNR", SNR([maxpGB]))
 for n in range(3):
     resolution = 2000
     pGB_centered = True
@@ -1163,11 +1214,11 @@ for n in range(3):
     if n == 1:
         resolution = 2000
         pGB_centered = True
-        std=0.2
+        std=0.3
     if n == 2:
-        resolution = 1000
+        resolution = 2000
         pGB_centered = True
-        std=1
+        std=0.3
     resolution_reduced = int(20 ** 2)
     resolution_reduced = resolution
     start = time.time()
@@ -1182,38 +1233,40 @@ for n in range(3):
         else:
             train_x[:, i] = train_samples[parameter]
         i += 1
-    train_y = train_samples["Likelihood"]
-    normalizer = np.mean(train_y - train_y.max())
-    train_y2 = (train_y - train_y.max())/normalizer
-    train_y = train_samples["Likelihood"]
-    nu = np.mean(train_y)
-    sigma = np.std(train_y)
-    train_y = (train_y - nu) / sigma
+    # train_y = train_samples["Likelihood"]
+    # normalizer = np.mean(train_y - train_y.max())
+    # train_y2 = (train_y - train_y.max())/normalizer
+    # train_y = train_samples["Likelihood"]
+    # nu = np.mean(train_y)
+    # sigma = np.std(train_y)
+    # train_y = (train_y - nu) / sigma
+    best_value2 = np.max(train_samples["Likelihood"])
     cutoff = 2.5
     if n == 1:
         cutoff = 1.2
     if n == 2:
-        cutoff = 1.15
+        cutoff = 1+np.abs(50/best_value)
     for parameter in parameters:
         ranges = train_x[:,parameters.index(parameter)][train_samples["Likelihood"]>best_value*cutoff]
         length_boundary_reduced = boundaries_reduced[parameter][1]-boundaries_reduced[parameter][0]
         lowerbound = ranges.min()*length_boundary_reduced+boundaries_reduced[parameter][0]
         upperbound = ranges.max()*length_boundary_reduced+boundaries_reduced[parameter][0]
         length_bound = upperbound - lowerbound
-        boundaries_reduced[parameter] = [lowerbound-0.1*length_bound, upperbound+0.1*length_bound]
+        boundaries_reduced[parameter] = [lowerbound-0.2*length_bound, upperbound+0.2*length_bound]
         if boundaries_reduced[parameter][0] < boundaries[parameter][0]:
             boundaries_reduced[parameter][0] = boundaries[parameter][0]
         if boundaries_reduced[parameter][1] > boundaries[parameter][1]:
             boundaries_reduced[parameter][1] = boundaries[parameter][1]
     print(len(ranges))
     print(boundaries_reduced)
-boundaries_reduced = {'Amplitude': [-22.09199095650623, -21.754896777575016], 'EclipticLatitude': [0.23342965233168822, 0.41564173360417933], 'EclipticLongitude': [-2.8350052298807924, -2.6815358667660765], 'Frequency': [0.0013596183498943753, 0.0013596205738444077], 'FrequencyDerivative': [-18.327331554013387, -16.17261318323499], 'Inclination': [0.5693017818133534, 0.9999985157689428], 'InitialPhase': [3.1233384853789494, 3.141436732941647], 'Polarization': [0.4574549865923378, 0.5258289654969943]}
-boundaries_reduced = {'Amplitude': [-22.041512485441654, -21.66085838829452], 'EclipticLatitude': [0.25060684012980305, 0.4090230660047114], 'EclipticLongitude': [-2.8162326961746995, -2.6979109639619887], 'Frequency': [0.0013596183309468168, 0.0013596206907834918], 'FrequencyDerivative': [-18.904545279263328, -16.086135962520995], 'Inclination': [0.3241884292841432, 0.9651799058749854], 'InitialPhase': [0.8480897009220866, 0.9087738353980884], 'Polarization': [2.468374989050734, 2.5358247512505083]}
+# boundaries_reduced = {'Amplitude': [-22.09199095650623, -21.754896777575016], 'EclipticLatitude': [0.23342965233168822, 0.41564173360417933], 'EclipticLongitude': [-2.8350052298807924, -2.6815358667660765], 'Frequency': [0.0013596183498943753, 0.0013596205738444077], 'FrequencyDerivative': [-18.327331554013387, -16.17261318323499], 'Inclination': [0.5693017818133534, 0.9999985157689428], 'InitialPhase': [3.1233384853789494, 3.141436732941647], 'Polarization': [0.4574549865923378, 0.5258289654969943]}
+# boundaries_reduced = {'Amplitude': [-22.041512485441654, -21.66085838829452], 'EclipticLatitude': [0.25060684012980305, 0.4090230660047114], 'EclipticLongitude': [-2.8162326961746995, -2.6979109639619887], 'Frequency': [0.0013596183309468168, 0.0013596206907834918], 'FrequencyDerivative': [-18.904545279263328, -16.086135962520995], 'Inclination': [0.3241884292841432, 0.9651799058749854], 'InitialPhase': [0.8480897009220866, 0.9087738353980884], 'Polarization': [2.468374989050734, 2.5358247512505083]}
 
 split_fd = -17
 if boundaries_reduced['FrequencyDerivative'][1] < split_fd:
     boundaries_reduced['FrequencyDerivative'][0] = -18
     boundaries_reduced['FrequencyDerivative'][1] = -16
+# boundaries_reduced['FrequencyDerivative'][0] = -18
 if boundaries_reduced['FrequencyDerivative'][0] < split_fd and boundaries_reduced['FrequencyDerivative'][1] > split_fd:
     boundaries_reduced1 = deepcopy(boundaries_reduced)
     boundaries_reduced1['FrequencyDerivative'] = [boundaries_reduced['FrequencyDerivative'][0], split_fd]
@@ -1326,7 +1379,7 @@ print('eval',time.time() - start)
 observed_pred_sk_scaled2 = observed_pred_sk*sigma2 +nu2
 print("RMSE ",np.sqrt(mean_squared_error(test_y,observed_pred_sk_scaled2)))
 
-
+# first sampling for calculating prior
 resolution = 2*10 ** 6
 start = time.time()
 test_x_m = np.random.uniform(size=(resolution,len(parameters)))
@@ -1409,6 +1462,7 @@ if loglikelihood([maxpGBpredicted]) > loglikelihood([maxpGB]):
     maxpGB = maxpGBpredicted
 best_value = loglikelihood([maxpGB])
 print("pred", max_loglike, "true", loglikelihood([scaletooriginal(max_parameters, boundaries_reduced)]), "max", loglikelihood([maxpGB]), maxpGB)
+print("true", SNR([scaletooriginal(max_parameters, boundaries_reduced)]), "max", SNR([maxpGB]))
 
 np.random.shuffle(flatsamplesparameters)
 start = time.time()
@@ -1433,7 +1487,7 @@ for i in range(len(flatsamples_normalized)-1):
     #     mcmc_samples.append(current_parameters)
     # else:
     #     mcmc_samples.append(current_parameters)
-    if np.exp((flatsamples_normalized[i+1] - previous_p)) > np.random.uniform():
+    if np.exp((flatsamples_normalized[i+1] - previous_p))**(1/10) > np.random.uniform():
         previous_p = flatsamples_normalized[i+1]
         # previous_probability = probability[i+1]
         current_parameters = flatsamplesparameters[i+1,1:]
@@ -1451,15 +1505,17 @@ print('acceptance rate %',accepted/resolution*100)
 
 # plt.figure()
 # plt.scatter(mcmc_samples[:10**4,3],mcmc_samples[:10**4,4])
-for round in range(2):
+for round in range(1):
+
+    # covariance_matrix = np.cov(mcmc_samples.T)
+    # mean = np.mean(mcmc_samples, axis=0)
     resolution = 2*10**6
-    numPoints = 33
+    numPoints = 2**6+1
     if round == 1:
         resolution = 1*10**6
         numPoints = 2**6+1
     test_x_m = np.zeros((resolution,len(parameters)))
     ax = np.linspace(-0.15,1.15,numPoints)
-    from fastkde import fastKDE
     mypdf,axes = fastKDE.pdf(mcmc_samples[:,1],mcmc_samples[:,2], axes=[ax,ax])
     dist = Distribution(mypdf, transform=lambda i:i/len(mypdf[0,:])*(axes[0][-1]-axes[0][0])+axes[0][0])
     data, pdfs = dist(resolution)
@@ -1480,18 +1536,25 @@ for round in range(2):
     test_x_m[:,3] = data[1]
     test_x_m[:,4] = data[0]
     probability *= pdfs
+
     # plt.figure()
     # plt.scatter(test_x_m[:,3],test_x_m[:,4], c=pdfs)
-    # plt.figure()
-    # plt.scatter(test_x_m[:1000,3],test_x_m[:1000,4], c=probability[:1000])
-    # plt.show()
+    plt.figure()
+    plt.scatter(test_x_m[:1000,3],test_x_m[:1000,4], c=probability[:1000])
+    plt.show()
     # mypdf,axes = fastKDE.pdf(mcmc_samples[:,6],mcmc_samples[:,7],numPoints= 33, axisExpansionFactor=0)
     # dist = Distribution(mypdf, transform=lambda i:i/len(mypdf[0,:])*(axes[0][-1]-axes[0][0])+axes[0][0])
     # data, pdfs = dist(resolution)
+
     test_x_m[:,6] = np.random.uniform(size=resolution)
     test_x_m[:,7] = np.random.uniform(size=resolution)
+
+    # rv = multivariate_normal(mean, covariance_matrix)
+    # test_x_m = rv.rvs(resolution)
+    # probability = rv.pdf(test_x_m)
+
     # probability *= pdfs
-    for n in range(6):
+    for n in range(8):
         index = np.where(test_x_m[:,n] > 0)
         test_x_m = test_x_m[index]
         probability = probability[index]
@@ -1559,6 +1622,7 @@ for round in range(2):
         maxpGB = maxpGBpredicted
     best_value = loglikelihood([maxpGB])
     print("pred", max_loglike, "true", loglikelihood([scaletooriginal(max_parameters, boundaries_reduced)]), "max", loglikelihood([maxpGB]), maxpGB)
+    print("true", SNR([scaletooriginal(max_parameters, boundaries_reduced)]), "max", SNR([maxpGB]))
 
     indexes = np.arange(len(probability))
     np.random.shuffle(indexes)
@@ -1576,8 +1640,12 @@ for round in range(2):
     current_parameters = flatsamplesparameters[0,1:]
     accepted = 0
     previous_probability = probability[0]
+    if round == 0:
+        temperature = 5
+    else:
+        temperature = 2
     for i in range(len(flatsamples_normalized)-1):
-        if (flatsamples_normalized[i+1] / previous_p) * (previous_probability/probability[i+1]) > np.random.uniform():
+        if ((flatsamples_normalized[i+1] / previous_p) * (previous_probability/probability[i+1]))**(1/temperature) > np.random.uniform():
             previous_p = flatsamples_normalized[i+1]
             previous_probability = probability[i+1]
             current_parameters = flatsamplesparameters[i+1,1:]
@@ -1602,10 +1670,10 @@ for parameter in parameters:
         mcmc_samples_rescaled[:,i] = (mcmc_samples[:,parameters.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0]
     i += 1
 print('time rescale', time.time()-start)
-start = time.time()
-df = pd.DataFrame(data=mcmc_samples_rescaled, columns=parameters)
-df.to_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/Stefan_LDC14/GW'+str(int(np.round(maxpGB['Frequency']*10**8)))+'.csv',index=False)
-print('saving time', time.time()-start)
+# start = time.time()
+# df = pd.DataFrame(data=mcmc_samples_rescaled, columns=parameters)
+# df.to_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/Stefan_LDC14/GW'+str(int(np.round(maxpGB['Frequency']*10**8)))+'.csv',index=False)
+# print('saving time', time.time()-start)
 
 print('full time', time.time()-first_start)
 length = len(probability)
@@ -1655,6 +1723,32 @@ for yi in range(ndim):
         ax.plot(maxvalues[xi], maxvalues[yi], "sg")
 # corner.ove(fig, maxvalues[None], marker="s", color="C1")
 plt.show()
+
+def gauss2d(mu, sigma, to_plot=False):
+    w, h = 100, 100
+    print(sigma)
+    std = [np.sqrt(sigma[0, 0]), np.sqrt(sigma[1, 1])]
+    x = np.linspace(mu[0] - 3 * std[0], mu[0] + 3 * std[0], w)
+    y = np.linspace(mu[1] - 3 * std[1], mu[1] + 3 * std[1], h)
+
+    x, y = np.meshgrid(x, y)
+
+    x_ = x.flatten()
+    y_ = y.flatten()
+    xy = np.vstack((x_, y_)).T
+
+    print('s')
+    z = multivariate_normal.pdf(xy,mu, sigma)
+    print('s')
+    # z = normal_rv.pdf(xy)
+    z = z.reshape(w, h, order='F')
+
+    if to_plot:
+        plt.contourf(x, y, z.T)
+        plt.show()
+
+    return z
+
 
 parameters_recorded[best_run]["Loglikelihood"].append(loglikelihood([maxpGB]))
 for parameter in parametersfd:
