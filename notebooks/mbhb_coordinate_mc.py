@@ -275,7 +275,7 @@ pMBHBs["ObservationDuration"] = t_max
 pMBHBs["Cadence"] = dt
 
 boundaries = {'ChirpMass': [Mc*(1.0 - 0.01), Mc*(1.0 + 0.01)], ### broadening just lead to longer run time
-'MassRatio': [1.0, 10.0],
+'MassRatio': [1.0, 3.0],
 'CoalescenceTime': [pMBHB['CoalescenceTime'] - 50., pMBHB['CoalescenceTime'] + 50.], ### could be reduced to this range by computing the slide
 'Spin1': [-0.99, 0.99],
 'Spin2': [-0.99, 0.99],
