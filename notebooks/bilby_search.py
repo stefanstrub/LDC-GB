@@ -65,7 +65,7 @@ waveform_generator = bilby.gw.WaveformGenerator(
 # Set up interferometers.  In this case we'll use two interferometers
 # (LIGO-Hanford (H1), LIGO-Livingston (L1). These default to their design
 # sensitivity
-ifos = bilby.gw.detector.InterferometerList(['H1','L1'])
+ifos = bilby.gw.detector.InterferometerList(['H1','L1','V1'])
 ifos.set_strain_data_from_power_spectral_densities(
     sampling_frequency=sampling_frequency, duration=duration,
     start_time=injection_parameters['geocent_time'] - 3)
@@ -275,7 +275,7 @@ def function(sample_parameters, best_value):
     return -likelihood.log_likelihood()/np.abs(best_value)
 
 parameters_recorded = []
-for n in range(5):
+for n in range(10):
     parameters_recorded.append(CoordinateMC(n))
 pGBmodes = []
 for i in range(len(parameters_recorded)):
