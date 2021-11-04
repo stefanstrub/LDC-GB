@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib import rcParams
 from matplotlib.patches import Ellipse
+from matplotlib.lines import Line2D
 import scipy
 from scipy import misc
 from scipy.stats import multivariate_normal
@@ -561,6 +562,7 @@ class Search():
     def __init__(self,tdi_fs,Tobs) -> None:
         self.tdi_fs = tdi_fs
         self.GB = fastGB.FastGB(delta_t=dt, T=Tobs)
+        self.reduced_frequency_boundaries = None
 
         amplitude = np.sqrt(np.max(psd))
         frequencyrange =  [lower_frequency-padding, upper_frequency+padding]
@@ -598,14 +600,14 @@ class Search():
 
         print('amplitude boundaries',amplitude, 10**(self.boundaries['Amplitude'][0]), 10**(self.boundaries['Amplitude'][1]))
         previous_max = np.random.rand(8)
-        previous_max[0] = np.random.rand(1)*0.1 +0.5
-        previous_max[3] = np.random.rand(1)*0.1 +0.5
+        # previous_max[0] = np.random.rand(1)*0.1 +0.5
+        # previous_max[3] = np.random.rand(1)*0.1 +0.5
         i = 0
-        self.pGBs = deepcopy(pGB)
+        self.pGBs = deepcopy(self.pGB)
         for parameter in parameters:
-            if parameter in ["FrequencyDerivative"]:
-                i -= 1
-            elif parameter in ["EclipticLatitude"]:
+            # if parameter in ["FrequencyDerivative"]:
+            #     i -= 1
+            if parameter in ["EclipticLatitude"]:
                 self.pGBs[parameter] = np.arcsin((previous_max[i] * (self.boundaries[parameter][1] - self.boundaries[parameter][0])) + self.boundaries[parameter][0])
             elif parameter in ["Inclination"]:
                 self.pGBs[parameter] = np.arccos((previous_max[i] * (self.boundaries[parameter][1] - self.boundaries[parameter][0])) + self.boundaries[parameter][0])
@@ -614,7 +616,7 @@ class Search():
             else:
                 self.pGBs[parameter] = (previous_max[i] * (self.boundaries[parameter][1] - self.boundaries[parameter][0])) + self.boundaries[parameter][0]
             i += 1
-        self.pGBs = {'Amplitude': 4.0900673126042746e-22, 'EclipticLatitude': 0.8718477251317046, 'EclipticLongitude': 0.48599945403230693, 'Frequency': 0.003995220986111426, 'FrequencyDerivative': 1.0985841703423861e-16, 'Inclination': 1.0262955111380103, 'InitialPhase': 5.453865686076588, 'Polarization': 1.089057196561609}
+        # self.pGBs = {'Amplitude': 4.0900673126042746e-22, 'EclipticLatitude': 0.8718477251317046, 'EclipticLongitude': 0.48599945403230693, 'Frequency': 0.003995220986111426, 'FrequencyDerivative': 1.0985841703423861e-16, 'Inclination': 1.0262955111380103, 'InitialPhase': 5.453865686076588, 'Polarization': 1.089057196561609}
 
         # cutoff_ratio = 1000
         # Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=self.pGBs, oversample=4, simulator="synthlisa")
@@ -730,30 +732,34 @@ class Search():
         plt.figure(figsize=fig_size)
         ax1 = plt.subplot(111)
         # plt.plot(dataX_training.f*1000,dataX_training.values, label='data')
-        ax1.plot(self.dataX.f * 1000, self.dataX.values.real, label="data", marker="o", zorder=5)
+        # ax1.plot(self.dataX.f * 1000, self.dataX.values.real, label="data", marker="o", zorder=5)
         Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=self.pGB, oversample=4, simulator="synthlisa")
         index_low = np.searchsorted(Xs.f, self.dataX.f[0])
         Xs = Xs[index_low : index_low + len(self.dataX)]
         Ys = Ys[index_low : index_low + len(self.dataY)]
         Zs = Zs[index_low : index_low + len(self.dataZ)]
-        ax1.plot(Xs.f * 1000, Xs.values.real, label="VGB", marker=".", zorder=5)
         # Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=self.pGB, oversample=8, simulator="synthlisa")
         # index_low = np.searchsorted(Xs.f, self.dataX.f[0])
         # Xs = Xs[index_low : index_low + len(self.dataX)]
         # Ys = Ys[index_low : index_low + len(self.dataY)]
         # Zs = Zs[index_low : index_low + len(self.dataZ)]
         # ax1.plot(Xs.f * 1000, Xs.values.real, label="VGB2", marker=".", zorder=5)
-        if maxpGBs != None:
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template= maxpGBs, oversample=4, simulator="synthlisa")
-            index_low = np.searchsorted(Xs.f, self.dataX.f[0])
-            Xs = Xs[index_low : index_low + len(self.dataX)]
-            Ys = Ys[index_low : index_low + len(self.dataY)]
-            Zs = Zs[index_low : index_low + len(self.dataZ)]
-            ax1.plot(Xs.f * 1000, Xs.values.real, label="start", marker=".", zorder=5)
+                    
+        Af = (Zs - Xs)/np.sqrt(2.0)
+
+        ax1.plot(Af.f* 1000, np.abs(self.DAf), label='Data')
+        ax1.plot(Af.f* 1000, np.abs(Af.data), marker='.', label='Injection')
+
         # ax1.plot(Xs_added2.f * 1000, Xs_added2.values.real, label="VGB2", marker=".", zorder=5)
-        ax1.axvline(self.boundaries['Frequency'][0]* 1000, color= 'red')
+        ax1.axvline(self.boundaries['Frequency'][0]* 1000, color= 'red', label='Boundaries')
         ax1.axvline(self.boundaries['Frequency'][1]* 1000, color= 'red')
+        if self.reduced_frequency_boundaries != None:
+            ax1.axvline(self.reduced_frequency_boundaries[0]* 1000, color= 'green', label='Reduced Boundaries')
+            ax1.axvline(self.reduced_frequency_boundaries[1]* 1000, color= 'green')
+
         # ax1.plot(Xs.f * 1000, dataX.values.real - Xs.values.real, label="residual", alpha=0.8, color="red", marker=".")
+        plt.xlabel('f [mHz]')
+        plt.ylabel('|A|')
         plt.legend()
         plt.show()
         # print("p true", self.loglikelihood([pGB]), "null hypothesis", self.loglikelihood([null_pGBs]))
@@ -889,21 +895,7 @@ class Search():
         maxpGB = []
         self.boundaries_reduced = deepcopy(self.boundaries)
         self.boundaries_reduced['Frequency'] = frequency_boundaries
-        pGBs01 = []
-        x = []
-        for signal in range(number_of_signals):
-            pGBs01.append({})
-            for parameter in parameters:
-                if parameter in ["EclipticLatitude"]:
-                    pGBs01[signal][parameter] = (np.sin(self.pGBs[parameter]) - self.boundaries_reduced[parameter][0]) / (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])
-                elif parameter in ["Inclination"]:
-                    pGBs01[signal][parameter] = (np.cos(self.pGBs[parameter]) - self.boundaries_reduced[parameter][0]) / (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])
-                elif parameter in ['Amplitude',"FrequencyDerivative"]:
-                    pGBs01[signal][parameter] = (np.log10(self.pGBs[parameter]) - self.boundaries_reduced[parameter][0]) / (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])
-                else:
-                    pGBs01[signal][parameter] = (self.pGBs[parameter] - self.boundaries_reduced[parameter][0]) / (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])
-            for parameter in parameters:
-                x.append(pGBs01[signal][parameter])
+
         start = time.time()
         res = differential_evolution(self.function_evolution, bounds=bounds, disp=True, strategy='best1exp', popsize=15,tol= 1e-4, recombination=0.75, mutation=(0.5,1))
         print('time',time.time()-start)
@@ -1163,6 +1155,15 @@ pGBadded4['FrequencyDerivative'] = 1*10**-17
 pGBadded4['Inclination'] = 0.7
 pGBadded4['InitialPhase'] = 1
 pGBadded4['Polarization'] = 3
+pGBadded5 = {}
+pGBadded5['Amplitude'] = 6.37823e-23
+pGBadded5['EclipticLatitude'] = -0.2
+pGBadded5['EclipticLongitude'] = 1.4
+pGBadded5['Frequency'] = 0.00622028
+pGBadded5['FrequencyDerivative'] = 3*10**-15
+pGBadded5['Inclination'] = 0.5
+pGBadded5['InitialPhase'] = 3
+pGBadded5['Polarization'] = 2
 # pGBadded = {'Amplitude': 6.486747e-24, 'EclipticLatitude': -0.318064, 'EclipticLongitude': 4.369758, 'Frequency': 0.01620542, 'FrequencyDerivative': 8.508619e-14, 'Inclination': 0.866814, 'InitialPhase': 6.28136, 'Polarization': 5.978979}
 
 
@@ -1213,22 +1214,22 @@ tdi_ts_long = xr.Dataset(dict([["X", TimeSeries(td[:int(len(td[:,1])/reduction),
 ["Z", TimeSeries(td[:int(len(td[:,1])/reduction), 3], dt=dt)]]))
 tdi_fs_long = xr.Dataset(dict([["X", tdi_ts_long['X'].ts.fft(win=window)],["Y", tdi_ts_long['Y'].ts.fft(win=window)],["Z", tdi_ts_long['Z'].ts.fft(win=window)]]))
 GB_long = fastGB.FastGB(delta_t=dt, T=Tobs_long)  # in seconds
-# for pGBadding in [pGBadded]:#, pGBadded2, pGBadded3, pGBadded4]:
-#     Xs_added, Ys_added, Zs_added = GB.get_fd_tdixyz(template=pGBadding, oversample=4, simulator="synthlisa")
-#     source_added = dict({"X": Xs_added, "Y": Ys_added, "Z": Zs_added})
-#     index_low = np.searchsorted(tdi_fs["X"].f, Xs_added.f[0])
-#     index_high = index_low+len(Xs_added)
-#     # tdi_fs['X'] = tdi_fs['X'] #+ Xs_added
-#     for k in ["X", "Y", "Z"]:
-#         tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] + source_added[k].data
-# tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft(dt=dt)) for k, n in [["X", 1], ["Y", 2], ["Z", 3]]]))
+for pGBadding in [pGBadded5]:#, pGBadded2, pGBadded3, pGBadded4]:
+    Xs_added, Ys_added, Zs_added = GB.get_fd_tdixyz(template=pGBadding, oversample=4, simulator="synthlisa")
+    source_added = dict({"X": Xs_added, "Y": Ys_added, "Z": Zs_added})
+    index_low = np.searchsorted(tdi_fs["X"].f, Xs_added.f[0])
+    index_high = index_low+len(Xs_added)
+    # tdi_fs['X'] = tdi_fs['X'] #+ Xs_added
+    for k in ["X", "Y", "Z"]:
+        tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] + source_added[k].data
+tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft(dt=dt)) for k, n in [["X", 1], ["Y", 2], ["Z", 3]]]))
 
 pGB = {}
 ind = 0
 found_sources = []
 target_sources = []
 first_start = time.time()
-np.random.seed(40)
+np.random.seed(42) #40
 # for ind in range(1,len(p.get('Frequency'))):
 number_of_signals = 1
 signals_per_subtraction = 1
@@ -1357,7 +1358,7 @@ for ind in range(1): #[3,8,9]
         upper_index = ind[0]+1
     else:
         upper_index = ind[0]
-    frequency_boundaries = [frequency[lower_index],frequency[upper_index]]
+    search1.reduced_frequency_boundaries = [frequency[lower_index],frequency[upper_index]]
     max = np.max(F_stat, axis=(1,2))
     print('time',time.time()-start)
     Eclipticlatitude,Eclipticlongitude = np.meshgrid(np.arccos(eclipticlatitude),eclipticlongitude)
@@ -1376,7 +1377,7 @@ for ind in range(1): #[3,8,9]
 
     # start = time.time()
     # N_frequency = 10
-    # F_stat, frequency, eclipticlatitude, eclipticlongitude = search1.f_statistic(frequency_boundaries[0], frequency_boundaries[1], N_frequency, N_sky)
+    # F_stat, frequency, eclipticlatitude, eclipticlongitude = search1.f_statistic(search1.reduced_frequency_boundaries[0], search1.reduced_frequency_boundaries[1], N_frequency, N_sky)
     # max = np.max(F_stat, axis=(1,2))
     # print('time',time.time()-start)
     # Eclipticlatitude,Eclipticlongitude = np.meshgrid(np.arccos(eclipticlatitude),eclipticlongitude)
@@ -1394,16 +1395,18 @@ for ind in range(1): #[3,8,9]
     #     upper_index = ind[0]+2
     # else:
     #     upper_index = ind[0]
-    # frequency_boundaries = [frequency[lower_index],frequency[upper_index]]
+    # search1.reduced_frequency_boundaries = [frequency[lower_index],frequency[upper_index]]
     # plt.figure()
     # plt.scatter(Eclipticlongitude,Eclipticlatitude,c=F_stat[ind[0],:,:])
     # plt.xlabel('Eclipticlongitude')
     # plt.ylabel('Eclipticlatitude')
     # plt.colorbar()
     # plt.show()
-    # frequency_boundaries = [lower_frequency,upper_frequency]
-    print(frequency_boundaries)
-    # maxpGBsearch =  search1.differential_evolution_search(frequency_boundaries)
+    # search1.reduced_frequency_boundaries = [lower_frequency,upper_frequency]
+
+    search1.plot()
+    print(search1.reduced_frequency_boundaries)
+    maxpGBsearch =  search1.differential_evolution_search(search1.reduced_frequency_boundaries)
     # pGBmodes =  search1.search()
     # maxpGBsearch, pGB =  search1.optimize(pGBmodes)
 
@@ -1486,8 +1489,10 @@ for ind in range(1): #[3,8,9]
 # # found_sourcesrun = [{'Amplitude': 1.5364465535602838e-21, 'EclipticLatitude': 0.22842923568790388, 'EclipticLongitude': 3.9876628102916634, 'Frequency': 0.0034068399355733194, 'FrequencyDerivative': 1.7265154770131203e-16, 'Inclination': 1.140895523332838, 'InitialPhase': 1.3231144225092324, 'Polarization': 2.7082821014391674}, {'Amplitude': 1.8299785587003754e-21, 'EclipticLatitude': -0.5717437471770699, 'EclipticLongitude': 5.013423186770661, 'Frequency': 0.0021468057546732903, 'FrequencyDerivative': 2.5679108781904502e-17, 'Inclination': 2.381977466585251, 'InitialPhase': 1.7795097897215049, 'Polarization': 1.361815899661127}, {'Amplitude': 1.3740545095358953e-21, 'EclipticLatitude': 0.4586355029484734, 'EclipticLongitude': 2.326341135168954, 'Frequency': 0.002171903889305508, 'FrequencyDerivative': 2.656711011190014e-17, 'Inclination': 2.6231811067672464, 'InitialPhase': 2.246734702442237, 'Polarization': 0.4505374916175284}, {'Amplitude': 4.85984439130295e-22, 'EclipticLatitude': -0.6103079146464152, 'EclipticLongitude': 3.8165981027013838, 'Frequency': 0.007219358007407393, 'FrequencyDerivative': 3.215874944181044e-15, 'Inclination': 0.3611841295412159, 'InitialPhase': 2.8258044166152523, 'Polarization': 2.426471942484511}, {'Amplitude': 6.653710374755356e-22, 'EclipticLatitude': -0.359628257716563, 'EclipticLongitude': 4.9343500673177365, 'Frequency': 0.009211757029070448, 'FrequencyDerivative': 4.897974394062554e-15, 'Inclination': 0.8418300854577668, 'InitialPhase': 2.120331638811925, 'Polarization': 1.2267534109224667}, {'Amplitude': 3.312821037152804e-22, 'EclipticLatitude': 0.7326377959505177, 'EclipticLongitude': 6.056532678360872, 'Frequency': 0.004022512317404639, 'FrequencyDerivative': 7.928660484261939e-17, 'Inclination': 2.687294151927051, 'InitialPhase': 1.6080815997044122, 'Polarization': 1.9588214370682089}, {'Amplitude': 4.686184942845765e-22, 'EclipticLatitude': 0.20352748572849222, 'EclipticLongitude': 5.007749923410212, 'Frequency': 0.009211757978548653, 'FrequencyDerivative': 4.895550870611016e-15, 'Inclination': 1.1415963061394274, 'InitialPhase': 3.14159265358979, 'Polarization': 2.2644816658566564}, {'Amplitude': 5.18155313331795e-22, 'EclipticLatitude': 0.19478251263514385, 'EclipticLongitude': 5.219095549872743, 'Frequency': 0.009445485983463868, 'FrequencyDerivative': 7.023800557316083e-15, 'Inclination': 0.5777619297133901, 'InitialPhase': 3.141592653589793, 'Polarization': 2.0928411308295223}, {'Amplitude': 5.876055535475725e-22, 'EclipticLatitude': -0.46618198434204294, 'EclipticLongitude': 4.289702767312378, 'Frequency': 0.003077973937546665, 'FrequencyDerivative': 1.025303603104508e-16, 'Inclination': 0.7494287470138635, 'InitialPhase': 0.056843419329868985, 'Polarization': 2.8300541786136124}, {'Amplitude': 4.0839934840674097e-22, 'EclipticLatitude': 0.8720661480722399, 'EclipticLongitude': 0.4861465045465657, 'Frequency': 0.003995221091227311, 'FrequencyDerivative': 1.0688851160394643e-16, 'Inclination': 1.0242692798927258, 'InitialPhase': 2.319609919910819, 'Polarization': 2.6582674105848603}]
 # # target_sourcesrun = [{'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}, {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}]
 # # found_sources19 = [{'Amplitude': 7.158007512978195e-23, 'EclipticLatitude': -0.17879074789424193, 'EclipticLongitude': 4.603147784376865, 'Frequency': 0.00399097103940054, 'FrequencyDerivative': 2.29199470942113e-16, 'Inclination': 2.3395967762010357, 'InitialPhase': 1.6414925267236022, 'Polarization': 1.409625714095948}, {'Amplitude': 5.417316688438823e-23, 'EclipticLatitude': 0.09299982963031442, 'EclipticLongitude': 4.709278461472791, 'Frequency': 0.003991793230604934, 'FrequencyDerivative': 1.85302117460904e-16, 'Inclination': 1.8243956188626644, 'InitialPhase': 0.3119979003693603, 'Polarization': 1.9954273407108052}, {'Amplitude': 2.6586721928556783e-23, 'EclipticLatitude': -0.23347086835824327, 'EclipticLongitude': 4.667459964579811, 'Frequency': 0.003991718511582032, 'FrequencyDerivative': 1e-20, 'Inclination': 2.052394297268333, 'InitialPhase': 2.713778167855026, 'Polarization': 2.6371523097400362}, {'Amplitude': 1.4603651612868757e-23, 'EclipticLatitude': 0.5088538078457533, 'EclipticLongitude': 5.061705367435939, 'Frequency': 0.003991299832643548, 'FrequencyDerivative': 1.422149445394665e-16, 'Inclination': 3.1293675414452404, 'InitialPhase': 0.9692647620129494, 'Polarization': 1.6681641616303722}, {'Amplitude': 3.059691174442375e-23, 'EclipticLatitude': 0.4317147381501876, 'EclipticLongitude': 4.997451644492614, 'Frequency': 0.003989147910089541, 'FrequencyDerivative': 1.8726122581411511e-16, 'Inclination': 1.1753859885192686, 'InitialPhase': 1.6649392950095585e-10, 'Polarization': 1.7744204264185908}, {'Amplitude': 1.0744473573747681e-23, 'EclipticLatitude': -0.04537250792371965, 'EclipticLongitude': 4.75590442505031, 'Frequency': 0.003991905382027591, 'FrequencyDerivative': 1.1687840960558461e-16, 'Inclination': 3.1085189766581087, 'InitialPhase': 2.4798219832899684, 'Polarization': 0.23152794448077565}, {'Amplitude': 6.3758855191988285e-24, 'EclipticLatitude': -0.5711395779756441, 'EclipticLongitude': 4.719785340796603, 'Frequency': 0.003991184090209936, 'FrequencyDerivative': 5.197211730593386e-16, 'Inclination': 0.03112334053551802, 'InitialPhase': 0.1840427721876706, 'Polarization': 2.665465621636476}, {'Amplitude': 2.695963984061525e-23, 'EclipticLatitude': 0.698020789183839, 'EclipticLongitude': 4.544599641191273, 'Frequency': 0.00398921600077084, 'FrequencyDerivative': 2.748523299944693e-17, 'Inclination': 1.566152596953124, 'InitialPhase': 1.6976257328944115, 'Polarization': 0.17969203457850272}, {'Amplitude': 1.7140045975600926e-23, 'EclipticLatitude': 0.5353309026749867, 'EclipticLongitude': 4.661338785721523, 'Frequency': 0.003990068561124402, 'FrequencyDerivative': 1.448478884234823e-20, 'Inclination': 1.0325571150373603, 'InitialPhase': 2.8574124537257295, 'Polarization': 1.2248048144455297}, {'Amplitude': 8.600732555086791e-24, 'EclipticLatitude': -0.464957284959853, 'EclipticLongitude': 4.537557676317077, 'Frequency': 0.0039912439454365765, 'FrequencyDerivative': 1.811792639171847e-16, 'Inclination': 1.009201467440333, 'InitialPhase': 1.7030607900434433e-19, 'Polarization': 3.141592653589793}]
-maxpGBsearch = [[{'Amplitude': 5.857579179174051e-23, 'EclipticLatitude': -0.08784800634433576, 'EclipticLongitude': 2.102933791009969, 'Frequency': 0.006220280040884535, 'FrequencyDerivative': 7.503323987637861e-16, 'Inclination': 0.5104961907537644, 'InitialPhase': 3.8035280736734642, 'Polarization': 0.07816858489674128}]]
+# maxpGBsearch = [[{'Amplitude': 5.857579179174051e-23, 'EclipticLatitude': -0.08784800634433576, 'EclipticLongitude': 2.102933791009969, 'Frequency': 0.006220280040884535, 'FrequencyDerivative': 7.503323987637861e-16, 'Inclination': 0.5104961907537644, 'InitialPhase': 3.8035280736734642, 'Polarization': 0.07816858489674128}]]
+# maxpGBsearch = [[{'Amplitude': 2.1808846772946646e-22, 'EclipticLatitude': -0.5283847702958109, 'EclipticLongitude': -2.5389708751966173, 'Frequency': 0.0012531301631903925, 'FrequencyDerivative': 3.6807471100533655e-19, 'Inclination': 0.9737933771974954, 'InitialPhase': 3.95558129985279, 'Polarization': 2.8786856073448313}]]
 # maxpGBsearch = [[{'Amplitude': 1.5454899498120303e-22, 'EclipticLatitude': 0.3239828534237335, 'EclipticLongitude': -2.7552505031608576, 'Frequency': 0.0013596198681856582, 'FrequencyDerivative': 6.7913371080273325e-18, 'Inclination': 0.9607561157105087, 'InitialPhase': 0.8835396431378469, 'Polarization': 2.498067711496641}]]
+# maxpGBsearch = [[{'Amplitude': 5.79066183343146e-23, 'EclipticLatitude': -0.0878417628451765, 'EclipticLongitude': 2.102946967840941, 'Frequency': 0.006220280042028942, 'FrequencyDerivative': 7.503066211114356e-16, 'Inclination': 0.4881731730267816, 'InitialPhase': 0.7708964347916855, 'Polarization': 1.703361386089743}]]
 tdi_fs_long_subtracted = deepcopy(tdi_fs_long)
 tdi_fs_subtracted = deepcopy(tdi_fs)
 reduction = 1
@@ -1504,7 +1509,15 @@ tdi_ts = xr.Dataset(tdi_ts)
 tdi_fs = xr.Dataset(tdi_fs)
 # tdi_ts = xr.Dataset(dict([(k,TimeSeries(tdi_ts[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
 GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
-
+for pGBadding in [pGBadded5]:#, pGBadded2, pGBadded3, pGBadded4]:
+    Xs_added, Ys_added, Zs_added = GB.get_fd_tdixyz(template=pGBadding, oversample=4, simulator="synthlisa")
+    source_added = dict({"X": Xs_added, "Y": Ys_added, "Z": Zs_added})
+    index_low = np.searchsorted(tdi_fs["X"].f, Xs_added.f[0])
+    index_high = index_low+len(Xs_added)
+    # tdi_fs['X'] = tdi_fs['X'] #+ Xs_added
+    for k in ["X", "Y", "Z"]:
+        tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] + source_added[k].data
+tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft(dt=dt)) for k, n in [["X", 1], ["Y", 2], ["Z", 3]]]))
 # maxpGB = [[{'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}]]
 # maxpGB = [[{'Amplitude': 4.083357969533303e-22, 'EclipticLatitude': 0.8719966900463507, 'EclipticLongitude': 0.4861128797587986, 'Frequency': 0.00399522108238035, 'FrequencyDerivative': 1.0720262111754569e-16, 'Inclination': 1.0241926728648307, 'InitialPhase': 2.319788782634353, 'Polarization': 2.6588421907673028}]]
 # # # maxpGB = [[found_sources[0]]]
@@ -1692,19 +1705,62 @@ colors = cm.jet
 # plt.tight_layout()
 # plt.show()
 
-# f,psd_diffX = scipy.signal.welch(diffX, fs=1.0/dt, window='hanning', nperseg=5)
 
-# start = time.time()
-# for i in range(100):
-#     search1.loglikelihood([pGB])
-# print('time',time.time()-start)
-# start = time.time()
-# for i in range(100):
-#     search1.loglikelihoodflat([pGB])
-# print('time',time.time()-start)
-# F_stat = search1.F(pGB['Frequency'],pGB['EclipticLatitude'],pGB['EclipticLongitude'],pGB)
+import matplotlib.transforms as transforms
 
-# maxpGBsearch = [{'Amplitude': 1.5454899498120303e-22, 'EclipticLatitude': 0.3239828534237335, 'EclipticLongitude': -2.7552505031608576, 'Frequency': 0.0013596198681856582, 'FrequencyDerivative': 6.7913371080273325e-18, 'Inclination': 0.9607561157105087, 'InitialPhase': 0.8835396431378469, 'Polarization': 2.498067711496641}]
+def confidence_ellipse(cov, ax, n_std=3.0, facecolor='none', **kwargs):
+    """
+    Create a plot of the covariance confidence ellipse of `x` and `y`
+
+    Parameters
+    ----------
+    x, y : array_like, shape (n, )
+        Input data.
+
+    ax : matplotlib.axes.Axes
+        The axes object to draw the ellipse into.
+
+    n_std : float
+        The number of standard deviations to determine the ellipse's radiuses.
+
+    Returns
+    -------
+    matplotlib.patches.Ellipse
+
+    Other parameters
+    ----------------
+    kwargs : `~matplotlib.patches.Patch` properties
+    """
+
+    pearson = cov[0, 1]/np.sqrt(cov[0, 0] * cov[1, 1])
+    # Using a special case to obtain the eigenvalues of this
+    # two-dimensionl dataset.
+    ell_radius_x = np.sqrt(1 + pearson)
+    ell_radius_y = np.sqrt(1 - pearson)
+    ellipse = Ellipse((0, 0),
+        width=ell_radius_x * 2,
+        height=ell_radius_y * 2,
+        facecolor=facecolor,
+        **kwargs)
+
+    # Calculating the stdandard deviation of x from
+    # the squareroot of the variance and multiplying
+    # with the given number of standard deviations.
+    scale_x = np.sqrt(cov[0, 0]) * n_std
+    mean_x = np.mean(x)
+
+    # calculating the stdandard deviation of y ...
+    scale_y = np.sqrt(cov[1, 1]) * n_std
+    mean_y = np.mean(y)
+
+    transf = transforms.Affine2D() \
+        .rotate_deg(45) \
+        .scale(scale_x, scale_y) \
+        .translate(mean_x, mean_y)
+
+    ellipse.set_transform(transf + ax.transData)
+    return ax.add_patch(ellipse)
+
 fisher_information_matrix = search1.fisher_information(maxpGB)
 FIM = np.zeros((len(parameters),len(parameters)))
 for i,parameter1 in enumerate(parameters):
@@ -1715,32 +1771,60 @@ maxpGB01 = scaleto01(maxpGB, search1.boundaries)
 cov2d = np.zeros((2,2))
 index_parameter1 = parameters.index('Frequency')
 index_parameter2 = parameters.index('FrequencyDerivative')
+index_parameter1 = parameters.index('EclipticLatitude')
+index_parameter2 = parameters.index('EclipticLongitude')
 cov2d[0,0] = covariance_matrix[index_parameter1,index_parameter1]
 cov2d[0,1] = covariance_matrix[index_parameter1,index_parameter2]
 cov2d[1,0] = covariance_matrix[index_parameter2,index_parameter1]
 cov2d[1,1] = covariance_matrix[index_parameter2,index_parameter2]
+# cov2d = scipy.linalg.inv([[2,1],[1,1]])
 x = maxpGB01[parameters[index_parameter1]]
 y = maxpGB01[parameters[index_parameter2]]
+samples = np.random.multivariate_normal([x,y],cov2d,1000)
+samples_x = samples[:,0]
+samples_y = samples[:,1]
+def eigsorted(cov):
+    vals, vecs = np.linalg.eigh(cov)
+    order = vals.argsort()[::-1]
+    return vals[order], vecs[:,order]
+vals, vecs = eigsorted(cov2d)
+theta = np.degrees(np.arctan2(*vecs[:,0][::-1]))
+w, h = 2 * np.sqrt(vals)
 lambda_, v = np.linalg.eig(cov2d)
 lambda_ = np.sqrt(lambda_)
 plt.figure()
-ax = plt.subplot(111, aspect='equal')
-for j in range(1, 4):
+ax = plt.subplot(111, )
+for j in range(1, 7):
     ell = Ellipse(xy=(x, y),
-                width=lambda_[0]*j*2, height=lambda_[1]*j*2,
-                angle=np.rad2deg(np.arccos(v[0, 0])), facecolor='none', edgecolor='k')
+                width=w*j, height=h*j,
+                angle=theta, facecolor='none', edgecolor='k')
     ax.add_artist(ell)
-plt.scatter(x, y)
+# confidence_ellipse(cov2d, ax, edgecolor='red')
+# ax.scatter(samples_x,samples_y)
+# ax.quiver(x,y,v[0,0], v[0,1],color='r',scale = 1/lambda_[0], scale_units='xy')
+# ax.quiver(x,y,v[1,0], v[1,1],scale = 1/lambda_[1], scale_units='xy')
+# ax.scatter(x+v[0,0]*lambda_[0]*5, y+v[1,0]*lambda_[0]*5)
+# ax.scatter(x+v[0,1]*lambda_[1]*5, y+v[1,1]*lambda_[1]*5)
+ax.scatter(x, y, color='g',label='Found parameters')
 plt.xlabel(parameters[index_parameter1])
 plt.ylabel(parameters[index_parameter2])
-plt.xlim(0,1)
-plt.ylim(0,1)
+xlim = np.max(v[:,0]*lambda_[0])
+ylim = np.max(v[:,1]*lambda_[1])
+ax.vlines([x-xlim*5,x+xlim*5],y-ylim*5,y+ylim*5,'r',label='5$\sigma$ Boundary')
+ax.hlines([y-ylim*5,y+ylim*5],x-xlim*5,x+xlim*5,'r')
+plt.xlim(x-xlim*8,x+xlim*8)
+plt.ylim(y-ylim*8,y+ylim*8)
+# plt.axis('scaled')
+plt.legend()
 plt.show()
 
 lambda_, v = scipy.linalg.eig(covariance_matrix)
+transf = np.zeros((len(lambda_),len(lambda_)))
+for i in range(len(lambda_)):
+    transf[i] = v[i] * np.sqrt(lambda_[i])
+covariance2 = v @ np.diag(lambda_) @ scipy.linalg.inv(v)
 transf = v @ np.diag(np.sqrt(lambda_))
-scalematrix = np.max(abs(transf), axis= 1)
-
+scalematrix = np.max(np.abs(transf), axis=1)
 
 # for parameter in parameters:
 #     scalematrix[parameters.index(parameter)] = np.sqrt(covariance_matrix)[parameters.index(parameter)][parameters.index(parameter)]
@@ -1748,7 +1832,7 @@ scalematrix = np.max(abs(transf), axis= 1)
 maxpGB01_low = deepcopy(maxpGB01)
 maxpGB01_high = deepcopy(maxpGB01)
 boundaries_reduced_fisher = {}
-sigma_multiplyer = 6
+sigma_multiplyer = 5
 for parameter in parameters:
     maxpGB01_low[parameter] = maxpGB01[parameter] - scalematrix[parameters.index(parameter)] * sigma_multiplyer 
     maxpGB01_high[parameter] = maxpGB01[parameter] + scalematrix[parameters.index(parameter)] * sigma_multiplyer 
@@ -1756,7 +1840,7 @@ for parameter in parameters:
         maxpGB01_low[parameter] = maxpGB01[parameter] - scalematrix[parameters.index(parameter)] * 0.01
         maxpGB01_high[parameter] = maxpGB01[parameter] + scalematrix[parameters.index(parameter)] * 0.01
     if parameter == 'FrequencyDerivative':
-        if scalematrix[parameters.index(parameter)] > 10:
+        if scalematrix[parameters.index(parameter)] > 1:
             maxpGB01_low[parameter] = maxpGB01[parameter] - 0.1
             maxpGB01_high[parameter] = maxpGB01[parameter] + 0.1
     if maxpGB01_low[parameter] < 0:
@@ -1843,7 +1927,8 @@ else:
     boundaries_reduced2['FrequencyDerivative'] = [halfway, boundaries_reduced['FrequencyDerivative'][1]]
 
 print(boundaries_reduced)
-resolution = 2500
+train_size = 1000
+resolution = train_size + 500
 start = time.time()
 parameter = "Frequency"
 samples = sampler(resolution,parameters,maxpGB, boundaries_reduced1, uniform=False, twoD=False)
@@ -1857,10 +1942,10 @@ for parameter in parameters:
     else:
         train_x[:, i] = samples[parameter]
     i += 1
-train_y = samples["Likelihood"][:2000]
+train_y = samples["Likelihood"][:train_size]
 test_y = samples["Likelihood"][-500:]
 test_x = train_x[-500:]
-train_x = train_x[:2000]
+train_x = train_x[:train_size]
 
 nu = np.mean(train_y)
 sigma = np.std(train_y)
@@ -1876,7 +1961,6 @@ print('eval',time.time() - start)
 observed_pred_sk_scaled = observed_pred_sk*sigma +nu
 print("RMSE ",np.sqrt(mean_squared_error(test_y,observed_pred_sk_scaled)))
 
-resolution = 2500
 maxpGBmod = deepcopy(maxpGB)
 maxpGBmod['FrequencyDerivative'] = 10**(np.random.rand()*(boundaries_reduced2['FrequencyDerivative'][1]-boundaries_reduced2['FrequencyDerivative'][0])+boundaries_reduced2['FrequencyDerivative'][0])
 start = time.time()
@@ -1891,10 +1975,10 @@ for parameter in parameters:
     else:
         train_x[:, i] = samples2[parameter]
     i += 1
-train_y = samples2["Likelihood"][:2000]
+train_y = samples2["Likelihood"][:train_size]
 test_y = samples2["Likelihood"][-500:]
 test_x = train_x[-500:]
-train_x = train_x[:2000]
+train_x = train_x[:train_size]
 
 nu2 = np.mean(train_y)
 sigma2 = np.std(train_y)
@@ -2043,11 +2127,11 @@ def plot_corner(mcmc_samples, pGB):
     if tr_s[0] > np.pi:
         tr_s[0] -= 2*np.pi
     rng = [0.999, 0.999, 0.999, 0.999, (0, np.pi), (-22,-21.4), 0.999, 0.999]
-    fig =  corner.corner(datS,  bins=40, hist_kwargs={'density':True, 'lw':3}, plot_datapoints=False, fill_contours=False,  show_titles=True, \
-                            color='#348ABD', truths= tr_s, truth_color='k', use_math_test=True, labels= lbls,\
-                            levels=[0.9], title_kwargs={"fontsize": 12})
+    fig =  corner.corner(datS[:,:6],  bins=40, hist_kwargs={'density':True, 'lw':3}, plot_datapoints=False, fill_contours=False,  show_titles=True, \
+                        color='#348ABD', truths= tr_s[:6], truth_color='k', use_math_test=True, labels= lbls[:6],\
+                        levels=[0.9,0.63], title_kwargs={"fontsize": 12})
     # Extract the axes
-    ndim = len(parameters)
+    ndim = len(parameters)-2
     axes = np.array(fig.axes).reshape((ndim, ndim))
     # Loop over the diagonal
     for i in range(ndim):
@@ -2061,6 +2145,9 @@ def plot_corner(mcmc_samples, pGB):
             ax.axhline(maxvalues[yi], color="g")
             ax.plot(maxvalues[xi], maxvalues[yi], "sg")
     # corner.ove(fig, maxvalues[None], marker="s", color="C1")
+    legend_elements = [Line2D([0], [0], color='k', ls='-',lw=2, label='Injected Parameters'),
+                     Line2D([0], [0], color='g', ls='-',lw=2, label='Found Parameters')]
+    axes[0,3].legend(handles=legend_elements, loc='upper left')
     plt.show()
 
 # plot_corner(mcmc_samples, pGB)
@@ -2204,9 +2291,11 @@ for round in range(2):
 
     # plt.figure()
     # plt.scatter(test_x_m[:,3],test_x_m[:,4], c=pdfs)
-    plt.figure()
-    plt.scatter(test_x_m[:1000,3],test_x_m[:1000,4], c=probability[:1000])
-    plt.show()
+
+    # plt.figure()
+    # plt.scatter(test_x_m[:1000,3],test_x_m[:1000,4], c=probability[:1000])
+    # plt.show()
+
     # mypdf,axes = fastKDE.pdf(mcmc_samples[:,6],mcmc_samples[:,7],numPoints= 33, axisExpansionFactor=0)
     # dist = Distribution(mypdf, transform=lambda i:i/len(mypdf[0,:])*(axes[0][-1]-axes[0][0])+axes[0][0])
     # data, pdfs = dist(resolution)
@@ -2322,6 +2411,8 @@ for round in range(2):
     print('time MHMC', time.time()-start)
     print('acceptance rate %',accepted/len(probability)*100)
 
+    plot_corner(mcmc_samples, pGB)
+
 start = time.time()
 mcmc_samples_rescaled = np.zeros(np.shape(mcmc_samples))
 i = 0
@@ -2372,24 +2463,53 @@ for parameter in ['EclipticLongitude','EclipticLatitude','Frequency','FrequencyD
 if tr_s[0] > np.pi:
     tr_s[0] -= 2*np.pi
 rng = [0.999, 0.999, 0.999, 0.999, (0, np.pi), (-22,-21.4), 0.999, 0.999]
-fig =  corner.corner(datS,  bins=40, hist_kwargs={'density':True, 'lw':3}, plot_datapoints=False, fill_contours=False,  show_titles=True, \
-                        color='#348ABD', truths= tr_s, truth_color='k', use_math_test=True, labels= lbls,\
+fig =  corner.corner(datS[:,:6],  bins=40, hist_kwargs={'density':True, 'lw':3}, plot_datapoints=False, fill_contours=False,  show_titles=True, \
+                        color='#348ABD', truths= tr_s[:6], truth_color='k', use_math_test=True, labels= lbls[:6],\
                         levels=[0.9,0.63], title_kwargs={"fontsize": 12})
 # Extract the axes
-ndim = len(parameters)
+ndim = len(parameters)-2
 axes = np.array(fig.axes).reshape((ndim, ndim))
 # Loop over the diagonal
 for i in range(ndim):
     ax = axes[i, i]
-    ax.axvline(maxvalues[i], color="g")
+    ax.axvline(maxvalues[i], color="g", label= 'Found parameters')
 # Loop over the histograms
 for yi in range(ndim):
     for xi in range(yi):
         ax = axes[yi, xi]
         ax.axvline(maxvalues[xi], color="g")
         ax.axhline(maxvalues[yi], color="g")
-        ax.plot(maxvalues[xi], maxvalues[yi], "sg")
+        ax.scatter(maxvalues[xi], maxvalues[yi],s=130, color="g")
+        # ax.xaxis.set_tick_params(labelsize=12)
+        # ax.yaxis.set_tick_params(labelsize=12)
 # corner.ove(fig, maxvalues[None], marker="s", color="C1")
+
+maxvalues_previous = np.zeros(len(parameters))
+maxpGBsearch_previous = {'Amplitude': 5.857579179174051e-23, 'EclipticLatitude': -0.08784800634433576, 'EclipticLongitude': 2.102933791009969, 'Frequency': 0.006220280040884535, 'FrequencyDerivative': 7.503323987637861e-16, 'Inclination': 0.5104961907537644, 'InitialPhase': 3.8035280736734642, 'Polarization': 0.07816858489674128}
+i = 0
+for parameter in ['EclipticLongitude','EclipticLatitude','Frequency','FrequencyDerivative','Inclination','Amplitude','InitialPhase','Polarization']:
+    if parameter in ['Amplitude','FrequencyDerivative']:
+        maxvalues_previous[i] = np.log10(maxpGBsearch_previous[parameter])
+    else:
+        maxvalues_previous[i] = maxpGBsearch_previous[parameter]
+    i += 1
+for i in range(ndim):
+    ax = axes[i, i]
+    ax.axvline(maxvalues_previous[i], color="r", label= 'Found parameters')
+# Loop over the histograms
+for yi in range(ndim):
+    for xi in range(yi):
+        ax = axes[yi, xi]
+        ax.axvline(maxvalues_previous[xi], color="r")
+        ax.axhline(maxvalues_previous[yi], color="r")
+        ax.plot(maxvalues_previous[xi], maxvalues_previous[yi],'sr')
+
+legend_elements = [Line2D([0], [0], color='k', ls='-',lw=2, label='Injection'),
+                   Line2D([0], [0], color='g', ls='-',lw=2, label='Search1'),
+                   Line2D([0], [0], color='r', ls='-',lw=2, label='Search2')]
+
+axes[0,3].legend(handles=legend_elements, loc='upper left')
+# plt.legend(loc='upper right')
 plt.show()
 
 def gauss2d(mu, sigma, to_plot=False):
