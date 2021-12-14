@@ -564,6 +564,14 @@ class Search():
         self.GB = fastGB.FastGB(delta_t=dt, T=Tobs)
         self.reduced_frequency_boundaries = None
 
+        tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
+        f, psdX =  scipy.signal.welch(tdi_ts["X"], fs=1.0/dt, window='hanning', nperseg=len(tdi_ts["X"])/1)
+        f, psdY =  scipy.signal.welch(tdi_ts["Y"], fs=1.0/dt, window='hanning', nperseg=len(tdi_ts["X"])/1)
+        f, psdZ =  scipy.signal.welch(tdi_ts["Z"], fs=1.0/dt, window='hanning', nperseg=len(tdi_ts["X"])/1)
+        psd = psdX + psdY + psdZ
+        indexes = np.logical_and(f>lower_frequency-padding, f<upper_frequency+padding)
+        psd = psd[indexes]
+
         amplitude = np.sqrt(np.max(psd))
         frequencyrange =  [lower_frequency-padding, upper_frequency+padding]
         indexes = np.argsort(p.get('Frequency'))
@@ -587,7 +595,7 @@ class Search():
             # "Frequency": [self.pGB["Frequency"] * 0.99995, self.pGB["Frequency"] * 1.00015],
             # "Frequency": [self.pGB["Frequency"] - 3e-7, self.pGB["Frequency"] + 3e-7],
             "Frequency": frequencyrange,
-            "FrequencyDerivative": [-20.0,-13.0],
+            "FrequencyDerivative": [-20.0,-14.5],
             # "FrequencyDerivative": [np.log10(5e-6*self.pGB['Frequency']**(13/3)),np.log10(8e-8*self.pGB['Frequency']**(11/3))],
             "Inclination": [-1.0, 1.0],
             "InitialPhase": [0.0, 2.0 * np.pi],
@@ -657,7 +665,7 @@ class Search():
         # diff = np.abs(self.dataX) ** 2 + np.abs(self.dataY) ** 2 + np.abs(self.dataZ) ** 2
         # null_pGBs = deepcopy(self.pGBs)
         # null_pGBs['Amplitude'] = 4*10**-25
-        print('pGB', self.pGB, signal_peak, self.loglikelihood([self.pGB]))
+        print('pGB', self.pGB, self.loglikelihood([self.pGB]))
 
     def f_statistic(self, lower_frequency, upper_frequency, N_frequency, N_sky):
         # We construct a global proposal density using the single
@@ -963,15 +971,14 @@ class Search():
     def SNRm(self, pGBs):
         for i in range(len(pGBs)):
             Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs[i], oversample=4, simulator="synthlisa")
-            index_low = np.searchsorted(Xs.f, self.dataX.f[0])
             if i == 0:
-                Xs_total = Xs[index_low : index_low + len(self.dataX)]
-                Ys_total = Ys[index_low : index_low + len(self.dataY)]
-                Zs_total = Zs[index_low : index_low + len(self.dataZ)]
+                Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+                Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
+                Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
             else:
-                Xs_total += Xs[index_low : index_low + len(self.dataX)]
-                Ys_total += Ys[index_low : index_low + len(self.dataY)]
-                Zs_total += Zs[index_low : index_low + len(self.dataZ)]
+                Xs_total += xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+                Ys_total += xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
+                Zs_total += xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
             
         Af = (Zs_total - Xs_total)/np.sqrt(2.0)
         Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
@@ -1013,11 +1020,11 @@ class Search():
                 for count, parameter in enumerate(parameters):
                     initial_guess01[count+len(parameters)*signal] = pGBstart01[parameter]
             start = time.time()
-            res, energies = differential_evolution(self.function_evolution, bounds=bounds, disp=True, strategy='best1exp', popsize=10,tol= 1e-6, maxiter=800, recombination=0.75, mutation=(0.5,1), x0=initial_guess01)
+            res, energies = differential_evolution(self.function_evolution, bounds=bounds, disp=True, strategy='best1exp', popsize=10,tol= 1e-6, maxiter=1000, recombination=0.75, mutation=(0.5,1), x0=initial_guess01)
             print('time',time.time()-start)
         else:
             start = time.time()
-            res, energies = differential_evolution(self.function_evolution, bounds=bounds, disp=True, strategy='best1exp', popsize=10,tol= 1e-6, maxiter=800, recombination=0.75, mutation=(0.5,1))
+            res, energies = differential_evolution(self.function_evolution, bounds=bounds, disp=True, strategy='best1exp', popsize=10,tol= 1e-6, maxiter=1000, recombination=0.75, mutation=(0.5,1))
             print('time',time.time()-start)
         for signal in range(number_of_signals):
             maxpGB.append(scaletooriginal(res.x[signal*8:signal*8+8],self.boundaries_reduced))
@@ -1075,7 +1082,7 @@ class Search():
         if boundaries == None:
             boundaries = self.boundaries
         bounds = ()
-        for signal in range(number_of_signals):
+        for signal in range(number_of_signals_optimize):
             bounds += ((0,1),(0,1),(0,1),(0,1),(0,1),(0,1),(0,1),(0,1))
         for i in range(len(pGBmodes)):
             maxpGB = []
@@ -1084,14 +1091,14 @@ class Search():
 
             for j in range(2):
                 x = []
-                for signal in range(number_of_signals):
+                for signal in range(number_of_signals_optimize):
                     if j == 0:
                         maxpGB.append({})
                         boundaries_reduced.append({})
                         for parameter in parameters:
                             maxpGB[signal][parameter] = pGBmodes[i][signal][parameter]
                     # print(maxpGB)
-                    boundaries_reduced[signal] = Reduce_boundaries(maxpGB[signal], boundaries,ratio=0.3)
+                    boundaries_reduced[signal] = Reduce_boundaries(maxpGB[signal], boundaries,ratio=0.1)
                     if j == 2:
                         boundaries_reduced[signal] = Reduce_boundaries(maxpGB[signal], boundaries,ratio=0.1)
                     if j in [0]:
@@ -1111,8 +1118,8 @@ class Search():
                 # print(loglikelihood(maxpGB))
                 res = scipy.optimize.minimize(self.function, x, args=boundaries_reduced, method='SLSQP', bounds=bounds, tol=1e-10)
                 # res = scipy.optimize.minimize(self.function, x, args=boundaries_reduced, method='Nelder-Mead', tol=1e-10)
-                # res = scipy.optimize.least_squares(self.function, x, args=boundaries_reduced)
-                for signal in range(number_of_signals):
+                # res = scipy.optimize.least_squares(self.function, x, args=boundaries_reduced, bounds=bounds)
+                for signal in range(number_of_signals_optimize):
                     maxpGB[signal] = scaletooriginal(res.x[signal*8:signal*8+8],boundaries_reduced[signal])
                 # print('optimized loglikelihood', loglikelihood(maxpGB),maxpGB)
                 # print('boundaries reduced', boundaries_reduced)
@@ -1134,7 +1141,7 @@ class Search():
 
     def function(self, pGBs01, boundaries_reduced):
         pGBs = []
-        for signal in range(number_of_signals):
+        for signal in range(number_of_signals_optimize):
             pGBs.append({})
             i = 0
             for parameter in parameters:
@@ -1352,12 +1359,12 @@ noise_model = "MRDv1"
 Nmodel = get_noise_model(noise_model, np.logspace(-5, -1, 100))
 Npsd = Nmodel.psd()
 
-reduction = 1
-Tobs_long = float(int(p.get("ObservationDuration")/reduction))
-tdi_ts_long = xr.Dataset(dict([["X", TimeSeries(td[:int(len(td[:,1])/reduction), 1], dt=dt)],["Y", TimeSeries(td[:int(len(td[:,1])/reduction), 2], dt=dt)],
-["Z", TimeSeries(td[:int(len(td[:,1])/reduction), 3], dt=dt)]]))
-tdi_fs_long = xr.Dataset(dict([["X", tdi_ts_long['X'].ts.fft(win=window)],["Y", tdi_ts_long['Y'].ts.fft(win=window)],["Z", tdi_ts_long['Z'].ts.fft(win=window)]]))
-GB_long = fastGB.FastGB(delta_t=dt, T=Tobs_long)  # in seconds
+# reduction = 1
+# Tobs_long = float(int(p.get("ObservationDuration")/reduction))
+# tdi_ts_long = xr.Dataset(dict([["X", TimeSeries(td[:int(len(td[:,1])/reduction), 1], dt=dt)],["Y", TimeSeries(td[:int(len(td[:,1])/reduction), 2], dt=dt)],
+# ["Z", TimeSeries(td[:int(len(td[:,1])/reduction), 3], dt=dt)]]))
+# tdi_fs_long = xr.Dataset(dict([["X", tdi_ts_long['X'].ts.fft(win=window)],["Y", tdi_ts_long['Y'].ts.fft(win=window)],["Z", tdi_ts_long['Z'].ts.fft(win=window)]]))
+# GB_long = fastGB.FastGB(delta_t=dt, T=Tobs_long)  # in seconds
 # for pGBadding in [pGBadded7]:#, pGBadded2, pGBadded3, pGBadded4]:
 #     Xs_added, Ys_added, Zs_added = GB.get_fd_tdixyz(template=pGBadding, oversample=4, simulator="synthlisa")
 #     source_added = dict({"X": Xs_added, "Y": Ys_added, "Z": Zs_added})
@@ -1380,7 +1387,7 @@ ind = 0
 found_sources = []
 target_sources = []
 first_start = time.time()
-np.random.seed(42) #40
+np.random.seed(40) #40
 # for ind in range(1,len(p.get('Frequency'))):
 number_of_signals = 1
 signals_per_subtraction = 1
@@ -1442,33 +1449,51 @@ maxpGB = [[{'Amplitude': 4.08091270139556e-22, 'EclipticLatitude': 0.87202949085
             # tdi_ts_long = xr.Dataset(dict([(k, tdi_fs_long[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
 
 # found_sources = [{'Amplitude': 4.079729023951356e-22, 'EclipticLatitude': 0.8720028645326899, 'EclipticLongitude': 0.4861184116681905, 'Frequency': 0.0039952210800729485, 'FrequencyDerivative': 1.0729362427985777e-16, 'Inclination': 1.0234054245950561, 'InitialPhase': 5.460969734629043, 'Polarization': 1.0878440488246315}, {'Amplitude': 1.1705162052088404e-22, 'EclipticLatitude': -1.1826812683131485, 'EclipticLongitude': -2.6709159052066718, 'Frequency': 0.003994619913706621, 'FrequencyDerivative': 9.679235392481017e-17, 'Inclination': 1.9399892694512724, 'InitialPhase': 5.609087244892229, 'Polarization': 0.9419296285733922}, {'Amplitude': 1.2885439983397928e-23, 'EclipticLatitude': -0.2160888045559383, 'EclipticLongitude': -1.4636553007260287, 'Frequency': 0.0039953822920595515, 'FrequencyDerivative': 1.344649486483458e-19, 'Inclination': 0.2752472958012907, 'InitialPhase': 1.6595119937657414, 'Polarization': 1.762114328420676}, {'Amplitude': 1.8521127184966895e-23, 'EclipticLatitude': 0.3812186492244738, 'EclipticLongitude': 1.256068131079525, 'Frequency': 0.003994855309629712, 'FrequencyDerivative': 1.353386568754485e-15, 'Inclination': 1.8797565282129438, 'InitialPhase': 0.0, 'Polarization': 1.9493864228996722}, {'Amplitude': 3.0843284877290966e-22, 'EclipticLatitude': -0.2826645193353009, 'EclipticLongitude': 1.4808405521022285, 'Frequency': 0.003995983891137299, 'FrequencyDerivative': 3.998367893417067e-14, 'Inclination': 1.2773900117985248, 'InitialPhase': 4.427814115747999, 'Polarization': 0.9895902856309813}, {'Amplitude': 1.3941165323321472e-23, 'EclipticLatitude': 1.4578858842164413, 'EclipticLongitude': -1.4667050425253096, 'Frequency': 0.003994019592492943, 'FrequencyDerivative': 5.98283827336233e-17, 'Inclination': 2.895997278971493, 'InitialPhase': 4.199368021290813, 'Polarization': 2.407379947374118}]
-for i in range(len(found_sources)):
-    # print(found_sources[-1])
-    # target_sources.append(pGB[j])
-    Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources[i], oversample=4, simulator="synthlisa")
-    source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
-    index_low = np.searchsorted(tdi_fs["X"].f, Xs_subtracted.f[0])
-    index_high = index_low+len(Xs_subtracted)
-    for k in ["X", "Y", "Z"]:
-        tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] - source_subtracted[k].data
-    tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
+# found_sources = [{'Amplitude': 4.079729023951356e-22, 'EclipticLatitude': 0.8720028645326899, 'EclipticLongitude': 0.4861184116681905, 'Frequency': 0.0039952210800729485, 'FrequencyDerivative': 1.0729362427985777e-16, 'Inclination': 1.0234054245950561, 'InitialPhase': 5.460969734629043, 'Polarization': 1.0878440488246315}, {'Amplitude': 1.1705162052088404e-22, 'EclipticLatitude': -1.1826812683131485, 'EclipticLongitude': -2.6709159052066718, 'Frequency': 0.003994619913706621, 'FrequencyDerivative': 9.679235392481017e-17, 'Inclination': 1.9399892694512724, 'InitialPhase': 5.609087244892229, 'Polarization': 0.9419296285733922}]
+# global fit
+# found_sources = [{'Amplitude': 3.976741322779087e-22, 'EclipticLatitude': 0.8707577355672277, 'EclipticLongitude': 0.4867723122067888, 'Frequency': 0.003995220942486532, 'FrequencyDerivative': 1.115280997337434e-16, 'Inclination': 1.0049763281778163, 'InitialPhase': 5.439165687088879, 'Polarization': 1.0869367502767089}, {'Amplitude': 1.2564114323138714e-22, 'EclipticLatitude': -1.1863122399080437, 'EclipticLongitude': -2.684386862483276, 'Frequency': 0.003994620572904299, 'FrequencyDerivative': 7.962182694912732e-17, 'Inclination': 1.9019548827453407, 'InitialPhase': 5.660451596533728, 'Polarization': 0.9494066987794656}, {'Amplitude': 1.987456195914956e-23, 'EclipticLatitude': -0.03622133684600345, 'EclipticLongitude': -1.466599785992938, 'Frequency': 0.003995381912559783, 'FrequencyDerivative': 1.6936719757479413e-17, 'Inclination': 0.8516800024186747, 'InitialPhase': 1.8735152965543351, 'Polarization': 1.8799757192130693}, {'Amplitude': 1.032573964002457e-23, 'EclipticLatitude': 0.11181636107993316, 'EclipticLongitude': 1.1724821666513028, 'Frequency': 0.003994877857204425, 'FrequencyDerivative': 6.111423477668618e-16, 'Inclination': 1.6342104935165682, 'InitialPhase': 0.23562078237472003, 'Polarization': 1.9727482842838349}, {'Amplitude': 2.4324775718877206e-23, 'EclipticLatitude': 0.09888448338517121, 'EclipticLongitude': 1.5787286386765342, 'Frequency': 0.003994999337259406, 'FrequencyDerivative': 1.2069151405362311e-16, 'Inclination': 2.0180223041727, 'InitialPhase': 2.5902331012494084, 'Polarization': 0.4430554181801801}, {'Amplitude': 6.306435210748783e-24, 'EclipticLatitude': 0.5179668223938828, 'EclipticLongitude': -0.9044559666452656, 'Frequency': 0.003995387204398293, 'FrequencyDerivative': 8.7617904575353635e-16, 'Inclination': 2.4397936833696585, 'InitialPhase': 3.955635469291709, 'Polarization': 1.6099375716201092}]
+# found_sources = found_sources + [{'Amplitude': 3.0843284877290966e-22, 'EclipticLatitude': -0.2826645193353009, 'EclipticLongitude': 1.4808405521022285, 'Frequency': 0.003995983891137299, 'FrequencyDerivative': 3.998367893417067e-14, 'Inclination': 1.2773900117985248, 'InitialPhase': 4.427814115747999, 'Polarization': 0.9895902856309813}, {'Amplitude': 1.3941165323321472e-23, 'EclipticLatitude': 1.4578858842164413, 'EclipticLongitude': -1.4667050425253096, 'Frequency': 0.003994019592492943, 'FrequencyDerivative': 5.98283827336233e-17, 'Inclination': 2.895997278971493, 'InitialPhase': 4.199368021290813, 'Polarization': 2.407379947374118}]
+# for i in range(len(found_sources)):
+#     # print(found_sources[-1])
+#     # target_sources.append(pGB[j])
+#     Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources[i], oversample=4, simulator="synthlisa")
+#     source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
+#     index_low = np.searchsorted(tdi_fs["X"].f, Xs_subtracted.f[0])
+#     index_high = index_low+len(Xs_subtracted)
+#     for k in ["X", "Y", "Z"]:
+#         tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] - source_subtracted[k].data
+#     tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
 
 
 # initial_guess = [{'Amplitude': 3.4340841609241628e-22, 'EclipticLatitude': -0.5642312761041255, 'EclipticLongitude': -2.540164501994462, 'Frequency': 0.0012531300751455023, 'FrequencyDerivative': 5.762233382334956e-20, 'Inclination': 1.299562538559146, 'InitialPhase': 1.69817397754988, 'Polarization': 1.781921395023023}, {'Amplitude': 1.1851659270590206e-22, 'EclipticLatitude': -0.25537481681007557, 'EclipticLongitude': 1.401133480829003, 'Frequency': 0.0012531299798796004, 'FrequencyDerivative': 3.3962492707384217e-20, 'Inclination': 0.6215859432165541, 'InitialPhase': 2.584930634802693, 'Polarization': 1.808144181137842}]
 # initial_guess = [{'Amplitude': 3.4340841609241628e-22, 'EclipticLatitude': -0.5642312761041255, 'EclipticLongitude': -2.540164501994462, 'Frequency': 0.0012531300751455023, 'FrequencyDerivative': 5.762233382334956e-20, 'Inclination': 1.299562538559146, 'InitialPhase': 1.69817397754988, 'Polarization': 1.781921395023023}]
 
-for ind in range(4): #[3,8,9]
-    signal_peak = -1
-    f, psdX =  scipy.signal.welch(tdi_ts["X"], fs=1.0/dt, window='hanning', nperseg=len(tdi_ts["X"])/1)
-    f, psdY =  scipy.signal.welch(tdi_ts["Y"], fs=1.0/dt, window='hanning', nperseg=len(tdi_ts["X"])/1)
-    f, psdZ =  scipy.signal.welch(tdi_ts["Z"], fs=1.0/dt, window='hanning', nperseg=len(tdi_ts["X"])/1)
-    psd = psdX + psdY + psdZ
+# f, psdX =  scipy.signal.welch(tdi_ts["X"], fs=1.0/dt, window='hanning', nperseg=len(tdi_ts["X"])/1)
+# f, psdY =  scipy.signal.welch(tdi_ts["Y"], fs=1.0/dt, window='hanning', nperseg=len(tdi_ts["X"])/1)
+# f, psdZ =  scipy.signal.welch(tdi_ts["Z"], fs=1.0/dt, window='hanning', nperseg=len(tdi_ts["X"])/1)
+# psd = psdX + psdY + psdZ
+# # indexes = np.logical_and(f[peaks]>10**-4, f[peaks]<2*10**-2)
+# indexes = np.logical_and(f>lower_frequency-padding, f<upper_frequency+padding)
+# psd = psd[indexes]
+
+tdi_fs_input = deepcopy(tdi_fs)
+search_input = Search(tdi_fs,Tobs)
+# previous_found_sources = [{'Amplitude': 4.079729023951356e-22, 'EclipticLatitude': 0.8720028645326899, 'EclipticLongitude': 0.4861184116681905, 'Frequency': 0.0039952210800729485, 'FrequencyDerivative': 1.0729362427985777e-16, 'Inclination': 1.0234054245950561, 'InitialPhase': 5.460969734629043, 'Polarization': 1.0878440488246315}, {'Amplitude': 1.1705162052088404e-22, 'EclipticLatitude': -1.1826812683131485, 'EclipticLongitude': -2.6709159052066718, 'Frequency': 0.003994619913706621, 'FrequencyDerivative': 9.679235392481017e-17, 'Inclination': 1.9399892694512724, 'InitialPhase': 5.609087244892229, 'Polarization': 0.9419296285733922}, {'Amplitude': 2.3648307475712127e-23, 'EclipticLatitude': 0.24973495547255922, 'EclipticLongitude': 1.5520627725385836, 'Frequency': 0.003995000325578178, 'FrequencyDerivative': 8.210112456087282e-17, 'Inclination': 1.9857061043535384, 'InitialPhase': 2.5061784908179114, 'Polarization': 0.4668885557463254}, {'Amplitude': 2.078513556387228e-23, 'EclipticLatitude': 0.009302285249180517, 'EclipticLongitude': -1.4678510005512306, 'Frequency': 0.00399537934744601, 'FrequencyDerivative': 8.922723172067281e-17, 'Inclination': 0.9997108283183515, 'InitialPhase': 2.20684418221725, 'Polarization': 2.1510593971971494}, {'Amplitude': 2.3009137999076302e-23, 'EclipticLatitude': -1.4620742621532563, 'EclipticLongitude': -2.0177735980924876, 'Frequency': 0.003994020727203907, 'FrequencyDerivative': 2.9326534966910615e-17, 'Inclination': 1.01452098829612, 'InitialPhase': 5.842707916403813, 'Polarization': 1.8952814865950574}, {'Amplitude': 8.809448653203343e-23, 'EclipticLatitude': -0.2091459628466528, 'EclipticLongitude': 1.482052276495815, 'Frequency': 0.003995809866982243, 'FrequencyDerivative': 9.268455145460366e-14, 'Inclination': 0.5396658347048873, 'InitialPhase': 3.0449279758986716, 'Polarization': 0.38958482085232776}, {'Amplitude': 1.3846071189503718e-23, 'EclipticLatitude': -0.015062600723075503, 'EclipticLongitude': 1.9977522235127187, 'Frequency': 0.0039950661341102865, 'FrequencyDerivative': 3.201401195478979e-14, 'Inclination': 1.3755184410838133, 'InitialPhase': 2.297042501340329, 'Polarization': 0.9686693671594404}]
+previous_found_sources = [{'Amplitude': 4.084935966774485e-22, 'EclipticLatitude': 0.8719934546490874, 'EclipticLongitude': 0.48611009683797857, 'Frequency': 0.003995221087430858, 'FrequencyDerivative': 1.0704703957490903e-16, 'Inclination': 1.0245091695238984, 'InitialPhase': 2.320136113624083, 'Polarization': 2.65883774239409}, {'Amplitude': 1.170377953453263e-22, 'EclipticLatitude': -1.1827019140449202, 'EclipticLongitude': -2.6708716710257203, 'Frequency': 0.003994619937260686, 'FrequencyDerivative': 9.604827167870394e-17, 'Inclination': 1.9399867466326164, 'InitialPhase': 2.468693959968005, 'Polarization': 2.5128702009090644}]
+
+# for ind in range(1): #[3,8,9]
+current_SNR = 100
+ind = 0
+
+while current_SNR > 10 and ind < 10:
+    ind += 1
+
     # indexes = np.logical_and(f[peaks]>10**-4, f[peaks]<2*10**-2)
-    indexes = np.logical_and(f>lower_frequency-padding, f<upper_frequency+padding)
-    psd = psd[indexes]
-    f = f[indexes]
-    peaks, properties = scipy.signal.find_peaks(np.log(np.sqrt(psd)/np.mean(np.sqrt(psd))),width=1,  prominence=(0.22,None))
-    peak_index = 2
+
+    # f = f[indexes]
+    # peaks, properties = scipy.signal.find_peaks(np.log(np.sqrt(psd)/np.mean(np.sqrt(psd))),width=1,  prominence=(0.22,None))
+    # peak_index = 2
+
     # plt.figure()
     # plt.semilogy(f,psd)
     # # plt.scatter(f[peaks],psd[peaks])
@@ -1479,15 +1504,15 @@ for ind in range(4): #[3,8,9]
     #     plt.axvline(pGB_injected[k]['Frequency'])
     # plt.show()
 
-    indexes = np.logical_and(f[peaks]>lower_frequency-padding, f[peaks]<upper_frequency+padding)
-    peaks = peaks[indexes]
+    # indexes = np.logical_and(f[peaks]>lower_frequency-padding, f[peaks]<upper_frequency+padding)
+    # peaks = peaks[indexes]
     # if len(peaks) < signals_per_subtraction:
     #     break
-    prominences = properties['prominences'][indexes] 
-    indexes_peaks = np.argsort(prominences)
+    # prominences = properties['prominences'][indexes] 
+    # indexes_peaks = np.argsort(prominences)
 
 
-    range_index = np.logical_and(tdi_fs.f > lower_frequency-padding, tdi_fs.f < upper_frequency+padding)
+    # range_index = np.logical_and(tdi_fs.f > lower_frequency-padding, tdi_fs.f < upper_frequency+padding)
 
 
     # pGB = {'Amplitude': 2.360780938411229e-22, 'EclipticLatitude': 0.8726817299401121, 'EclipticLongitude': 0.4857930058990844, 'Frequency': 0.0039952210295307105, 'FrequencyDerivative': 1.0762922030519564e-16, 'Inclination': 0.008495799066858739, 'InitialPhase': 0.013026742125237894, 'Polarization': 1.507449983207914}
@@ -1587,9 +1612,77 @@ for ind in range(4): #[3,8,9]
     search1.plot()#pGBadded=pGBadded5)
     print(pGBadded7["FrequencyDerivative"] * Tobs)
     print('smear f', 300*pGBadded7["Frequency"] * 10**3 / 10**9)
-    # print(search1.reduced_frequency_boundaries)
-    # maxpGBsearch, energies =  search1.differential_evolution_search(search1.boundaries['Frequency'])#search1.reduced_frequency_boundaries)
-    # print('SNRm of found signal', np.round(search1.SNRm(maxpGBsearch[0]),3))
+    print(search1.reduced_frequency_boundaries)
+    if ind in [1,2]:
+        maxpGBsearch = [[previous_found_sources[ind-1]]]
+    else:
+        maxpGBsearch, energies =  search1.differential_evolution_search(search1.boundaries['Frequency'])#search1.reduced_frequency_boundaries)
+    # maxpGBsearch = [[previous_found_sources[ind-1]]]
+    print(search1.loglikelihood(maxpGBsearch[0]))
+    print('SNRm of found signal', np.round(search1.SNRm(maxpGBsearch[0]),3))
+    if maxpGBsearch[0][0]['Frequency'] > lower_frequency and maxpGBsearch[0][0]['Frequency'] < upper_frequency:
+        current_SNR = search1.SNRm(maxpGBsearch[0])[0]
+    print('current SNR', current_SNR)
+    if current_SNR < 10:
+        break
+
+    maxpGB = []
+    for j in range(signals_per_subtraction):
+        maxpGB.append(maxpGBsearch[j])
+        print(maxpGB[-1])
+    for j in range(signals_per_subtraction):
+        for i in range(number_of_signals):
+            found_sources.append(maxpGB[j][i])
+    # create two sets of found sources. found_sources_in with signals inside the boundary and founce_sources_out with outside sources
+    found_sources_in = []
+    found_sources_out = []
+    for i in range(len(found_sources)):
+        if found_sources[i]['Frequency'] > lower_frequency and found_sources[i]['Frequency'] < upper_frequency:
+            found_sources_in.append(found_sources[i])
+        else:
+            found_sources_out.append(found_sources[i])
+
+    #global optimization
+    if len(found_sources_in) > 1:
+        if maxpGBsearch[0][0]['Frequency'] > lower_frequency and maxpGBsearch[0][0]['Frequency'] < upper_frequency:
+            tdi_fs_subtracted = deepcopy(tdi_fs_input)
+            for i in range(len(found_sources_out)):
+                Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_out[i], oversample=4, simulator="synthlisa")
+                source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
+                index_low = np.searchsorted(tdi_fs_subtracted["X"].f, Xs_subtracted.f[0])
+                index_high = index_low+len(Xs_subtracted)
+                for k in ["X", "Y", "Z"]:
+                    tdi_fs_subtracted[k].data[index_low:index_high] = tdi_fs_subtracted[k].data[index_low:index_high] - source_subtracted[k].data
+                tdi_ts_subtracted = xr.Dataset(dict([(k, tdi_fs_subtracted[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
+
+            search_out_subtracted = Search(tdi_fs_subtracted,Tobs)
+
+            total_boundaries = deepcopy(search1.boundaries)
+            amplitudes = []
+            for i in range(len(found_sources_in)):
+                amplitudes.append(found_sources_in[i]['Amplitude'])
+            total_boundaries['Amplitude'] = [np.min(amplitudes),np.max(amplitudes)]
+            amplitudes_length = np.log10(total_boundaries['Amplitude'][1]) - np.log10(total_boundaries['Amplitude'][0])
+            total_boundaries['Amplitude'] = [np.log10(total_boundaries['Amplitude'][0]) - amplitudes_length/5, np.log10(total_boundaries['Amplitude'][1]) + amplitudes_length/5]
+
+            number_of_signals_optimize = len(found_sources_in)
+            start = time.time()
+            found_sources_in, pGB = search_out_subtracted.optimize([found_sources_in], boundaries= total_boundaries)
+            print(time.time()-start)
+
+    found_sources = found_sources_in + found_sources_out
+
+    #subtract the found sources from original
+    tdi_fs = deepcopy(tdi_fs_input)
+    for i in range(len(found_sources)):
+        Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources[i], oversample=4, simulator="synthlisa")
+        source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
+        index_low = np.searchsorted(tdi_fs["X"].f, Xs_subtracted.f[0])
+        index_high = index_low+len(Xs_subtracted)
+        for k in ["X", "Y", "Z"]:
+            tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] - source_subtracted[k].data
+        tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
+
     # pGBmodes =  search1.search()
     # maxpGBsearch, pGB =  search1.optimize(pGBmodes)
 
@@ -1644,30 +1737,15 @@ for ind in range(4): #[3,8,9]
     # pool.join()
     # print('time parallel', time.time()-start_parallel)
 
-    # maxpGB = []
-    # for j in range(signals_per_subtraction):
-    #     maxpGB.append(maxpGBsearch[j])
-    #     print(maxpGB[-1])
     # for j in range(signals_per_subtraction):
     #     for i in range(number_of_signals):
-    #         found_sources.append(maxpGB[j][i])
-    #         # print(found_sources[-1])
-    #         # target_sources.append(pGB[j])
-    #         Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=maxpGB[j][i], oversample=4, simulator="synthlisa")
+    #         Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources[-1], oversample=4, simulator="synthlisa")
     #         source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
     #         index_low = np.searchsorted(tdi_fs["X"].f, Xs_subtracted.f[0])
     #         index_high = index_low+len(Xs_subtracted)
     #         for k in ["X", "Y", "Z"]:
     #             tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] - source_subtracted[k].data
     #         tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
-
-    #         Xs_subtracted, Ys_subtracted, Zs_subtracted = GB_long.get_fd_tdixyz(template=maxpGB[j][i], oversample=4, simulator="synthlisa")
-    #         source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
-    #         index_low = np.searchsorted(tdi_fs["X"].f, Xs_subtracted.f[0])
-    #         index_high = index_low+len(Xs_subtracted)
-    #         for k in ["X", "Y", "Z"]:
-    #             tdi_fs_long[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] - source_subtracted[k].data
-    #         tdi_ts_long = xr.Dataset(dict([(k, tdi_fs_long[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
 
 # found_sources = [{'Amplitude': 4.084518685817812e-22, 'EclipticLatitude': 0.8720544682694538, 'EclipticLongitude': 0.48616143577241866, 'Frequency': 0.003995221114824773, 'FrequencyDerivative': 1.0627279371996937e-16, 'Inclination': 1.0243912595492148, 'InitialPhase': 2.3275458253363115, 'Polarization': 2.661177574668723}, {'Amplitude': 1.2784116164619416e-22, 'EclipticLatitude': -1.0178871180619764, 'EclipticLongitude': -2.35290831749591, 'Frequency': 0.003996675772373996, 'FrequencyDerivative': 1.384710135509938e-16, 'Inclination': 0.5820004755676056, 'InitialPhase': 2.1816103995659355, 'Polarization': 2.61397391849868}, {'Amplitude': 1.1694525363544978e-22, 'EclipticLatitude': -1.1828904555328474, 'EclipticLongitude': -2.670951629160976, 'Frequency': 0.003994620638904597, 'FrequencyDerivative': 7.500058756238762e-17, 'Inclination': 1.9398413554462486, 'InitialPhase': 2.5324878804646227, 'Polarization': 2.5074909279157476}, {'Amplitude': 3.9688477398130994e-23, 'EclipticLatitude': -0.506364743710094, 'EclipticLongitude': -1.8889417663188044, 'Frequency': 0.003993697453743798, 'FrequencyDerivative': 2.8619361551095533e-16, 'Inclination': 0.5374525365060974, 'InitialPhase': 4.406419981959724, 'Polarization': 0.30918063627529413}]
 # 13 searches failed padding
@@ -1710,15 +1788,29 @@ for ind in range(4): #[3,8,9]
 # found_sources = [{'Amplitude': 4.109569184608354e-22, 'EclipticLatitude': 0.8719265085917549, 'EclipticLongitude': 0.48606457487968857, 'Frequency': 0.0039952211701314135, 'FrequencyDerivative': 1.0431129985759679e-16, 'Inclination': 1.029183450319783, 'InitialPhase': 5.471513112648915, 'Polarization': 1.0906241224884106}, {'Amplitude': 1.0803296578347787e-22, 'EclipticLatitude': -1.0179511288962544, 'EclipticLongitude': -2.3529400135381033, 'Frequency': 0.0039966759161445325, 'FrequencyDerivative': 1.342287594092441e-16, 'Inclination': 0.05714523526873107, 'InitialPhase': 0.19652634417343698, 'Polarization': 1.6157812641947626}, {'Amplitude': 7.392771321450061e-23, 'EclipticLatitude': 1.1921347847452342, 'EclipticLongitude': -2.866880402412061, 'Frequency': 0.003994619763755466, 'FrequencyDerivative': 9.652804956924732e-17, 'Inclination': 0.9960614898489382, 'InitialPhase': 2.0771763346360217, 'Polarization': 0.2602403484155356}, {'Amplitude': 6.052000597238673e-23, 'EclipticLatitude': -1.1631606640677326, 'EclipticLongitude': -2.4036068448739054, 'Frequency': 0.0039945897062114094, 'FrequencyDerivative': 6.337842485651739e-17, 'Inclination': 1.834189552461693, 'InitialPhase': 5.430323004640078, 'Polarization': 2.2250796760763114}, {'Amplitude': 6.111342145528687e-23, 'EclipticLatitude': -0.5048141424281883, 'EclipticLongitude': -1.8904187985228338, 'Frequency': 0.003993697471568838, 'FrequencyDerivative': 2.8560118450156315e-16, 'Inclination': 1.0428569619306647, 'InitialPhase': 3.9366078589266555, 'Polarization': 0.07131834736022112}, {'Amplitude': 3.1606218513833566e-23, 'EclipticLatitude': 0.2789703710219093, 'EclipticLongitude': 1.5604400217310923, 'Frequency': 0.0039950005098807, 'FrequencyDerivative': 6.427860454177372e-17, 'Inclination': 1.8172151552210758, 'InitialPhase': 2.6406393088881392, 'Polarization': 0.36853170848803696}, {'Amplitude': 2.025273370716966e-23, 'EclipticLatitude': -0.9591831345772711, 'EclipticLongitude': -3.053968784554868, 'Frequency': 0.00399672627261989, 'FrequencyDerivative': 3.006309504285046e-16, 'Inclination': 2.338038388457288, 'InitialPhase': 0.0, 'Polarization': 2.2700843125142045}]
 # found_sources = [{'Amplitude': 4.121081985812462e-22, 'EclipticLatitude': 0.8720912997092143, 'EclipticLongitude': 0.486193256097311, 'Frequency': 0.003995221049705896, 'FrequencyDerivative': 1.0837989076641528e-16, 'Inclination': 1.0327323917486553, 'InitialPhase': 2.3202157687117384, 'Polarization': 2.659572961678935}, {'Amplitude': 1.5040603666335883e-22, 'EclipticLatitude': 1.0394646625641053, 'EclipticLongitude': -2.142446904035906, 'Frequency': 0.00399667671467272, 'FrequencyDerivative': 1.105081314114411e-16, 'Inclination': 1.9526161285228707, 'InitialPhase': 3.461589075762154, 'Polarization': 0.12582380766565493}, {'Amplitude': 1.264511080132232e-22, 'EclipticLatitude': -0.9859491231188499, 'EclipticLongitude': -2.529917267730215, 'Frequency': 0.003996712446900811, 'FrequencyDerivative': 9.338729169935121e-20, 'Inclination': 1.1403434998592155, 'InitialPhase': 0.31777310567149253, 'Polarization': 2.6904533118798613}, {'Amplitude': 1.1709284748235206e-22, 'EclipticLatitude': -1.1823578113186826, 'EclipticLongitude': -2.6717703722081003, 'Frequency': 0.003994620355463592, 'FrequencyDerivative': 8.401124965830958e-17, 'Inclination': 1.9389856617468404, 'InitialPhase': 5.65425649384106, 'Polarization': 0.9401872064188714}, {'Amplitude': 6.144572693838021e-23, 'EclipticLatitude': -0.5045599115646083, 'EclipticLongitude': -1.890197934558693, 'Frequency': 0.0039936972016079725, 'FrequencyDerivative': 2.9265422900918785e-16, 'Inclination': 1.0490386225781874, 'InitialPhase': 3.9023251300452775, 'Polarization': 0.06712552589177627}, {'Amplitude': 9.937091181958379e-23, 'EclipticLatitude': 1.1946307669091916, 'EclipticLongitude': -1.9792204752046842, 'Frequency': 0.0039966790273277325, 'FrequencyDerivative': 2.2054029511360456e-19, 'Inclination': 1.6673888659296807, 'InitialPhase': 3.7463458892212884, 'Polarization': 2.374074396897342}]
 # small window
+# 3.9945 - 3.9955
 # found_sources = [{'Amplitude': 4.08091270139556e-22, 'EclipticLatitude': 0.8720294908527731, 'EclipticLongitude': 0.48611245457890506, 'Frequency': 0.003995221037609946, 'FrequencyDerivative': 1.0853165500503126e-16, 'Inclination': 1.0235918972353715, 'InitialPhase': 5.45676679259367, 'Polarization': 1.0874299088412087}, {'Amplitude': 4.241825789139581e-23, 'EclipticLatitude': -1.0829288148278788, 'EclipticLongitude': -2.8880314941141756, 'Frequency': 0.003994655528129478, 'FrequencyDerivative': 1e-20, 'Inclination': 3.138285557134122, 'InitialPhase': 6.271817715240895, 'Polarization': 0.009742582711271345}, {'Amplitude': 5.890739738384561e-23, 'EclipticLatitude': 1.0430343332229675, 'EclipticLongitude': -2.7043753127944035, 'Frequency': 0.003994652194752191, 'FrequencyDerivative': 8.254203907567565e-17, 'Inclination': 1.2413923074046642, 'InitialPhase': 3.976944820641031, 'Polarization': 1.648961773210886}, {'Amplitude': 4.052133117939597e-23, 'EclipticLatitude': -1.3031395106469301, 'EclipticLongitude': 0.7867711859149087, 'Frequency': 0.003994843705923819, 'FrequencyDerivative': 3.290260838486189e-19, 'Inclination': 1.5705158045184489, 'InitialPhase': 4.91001005392994, 'Polarization': 1.8095694071827446}]
 # found_sources = [{'Amplitude': 4.08091270139556e-22, 'EclipticLatitude': 0.8720294908527731, 'EclipticLongitude': 0.48611245457890506, 'Frequency': 0.003995221037609946, 'FrequencyDerivative': 1.0853165500503126e-16, 'Inclination': 1.0235918972353715, 'InitialPhase': 5.45676679259367, 'Polarization': 1.0874299088412087}, {'Amplitude': 1.1702671226530929e-22, 'EclipticLatitude': -1.1827612284663045, 'EclipticLongitude': -2.670933609481371, 'Frequency': 0.003994620014958145, 'FrequencyDerivative': 9.373396650887945e-17, 'Inclination': 1.9401898236659252, 'InitialPhase': 5.615785193393405, 'Polarization': 0.9422765624096732}]
 # found_sources = [{'Amplitude': 4.091252936013729e-22, 'EclipticLatitude': 0.8719925893796358, 'EclipticLongitude': 0.48611841268552825, 'Frequency': 0.0039952210896465855, 'FrequencyDerivative': 1.0703768603283968e-16, 'Inclination': 1.026056054251666, 'InitialPhase': 5.462174515586841, 'Polarization': 1.0880240462829833}, {'Amplitude': 1.1696512269972643e-22, 'EclipticLatitude': -1.1826720001456954, 'EclipticLongitude': -2.6706071863149625, 'Frequency': 0.003994619916795375, 'FrequencyDerivative': 9.639821852041419e-17, 'Inclination': 1.9405696619404715, 'InitialPhase': 5.607323710845002, 'Polarization': 0.9418562049325352}]
 # found_sources = [{'Amplitude': 4.079729023951356e-22, 'EclipticLatitude': 0.8720028645326899, 'EclipticLongitude': 0.4861184116681905, 'Frequency': 0.0039952210800729485, 'FrequencyDerivative': 1.0729362427985777e-16, 'Inclination': 1.0234054245950561, 'InitialPhase': 5.460969734629043, 'Polarization': 1.0878440488246315}, {'Amplitude': 1.1705162052088404e-22, 'EclipticLatitude': -1.1826812683131485, 'EclipticLongitude': -2.6709159052066718, 'Frequency': 0.003994619913706621, 'FrequencyDerivative': 9.679235392481017e-17, 'Inclination': 1.9399892694512724, 'InitialPhase': 5.609087244892229, 'Polarization': 0.9419296285733922}, {'Amplitude': 1.2885439983397928e-23, 'EclipticLatitude': -0.2160888045559383, 'EclipticLongitude': -1.4636553007260287, 'Frequency': 0.0039953822920595515, 'FrequencyDerivative': 1.344649486483458e-19, 'Inclination': 0.2752472958012907, 'InitialPhase': 1.6595119937657414, 'Polarization': 1.762114328420676}, {'Amplitude': 1.8521127184966895e-23, 'EclipticLatitude': 0.3812186492244738, 'EclipticLongitude': 1.256068131079525, 'Frequency': 0.003994855309629712, 'FrequencyDerivative': 1.353386568754485e-15, 'Inclination': 1.8797565282129438, 'InitialPhase': 0.0, 'Polarization': 1.9493864228996722}, {'Amplitude': 3.0843284877290966e-22, 'EclipticLatitude': -0.2826645193353009, 'EclipticLongitude': 1.4808405521022285, 'Frequency': 0.003995983891137299, 'FrequencyDerivative': 3.998367893417067e-14, 'Inclination': 1.2773900117985248, 'InitialPhase': 4.427814115747999, 'Polarization': 0.9895902856309813}, {'Amplitude': 1.3941165323321472e-23, 'EclipticLatitude': 1.4578858842164413, 'EclipticLongitude': -1.4667050425253096, 'Frequency': 0.003994019592492943, 'FrequencyDerivative': 5.98283827336233e-17, 'Inclination': 2.895997278971493, 'InitialPhase': 4.199368021290813, 'Polarization': 2.407379947374118}]
-found_sources = [{'Amplitude': 4.079729023951356e-22, 'EclipticLatitude': 0.8720028645326899, 'EclipticLongitude': 0.4861184116681905, 'Frequency': 0.0039952210800729485, 'FrequencyDerivative': 1.0729362427985777e-16, 'Inclination': 1.0234054245950561, 'InitialPhase': 5.460969734629043, 'Polarization': 1.0878440488246315}, {'Amplitude': 1.1705162052088404e-22, 'EclipticLatitude': -1.1826812683131485, 'EclipticLongitude': -2.6709159052066718, 'Frequency': 0.003994619913706621, 'FrequencyDerivative': 9.679235392481017e-17, 'Inclination': 1.9399892694512724, 'InitialPhase': 5.609087244892229, 'Polarization': 0.9419296285733922}, {'Amplitude': 1.2885439983397928e-23, 'EclipticLatitude': -0.2160888045559383, 'EclipticLongitude': -1.4636553007260287, 'Frequency': 0.0039953822920595515, 'FrequencyDerivative': 1.344649486483458e-19, 'Inclination': 0.2752472958012907, 'InitialPhase': 1.6595119937657414, 'Polarization': 1.762114328420676}, {'Amplitude': 1.8521127184966895e-23, 'EclipticLatitude': 0.3812186492244738, 'EclipticLongitude': 1.256068131079525, 'Frequency': 0.003994855309629712, 'FrequencyDerivative': 1.353386568754485e-15, 'Inclination': 1.8797565282129438, 'InitialPhase': 0.0, 'Polarization': 1.9493864228996722}, {'Amplitude': 3.0843284877290966e-22, 'EclipticLatitude': -0.2826645193353009, 'EclipticLongitude': 1.4808405521022285, 'Frequency': 0.003995983891137299, 'FrequencyDerivative': 3.998367893417067e-14, 'Inclination': 1.2773900117985248, 'InitialPhase': 4.427814115747999, 'Polarization': 0.9895902856309813}, {'Amplitude': 1.3941165323321472e-23, 'EclipticLatitude': 1.4578858842164413, 'EclipticLongitude': -1.4667050425253096, 'Frequency': 0.003994019592492943, 'FrequencyDerivative': 5.98283827336233e-17, 'Inclination': 2.895997278971493, 'InitialPhase': 4.199368021290813, 'Polarization': 2.407379947374118}, {'Amplitude': 1.492854360123542e-23, 'EclipticLatitude': -0.20263042623361782, 'EclipticLongitude': 1.5502602981860276, 'Frequency': 0.003994999671458462, 'FrequencyDerivative': 8.254673943490034e-17, 'Inclination': 2.012993024314833, 'InitialPhase': 2.595715267486518, 'Polarization': 0.33177715919609146}, {'Amplitude': 1.2635482628044953e-23, 'EclipticLatitude': 0.4130973814425737, 'EclipticLongitude': -0.8738984913855745, 'Frequency': 0.003995399634350178, 'FrequencyDerivative': 4.1351087575970064e-16, 'Inclination': 1.8384584899716157, 'InitialPhase': 3.981352021823958, 'Polarization': 1.7277846594839554}]
-# 65-75 found sources
+# found_sources = [{'Amplitude': 4.079729023951356e-22, 'EclipticLatitude': 0.8720028645326899, 'EclipticLongitude': 0.4861184116681905, 'Frequency': 0.0039952210800729485, 'FrequencyDerivative': 1.0729362427985777e-16, 'Inclination': 1.0234054245950561, 'InitialPhase': 5.460969734629043, 'Polarization': 1.0878440488246315}, {'Amplitude': 1.1705162052088404e-22, 'EclipticLatitude': -1.1826812683131485, 'EclipticLongitude': -2.6709159052066718, 'Frequency': 0.003994619913706621, 'FrequencyDerivative': 9.679235392481017e-17, 'Inclination': 1.9399892694512724, 'InitialPhase': 5.609087244892229, 'Polarization': 0.9419296285733922}, {'Amplitude': 1.2885439983397928e-23, 'EclipticLatitude': -0.2160888045559383, 'EclipticLongitude': -1.4636553007260287, 'Frequency': 0.0039953822920595515, 'FrequencyDerivative': 1.344649486483458e-19, 'Inclination': 0.2752472958012907, 'InitialPhase': 1.6595119937657414, 'Polarization': 1.762114328420676}, {'Amplitude': 1.8521127184966895e-23, 'EclipticLatitude': 0.3812186492244738, 'EclipticLongitude': 1.256068131079525, 'Frequency': 0.003994855309629712, 'FrequencyDerivative': 1.353386568754485e-15, 'Inclination': 1.8797565282129438, 'InitialPhase': 0.0, 'Polarization': 1.9493864228996722}, {'Amplitude': 3.0843284877290966e-22, 'EclipticLatitude': -0.2826645193353009, 'EclipticLongitude': 1.4808405521022285, 'Frequency': 0.003995983891137299, 'FrequencyDerivative': 3.998367893417067e-14, 'Inclination': 1.2773900117985248, 'InitialPhase': 4.427814115747999, 'Polarization': 0.9895902856309813}, {'Amplitude': 1.3941165323321472e-23, 'EclipticLatitude': 1.4578858842164413, 'EclipticLongitude': -1.4667050425253096, 'Frequency': 0.003994019592492943, 'FrequencyDerivative': 5.98283827336233e-17, 'Inclination': 2.895997278971493, 'InitialPhase': 4.199368021290813, 'Polarization': 2.407379947374118}, {'Amplitude': 1.492854360123542e-23, 'EclipticLatitude': -0.20263042623361782, 'EclipticLongitude': 1.5502602981860276, 'Frequency': 0.003994999671458462, 'FrequencyDerivative': 8.254673943490034e-17, 'Inclination': 2.012993024314833, 'InitialPhase': 2.595715267486518, 'Polarization': 0.33177715919609146}, {'Amplitude': 1.2635482628044953e-23, 'EclipticLatitude': 0.4130973814425737, 'EclipticLongitude': -0.8738984913855745, 'Frequency': 0.003995399634350178, 'FrequencyDerivative': 4.1351087575970064e-16, 'Inclination': 1.8384584899716157, 'InitialPhase': 3.981352021823958, 'Polarization': 1.7277846594839554}]
+# while
+# found_sources = [{'Amplitude': 4.079729023951356e-22, 'EclipticLatitude': 0.8720028645326899, 'EclipticLongitude': 0.4861184116681905, 'Frequency': 0.0039952210800729485, 'FrequencyDerivative': 1.0729362427985777e-16, 'Inclination': 1.0234054245950561, 'InitialPhase': 5.460969734629043, 'Polarization': 1.0878440488246315}, {'Amplitude': 1.1705162052088404e-22, 'EclipticLatitude': -1.1826812683131485, 'EclipticLongitude': -2.6709159052066718, 'Frequency': 0.003994619913706621, 'FrequencyDerivative': 9.679235392481017e-17, 'Inclination': 1.9399892694512724, 'InitialPhase': 5.609087244892229, 'Polarization': 0.9419296285733922}, {'Amplitude': 2.3648307475712127e-23, 'EclipticLatitude': 0.24973495547255922, 'EclipticLongitude': 1.5520627725385836, 'Frequency': 0.003995000325578178, 'FrequencyDerivative': 8.210112456087282e-17, 'Inclination': 1.9857061043535384, 'InitialPhase': 2.5061784908179114, 'Polarization': 0.4668885557463254}, {'Amplitude': 2.078513556387228e-23, 'EclipticLatitude': 0.009302285249180517, 'EclipticLongitude': -1.4678510005512306, 'Frequency': 0.00399537934744601, 'FrequencyDerivative': 8.922723172067281e-17, 'Inclination': 0.9997108283183515, 'InitialPhase': 2.20684418221725, 'Polarization': 2.1510593971971494}, {'Amplitude': 2.3009137999076302e-23, 'EclipticLatitude': -1.4620742621532563, 'EclipticLongitude': -2.0177735980924876, 'Frequency': 0.003994020727203907, 'FrequencyDerivative': 2.9326534966910615e-17, 'Inclination': 1.01452098829612, 'InitialPhase': 5.842707916403813, 'Polarization': 1.8952814865950574}, {'Amplitude': 8.809448653203343e-23, 'EclipticLatitude': -0.2091459628466528, 'EclipticLongitude': 1.482052276495815, 'Frequency': 0.003995809866982243, 'FrequencyDerivative': 9.268455145460366e-14, 'Inclination': 0.5396658347048873, 'InitialPhase': 3.0449279758986716, 'Polarization': 0.38958482085232776}, {'Amplitude': 1.3846071189503718e-23, 'EclipticLatitude': -0.015062600723075503, 'EclipticLongitude': 1.9977522235127187, 'Frequency': 0.0039950661341102865, 'FrequencyDerivative': 3.201401195478979e-14, 'Inclination': 1.3755184410838133, 'InitialPhase': 2.297042501340329, 'Polarization': 0.9686693671594404}]
+# optimized
+# found_sources = [{'Amplitude': 3.9677348309561324e-22, 'EclipticLatitude': 0.8706663925878446, 'EclipticLongitude': 0.4864856376491269, 'Frequency': 0.003995221078648298, 'FrequencyDerivative': 1.074654099218549e-16, 'Inclination': 1.003291296310796, 'InitialPhase': 5.449444041401877, 'Polarization': 1.0868222545350241}, {'Amplitude': 1.2608384858561515e-22, 'EclipticLatitude': -1.185729083264578, 'EclipticLongitude': -2.6825275334464163, 'Frequency': 0.003994620257517766, 'FrequencyDerivative': 8.737281362904867e-17, 'Inclination': 1.902022201001059, 'InitialPhase': 5.621548359543076, 'Polarization': 0.953714407264287}, {'Amplitude': 2.843731580031459e-23, 'EclipticLatitude': 0.17063412744965353, 'EclipticLongitude': 1.5712041844800808, 'Frequency': 0.0039949987267497555, 'FrequencyDerivative': 1.1538608864748923e-16, 'Inclination': 1.9427405894898233, 'InitialPhase': 2.286430201434658, 'Polarization': 0.5026719162742546}, {'Amplitude': 2.222162420298637e-23, 'EclipticLatitude': -0.014661688533237226, 'EclipticLongitude': -1.4660897173675091, 'Frequency': 0.003995378909066518, 'FrequencyDerivative': 1.0254090587723359e-16, 'Inclination': 0.982476642481787, 'InitialPhase': 2.2278095805769316, 'Polarization': 2.182965959230866}, {'Amplitude': 2.443611563080014e-23, 'EclipticLatitude': -1.4618031858993956, 'EclipticLongitude': -1.9420454717268312, 'Frequency': 0.003994019505769568, 'FrequencyDerivative': 9.437101202803238e-17, 'Inclination': 1.0579755980776597, 'InitialPhase': 5.7968795135054805, 'Polarization': 1.8223057532979217}, {'Amplitude': 9.48027129302248e-23, 'EclipticLatitude': -0.22312586367228956, 'EclipticLongitude': 1.4464589913829462, 'Frequency': 0.003995800418265822, 'FrequencyDerivative': 9.297672219911292e-14, 'Inclination': 0.4949586216978129, 'InitialPhase': 3.3374448402826093, 'Polarization': 0.33877611887923553}, {'Amplitude': 1.3846071189503718e-23, 'EclipticLatitude': -0.015062600723075503, 'EclipticLongitude': 1.9977522235127187, 'Frequency': 0.0039950661341102865, 'FrequencyDerivative': 3.201401195478979e-14, 'Inclination': 1.3755184410838133, 'InitialPhase': 2.297042501340329, 'Polarization': 0.9686693671594404}]
+# 3.9965 - 3.9975 found sources
 # found_sources = [{'Amplitude': 1.3193908464998936e-22, 'EclipticLatitude': -1.0180158762218303, 'EclipticLongitude': -2.3525546025237745, 'Frequency': 0.003996675600988893, 'FrequencyDerivative': 1.429993058592808e-16, 'Inclination': 0.6324098371137679, 'InitialPhase': 5.472624184261258, 'Polarization': 1.1264185956876631}, {'Amplitude': 5.373167674103956e-23, 'EclipticLatitude': -0.06058597427214923, 'EclipticLongitude': -1.4980227952309695, 'Frequency': 0.0039976302585943676, 'FrequencyDerivative': 2.2468475627445273e-16, 'Inclination': 1.234102701454988, 'InitialPhase': 3.6298354756627877, 'Polarization': 2.949206485578923}, {'Amplitude': 2.894245043610553e-23, 'EclipticLatitude': -0.4006057347422682, 'EclipticLongitude': 1.8564312823438724, 'Frequency': 0.003996567161691237, 'FrequencyDerivative': 4.051814603007406e-14, 'Inclination': 2.096582021970788, 'InitialPhase': 4.2407504417170125, 'Polarization': 0.5037630610377921}, {'Amplitude': 3.5865639021547016e-23, 'EclipticLatitude': -1.180315833499288, 'EclipticLongitude': 2.713964964253206, 'Frequency': 0.00399682396359513, 'FrequencyDerivative': 1.3942897460563206e-16, 'Inclination': 1.9215353969762918, 'InitialPhase': 2.9891619120375634, 'Polarization': 1.4518253339718061}, {'Amplitude': 7.394658008831879e-24, 'EclipticLatitude': -0.06840708862901682, 'EclipticLongitude': -1.510166881384511, 'Frequency': 0.003997284247341794, 'FrequencyDerivative': 6.553769317842602e-20, 'Inclination': 0.028501273528823836, 'InitialPhase': 3.285710858818603, 'Polarization': 1.0337908605128148}]
-# 55 - 65
+# 3.9955 - 3.9965
 # found_sources = [{'Amplitude': 4.1122160565447513e-22, 'EclipticLatitude': 0.8722627178988783, 'EclipticLongitude': 0.48654113291089507, 'Frequency': 0.0039952212328801095, 'FrequencyDerivative': 1.0325821075505724e-16, 'Inclination': 1.0337801752936657, 'InitialPhase': 5.471782551667702, 'Polarization': 1.085645029043506}, {'Amplitude': 1.3196087341219487e-22, 'EclipticLatitude': -1.01802415675539, 'EclipticLongitude': -2.352845358405966, 'Frequency': 0.003996675714076671, 'FrequencyDerivative': 1.4023967877038525e-16, 'Inclination': 0.6321538008842804, 'InitialPhase': 2.3413920047205843, 'Polarization': 2.6965969833231753}, {'Amplitude': 4.907896845237119e-23, 'EclipticLatitude': -0.9083115358404816, 'EclipticLongitude': 1.830946807621947, 'Frequency': 0.003996986130665041, 'FrequencyDerivative': 1.0020926813443886e-20, 'Inclination': 1.9049727112005492, 'InitialPhase': 4.4254524562509605, 'Polarization': 2.03493839501435}, {'Amplitude': 2.80765572753344e-23, 'EclipticLatitude': 0.44991418886259016, 'EclipticLongitude': 1.4372067700793787, 'Frequency': 0.003995, 'FrequencyDerivative': 7.821411239324986e-17, 'Inclination': 1.9770691405054526, 'InitialPhase': 0.008617516017601046, 'Polarization': 2.135208893996428}]
+# new tol
+# found_sources = [{'Amplitude': 4.078548524665942e-22, 'EclipticLatitude': 0.8719598285541009, 'EclipticLongitude': 0.48610736535582433, 'Frequency': 0.003995221114188715, 'FrequencyDerivative': 1.0624083369431835e-16, 'Inclination': 1.023230688156412, 'InitialPhase': 2.332809482837094, 'Polarization': 2.6643510855317127}, {'Amplitude': 8.599847426548067e-23, 'EclipticLatitude': -1.0083972289641516, 'EclipticLongitude': -3.0428977235295163, 'Frequency': 0.003994685927983612, 'FrequencyDerivative': 1.8332697826643778e-17, 'Inclination': 1.9139534641852995, 'InitialPhase': 5.114695209956535, 'Polarization': 2.605693433561302}, {'Amplitude': 4.6256730400469185e-23, 'EclipticLatitude': 1.1722276880402125, 'EclipticLongitude': -2.871446178228877, 'Frequency': 0.003994619105280041, 'FrequencyDerivative': 1.086012039379694e-16, 'Inclination': 0.9479641813421728, 'InitialPhase': 4.8371517203795085, 'Polarization': 1.7036543858894597}, {'Amplitude': 1.643553600616391e-23, 'EclipticLatitude': 0.16199423244320238, 'EclipticLongitude': 1.4165120905649182, 'Frequency': 0.003994969780666866, 'FrequencyDerivative': 2.5348637389615347e-17, 'Inclination': 2.4954310757426548, 'InitialPhase': 3.701982859408883, 'Polarization': 0.5289520237169353}]
+# slice and dice without outsiders
+# found_sources = [{'Amplitude': 3.954437185335676e-22, 'EclipticLatitude': 0.8705283227819178, 'EclipticLongitude': 0.48686210801377316, 'Frequency': 0.003995221067702464, 'FrequencyDerivative': 1.0889344296696101e-16, 'Inclination': 1.0044969922292915, 'InitialPhase': 2.2984551395638126, 'Polarization': 2.651756350361183}, {'Amplitude': 1.2539437693613833e-22, 'EclipticLatitude': -1.1856213219729361, 'EclipticLongitude': -2.683928479256104, 'Frequency': 0.00399462026922502, 'FrequencyDerivative': 8.769232289332856e-17, 'Inclination': 1.9068676016928692, 'InitialPhase': 2.4797972297671795, 'Polarization': 2.524582279457128}, {'Amplitude': 2.4065471042304014e-23, 'EclipticLatitude': 0.13558691114892432, 'EclipticLongitude': 1.5773316510537079, 'Frequency': 0.003995000156412037, 'FrequencyDerivative': 8.54693032650248e-17, 'Inclination': 2.0697606285415384, 'InitialPhase': 2.410026294141748, 'Polarization': 0.5353316544631529}, {'Amplitude': 2.1352291472674563e-23, 'EclipticLatitude': -0.02247515378134304, 'EclipticLongitude': -1.4648490465114308, 'Frequency': 0.003995378272058502, 'FrequencyDerivative': 1.1921575041379484e-16, 'Inclination': 0.9409699470043055, 'InitialPhase': 5.27492090265447, 'Polarization': 0.5916292927580608}, {'Amplitude': 1.3838203303205143e-23, 'EclipticLatitude': -0.02115513595420595, 'EclipticLongitude': -1.601928897252455, 'Frequency': 0.00399515473218528, 'FrequencyDerivative': 1.0156155118046183e-20, 'Inclination': 2.0216072557759834, 'InitialPhase': 1.1195504942202392, 'Polarization': 1.2139853659653514}, {'Amplitude': 1.9662728051288063e-23, 'EclipticLatitude': 0.32244724528551977, 'EclipticLongitude': -3.141592653589793, 'Frequency': 0.0039949685759942165, 'FrequencyDerivative': 9.570885840902786e-14, 'Inclination': 1.420762074316341, 'InitialPhase': 0.7280971343638819, 'Polarization': 2.900984054674992}, {'Amplitude': 2.450403228241954e-23, 'EclipticLatitude': 1.4600819824490758, 'EclipticLongitude': -1.4867428828144233, 'Frequency': 0.003994018890486554, 'FrequencyDerivative': 7.27066897106673e-17, 'Inclination': 2.068581292366034, 'InitialPhase': 5.335276341634204, 'Polarization': 1.7887059369037583}, {'Amplitude': 3.16655881881124e-22, 'EclipticLatitude': -0.36440785933466047, 'EclipticLongitude': 1.4778115680497415, 'Frequency': 0.0039959999999999996, 'FrequencyDerivative': 3.691848331425048e-14, 'Inclination': 1.2254897063352792, 'InitialPhase': 4.18392142231699, 'Polarization': 0.875022662275395}, {'Amplitude': 1.3062754628688594e-23, 'EclipticLatitude': -1.2473959799399659, 'EclipticLongitude': 2.7715207737627443, 'Frequency': 0.003994093500845711, 'FrequencyDerivative': 3.917743059398532e-20, 'Inclination': 1.3965202196689626, 'InitialPhase': 3.4356454300704917, 'Polarization': 2.674370951557413}, {'Amplitude': 1.5754587435594722e-23, 'EclipticLatitude': -0.6530606376730765, 'EclipticLongitude': -2.052637213940567, 'Frequency': 0.003994058956397211, 'FrequencyDerivative': 1.0097581829635257e-20, 'Inclination': 1.6418600927298175, 'InitialPhase': 3.263520624039774, 'Polarization': 1.1342667679686258}]
+# found_sources = [{'Amplitude': 3.9689132736574507e-22, 'EclipticLatitude': 0.8707505533420358, 'EclipticLongitude': 0.48662742593757335, 'Frequency': 0.003995221168064815, 'FrequencyDerivative': 1.0495922668329137e-16, 'Inclination': 1.0030685433927617, 'InitialPhase': 2.312257571052444, 'Polarization': 2.655389100178587}, {'Amplitude': 1.2582248855092968e-22, 'EclipticLatitude': -1.1861909664486303, 'EclipticLongitude': -2.682255219986959, 'Frequency': 0.0039946198558335555, 'FrequencyDerivative': 9.899011309497499e-17, 'Inclination': 1.9034799708471297, 'InitialPhase': 2.438578058105272, 'Polarization': 2.526411018962479}, {'Amplitude': 2.890363929791713e-23, 'EclipticLatitude': 0.16361092519076423, 'EclipticLongitude': 1.5706937501136518, 'Frequency': 0.0039949980260170475, 'FrequencyDerivative': 1.3484819876946333e-16, 'Inclination': 1.9355321177427731, 'InitialPhase': 2.2076817294694266, 'Polarization': 0.505660865986898}, {'Amplitude': 1.2947038507777098e-23, 'EclipticLatitude': 1.1416157111708225, 'EclipticLongitude': -1.0097100690135445, 'Frequency': 0.003995130547135328, 'FrequencyDerivative': 3.6748793067569695e-14, 'Inclination': 1.5417163414944728, 'InitialPhase': 2.809507415256849, 'Polarization': 2.13508409583371}, {'Amplitude': 2.5045671136878724e-23, 'EclipticLatitude': -0.05210562118966992, 'EclipticLongitude': -1.459162174180093, 'Frequency': 0.003995380435174599, 'FrequencyDerivative': 7.297345996825393e-17, 'Inclination': 1.0847271487749357, 'InitialPhase': 5.654535579595753, 'Polarization': 0.6403848178881576}, {'Amplitude': 2.450403228241954e-23, 'EclipticLatitude': 1.4600819824490758, 'EclipticLongitude': -1.4867428828144233, 'Frequency': 0.003994018890486554, 'FrequencyDerivative': 7.27066897106673e-17, 'Inclination': 2.068581292366034, 'InitialPhase': 5.335276341634204, 'Polarization': 1.7887059369037583}, {'Amplitude': 8.432124140961827e-23, 'EclipticLatitude': -0.18573110882718108, 'EclipticLongitude': 1.060882704635124, 'Frequency': 0.003995717179439931, 'FrequencyDerivative': 9.61652656496001e-14, 'Inclination': 1.3580547994571575, 'InitialPhase': 6.14128922422039, 'Polarization': 2.905461713580476},{'Amplitude': 1.6069668047950477e-23, 'EclipticLatitude': 0.695553972366851, 'EclipticLongitude': -2.2813168281189378, 'Frequency': 0.003995209132034196, 'FrequencyDerivative': 1e-13, 'Inclination': 1.5806174383653766, 'InitialPhase': 5.691666472290874, 'Polarization': 0.03247000597996169}]
+# found_sources = [{'Amplitude': 3.960763861925662e-22, 'EclipticLatitude': 0.87082501612068, 'EclipticLongitude': 0.4865306596743239, 'Frequency': 0.003995221147594301, 'FrequencyDerivative': 1.0550882754170559e-16, 'Inclination': 1.0014118629031084, 'InitialPhase': 2.3101731093466102, 'Polarization': 2.6552029377086903}, {'Amplitude': 1.2557721986337792e-22, 'EclipticLatitude': -1.186159654973634, 'EclipticLongitude': -2.6819160691010735, 'Frequency': 0.00399461981336803, 'FrequencyDerivative': 1.0037720328610126e-16, 'Inclination': 1.9047524347599567, 'InitialPhase': 2.434749861107631, 'Polarization': 2.526440577068304}, {'Amplitude': 2.3049589958174292e-23, 'EclipticLatitude': -0.11985084854915119, 'EclipticLongitude': -1.465346904354099, 'Frequency': 0.00399537915885506, 'FrequencyDerivative': 1.0682357470038055e-16, 'Inclination': 1.0107536282956504, 'InitialPhase': 2.2241909841352405, 'Polarization': 2.1471839347098385}, {'Amplitude': 2.7831892808451777e-23, 'EclipticLatitude': 0.16333318203734196, 'EclipticLongitude': 1.5720208015057582, 'Frequency': 0.003994998432218014, 'FrequencyDerivative': 1.2521477898223552e-16, 'Inclination': 1.9435027987144409, 'InitialPhase': 5.402174068645186, 'Polarization': 2.077720898308443}, {'Amplitude': 1.1025488670938274e-23, 'EclipticLatitude': 1.1673600818167074, 'EclipticLongitude': 0.057088882641640915, 'Frequency': 0.003994055648329161, 'FrequencyDerivative': 5.811149163003285e-19, 'Inclination': 3.141592653589793, 'InitialPhase': 4.011764949371346, 'Polarization': 0.6149910828045372}, {'Amplitude': 1.8296715009558222e-23, 'EclipticLatitude': 1.4763765365636556, 'EclipticLongitude': -1.4936674770977738, 'Frequency': 0.0039940143831784704, 'FrequencyDerivative': 2.1978625263064225e-16, 'Inclination': 1.829917463042957, 'InitialPhase': 4.894312836190836, 'Polarization': 1.891773422360853}, {'Amplitude': 1.0951489778321648e-23, 'EclipticLatitude': -1.1620567772915402, 'EclipticLongitude': 2.208658684486738, 'Frequency': 0.003994365782934417, 'FrequencyDerivative': 9.398702356575727e-14, 'Inclination': 0.8912620469775321, 'InitialPhase': 1.1248245768258496, 'Polarization': 0.33861953048977755}, {'Amplitude': 1.479345603740554e-23, 'EclipticLatitude': -0.8110628214488717, 'EclipticLongitude': -1.9835724175601763, 'Frequency': 0.00399405689262681, 'FrequencyDerivative': 1.135000009580916e-20, 'Inclination': 1.736437404437111, 'InitialPhase': 5.777394508225548, 'Polarization': 2.0847997431184604}]
+# slice and dice with outsiders
+# found_sources = [{'Amplitude': 3.96289718306154e-22, 'EclipticLatitude': 0.8708928120472197, 'EclipticLongitude': 0.48665946453175035, 'Frequency': 0.003995221254538698, 'FrequencyDerivative': 1.0269904779836001e-16, 'Inclination': 1.001973215647365, 'InitialPhase': 2.319958680868902, 'Polarization': 2.654537339387363}, {'Amplitude': 1.2619710443797457e-22, 'EclipticLatitude': -1.1856184090524093, 'EclipticLongitude': -2.683104698487379, 'Frequency': 0.0039946203259605215, 'FrequencyDerivative': 8.553014677510986e-17, 'Inclination': 1.9015560309268713, 'InitialPhase': 2.483133469961604, 'Polarization': 2.5270559934483035}, {'Amplitude': 2.864376702953742e-23, 'EclipticLatitude': 0.1630042875267411, 'EclipticLongitude': 1.5724345857890278, 'Frequency': 0.003994998564933117, 'FrequencyDerivative': 1.1941881242605984e-16, 'Inclination': 1.9322708810269942, 'InitialPhase': 2.250537209576398, 'Polarization': 0.5092726324336495}, {'Amplitude': 2.3687747804856843e-23, 'EclipticLatitude': 1.459302793276365, 'EclipticLongitude': -1.5544211392843303, 'Frequency': 0.003994021200055487, 'FrequencyDerivative': 4.4173057035466856e-18, 'Inclination': 1.9986779156687422, 'InitialPhase': 5.8398053449499185, 'Polarization': 1.524542363540894}, {'Amplitude': 1.0997731423376216e-23, 'EclipticLatitude': 1.1094981126424124, 'EclipticLongitude': -0.9623293571222385, 'Frequency': 0.003995160830733279, 'FrequencyDerivative': 3.482976053683434e-14, 'Inclination': 1.697683986561341, 'InitialPhase': 3.8252099672398296, 'Polarization': 2.142227458770483}, {'Amplitude': 5.0625386251849795e-22, 'EclipticLatitude': -0.23503441908984832, 'EclipticLongitude': 1.6361307415835924, 'Frequency': 0.003995994570650909, 'FrequencyDerivative': 3.5099578525260406e-14, 'Inclination': 1.3398146930752173, 'InitialPhase': 1.8213670084595, 'Polarization': 0.47617840650086124}, {'Amplitude': 2.4539601480458732e-23, 'EclipticLatitude': -0.05780570833613541, 'EclipticLongitude': -1.4596419484178105, 'Frequency': 0.003995378959176098, 'FrequencyDerivative': 1.0846895889086299e-16, 'Inclination': 1.0768336533465692, 'InitialPhase': 2.3677586761599523, 'Polarization': 2.2248720169531526}, {'Amplitude': 1.6597338193344268e-23, 'EclipticLatitude': -1.2835634078448852, 'EclipticLongitude': -2.956056071255409, 'Frequency': 0.003994054152190724, 'FrequencyDerivative': 2.0361138761171463e-16, 'Inclination': 1.3622526771807204, 'InitialPhase': 5.649426320028763, 'Polarization': 2.204871630524406}, {'Amplitude': 4.864426062085493e-23, 'EclipticLatitude': -0.9620890981246751, 'EclipticLongitude': -2.4125645239308144, 'Frequency': 0.003995102747038606, 'FrequencyDerivative': 9.999999999826903e-14, 'Inclination': 1.794724968706271, 'InitialPhase': 0.6474549451054277, 'Polarization': 2.443162184273923}]
+# found_sources = found_sources[:-1]
 
 # plt.figure(figsize=fig_size)
 # plt.plot(range(len(energies)),-energies, marker = 'o', markersize = 3, label='search')
@@ -1729,8 +1821,8 @@ found_sources = [{'Amplitude': 4.079729023951356e-22, 'EclipticLatitude': 0.8720
 # plt.show()
 
 
-tdi_fs_long_subtracted = deepcopy(tdi_fs_long)
-tdi_fs_subtracted = deepcopy(tdi_fs)
+# tdi_fs_long_subtracted = deepcopy(tdi_fs_long)
+# tdi_fs_subtracted = deepcopy(tdi_fs)
 reduction = 1
 Tobs = float(int(p.get("ObservationDuration")/reduction))
 # Build timeseries and frequencyseries object for X,Y,Z
@@ -1763,8 +1855,6 @@ for i in range(len(found_sources)):
         found_sources_in.append(found_sources[i])
     else:
         found_sources_out.append(found_sources[i])
-
-
 for i in range(len(found_sources_out)):
     Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_out[i], oversample=4, simulator="synthlisa")
     source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
@@ -1786,9 +1876,9 @@ amplitudes_length = np.log10(total_boundaries['Amplitude'][1]) - np.log10(total_
 total_boundaries['Amplitude'] = [np.log10(total_boundaries['Amplitude'][0]) - amplitudes_length/5, np.log10(total_boundaries['Amplitude'][1]) + amplitudes_length/5]
 
 
-number_of_signals = len(found_sources_in)
+number_of_signals_optimize = len(found_sources_in)
 start = time.time()
-maxpGBsearch, pGB = search1.optimize([found_sources_in[:number_of_signals]], boundaries= total_boundaries)
+maxpGBsearch, pGB = search1.optimize([found_sources_in], boundaries= total_boundaries)
 print(time.time()-start)
 # start = time.time()
 # maxpGBsearch, pGB = search1.differential_evolution_search(search1.boundaries['Frequency'], initial_guess=found_sources[:number_of_signals])
@@ -1839,22 +1929,31 @@ range_index = np.logical_and(tdi_fs.f > lower_frequency-padding, tdi_fs.f < uppe
 prop_cycle = plt.rcParams['axes.prop_cycle']
 colors = prop_cycle.by_key()['color']
 
-plt.figure(figsize=fig_size)
+fig = plt.figure(figsize=fig_size)
 ax1 = plt.subplot(111)
 for i in range(len(found_sources)):
-    Xs, Ys, Zs = GB.get_fd_tdixyz(template= found_sources[i], oversample=4, simulator="synthlisa")
-    ax1.semilogy(found_sources[i]['Frequency']*10**3,found_sources[i]['Amplitude'], color = colors[i], marker = 'o', markersize = 5)
+    if i == 0:
+        ax1.semilogy(found_sources[i]['Frequency']*10**3,found_sources[i]['Amplitude'], color = colors[i], marker = 'o', markersize = 5, label= 'initial guess')
+    else:
+        ax1.semilogy(found_sources[i]['Frequency']*10**3,found_sources[i]['Amplitude'], color = colors[i], marker = 'o', markersize = 5)
 for i in range(len(maxpGBsearch)):
-    Xs, Ys, Zs = GB.get_fd_tdixyz(template= maxpGBsearch[i], oversample=4, simulator="synthlisa")
-    ax1.semilogy(maxpGBsearch[i]['Frequency']*10**3,maxpGBsearch[i]['Amplitude'], color = colors[i], marker = '+', markersize = 8)
-for i in range(len(pGB_injected)):    
-    ax1.semilogy(pGB_injected[i]['Frequency']*10**3,pGB_injected[i]['Amplitude'],color='grey', marker = 'o', markersize = 8, zorder=1)
+    if i == 0:
+        ax1.semilogy(maxpGBsearch[i]['Frequency']*10**3,maxpGBsearch[i]['Amplitude'], color = colors[i], marker = '+', markersize = 8, label= 'global fit')
+    else:
+        ax1.semilogy(maxpGBsearch[i]['Frequency']*10**3,maxpGBsearch[i]['Amplitude'], color = colors[i], marker = '+', markersize = 8)
+for i in range(len(pGB_injected)):   
+    if i == 0: 
+        ax1.semilogy(pGB_injected[i]['Frequency']*10**3,pGB_injected[i]['Amplitude'],color='grey', marker = 'o', markersize = 8, zorder=1, label= 'true')
+    else:
+        ax1.semilogy(pGB_injected[i]['Frequency']*10**3,pGB_injected[i]['Amplitude'],color='grey', marker = 'o', markersize = 8, zorder=1)
 ax1.axvline(10**3*(search1.boundaries['Frequency'][0]+padding), color= 'red', label='Boundaries')
 ax1.axvline(10**3*(search1.boundaries['Frequency'][1]-padding), color= 'red')
 plt.xlim((lower_frequency-padding)*10**3, (upper_frequency+padding)*10**3)
 ax1.xaxis.set_major_locator(plt.MaxNLocator(4))
 plt.xlabel('f [mHz]')
 plt.ylabel('A')
+plt.legend(loc='upper right')
+fig.savefig('/home/stefan/LDC/LDC/pictures/global fit amplitude frequency2.png',dpi=300,bbox_inches='tight')
 plt.show()
 
 plt.figure(figsize=fig_size)
@@ -1906,7 +2005,7 @@ boundaries_reduced = Reduce_boundaries(maxpGB, boundaries,ratio=0.1)
 
 search1.plot(pGBadded=maxpGB, added_label='MLE')
 
-plt.figure(figsize=fig_size)
+fig = plt.figure(figsize=fig_size)
 ax1 = plt.subplot(111)
 ax1.semilogy(tdi_fs.f[range_index]*10**3,np.abs(tdi_fs['X'][range_index])**2,'k',zorder= 5)
 # ax1.semilogy(tdi_fs_long_subtracted.f[range_index],np.abs(tdi_fs_long_subtracted['X'][range_index])**2,'b',zorder= 5)
@@ -1926,6 +2025,7 @@ ax1.xaxis.set_major_locator(plt.MaxNLocator(4))
 # plt.legend()
 plt.xlabel('f [mHz]')
 plt.ylabel('|X|')
+fig.savefig('/home/stefan/LDC/LDC/pictures/global fit strain2.png',dpi=300,bbox_inches='tight')
 plt.show()
 
 # plt.figure(figsize=fig_size)
