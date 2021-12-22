@@ -1332,7 +1332,7 @@ parameters = [
 DATAPATH = "/home/stefan/LDC/Radler/data"
 # sangria_fn = DATAPATH + "/dgb-tdi.h5"
 sangria_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
-sangria_fn = DATAPATH + "/LDC1-4_GB_v2.hdf5"
+# sangria_fn = DATAPATH + "/LDC1-4_GB_v2.hdf5"
 # sangria_fn = DATAPATH + "/LDC1-3_VGB_v2_FD_noiseless.hdf5"
 FD5 = LISAhdf5(sangria_fn)
 Nsrc = FD5.getSourcesNum()
@@ -1405,8 +1405,8 @@ upper_frequency = 1.254*10**-3
 # upper_frequency = 6.221*10**-3
 # lower_frequency = 1.104*10**-3
 # upper_frequency = 1.105*10**-3
-lower_frequency = 0.0039945
-upper_frequency = 0.0039955
+# lower_frequency = 0.0039945
+# upper_frequency = 0.0039955
 # lower_frequency = 0.0039955
 # upper_frequency = 0.0039965
 # lower_frequency = 0.0039965
@@ -1493,7 +1493,7 @@ previous_found_sources = [{'Amplitude': 4.084935966774485e-22, 'EclipticLatitude
 current_SNR = 100
 ind = 0
 
-while current_SNR > 10 and ind < 10:
+while current_SNR > 10 and ind < 1:
     ind += 1
 
     # indexes = np.logical_and(f[peaks]>10**-4, f[peaks]<2*10**-2)
@@ -1775,7 +1775,7 @@ while current_SNR > 10 and ind < 10:
 # maxpGBsearch = [[{'Amplitude': 5.79066183343146e-23, 'EclipticLatitude': -0.0878417628451765, 'EclipticLongitude': 2.102946967840941, 'Frequency': 0.006220280042028942, 'FrequencyDerivative': 7.503066211114356e-16, 'Inclination': 0.4881731730267816, 'InitialPhase': 0.7708964347916855, 'Polarization': 1.703361386089743}]]
 # maxpGBsearch = [[{'Amplitude': 2.1769714187643506e-22, 'EclipticLatitude': -0.5274539110096076, 'EclipticLongitude': -2.538643237956386, 'Frequency': 0.001253130102785549, 'FrequencyDerivative': 1.540240386132294e-18, 'Inclination': 0.9727231980521276, 'InitialPhase': 0.8034948714833561, 'Polarization': 1.3059518704908937}]]
 # maxpGBsearch = [[{'Amplitude': 3.4354064952566296e-22, 'EclipticLatitude': -0.5620249399525753, 'EclipticLongitude': -2.5410710550204922, 'Frequency': 0.0012531297336659981, 'FrequencyDerivative': 1.1347668907852654e-17, 'Inclination': 1.300864172138984, 'InitialPhase': 1.6801339406921025, 'Polarization': 1.7829668872856153}]]
-# maxpGBsearch = [[{'Amplitude': 2.1806906125113854e-22, 'EclipticLatitude': -0.5283216519943494, 'EclipticLongitude': -2.5390590647151567, 'Frequency': 0.0012531301743037816, 'FrequencyDerivative': 1.5344145457167598e-20, 'Inclination': 0.9737610507888282, 'InitialPhase': 3.963309240828965, 'Polarization': 2.8821924743499507}]]
+maxpGBsearch = [[{'Amplitude': 2.1806906125113854e-22, 'EclipticLatitude': -0.5283216519943494, 'EclipticLongitude': -2.5390590647151567, 'Frequency': 0.0012531301743037816, 'FrequencyDerivative': 1.5344145457167598e-20, 'Inclination': 0.9737610507888282, 'InitialPhase': 3.963309240828965, 'Polarization': 2.8821924743499507}]]
 # two signals
 # maxpGBsearch = [[{'Amplitude': 5.650971275229933e-23, 'EclipticLatitude': -0.11623084966211612, 'EclipticLongitude': 2.1020434784406845, 'Frequency': 0.006220280231371811, 'FrequencyDerivative': 7.4488630026342e-16, 'Inclination': 0.3354188141532851, 'InitialPhase': 0.24642299320918085, 'Polarization': 1.3910468453167297}]]
 # simultaneous
@@ -1997,14 +1997,7 @@ plt.show()
 # maxpGB = target_sources[0]
 # if maxpGB['EclipticLongitude'] > np.pi:
 #     maxpGB['EclipticLongitude'] -= 2*np.pi
-maxpGB = maxpGBsearch[0]
-# for i in range(len(p.get('Amplitude')[indexes][index_low:index_high])):
-#     pGB_small = {}
-#     for parameter in parameters:
-#         pGB_small[parameter] = p.get(parameter)[indexes][index_low:index_high][i]
-# pGB = {'Amplitude': 3.971727e-22, 'EclipticLatitude': 0.870896, 'EclipticLongitude': 0.486536, 'Frequency': 0.003995221, 'FrequencyDerivative': 1.106162e-16, 'Inclination': 1.009082, 'InitialPhase': 5.44632, 'Polarization': 4.229721}
-# pGB = {'Amplitude': 1.248193e-22, 'EclipticLatitude': -1.185356, 'EclipticLongitude': 3.593803, 'Frequency': 0.003994621, 'FrequencyDerivative': 6.709408e-17, 'Inclination': 1.906596, 'InitialPhase': 5.663538, 'Polarization': 0.96414}
-# maxpGB = deepcopy(pGB)
+maxpGB = maxpGBsearch[0][0]
 search1 = Search(tdi_fs,Tobs)
 pGB = search1.pGB
 # maxpGB, pGB =  search1.optimize([[maxpGB]])
@@ -2039,7 +2032,7 @@ ax1.xaxis.set_major_locator(plt.MaxNLocator(4))
 # plt.legend()
 plt.xlabel('f [mHz]')
 plt.ylabel('|X|')
-fig.savefig('/home/stefan/LDC/LDC/pictures/global fit strain 3,9945-3,9955 mHz2.png',dpi=300,bbox_inches='tight')
+# fig.savefig('/home/stefan/LDC/LDC/pictures/global fit strain 3,9945-3,9955 mHz2.png',dpi=300,bbox_inches='tight')
 plt.show()
 
 # plt.figure(figsize=fig_size)
@@ -2753,7 +2746,7 @@ for round in range(2):
         numPoints = 2**6+1
     if round == 2:
         resolution = 1*10**6
-        numPoints = 2**7+1
+        numPoints = 2**6+1
     test_x_m = np.zeros((resolution,len(parameters)))
     ax = np.linspace(-0.15,1.15,numPoints)
     mypdf,axes = fastKDE.pdf(mcmc_samples[:,1],mcmc_samples[:,2], axes=[ax,ax])
