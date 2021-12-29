@@ -268,9 +268,47 @@ class Search():
         psd = psdX + psdY + psdZ
         indexes = np.logical_and(f>lower_frequency-padding, f<upper_frequency+padding)
         psd = psd[indexes]
+        
+        # plt.figure()
+        # plt.plot(f[indexes], psdX[indexes])
+        # plt.plot(f[indexes], psd)
+        # plt.show()
 
-        amplitude = np.sqrt(np.max(psd))
         frequencyrange =  [lower_frequency-padding, upper_frequency+padding]
+        indexes = np.logical_and(tdi_fs['X'].f > frequencyrange[0], tdi_fs['X'].f < frequencyrange[1]) 
+        self.dataX = tdi_fs["X"][indexes]
+        self.dataY = tdi_fs["Y"][indexes]
+        self.dataZ = tdi_fs["Z"][indexes]
+
+        self.DAf = (self.dataZ - self.dataX)/np.sqrt(2.0)
+        self.DEf = (self.dataZ - 2.0*self.dataY + self.dataX)/np.sqrt(6.0)
+
+        # plt.figure()
+        # plt.plot(f[indexes], np.abs(self.DAf))
+        # plt.plot(f[indexes], np.abs(self.DEf))
+        # plt.plot(f[indexes], np.abs(self.DAf)+np.abs(self.DEf))
+        # plt.show()
+
+        fmin, fmax = float(self.dataX.f[0]), float(self.dataX.f[-1] + self.dataX.attrs["df"])
+        freq = np.array(self.dataX.sel(f=slice(fmin, fmax)).f)
+        Nmodel = get_noise_model(noise_model, freq)
+        self.Sn = Nmodel.psd(freq=freq, option="X")
+        self.SA = Nmodel.psd(freq=freq, option="A")
+        self.SE = Nmodel.psd(freq=freq, option="E")
+
+        f_0 = fmin
+        f_transfer = 19.1*10**-3
+        snr = 7
+        amplitude_lower = 2*snr/(Tobs * np.sin(f_0/ f_transfer)/self.SA[0])**0.5
+        snr = 2000
+        amplitude_upper = 2*snr/(Tobs * np.sin(f_0/ f_transfer)/self.SA[0])**0.5
+        amplitude = [amplitude_lower, amplitude_upper]
+        print('lower frequency', lower_frequency)
+        print('amplitude boundaries', amplitude)
+        print('amplitude boundaries previous', np.sqrt(np.max(psd))/1000,np.sqrt(np.max(psd))/10)
+        print('amplitude boundaries previous', np.max(np.abs(self.DAf.data))/10**7,np.max(np.abs(self.DAf.data))/10**5)
+        # amplitude = np.sqrt(np.max(psd))
+
         # indexes = np.argsort(p.get('Frequency'))
         # index_low = np.searchsorted(p.get('Frequency')[indexes], frequencyrange[0])
         # index_high = np.searchsorted(p.get('Frequency')[indexes], frequencyrange[1])
@@ -280,7 +318,7 @@ class Search():
         
 
         self.boundaries = {
-            "Amplitude": [np.log10(amplitude)-3,np.log10(amplitude)-1],
+            "Amplitude": [np.log10(amplitude[0]),np.log10(amplitude[1])],
             # "Amplitude": [-23.5,-21],
             # "Amplitude": [np.log10(self.pGB['Amplitude'])-2,np.log10(self.pGB['Amplitude'])+1],
             "EclipticLatitude": [-1.0, 1.0],
@@ -328,13 +366,7 @@ class Search():
         # self.dataX = tdi_fs["X"].isel(f=slice(Xs.kmin, Xs.kmin + len(Xs)))[lowerindex:higherindex]
         # self.dataY = tdi_fs["Y"].isel(f=slice(Ys.kmin, Ys.kmin + len(Ys)))[lowerindex:higherindex]
         # self.dataZ = tdi_fs["Z"].isel(f=slice(Zs.kmin, Zs.kmin + len(Zs)))[lowerindex:higherindex]
-        indexes = np.logical_and(tdi_fs['X'].f > frequencyrange[0], tdi_fs['X'].f < frequencyrange[1]) 
-        self.dataX = tdi_fs["X"][indexes]
-        self.dataY = tdi_fs["Y"][indexes]
-        self.dataZ = tdi_fs["Z"][indexes]
 
-        self.DAf = (self.dataZ - self.dataX)/np.sqrt(2.0)
-        self.DEf = (self.dataZ - 2.0*self.dataY + self.dataX)/np.sqrt(6.0)
         # self.DAf = (2/3*self.dataX - self.dataY - self.dataZ)/3.0
         # self.DEf = (self.dataZ - self.dataY)/np.sqrt(3.0)
 
@@ -343,15 +375,7 @@ class Search():
         #     Ys[lowerindex:higherindex],
         #     Zs[lowerindex:higherindex],
         # )
-        spd_data = np.abs(self.dataX) ** 2 + np.abs(self.dataY) ** 2 + np.abs(self.dataZ) ** 2
-        noise = (np.mean(spd_data[:2]) + np.mean(spd_data[-2:])).values / 2
-        noise = 0  # (np.mean(spd_data).values)/2
-        fmin, fmax = float(self.dataX.f[0]), float(self.dataX.f[-1] + self.dataX.attrs["df"])
-        freq = np.array(self.dataX.sel(f=slice(fmin, fmax)).f)
-        Nmodel = get_noise_model(noise_model, freq)
-        self.Sn = Nmodel.psd(freq=freq, option="X")
-        self.SA = Nmodel.psd(freq=freq, option="A")
-        self.SE = Nmodel.psd(freq=freq, option="E")
+
         # diff = np.abs(self.dataX - Xs.values) ** 2 + np.abs(self.dataY - Ys.values) ** 2 + np.abs(self.dataZ - Zs.values) ** 2
         # p1 = float(np.sum(diff / (self.Sn + noise)) * Xs.df) / 2.0
         # p1 = -p1
@@ -1084,11 +1108,33 @@ ind = 0
 found_sources = []
 target_sources = []
 first_start = time.time()
-np.random.seed(40) #40
+np.random.seed(42) #40
 # for ind in range(1,len(p.get('Frequency'))):
 number_of_signals = 1
 signals_per_subtraction = 1
 
+
+snr_peak = 10
+def snr_prior(snr):
+    return 3*snr/(4*snr_peak**2*(1+snr/(4*snr_peak))**5)
+snr = np.linspace(0,200,1000)
+# plt.figure()
+# plt.plot(snr, snr_prior(snr))
+# plt.show()
+
+def transform_uniform_to_snr_prior(x, c):
+    return -2 * np.sqrt(2) * np.sqrt((c**6*x - np.sqrt(c**12* x**3 + c**12 * x**2))**(1/3)/x - c**4/(c**6 *x - np.sqrt(c**12 *x**3 + c**12* x**2))**(1/3)) - 1/2* np.sqrt(-1*(32 *(c**6 *x - np.sqrt(c**12 *x**3 + c**12* x**2))**(1/3))/x + (32* c**4)/(c**6 *x - np.sqrt(c**12* x**3 + c**12 *x**2))**(1/3) - (2048* c**3 - (2048 *(c**3 *x + c**3))/x)/(16 *np.sqrt(2) * np.sqrt((c**6* x - np.sqrt(c**12* x**3 + c**12* x**2))**(1/3)/x - c**4/(c**6 *x - np.sqrt(c**12* x**3 + c**12 *x**2))**(1/3)))) - 4 * c
+
+
+import scipy.stats as st
+
+class my_pdf(st.rv_continuous):
+    def _pdf(self,x):
+        return 3*x/(4*snr_peak**2*(1+x/(4*snr_peak))**5)  # Normalized over its range, in this case [0,1]
+
+my_cv = my_pdf(a=0, b=10000, name='my_pdf')
+my_cv.pdf(1)
+my_cv.rvs(size= 100)
 
 
 class MLP_search():
@@ -1149,7 +1195,7 @@ class MLP_search():
                     current_SNR = deepcopy(new_SNR)
                     maxpGBsearch = deepcopy(maxpGBsearch_new)
                 print('current SNR', current_SNR)
-                if current_SNR < 10:
+                if current_SNR < 9:
                     break
 
             if current_SNR < 10:
@@ -1218,7 +1264,7 @@ upper_frequency2 = 0.0039975
 
 padding = 0.5e-6
 
-# LDC1-3
+# LDC1-3 ##########################################
 target_frequencies = p.get('Frequency')
 frequencies = []
 window_length = 10**-6 # Hz
@@ -1226,10 +1272,8 @@ for i in range(len(target_frequencies)):
     window_shift = ((np.random.random(1)-0.5)*window_length*0.5)[0]
     frequencies.append([target_frequencies[i]-window_length/2+window_shift,target_frequencies[i]+window_length/2+window_shift])
 number_of_windows = len(target_frequencies)
-
 MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1)
 # found_sources = MLP.search(frequencies[0][0], frequencies[0][1])
-
 start = time.time()
 pool = mp.Pool(mp.cpu_count())
 found_sources_mp= pool.starmap(MLP.search, frequencies)
@@ -1238,7 +1282,7 @@ pool.join()
 print('time to search ', number_of_windows, 'windows: ', time.time()-start)
 
 
-# LDC1-4
+# LDC1-4 #####################################
 # frequencies = []
 # frequencies_even = []
 # frequencies_odd = []
@@ -1296,7 +1340,7 @@ print('time to search ', number_of_windows, 'windows: ', time.time()-start)
 #         pGB_injected_window.append(pGBs)
 #     pGB_injected.append(pGB_injected_window)
 
-# #plot strains
+# # #plot strains
 # for i in range(len(found_sources_mp_even)):
 #     lower_frequency = frequencies_even[i][0]
 #     upper_frequency = frequencies_even[i][1]
@@ -1317,8 +1361,8 @@ print('time to search ', number_of_windows, 'windows: ', time.time()-start)
 #         a,Xs = xr.align(dataX, Xs, join='left',fill_value=0)
 #         ax1.semilogy(Xs.f*10**3,np.abs(Xs)**2,label= str(np.round(pGB_injected[i][j]['Frequency'],0)), color='grey', linewidth = 3)
 
-#     for j in range(len(found_sources_in[i])):
-#         Xs, Ys, Zs = GB.get_fd_tdixyz(template= found_sources_in[i][j], oversample=4, simulator="synthlisa")
+#     for j in range(len(found_sources_mp_in[i])):
+#         Xs, Ys, Zs = GB.get_fd_tdixyz(template= found_sources_mp_in[i][j], oversample=4, simulator="synthlisa")
 #         ax1.semilogy(Xs.f*10**3,np.abs(Xs)**2,'--', color= colors[j], linewidth = 1.8)
 #     # Xs, Ys, Zs = GB.get_fd_tdixyz(template= found_sources_mp2[i][0], oversample=4, simulator="synthlisa")
 #     # ax1.semilogy(Xs.f*10**3,np.abs(Xs)**2,'-', color= colors[i], linewidth = 1.8)
@@ -1331,8 +1375,8 @@ print('time to search ', number_of_windows, 'windows: ', time.time()-start)
 #     # plt.legend()
 #     plt.xlabel('f [mHz]')
 #     plt.ylabel('|X|')
-#     # fig.savefig('/home/stefan/LDC/LDC/pictures/fit strain '+ str(pGB_injected[i][0]['Frequency']) +'.png',dpi=300,bbox_inches='tight')
-# plt.show()  
+#     fig.savefig('/home/stefan/LDC/LDC/pictures/strain first 3 '+ str(pGB_injected[i][0]['Frequency']*1000) +'.png',dpi=300,bbox_inches='tight')
+# # plt.show()  
 
 # MLP = MLP_search(tdi_fs_subtracted, Tobs, signals_per_window = 10)
 # start = time.time()
@@ -1379,6 +1423,8 @@ print('time to search ', number_of_windows, 'windows: ', time.time()-start)
 #         found_sources_mp.append(found_sources_mp_even[ind])
 #     else:
 #         found_sources_mp.append(found_sources_mp_odd[ind])
+
+
 
 # np.random.seed(42)
 # start = time.time()
@@ -1455,7 +1501,7 @@ for i in range(len(found_sources_mp)):
     # plt.legend()
     plt.xlabel('f [mHz]')
     plt.ylabel('|X|')
-    # fig.savefig('/home/stefan/LDC/LDC/pictures/fit strain '+ str(pGB_injected[i][0]['Frequency']) +'.png',dpi=300,bbox_inches='tight')
+    fig.savefig('/home/stefan/LDC/LDC/pictures/strain final LDC1-3'+ str(pGB_injected[i][0]['Frequency']*1000) +'.png',dpi=300,bbox_inches='tight')
 plt.show()
 
 # found_sources_mp = [[{'Amplitude': 1.5472707659844358e-22, 'EclipticLatitude': 0.3239131241698293, 'EclipticLongitude': -2.7550743649206386, 'Frequency': 0.0013596198589500806, 'FrequencyDerivative': 6.760619501138522e-18, 'Inclination': 0.9617263677786225, 'InitialPhase': 0.8816156199962063, 'Polarization': 2.4981058468684956}]]
@@ -1759,7 +1805,7 @@ class Posterior_computer():
                         Line2D([0], [0], color='g', ls='-',lw=2, label='Found Parameters')]
         axes[0,3].legend(handles=legend_elements, loc='upper left')
         if save_bool:
-            # fig.savefig('/home/stefan/LDC/LDC/pictures/corner_frequency'+ str(pGB['Frequency']*1000) +'second.png',dpi=300,bbox_inches='tight')
+            fig.savefig('/home/stefan/LDC/LDC/pictures/corner_frequency'+ str(pGB['Frequency']*1000) +'third.png',dpi=300,bbox_inches='tight')
         plt.show()
 
 
@@ -1778,6 +1824,7 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true):
     posterior1.plot_corner(mcmc_samples, pGB_true, save_bool= True)
     return mcmc_samples
 
+# LDC1-3 ######################
 start = time.time()
 number_of_total_signals = 0
 for i in range(len(found_sources_in)):
@@ -1786,7 +1833,7 @@ for i in range(len(found_sources_in)):
         number_of_total_signals += 1
 print('time to calculate posterior for ', number_of_total_signals, 'signals: ', time.time()-start)
 
-
+# LDC1-4 ####################
 for i in range(len(found_sources_in)):
     for j in range(len(found_sources_in[i])):
         #subtract the found sources of neighbours and own window from original except the signal itselfe
@@ -1810,13 +1857,13 @@ for i in range(len(found_sources_in)):
         mcmc_samples = compute_posterior(tdi_fs_subtracted, Tobs, frequencies[i], found_sources_in[i][j], pGB_injected[i][j])
 
 
-compute_posterior_input = [[tdi_fs, Tobs, frequencies[1], found_sources_in[1][0]]]
-start = time.time()
-pool = mp.Pool(mp.cpu_count())
-found_sources_mp= pool.starmap(compute_posterior, compute_posterior_input)
-pool.close()
-pool.join()
-print('time to search ', number_of_windows, 'windows: ', time.time()-start)
+# compute_posterior_input = [[tdi_fs, Tobs, frequencies[1], found_sources_in[1][0]]]
+# start = time.time()
+# pool = mp.Pool(mp.cpu_count())
+# found_sources_mp= pool.starmap(compute_posterior, compute_posterior_input)
+# pool.close()
+# pool.join()
+# print('time to search ', number_of_windows, 'windows: ', time.time()-start)
 
 
 start = time.time()

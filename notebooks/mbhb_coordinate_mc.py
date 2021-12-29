@@ -142,17 +142,17 @@ sangria_fn = DATAPATH+"/dMBHB-tdi.h5"
 # sangria_fn = DATAPATH+"/LDC2_sangria_blind_v1.h5"
 # sangria_fn = DATAPATH+"/LDC2_sangria_gdb-tdi_v1_v3U3MxS.h5"
 # sangria_fn = DATAPATH+"/LDC2_sangria_idb-tdi_v1_DgtGV85.h5"
-# sangria_fn = DATAPATH+"/LDC2_sangria_mbhb-tdi_v1_MN5aIPz.h5"
-sangria_fn = DATAPATH+"/LDC2_sangria_training_v1.h5"
-tdi_ts, tdi_descr = hdfio.load_array(sangria_fn, name="obs/tdi")
+sangria_fn = DATAPATH+"/LDC2_sangria_mbhb-tdi_v1_MN5aIPz.h5"
+# sangria_fn = DATAPATH+"/LDC2_sangria_training_v1.h5"
+# tdi_ts, tdi_descr = hdfio.load_array(sangria_fn, name="obs/tdi")
 # sangria_fn = DATAPATH+"/LDC2_sangria_vMBHB-tdi_v1_sgsEVXb.h5"
-# tdi_ts, tdi_descr = hdfio.load_array(sangria_fn)
-sangria_fn_training = DATAPATH+"/LDC2_sangria_training_v1.h5"
+tdi_ts, tdi_descr = hdfio.load_array(sangria_fn)
+sangria_fn = DATAPATH+"/LDC2_sangria_training_v1.h5"
 dt = int(1/(tdi_descr["sampling_frequency"]))
 
 # Build timeseries and frequencyseries object for X,Y,Z
-tdi_ts = xr.Dataset(dict([(k,TimeSeries(tdi_ts[k], dt=dt)) for k in ["X", "Y", "Z"]]))
-# tdi_ts = xr.Dataset(dict([(k,TimeSeries(tdi_ts[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
+# tdi_ts = xr.Dataset(dict([(k,TimeSeries(tdi_ts[k], dt=dt)) for k in ["X", "Y", "Z"]]))
+tdi_ts = xr.Dataset(dict([(k,TimeSeries(tdi_ts[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
 tdi_fs = xr.Dataset(dict([(k,tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 
 noise_model = "MRDv1"
@@ -218,7 +218,8 @@ def changeparameterstoinput(pMBHB01, boundaries):
     # pMBHBnew['Distance'] = 10**pMBHB01['Distance']
     # v = hubbleconstant*(10**3*pMBHBnew['Distance'])
     # pMBHBnew['Redshift'] = np.sqrt((1+v/speedoflight)/(1-v/speedoflight)) - 1
-    return pMBHBnew    
+    return pMBHBnew   
+
 def inputto01(pMBHB, boundaries):
     pMBHB01 = {}
     Mc = funcMchirpofm1m2(pMBHB['Mass1'], pMBHB['Mass2'])
