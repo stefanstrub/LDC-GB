@@ -803,7 +803,7 @@ class Search():
         bounds = ()
         number_of_signals_optimize = len(pGBmodes[0])
         for signal in range(number_of_signals_optimize):
-            bounds += ((0,1),(0,1),(0,1),(0,1),(0,1),(0,1),(0,1),(0,1))
+            bounds += ((0,1),(0,1),(0,1),(0,1),(0,1),(-0.25,1.25),(0,1),(0,1))
         for i in range(len(pGBmodes)):
             maxpGB = []
             boundaries_reduced = []
@@ -868,7 +868,12 @@ class Search():
                 if parameter in ["EclipticLatitude"]:
                     pGBs[signal][parameter] = np.arcsin((pGBs01[signal*8:signal*8+8][i] * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0])
                 elif parameter in ["Inclination"]:
-                    pGBs[signal][parameter] = np.arccos((pGBs01[signal*8:signal*8+8][i] * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0])
+                    shifted_inclination = pGBs01[signal*8:signal*8+8][i]
+                    if pGBs01[signal*8:signal*8+8][i] < 0:
+                        shifted_inclination = pGBs01[signal*8:signal*8+8][i] + 1
+                    if pGBs01[signal*8:signal*8+8][i] > 1:
+                        shifted_inclination = pGBs01[signal*8:signal*8+8][i] - 1
+                    pGBs[signal][parameter] = np.arccos((shifted_inclination * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0])
                 elif parameter in ['Amplitude',"FrequencyDerivative"]:
                     pGBs[signal][parameter] = 10**((pGBs01[signal*8:signal*8+8][i] * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0])
                 else:
@@ -908,14 +913,15 @@ class Search():
         for i in range(5):
             for parameter in parameters:
                 if i == 0:
-                    step_size[parameter] = 1e-2
+                    step_size[parameter] = 1e-10
                     # if parameter == 'Frequency':
                     #     step_size[parameter] = 0.00001
                 else:
                     step_size[parameter] = 0.001/np.sqrt(inner_product[parameter][parameter])
                 
-                pGB_low = maxpGB01[parameter] - step_size[parameter]/2
-                pGB_high = maxpGB01[parameter] + step_size[parameter]/2
+                pGB_low = maxpGB01[parameter] #- step_size[parameter]/2
+                pGB_high = maxpGB01[parameter] + step_size[parameter]
+                # print(parameter, pGB_low, pGB_high)
                 if pGB_low < 0:
                     pGB_low = 0
                 if pGB_high > 1:
@@ -951,7 +957,7 @@ class Search():
                 for parameter2 in parameters:
                     AE = derivativeAf[parameter1]*np.conjugate(derivativeAf[parameter2]) + derivativeAf[parameter1]*np.conjugate(derivativeAf[parameter2])
                     inner_product[parameter1][parameter2] = 4*float(np.real(np.sum(AE / self.SA) * self.dataX.df))
-            print(step_size['Amplitude'],inner_product['Amplitude']['Amplitude'],step_size['Frequency'],inner_product['Frequency']['Frequency'])
+            # print(step_size['Amplitude'],inner_product['Amplitude']['Amplitude'],step_size['Frequency'],inner_product['Frequency']['Frequency'])
         return inner_product
 
 def objective(n,tdi_fs,Tobs):
@@ -1108,7 +1114,7 @@ ind = 0
 found_sources = []
 target_sources = []
 first_start = time.time()
-np.random.seed(42) #40
+np.random.seed(40) #40
 # for ind in range(1,len(p.get('Frequency'))):
 number_of_signals = 1
 signals_per_subtraction = 1
@@ -1273,14 +1279,14 @@ for i in range(len(target_frequencies)):
     frequencies.append([target_frequencies[i]-window_length/2+window_shift,target_frequencies[i]+window_length/2+window_shift])
 number_of_windows = len(target_frequencies)
 MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1)
-# found_sources = MLP.search(frequencies[0][0], frequencies[0][1])
-start = time.time()
-pool = mp.Pool(mp.cpu_count())
-found_sources_mp= pool.starmap(MLP.search, frequencies)
-pool.close()
-pool.join()
-print('time to search ', number_of_windows, 'windows: ', time.time()-start)
-
+# # found_sources = MLP.search(frequencies[0][0], frequencies[0][1])
+# start = time.time()
+# pool = mp.Pool(mp.cpu_count())
+# found_sources_mp= pool.starmap(MLP.search, frequencies)
+# pool.close()
+# pool.join()
+# print('time to search ', number_of_windows, 'windows: ', time.time()-start)
+found_sources_mp = np.load('/home/stefan/LDC/LDC/pictures/found_sources_ldc1-3.npy', allow_pickle= True)
 
 # LDC1-4 #####################################
 # frequencies = []
@@ -1361,8 +1367,8 @@ print('time to search ', number_of_windows, 'windows: ', time.time()-start)
 #         a,Xs = xr.align(dataX, Xs, join='left',fill_value=0)
 #         ax1.semilogy(Xs.f*10**3,np.abs(Xs)**2,label= str(np.round(pGB_injected[i][j]['Frequency'],0)), color='grey', linewidth = 3)
 
-#     for j in range(len(found_sources_mp_in[i])):
-#         Xs, Ys, Zs = GB.get_fd_tdixyz(template= found_sources_mp_in[i][j], oversample=4, simulator="synthlisa")
+#     for j in range(len(found_sources_in[i])):
+#         Xs, Ys, Zs = GB.get_fd_tdixyz(template= found_sources_in[i][j], oversample=4, simulator="synthlisa")
 #         ax1.semilogy(Xs.f*10**3,np.abs(Xs)**2,'--', color= colors[j], linewidth = 1.8)
 #     # Xs, Ys, Zs = GB.get_fd_tdixyz(template= found_sources_mp2[i][0], oversample=4, simulator="synthlisa")
 #     # ax1.semilogy(Xs.f*10**3,np.abs(Xs)**2,'-', color= colors[i], linewidth = 1.8)
@@ -1375,7 +1381,7 @@ print('time to search ', number_of_windows, 'windows: ', time.time()-start)
 #     # plt.legend()
 #     plt.xlabel('f [mHz]')
 #     plt.ylabel('|X|')
-#     fig.savefig('/home/stefan/LDC/LDC/pictures/strain first 3 '+ str(pGB_injected[i][0]['Frequency']*1000) +'.png',dpi=300,bbox_inches='tight')
+#     fig.savefig('/home/stefan/LDC/LDC/pictures/strain first ldc1-4 '+ str(lower_frequency*1000) +'.png',dpi=300,bbox_inches='tight')
 # # plt.show()  
 
 # MLP = MLP_search(tdi_fs_subtracted, Tobs, signals_per_window = 10)
@@ -1501,9 +1507,10 @@ for i in range(len(found_sources_mp)):
     # plt.legend()
     plt.xlabel('f [mHz]')
     plt.ylabel('|X|')
-    fig.savefig('/home/stefan/LDC/LDC/pictures/strain final LDC1-3'+ str(pGB_injected[i][0]['Frequency']*1000) +'.png',dpi=300,bbox_inches='tight')
+    # fig.savefig('/home/stefan/LDC/LDC/pictures/strain final LDC1-4'+ str(lower_frequency*1000) +'.png',dpi=300,bbox_inches='tight')
 plt.show()
 
+# np.save('/home/stefan/LDC/LDC/pictures/found_sources_ldc1-4', found_sources_mp)
 # found_sources_mp = [[{'Amplitude': 1.5472707659844358e-22, 'EclipticLatitude': 0.3239131241698293, 'EclipticLongitude': -2.7550743649206386, 'Frequency': 0.0013596198589500806, 'FrequencyDerivative': 6.760619501138522e-18, 'Inclination': 0.9617263677786225, 'InitialPhase': 0.8816156199962063, 'Polarization': 2.4981058468684956}]]
 
 class Posterior_computer():
@@ -1535,7 +1542,7 @@ class Posterior_computer():
         maxpGB01_low = deepcopy(maxpGB01)
         maxpGB01_high = deepcopy(maxpGB01)
         boundaries_reduced_fisher = {}
-        sigma_multiplyer = 2.5
+        sigma_multiplyer = 2
         for parameter in parameters:
             maxpGB01_low[parameter] = maxpGB01[parameter] - scalematrix[parameters.index(parameter)] * sigma_multiplyer 
             maxpGB01_high[parameter] = maxpGB01[parameter] + scalematrix[parameters.index(parameter)] * sigma_multiplyer 
@@ -1561,10 +1568,10 @@ class Posterior_computer():
         self.boundaries_reduced = deepcopy(boundaries_reduced_fisher)
         split_fd = -17
         if self.boundaries_reduced['FrequencyDerivative'][1] < split_fd+0.5:
-            self.boundaries_reduced['FrequencyDerivative'][0] = -18.5
+            self.boundaries_reduced['FrequencyDerivative'][0] = -18
             self.boundaries_reduced['FrequencyDerivative'][1] = -16
         elif self.boundaries_reduced['FrequencyDerivative'][0] < split_fd+0.5:
-            self.boundaries_reduced['FrequencyDerivative'][0] = -17.5
+            self.boundaries_reduced['FrequencyDerivative'][0] = -18
         print(self.boundaries_reduced)
     
     def train_model(self):
@@ -1733,7 +1740,7 @@ class Posterior_computer():
 
         return mcmc_samples
 
-    def plot_corner(self, mcmc_samples, pGB, save_bool = False):
+    def plot_corner(self, mcmc_samples, pGB, save_bool = False, save_chain = False):
         start = time.time()
         mcmc_samples_rescaled = np.zeros(np.shape(mcmc_samples))
         i = 0
@@ -1805,7 +1812,22 @@ class Posterior_computer():
                         Line2D([0], [0], color='g', ls='-',lw=2, label='Found Parameters')]
         axes[0,3].legend(handles=legend_elements, loc='upper left')
         if save_bool:
-            fig.savefig('/home/stefan/LDC/LDC/pictures/corner_frequency'+ str(pGB['Frequency']*1000) +'third.png',dpi=300,bbox_inches='tight')
+            fig.savefig('/home/stefan/LDC/LDC/pictures/corner_frequency'+ str(pGB['Frequency']*1000) +'ldc1-3.png',dpi=300,bbox_inches='tight')
+        if save_chain:
+            mcmc_samples_rescaled = np.zeros(np.shape(mcmc_samples))
+            i = 0
+            for parameter in parameters:
+                if parameter in ["EclipticLatitude"]:
+                    mcmc_samples_rescaled[:,i] = np.arcsin((mcmc_samples[:,parameters.index(parameter)] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
+                elif parameter in ["Inclination"]:
+                    mcmc_samples_rescaled[:,i] = np.arccos((mcmc_samples[:,parameters.index(parameter)] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
+                elif parameter in ['Amplitude',"FrequencyDerivative"]:
+                    mcmc_samples_rescaled[:,i] = 10**((mcmc_samples[:,parameters.index(parameter)] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
+                else:
+                    mcmc_samples_rescaled[:,i] = (mcmc_samples[:,parameters.index(parameter)] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0]
+                i += 1
+            df = pd.DataFrame(data=mcmc_samples_rescaled, columns=parameters)
+            df.to_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/ETH_LDC1-3_100k/GW'+str(pGB['Frequency']*1000)+'.csv',index=False)
         plt.show()
 
 
@@ -1819,9 +1841,9 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true):
     mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, prior= mcmc_samples, temperature= 2)
     # posterior1.plot_corner(mcmc_samples, pGB_injected[1][0])
     mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, prior= mcmc_samples, temperature= 1)
-    mcmc_samples = posterior1.calculate_posterior(resolution = 2*10**6, prior= mcmc_samples, temperature= 1)
+    mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, prior= mcmc_samples, temperature= 1)
     print('time to compute posterior: ', time.time()-start)
-    posterior1.plot_corner(mcmc_samples, pGB_true, save_bool= True)
+    posterior1.plot_corner(mcmc_samples, pGB_true, save_bool= True, save_chain= True)
     return mcmc_samples
 
 # LDC1-3 ######################
@@ -1836,7 +1858,7 @@ print('time to calculate posterior for ', number_of_total_signals, 'signals: ', 
 # LDC1-4 ####################
 for i in range(len(found_sources_in)):
     for j in range(len(found_sources_in[i])):
-        #subtract the found sources of neighbours and own window from original except the signal itselfe
+        #subtract the found sources of neighbours and own window from original except the signal itself
         tdi_fs_subtracted = deepcopy(tdi_fs)
         for m in range(3):
             if i-1+m < 0:
@@ -1864,955 +1886,3 @@ for i in range(len(found_sources_in)):
 # pool.close()
 # pool.join()
 # print('time to search ', number_of_windows, 'windows: ', time.time()-start)
-
-
-start = time.time()
-# mcmc_samples = test_x_m
-mcmc_samples_rescaled = np.zeros(np.shape(mcmc_samples))
-i = 0
-for parameter in parameters:
-    if parameter in ["EclipticLatitude"]:
-        mcmc_samples_rescaled[:,i] = np.arcsin((mcmc_samples[:,parameters.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0])
-    elif parameter in ["Inclination"]:
-        mcmc_samples_rescaled[:,i] = np.arccos((mcmc_samples[:,parameters.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0])
-    elif parameter in ['Amplitude',"FrequencyDerivative"]:
-        mcmc_samples_rescaled[:,i] = 10**((mcmc_samples[:,parameters.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0])
-    else:
-        mcmc_samples_rescaled[:,i] = (mcmc_samples[:,parameters.index(parameter)] * (boundaries_reduced[parameter][1] - boundaries_reduced[parameter][0])) + boundaries_reduced[parameter][0]
-    i += 1
-print('time rescale', time.time()-start)
-start = time.time()
-df = pd.DataFrame(data=mcmc_samples_rescaled, columns=parameters)
-df.to_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/ETH_LDC_1253/GW'+str(int(np.round(maxpGB['Frequency']*10**8)))+'seed42.csv',index=False)
-print('saving time', time.time()-start)
-
-print('full time', time.time()-first_start)
-length = len(probability)
-datS = np.zeros(np.shape(mcmc_samples))
-datS[:,0] = mcmc_samples_rescaled[:,2]
-datS[:,1] = mcmc_samples_rescaled[:,1]
-datS[:,2] = mcmc_samples_rescaled[:,3]
-datS[:,3] = np.log10(mcmc_samples_rescaled[:,4])
-datS[:,4] = mcmc_samples_rescaled[:,5]
-datS[:,5] = np.log10(mcmc_samples_rescaled[:,0])
-datS[:,6] = mcmc_samples_rescaled[:,6]
-datS[:,7] = mcmc_samples_rescaled[:,7]
-rng = []
-lbls = [r'$\lambda$', r'$\beta$', 'f(Hz)', r'$\dot{f}$', r'$\iota$', r'$A$', r'$\phi$', r'$\Phi$']
-
-tr_s = np.zeros(len(parameters))
-maxvalues = np.zeros(len(parameters))
-i = 0
-# pGB = search1.pGB
-for parameter in ['EclipticLongitude','EclipticLatitude','Frequency','FrequencyDerivative','Inclination','Amplitude','InitialPhase','Polarization']:
-    if parameter in ['Amplitude','FrequencyDerivative']:
-        tr_s[i] = np.log10(pGB[parameter])
-        maxvalues[i] = np.log10(maxpGB[parameter])
-    else:
-        tr_s[i] = pGB[parameter]
-        maxvalues[i] = maxpGB[parameter]
-    i += 1
-if tr_s[0] > np.pi:
-    tr_s[0] -= 2*np.pi
-rng = [0.999, 0.999, 0.999, 0.999, (0, np.pi), (-22,-21.4), 0.999, 0.999]
-
-dr = '/home/stefan/Repositories/ldc1_evaluation_data/submission/ETH_LDC_1253/GW125313seed40'
-ETH_data3 = {}
-dat = np.genfromtxt(dr+".csv", delimiter=',', names=True)
-print (np.shape(dat))
-datS2 = np.zeros((len(dat),len(parameters)))
-
-
-datS2[:, 0] = dat['EclipticLongitude']
-datS2[:, 1] = dat['EclipticLatitude']
-datS2[:, 2] = dat['Frequency']
-datS2[:, 3] = np.log10(np.abs(dat['FrequencyDerivative']))
-# datS2[:, 4] = np.arccos(np.cos(dat['Inclination']))
-datS2[:, 4] = dat['Inclination']
-datS2[:, 5] = np.log10(dat['Amplitude'])
-datS2[:, 6] = dat['Polarization']
-datS2[:, 7] = dat['InitialPhase']
-
-# rng = []
-# for i in range(len(lbls)):
-#     minrange = min(datS[:,i].min(), datS2[:,i].min())
-#     maxrange = max(datS[:,i].max(), datS2[:,i].max())
-#     oner = ( minrange, maxrange)
-#     rng.append(oner)
-
-fig =  corner.corner(datS[:,:6],  bins=40, hist_kwargs={'density':True, 'lw':3}, plot_datapoints=False, fill_contours=False,  show_titles=True, \
-                        color='#348ABD', truths= tr_s[:6], truth_color='k', use_math_test=True, labels= lbls[:6],\
-                        levels=[0.9,0.63], title_kwargs={"fontsize": 12})
-             
-corner.corner(datS2[:,:6],  bins=40, hist_kwargs={'density':True, 'lw':3},fig=fig, plot_datapoints=False, fill_contours=False,  show_titles=True, \
-                        color='g', truths= tr_s[:6], truth_color='k', use_math_test=True, labels= lbls[:6],\
-                        levels=[0.9,0.63], title_kwargs={"fontsize": 12}, range=rng[:6], label_size= 60)
-
-
-# Extract the axes
-ndim = len(parameters)-2
-axes = np.array(fig.axes).reshape((ndim, ndim))
-# # Loop over the diagonal
-# for i in range(ndim):
-#     ax = axes[i, i]
-#     ax.axvline(maxvalues[i], color="g", label= 'Found parameters')
-# # Loop over the histograms
-# for yi in range(ndim):
-#     for xi in range(yi):
-#         ax = axes[yi, xi]
-#         ax.axvline(maxvalues[xi], color="g")
-#         ax.axhline(maxvalues[yi], color="g")
-#         ax.scatter(maxvalues[xi], maxvalues[yi],s=130, color="g")
-
-# corner.ove(fig, maxvalues[None], marker="s", color="C1")
-
-# maxvalues_previous = np.zeros(len(parameters))
-# maxpGBsearch_previous = {'Amplitude': 5.857579179174051e-23, 'EclipticLatitude': -0.08784800634433576, 'EclipticLongitude': 2.102933791009969, 'Frequency': 0.006220280040884535, 'FrequencyDerivative': 7.503323987637861e-16, 'Inclination': 0.5104961907537644, 'InitialPhase': 3.8035280736734642, 'Polarization': 0.07816858489674128}
-# i = 0
-# for parameter in ['EclipticLongitude','EclipticLatitude','Frequency','FrequencyDerivative','Inclination','Amplitude','InitialPhase','Polarization']:
-#     if parameter in ['Amplitude','FrequencyDerivative']:
-#         maxvalues_previous[i] = np.log10(maxpGBsearch_previous[parameter])
-#     else:
-#         maxvalues_previous[i] = maxpGBsearch_previous[parameter]
-#     i += 1
-# for i in range(ndim):
-#     ax = axes[i, i]
-#     ax.axvline(maxvalues_previous[i], color="r", label= 'Found parameters')
-# # Loop over the histograms
-# for yi in range(ndim):
-#     for xi in range(yi):
-#         ax = axes[yi, xi]
-#         ax.axvline(maxvalues_previous[xi], color="r")
-#         ax.axhline(maxvalues_previous[yi], color="r")
-#         ax.plot(maxvalues_previous[xi], maxvalues_previous[yi],'sr')
-
-legend_elements = [Line2D([0], [0], color='k', ls='-',lw=2, label='True'),
-                   Line2D([0], [0], color='#348ABD', ls='-',lw=2, label='Signal Source'),
-                   Line2D([0], [0], color='g', ls='-',lw=2, label='Other seed Signal Source')]
-                #    Line2D([0], [0], color='r', ls='-',lw=2, label='Search2')]
-
-axes[0,3].legend(handles=legend_elements, loc='upper left')
-# plt.legend(loc='upper right')
-for ax in fig.get_axes():
-    ax.tick_params(axis='both', labelsize=14)
-fig.subplots_adjust(right=1.5,top=1.5)
-fig.set_size_inches(fig_size_squared[0],fig_size_squared[1], forward=True)
-fig.savefig('/home/stefan/LDC/LDC/pictures/corner3.png',dpi=300,bbox_inches='tight')
-plt.show()
-
-def gauss2d(mu, sigma, to_plot=False):
-    w, h = 100, 100
-    print(sigma)
-    std = [np.sqrt(sigma[0, 0]), np.sqrt(sigma[1, 1])]
-    x = np.linspace(mu[0] - 3 * std[0], mu[0] + 3 * std[0], w)
-    y = np.linspace(mu[1] - 3 * std[1], mu[1] + 3 * std[1], h)
-
-    x, y = np.meshgrid(x, y)
-
-    x_ = x.flatten()
-    y_ = y.flatten()
-    xy = np.vstack((x_, y_)).T
-
-    print('s')
-    z = multivariate_normal.pdf(xy,mu, sigma)
-    print('s')
-    # z = normal_rv.pdf(xy)
-    z = z.reshape(w, h, order='F')
-
-    if to_plot:
-        plt.contourf(x, y, z.T)
-        plt.show()
-
-    return z
-
-
-parameters_recorded[best_run]["Loglikelihood"].append(loglikelihood([maxpGB]))
-for parameter in parametersfd:
-    parameters_recorded[best_run][parameter].append(maxpGB[parameter])
-fig, ax = plt.subplots(2, 5, figsize=np.asarray(fig_size) * 2)
-# plt.suptitle("Intermediate Parameters")
-for n in range(len(parameters_recorded)):
-    i = 0
-    for parameter in parametersfd + ["Loglikelihood"]:
-        j = 0
-        if i > 3:
-            j = 1
-        if parameter in ["Frequency"]:
-            ax[j, i % 5].plot(
-                np.asarray(parameters_recorded[n][0][parameter]) * 10 ** 3,
-                np.arange(0, len(parameters_recorded[n][0][parameter])),
-            )
-        else:
-            ax[j, i % 5].plot(
-                parameters_recorded[n][0][parameter],
-                np.arange(0, len(parameters_recorded[n][0][parameter])),
-            )
-        i += 1
-i = 0
-for parameter in parametersfd + ["Log-likelihood"]:
-    j = 0
-    if i > 3:
-        j = 1
-    if parameter in ["Log-likelihood"]:
-        ax[j, i % 5].axvline(x=loglikelihood([pGB]), color="k", label="True")
-    elif parameter in ["Frequency"]:
-        ax[j, i % 5].axvline(x=pGB[parameter] * 10 ** 3, color="k", label="True")
-    else:
-        ax[j, i % 5].axvline(x=pGB[parameter], color="k", label="True")
-    if parameter in ["Amplitude"]:
-        ax[j, i % 5].set_xlabel(parameter, ha="right", va="top")
-    elif parameter in ["Frequency"]:
-        ax[j, i % 5].xaxis.set_major_locator(plt.MaxNLocator(3))
-        ax[j, i % 5].set_xlabel(parameter + " (mHz)", ha="right", va="top")
-    else:
-        ax[j, i % 5].xaxis.set_major_locator(plt.MaxNLocator(3))
-        ax[j, i % 5].set_xlabel(parameter)
-    # if parameter in ['Log-likelihood']:
-    #     ax[j,i%5].set_xlabel('$$')
-    ax[j, i % 1].set_ylabel("Step")
-    ax[j, i % 5].set_ylim(0, 150)
-    if parameter in ["Log-likelihood"]:
-        pass
-    elif parameter == "EclipticLatitude":
-        ax[j, i % 5].set_xlim(np.arcsin(boundaries[parameter][0]), np.arcsin(boundaries[parameter][1]))
-    elif parameter == "Inclination":
-        ax[j, i % 5].set_xlim(np.arccos(boundaries[parameter][1]), np.arccos(boundaries[parameter][0]))
-    elif parameter in ["Frequency"]:
-        ax[j, i % 5].set_xlim(boundaries[parameter][0] * 10 ** 3, boundaries[parameter][1] * 10 ** 3)
-    else:
-        ax[j, i % 5].set_xlim(boundaries[parameter][0], boundaries[parameter][1])
-    i += 1
-ax[0, 0].legend()
-# plt.tight_layout()
-plt.show()
-
-fig, ax = plt.subplots(2, 5, figsize=np.asarray(fig_size) * 2)
-# plt.suptitle("Intermediate Parameters")
-for n in range(len(pGBmodes[0])):
-    i = 0
-    for parameter in parametersfd + ["Loglikelihood"]:
-        j = 0
-        if i > 3:
-            j = 1
-        if parameter in ["Frequency"]:
-            ax[j, i % 5].plot(
-                np.asarray(pGBmodes[0][n][parameter]) * 10 ** 3,
-                0.5,'.'
-            )
-        else:
-            ax[j, i % 5].plot(
-                pGBmodes[0][n][parameter],
-                0.5,'.'
-            )
-        i += 1
-i = 0
-for parameter in parametersfd + ["Log-likelihood"]:
-    j = 0
-    if i > 3:
-        j = 1
-    if parameter in ["Log-likelihood"]:
-        ax[j, i % 5].axvline(x=loglikelihood([pGB]), color="k", label="True")
-    elif parameter in ["Frequency"]:
-        ax[j, i % 5].axvline(x=pGB[parameter] * 10 ** 3, color="k", label="True")
-    else:
-        ax[j, i % 5].axvline(x=pGB[parameter], color="k", label="True")
-    if parameter in ["Amplitude"]:
-        ax[j, i % 5].set_xlabel(parameter, ha="right", va="top")
-    elif parameter in ["Frequency"]:
-        ax[j, i % 5].xaxis.set_major_locator(plt.MaxNLocator(3))
-        ax[j, i % 5].set_xlabel(parameter + " (mHz)", ha="right", va="top")
-    else:
-        ax[j, i % 5].xaxis.set_major_locator(plt.MaxNLocator(3))
-        ax[j, i % 5].set_xlabel(parameter)
-    # if parameter in ['Log-likelihood']:
-    #     ax[j,i%5].set_xlabel('$$')
-    ax[j, i % 1].set_ylabel("Step")
-    ax[j, i % 5].set_ylim(0, 1)
-    if parameter in ["Log-likelihood"]:
-        pass
-    elif parameter == "EclipticLatitude":
-        ax[j, i % 5].set_xlim(np.arcsin(boundaries[parameter][0]), np.arcsin(boundaries[parameter][1]))
-    elif parameter == "Inclination":
-        ax[j, i % 5].set_xlim(np.arccos(boundaries[parameter][1]), np.arccos(boundaries[parameter][0]))
-    elif parameter in ["Frequency"]:
-        ax[j, i % 5].set_xlim(boundaries[parameter][0] * 10 ** 3, boundaries[parameter][1] * 10 ** 3)
-    else:
-        ax[j, i % 5].set_xlim(boundaries[parameter][0], boundaries[parameter][1])
-    i += 1
-ax[0, 0].legend()
-# plt.tight_layout()
-plt.show()
-
-Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB, oversample=4, simulator="synthlisa")
-index_low = np.searchsorted(Xs.f, dataX.f[0])
-Xs = Xs[index_low : index_low + len(dataX)]
-Ys = Ys[index_low : index_low + len(dataY)]
-Zs = Zs[index_low : index_low + len(dataZ)]
-
-plt.figure(figsize=np.asarray(fig_size) * 2)
-ax1 = plt.subplot(231)
-# plt.plot(dataX_training.f*1000,dataX_training.values, label='data')
-ax1.plot(dataX.f * 1000, dataX.values.real, label="Data")
-ax1.plot(Xs.f * 1000, Xs.values.real, label="GB")
-ax2 = plt.subplot(232)
-# plt.plot(dataY_training.f*1000,dataY_training.values, label='data')
-ax2.plot(dataY.f * 1000, dataY.values.real, label="Data")
-ax2.plot(Ys.f * 1000, Ys.values.real, label="True Response")
-ax3 = plt.subplot(233)
-# plt.plot(dataZ_training.f*1000,dataZ_training.values, label='data')
-ax3.plot(dataZ.f * 1000, dataZ.values.real, label="Data")
-ax3.plot(Zs.f * 1000, Zs.values.real, label="True Response")
-ax4 = plt.subplot(234)
-# plt.plot(dataX_training.f*1000,dataX_training.values.imag, label='data')
-ax4.plot(dataX.f * 1000, dataX.values.imag, label="Data")
-ax4.plot(Xs.f * 1000, Xs.values.imag, label="True Response")
-ax5 = plt.subplot(235)
-# plt.plot(dataY_training.f*1000,dataY_training.values.imag, label='data')
-ax5.plot(dataY.f * 1000, dataY.values.imag, label="Data")
-ax5.plot(Ys.f * 1000, Ys.values.imag, label="True Response")
-ax6 = plt.subplot(236)
-# plt.plot(dataZ_training.f*1000,dataZ_training.values.imag, label='data')
-ax6.plot(dataZ.f * 1000, dataZ.values.imag, label="Data")
-ax6.plot(Zs.f * 1000, Zs.values.imag, label="True Response")
-Xs, Ys, Zs = GB.get_fd_tdixyz(template=maxpGB, oversample=4, simulator="synthlisa")
-index_low = np.searchsorted(Xs.f, dataX.f[0])
-Xs = Xs[index_low : index_low + len(dataX)]
-Ys = Ys[index_low : index_low + len(dataY)]
-Zs = Zs[index_low : index_low + len(dataZ)]
-ax1.plot(Xs.f * 1000, Xs, label="Found GB")
-ax1.xaxis.set_major_locator(plt.MaxNLocator(3))
-ax1.set_xlabel("f (mHz)")
-ax1.set_ylabel("X-TDI real (1/Hz)")
-ax1.legend(loc="upper left", numpoints=0.5)
-ax2.plot(Ys.f * 1000, Ys, label="Found Response")
-ax2.xaxis.set_major_locator(plt.MaxNLocator(3))
-ax2.set_xlabel("f (mHz)")
-ax2.set_ylabel("Y-TDI real (1/Hz)")
-# ax2.legend()
-ax3.plot(Zs.f * 1000, Zs, label="Found Response")
-ax3.xaxis.set_major_locator(plt.MaxNLocator(3))
-ax3.set_xlabel("f (mHz)")
-ax3.set_ylabel("Z-TDI real (1/Hz)")
-# ax3.legend()
-ax4.plot(Xs.f * 1000, Xs.imag, label="Found Response")
-ax4.xaxis.set_major_locator(plt.MaxNLocator(3))
-ax4.set_xlabel("f (mHz)")
-ax4.set_ylabel("X-TDI imag (1/Hz)")
-# ax4.legend()
-ax5.plot(Ys.f * 1000, Ys.imag, label="Found Response")
-ax5.xaxis.set_major_locator(plt.MaxNLocator(3))
-ax5.set_xlabel("f (mHz)")
-ax5.set_ylabel("Y-TDI imag (1/Hz)")
-# ax5.legend()
-ax6.plot(Zs.f * 1000, Zs.imag, label="Found Response")
-ax6.xaxis.set_major_locator(plt.MaxNLocator(3))
-ax6.set_xlabel("f (mHz)")
-ax6.set_ylabel("Z-TDI imag (1/Hz)")
-# ax6.legend()
-plt.tight_layout()
-plt.show()
-
-
-observed_pred = {}
-
-number_of_test_samples = 100
-test_x = {}
-test_y = {}
-for parameter in parametersfd:
-    test_samples = sampler(
-        number_of_test_samples,
-        parameters,
-        maxpGB,
-        boundaries_reduced,
-        p1,
-        uniform=True,
-        only=True,
-        onlyparameter=parameter,
-    )
-    test_x[parameter] = np.zeros((number_of_test_samples, len(parameters)))
-    i = 0
-    for name in parametersfd:
-        test_x[parameter][:, i] = test_samples[name]
-        i += 1
-    test_y[parameter] = test_samples["Likelihood"]
-    test_x[parameter] = torch.from_numpy(test_x[parameter]).float()
-    test_x[parameter] = test_x[parameter]
-    test_y[parameter] = torch.from_numpy(test_y[parameter]).float()
-number_of_test_samples = 500
-test_x2 = {}
-test_y2 = {}
-
-for parameter in parametersfd:
-    test_samples = sampler(
-        number_of_test_samples,
-        parameters,
-        maxpGB,
-        boundaries,
-        p1,
-        uniform=True,
-        only=True,
-        onlyparameter=parameter,
-    )
-    test_x2[parameter] = np.zeros((number_of_test_samples, len(parameters)))
-    i = 0
-    for name in parametersfd:
-        test_x2[parameter][:, i] = test_samples[name]
-        i += 1
-    test_y2[parameter] = test_samples["Likelihood"]
-    test_x2[parameter] = torch.from_numpy(test_x2[parameter]).float()
-    test_x2[parameter] = test_x2[parameter]
-    test_y2[parameter] = torch.from_numpy(test_y2[parameter]).float()
-number_of_test_samples2d = 50 ** 2
-
-parameter = "EclipticLongitude"
-parameters_reduced = [
-    "EclipticLatitude",
-    "Frequency",
-    "Inclination",
-    "Amplitude",
-    'InitialPhase',
-    'Polarization'
-]
-observed_pred_mean = {}
-pred_sigma = {}
-for n in range(len(parameters_reduced)):
-    for parameter2 in parameters_reduced:
-        print(parameter+parameter2)
-        if parameter != parameter2:
-            test_samples = sampler(
-                number_of_test_samples2d,
-                parameters,
-                maxpGB,
-                boundaries_reduced,
-                p1,
-                uniform=True,
-                twoD=True,
-                onlyparameter=parameter,
-                secondparameter=parameter2,
-                calculate_loglikelihood=False,
-            )
-            test_x[parameter + parameter2] = np.zeros((number_of_test_samples2d, len(parameters)))
-            i = 0
-            for name in parametersfd:
-                test_x[parameter + parameter2][:, i] = test_samples[name]
-                i += 1
-            test_x[parameter + parameter2] = torch.from_numpy(test_x[parameter + parameter2]).float()
-
-            observed_pred_sk, pred_sigma[parameter + parameter2] = gpr.predict(test_x[parameter + parameter2],return_std=True)
-            observed_pred_mean[parameter + parameter2] = observed_pred_sk*sigma +nu
-            pred_sigma[parameter + parameter2] = pred_sigma[parameter + parameter2]*sigma +nu
-            # with torch.no_grad(), gpytorch.settings.fast_pred_var():
-            #     observed_pred[parameter + parameter2] = likelihood(model(test_x[parameter + parameter2]))
-    parameter = parameters_reduced[0]
-    parameters_reduced.pop(0)
-
-
-for parameter in parametersfd:
-    # Make predictions by feeding model through likelihood
-    observed_pred_sk, pred_sigma[parameter] = gpr.predict(test_x[parameter],return_std=True)
-    observed_pred_mean[parameter] = observed_pred_sk*sigma +nu
-    pred_sigma[parameter] = pred_sigma[parameter]*sigma +nu
-    # with torch.no_grad(), gpytorch.settings.fast_pred_var():
-    #     observed_pred[parameter] = likelihood(model(test_x[parameter]))
-    #     observed_pred_print = (observed_pred[parameter].mean.numpy() * sigma) + nu
-
-    print(
-        "sqrt(MSE) ",
-        parameter,
-        np.sqrt(mean_squared_error(test_y[parameter].numpy(), observed_pred_mean[parameter])),
-    )
-    # if parameter != parameter2:
-    #     with torch.no_grad(), gpytorch.settings.fast_pred_var():
-    #         observed_pred[parameter + parameter2] = likelihood(model(test_x[parameter + parameter2]))
-
-# parameter = 'random'
-# with torch.no_grad(), gpytorch.settings.fast_pred_var():
-#     observed_pred[parameter] = likelihood(model(test_x[parameter]))
-# observed_pred_print = (observed_pred[parameter]*sigma)+nu
-# print('sqrt(MSE) ','random', np.sqrt(mean_squared_error(test_y[parameter].numpy(),observed_pred_print.mean.cpu().numpy())))
-
-
-for parameter in parameters:
-    if parameter in ["EclipticLatitude"]:
-        samples[parameter] = np.arcsin((samples[parameter] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
-        test_samples[parameter] = np.arcsin((test_samples[parameter] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
-    elif parameter in ["Inclination"]:
-        samples[parameter] = np.arccos((samples[parameter] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
-        test_samples[parameter] = np.arccos((test_samples[parameter] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
-    else:
-        samples[parameter] = (samples[parameter] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0]
-        test_samples[parameter] = (test_samples[parameter] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0]
-
-
-train_x = train_x.cpu()
-train_y = train_y.cpu()
-# train_y = (train_y*sigma)+nu
-
-pGB01 = {}
-for parameter in parameters:
-    if parameter in ["EclipticLatitude"]:
-        pGB01[parameter] = (np.sin(pGB[parameter]) - boundaries[parameter][0]) / (boundaries[parameter][1] - boundaries[parameter][0])
-    elif parameter in ["Inclination"]:
-        pGB01[parameter] = (np.cos(pGB[parameter]) - boundaries[parameter][0]) / (boundaries[parameter][1] - boundaries[parameter][0])
-    else:
-        pGB01[parameter] = (pGB[parameter] - boundaries[parameter][0]) / (boundaries[parameter][1] - boundaries[parameter][0])
-
-fig, ax = plt.subplots(2, 4, figsize=np.asarray(fig_size) * 2.5)
-# plt.suptitle("loglikelihood")
-i = 0
-mean = {}
-for parameter in parametersfd:
-    j = 0
-    if i > 3:
-        j = 1
-    test_x_rescaled = []
-    for k in range(len(test_x[parameter])):
-        test_x_rescaled.append(scaletooriginal(test_x[parameter][k].numpy(), boundaries_reduced)[parameter])
-    test_x2_rescaled = []
-    for k in range(len(test_x2[parameter])):
-        test_x2_rescaled.append(scaletooriginal(test_x2[parameter][k].numpy(), boundaries)[parameter])
-    # Plot training data as black stars
-    if parameter == "Frequency":
-        ax[j, i % 4].axvline(x=pGB[parameter] * 10 ** 3, color="k", label="GB")
-        ax[j, i % 4].plot(
-            np.asarray(test_x_rescaled[1:]) * 10 ** 3,
-            np.exp(test_y[parameter].numpy()[1:]-best_value)/normalizer,
-            "g",linewidth=3, alpha=0.5,
-            label="True",
-        )
-        ax[j, i % 4].plot(
-            np.asarray(test_x_rescaled[1:]) * 10 ** 3,
-            np.exp(observed_pred_mean[parameter][1:]-best_value)/normalizer,
-            "b",
-            label="Mean",
-        )
-        # ax[j, i % 4].fill_between(
-        #     np.asarray(test_x_rescaled[1:]) * 10 ** 3,
-        #     np.exp(observed_pred_mean[parameter][1:]+pred_sigma[parameter][1:]-best_value)/normalizer,
-        #     np.exp(observed_pred_mean[parameter][1:]-pred_sigma[parameter][1:]-best_value)/normalizer,
-        #     alpha=0.5,
-        #     label="Confidence",
-        # )
-    else:
-        ax[j, i % 4].axvline(x=pGB[parameter], color="k", label="GB")
-        ax[j, i % 4].plot(test_x_rescaled[1:], np.exp(test_y[parameter].numpy()[1:]-best_value)/normalizer, "g",linewidth=5, alpha=0.5, label="True")
-        ax[j, i % 4].plot(test_x_rescaled[1:], np.exp(observed_pred_mean[parameter][1:]-best_value)/normalizer, "b", label="Mean")
-        # ax[j, i % 4].fill_between(
-        #     test_x_rescaled[1:],
-        #     np.exp(observed_pred_mean[parameter][1:]+pred_sigma[parameter][1:]-best_value)/normalizer,
-        #     np.exp(observed_pred_mean[parameter][1:]-pred_sigma[parameter][1:]-best_value)/normalizer,
-        #     alpha=0.5,
-        #     label="Confidence",
-        # )
-    ax[0, 0].legend()
-    if parameter in ["Amplitude"]:
-        ax[j, i % 4].set_xlabel(parameter, ha="right", va="top")
-    elif parameter in ["Frequency"]:
-        ax[j, i % 4].set_xlabel(parameter + " (mHz)", ha="right", va="top")
-    else:
-        ax[j, i % 4].set_xlabel(parameter)
-    ax[j, i % 4].set_ylabel("Likelihood")
-    if parameter == "EclipticLatitude":
-        ax[j, i % 4].set_xlim(np.arcsin(boundaries_reduced[parameter][0]), np.arcsin(boundaries_reduced[parameter][1]))
-    elif parameter == "Inclination":
-        ax[j, i % 4].set_xlim(np.arccos(boundaries_reduced[parameter][1]), np.arccos(boundaries_reduced[parameter][0]))
-    elif parameter in ["Frequency"]:
-        ax[j, i % 4].set_xlim(boundaries_reduced[parameter][0] * 10 ** 3, boundaries_reduced[parameter][1] * 10 ** 3)
-    else:
-        ax[j, i % 4].set_xlim(boundaries_reduced[parameter][0], boundaries_reduced[parameter][1])
-    i += 1
-plt.tight_layout()
-plt.show()
-
-fig, ax = plt.subplots(2, 4, figsize=np.asarray(fig_size) * 2.5)
-# plt.suptitle("loglikelihood")
-i = 0
-for parameter in parametersfd:
-    j = 0
-    if i > 3:
-        j = 1
-    with torch.no_grad():
-        # Get upper and lower confidence bounds
-        test_x_rescaled = []
-        for k in range(len(test_x[parameter])):
-            test_x_rescaled.append(scaletooriginal(test_x[parameter][k].numpy(), boundaries_reduced)[parameter])
-        test_x2_rescaled = []
-        for k in range(len(test_x2[parameter])):
-            test_x2_rescaled.append(scaletooriginal(test_x2[parameter][k].numpy(), boundaries)[parameter])
-        # Plot training data as black stars
-        if parameter == "Frequency":
-            ax[j, i % 4].axvline(x=pGB[parameter] * 10 ** 3, color="k", label="GB")
-            ax[j, i % 4].plot(
-                np.asarray(test_x2_rescaled[1:]) * 10 ** 3,
-                test_y2[parameter].numpy()[1:],
-                "g",
-                label="True",
-            )
-            ax[j, i % 4].plot(
-                np.asarray(test_x_rescaled[1:]) * 10 ** 3,
-                observed_pred_mean[parameter][1:],
-                "b",
-                label="Mean",
-            )
-            # ax[j, i % 4].fill_between(
-            #     np.asarray(test_x_rescaled[1:]) * 10 ** 3,
-            #     observed_pred_mean[parameter][1:]+pred_sigma[parameter][1:],
-            #     observed_pred_mean[parameter][1:]-pred_sigma[parameter][1:],
-            #     alpha=0.5,
-            #     label="Confidence",
-            # )
-        else:
-            ax[j, i % 4].axvline(x=pGB[parameter], color="k", label="GB")
-            ax[j, i % 4].plot(test_x2_rescaled[1:], test_y2[parameter].numpy()[1:], "g", label="True")
-            ax[j, i % 4].plot(test_x_rescaled[1:], observed_pred_mean[parameter][1:], "b", label="Mean")
-            # ax[j, i % 4].fill_between(
-            #     test_x_rescaled[1:],
-            #     observed_pred_mean[parameter][1:]+pred_sigma[parameter][1:],
-            #     observed_pred_mean[parameter][1:]-pred_sigma[parameter][1:],
-            #     alpha=0.5,
-            #     label="Confidence",
-            # )
-        ax[0, 0].legend()
-    if parameter in ["Amplitude"]:
-        ax[j, i % 4].set_xlabel(parameter, ha="right", va="top")
-    elif parameter in ["Frequency"]:
-        ax[j, i % 4].set_xlabel(parameter + " (mHz)", ha="right", va="top")
-    else:
-        ax[j, i % 4].set_xlabel(parameter)
-    ax[j, i % 4].set_ylabel("Log-likelihood")
-    # if parameter == "EclipticLatitude":
-    #     ax[j, i % 4].set_xlim(np.arcsin(boundaries_reduced[parameter][0]), np.arcsin(boundaries_reduced[parameter][1]))
-    # elif parameter == "Inclination":
-    #     ax[j, i % 4].set_xlim(np.arccos(boundaries_reduced[parameter][1]), np.arccos(boundaries_reduced[parameter][0]))
-    # elif parameter in ["Frequency"]:
-    #     ax[j, i % 4].set_xlim(boundaries_reduced[parameter][0] * 10 ** 3, boundaries_reduced[parameter][1] * 10 ** 3)
-    # else:
-    #     ax[j, i % 4].set_xlim(boundaries_reduced[parameter][0], boundaries_reduced[parameter][1])
-    i += 1
-plt.tight_layout()
-plt.show()
-# fig, ax = plt.subplots(2, 4,figsize=(15,15))
-# plt.suptitle("loglikelihood true")
-# i = 0
-# for parameter in parametersfd:
-#     if parameter != parameter2:
-#         j = 0
-#         if i > 3:
-#             j = 1
-#         with torch.no_grad():
-#             ax[j,i%4].axvline(x=pGB01[parameter], color='k')
-#             ax[j,i%4].axhline(y=pGB01[parameter2], color='k')
-#             im = ax[j,i%4].scatter(test_x[parameter+parameter2].numpy()[:,i],test_x[parameter+parameter2].numpy()[:,parametersfd.index(parameter2)],c=test_y[parameter+parameter2].numpy()[:])
-#             ax[j,i%4].set_xlabel(parameter)
-#             ax[j,i%4].set_ylabel(parameter2)
-#             fig.colorbar(im, ax=ax[j,i%4])
-#     else:
-#         ax[j,i%4].plot(test_x[parameter].numpy()[1:,i], test_y[parameter].numpy()[1:], 'g.')
-#         ax[j,i%4].set_xlabel(parameter)
-#         ax[j,i%4].set_ylabel('loglikelihood')
-#         ax[j,i%4].legend(['True'])
-#     i += 1
-
-fig, ax = plt.subplots(2, 4, figsize=(15, 15))
-plt.suptitle("loglikelihood predicted mean")
-i = 0
-for parameter in parametersfd:
-    if parameter != parameter2:
-        j = 0
-        if i > 3:
-            j = 1
-        with torch.no_grad():
-            # Get upper and lower confidence bounds
-            test_x_rescaled1 = []
-            test_x_rescaled2 = []
-            for k in range(len(test_x[parameter + parameter2])):
-                test_x_rescaled1.append(scaletooriginal(test_x[parameter + parameter2][k].numpy(), boundaries_reduced)[parameter])
-                test_x_rescaled2.append(scaletooriginal(test_x[parameter + parameter2][k].numpy(), boundaries_reduced)[parameter2])
-            ax[j, i % 4].axvline(x=pGB[parameter], color="k")
-            ax[j, i % 4].axhline(y=pGB[parameter2], color="k")
-            im = ax[j, i % 4].scatter(test_x_rescaled1, test_x_rescaled2, c=observed_pred_mean[parameter + parameter2][:])
-            ax[j, i % 4].set_xlabel(parameter)
-            ax[j, i % 4].set_ylabel(parameter2)
-            fig.colorbar(im, ax=ax[j, i % 4])
-
-            if parameter == "EclipticLatitude":
-                ax[j, i % 4].set_xlim(
-                    np.arcsin(boundaries_reduced[parameter][0]),
-                    np.arcsin(boundaries_reduced[parameter][1]),
-                )
-            elif parameter == "Inclination":
-                ax[j, i % 4].set_xlim(
-                    np.arccos(boundaries_reduced[parameter][1]),
-                    np.arccos(boundaries_reduced[parameter][0]),
-                )
-            elif parameter in ["Frequency"]:
-                ax[j, i % 4].set_xlim(
-                    boundaries_reduced[parameter][0] * 10 ** 3,
-                    boundaries_reduced[parameter][1] * 10 ** 3,
-                )
-            else:
-                ax[j, i % 4].set_xlim(boundaries_reduced[parameter][0], boundaries_reduced[parameter][1])
-            if parameter2 == "EclipticLatitude":
-                ax[j, i % 4].set_ylim(
-                    np.arcsin(boundaries_reduced[parameter2][0]),
-                    np.arcsin(boundaries_reduced[parameter2][1]),
-                )
-            elif parameter2 == "Inclination":
-                ax[j, i % 4].set_ylim(
-                    np.arccos(boundaries_reduced[parameter2][1]),
-                    np.arccos(boundaries_reduced[parameter2][0]),
-                )
-            elif parameter2 in ["Frequency"]:
-                ax[j, i % 4].set_ylim(
-                    boundaries_reduced[parameter2][0] * 10 ** 3,
-                    boundaries_reduced[parameter2][1] * 10 ** 3,
-                )
-            else:
-                ax[j, i % 4].set_ylim(boundaries_reduced[parameter2][0], boundaries_reduced[parameter2][1])
-    else:
-        with torch.no_grad():
-            lower, upper = observed_pred[parameter].confidence_region()
-            lower = lower.cpu()
-            upper = upper.cpu()
-            lower = (lower * sigma) + nu
-            upper = (upper * sigma) + nu
-            ax[j, i % 4].plot(test_x[parameter].numpy()[1:, i], test_y[parameter].numpy()[1:], "g.")
-            ax[j, i % 4].plot(test_x[parameter].numpy()[1:, i], observed_pred_mean[parameter].numpy()[1:], "b.")
-            ax[j, i % 4].fill_between(
-                test_x[parameter].numpy()[1:, i],
-                lower.numpy()[1:],
-                upper.numpy()[1:],
-                alpha=0.5,
-            )
-            ax[j, i % 4].set_xlabel(parameter)
-            ax[j, i % 4].set_ylabel("loglikelihood")
-            ax[j, i % 4].legend(["True", "Mean", "Confidence"])
-    i += 1
-plt.show()
-
-
-fig, ax = plt.subplots(7, 7, figsize=np.asarray(fig_size)*3)
-ax[0,1].axis('off')
-ax[0,2].axis('off')
-ax[0,3].axis('off')
-ax[0,4].axis('off')
-ax[1,2].axis('off')
-ax[1,3].axis('off')
-ax[1,4].axis('off')
-ax[2,3].axis('off')
-ax[2,4].axis('off')
-ax[3,4].axis('off')
-i = 0
-parameter = "EclipticLatitude"
-parameters_reduced = [
-    "EclipticLongitude",
-    "EclipticLatitude",
-    "Frequency",
-    "Inclination",
-    "Amplitude",
-    'InitialPhase',
-    'Polarization'
-]
-for parameter in parameters_reduced:
-    test_x_rescaled = []
-    for k in range(len(test_x[parameter])):
-        test_x_rescaled.append(scaletooriginal(test_x[parameter][k].numpy(), boundaries_reduced)[parameter])
-    test_x2_rescaled = []
-    for k in range(len(test_x2[parameter])):
-        test_x2_rescaled.append(scaletooriginal(test_x2[parameter][k].numpy(), boundaries)[parameter])
-    # Plot training data as black stars
-    if parameter == "Frequency":
-        ax[i,i].axvline(x=pGB[parameter] * 10 ** 3, color="k", label="GB")
-        ax[i,i].plot(
-            np.asarray(test_x_rescaled[1:]) * 10 ** 3,
-            np.exp(test_y[parameter].numpy()[1:]-best_value)/normalizer,
-            "g",
-            label="Target",
-        )
-        ax[i,i].plot(
-            np.asarray(test_x_rescaled[1:]) * 10 ** 3,
-            np.exp(observed_pred_mean[parameter][1:]-best_value)/normalizer,
-            "b",
-            label="Mean",
-        )
-        # ax[i,i].fill_between(
-        #     np.asarray(test_x_rescaled[1:]) * 10 ** 3,
-        #     np.exp(lower.numpy()[1:]-best_value)/normalizer,
-        #     np.exp(upper.numpy()[1:]-best_value)/normalizer,
-        #     alpha=0.5,
-        #     label="Confidence",
-        # )
-    else:
-        ax[i,i].axvline(x=pGB[parameter], color="r", label="GB")
-        ax[i,i].plot(test_x_rescaled[1:], np.exp(test_y[parameter].numpy()[1:]-best_value)/normalizer, "g", label="Target")
-        ax[i,i].plot(test_x_rescaled[1:], np.exp(observed_pred_mean[parameter][1:]-best_value)/normalizer, "b", label="Mean")
-        # ax[i,i].fill_between(
-        #     test_x_rescaled[1:],
-        #     np.exp(lower.numpy()[1:]-best_value)/normalizer,
-        #     np.exp(upper.numpy()[1:]-best_value)/normalizer,
-        #     alpha=0.5,
-        #     label="Confidence",
-        # )
-    ax[4, 4].legend()
-    ax[4,4].set_xlabel("Amplitude", ha="right", va="top")
-    ax[0,0].set_ylabel('Likelihood')
-    if i != 4:
-        ax[i,i].xaxis.set_ticklabels([])
-    if i != 0:
-        ax[i,i].yaxis.set_ticklabels([])
-    # ax[i,i].set_ylabel("Likelihood")
-    if parameter == "EclipticLatitude":
-        ax[i,i].set_xlim(np.arcsin(boundaries_reduced[parameter][0]), np.arcsin(boundaries_reduced[parameter][1]))
-    elif parameter == "Inclination":
-        ax[i,i].set_xlim(np.arccos(boundaries_reduced[parameter][1]), np.arccos(boundaries_reduced[parameter][0]))
-    elif parameter in ["Frequency"]:
-        ax[i,i].set_xlim(boundaries_reduced[parameter][0] * 10 ** 3, boundaries_reduced[parameter][1] * 10 ** 3)
-    else:
-        ax[i,i].set_xlim(boundaries_reduced[parameter][0], boundaries_reduced[parameter][1])
-    i += 1
-parameters_reduced = [
-    "EclipticLatitude",
-    "Frequency",
-    "Inclination",
-    "Amplitude",
-    'InitialPhase',
-    'Polarization'
-]
-parameter = "EclipticLongitude"
-for n in range(len(parameters_reduced)):
-    print(n)
-    print(parameter2)
-    i = n+1
-    for parameter2 in parameters_reduced:
-        test_x_rescaled1 = []
-        test_x_rescaled2 = []
-        for k in range(len(test_x[parameter + parameter2])):
-            test_x_rescaled1.append(scaletooriginal(test_x[parameter + parameter2][k].numpy(), boundaries_reduced)[parameter])
-            test_x_rescaled2.append(scaletooriginal(test_x[parameter + parameter2][k].numpy(), boundaries_reduced)[parameter2])
-        ax[i,n].axvline(x=pGB[parameter], color="r")
-        ax[i,n].axhline(y=pGB[parameter2], color="r")
-        ax[i,n].scatter(test_x_rescaled1, test_x_rescaled2, c=np.exp(observed_pred_mean[parameter + parameter2][:]-best_value)/normalizer)
-        if parameter == 'Frequency':
-            ax[i,n].scatter(np.asarray(test_x_rescaled1)*1e3, test_x_rescaled2, c=np.exp(observed_pred_mean[parameter + parameter2][:]-best_value)/normalizer)
-            ax[i,n].axvline(x=pGB[parameter]*1e3, color="r")
-        if parameter2 == 'Frequency':
-            ax[i,n].scatter(test_x_rescaled1, np.asarray(test_x_rescaled2)*1e3, c=np.exp(observed_pred_mean[parameter + parameter2][:]-best_value)/normalizer)
-        ax[i,n].axhline(y=pGB[parameter2]*1e3, color="r")
-        if i == 6:
-            ax[i,n].set_xlabel(parameter)
-            if parameter in ["Frequency"]:
-                ax[i,n].set_xlabel(parameter + " (mHz)", ha="right", va="top" )
-                ax[i,n].xaxis.set_major_locator(plt.MaxNLocator(2))
-        else:
-            ax[i,n].xaxis.set_ticklabels([])
-        if n == 0:
-            ax[i,n].set_ylabel(parameter2)
-            if parameter in ["Frequency"]:
-                ax[i,n].set_ylabel(parameter + " (mHz)")
-        else:
-            ax[i,n].yaxis.set_ticklabels([])
-        # fig.colorbar(im, ax=ax[i,n])
-
-        if parameter == "EclipticLatitude":
-            ax[i,n].set_xlim(
-                np.arcsin(boundaries_reduced[parameter][0]),
-                np.arcsin(boundaries_reduced[parameter][1]),
-            )
-        elif parameter == "Inclination":
-            ax[i,n].set_xlim(
-                np.arccos(boundaries_reduced[parameter][1]),
-                np.arccos(boundaries_reduced[parameter][0]),
-            )
-        elif parameter in ["Frequency"]:
-            ax[i,n].set_xlim(
-                boundaries_reduced[parameter][0] * 10 ** 3,
-                boundaries_reduced[parameter][1] * 10 ** 3,
-            )
-        else:
-            ax[i,n].set_xlim(boundaries_reduced[parameter][0], boundaries_reduced[parameter][1])
-        if parameter2 == "EclipticLatitude":
-            ax[i,n].set_ylim(
-                np.arcsin(boundaries_reduced[parameter2][0]),
-                np.arcsin(boundaries_reduced[parameter2][1]),
-            )
-        elif parameter2 == "Inclination":
-            ax[i,n].set_ylim(
-                np.arccos(boundaries_reduced[parameter2][1]),
-                np.arccos(boundaries_reduced[parameter2][0]),
-            )
-        elif parameter2 in ["Frequency"]:
-            ax[i,n].set_ylim(
-                boundaries_reduced[parameter2][0] * 10 ** 3,
-                boundaries_reduced[parameter2][1] * 10 ** 3,
-            )
-        else:
-            ax[i,n].set_ylim(boundaries_reduced[parameter2][0], boundaries_reduced[parameter2][1])
-        i += 1
-    parameter = parameters_reduced[0]
-    parameters_reduced.pop(0)
-plt.show()
-
-prediction = observed_pred["Frequency"].mean.cpu().numpy()
-n_bin = 50
-i = 0
-fig, axes = plt.subplots(2, 4, figsize=(15, 15))
-plt.suptitle("sampled posterior")
-for parameter in parameters:
-    j = 0
-    if i > 3:
-        j = 1
-    axes[j, i % 4].axvline(x=pGB[parameter], color="r")
-    axes[j, i % 4].plot(samples[parameter], samples["Likelihood"], ".", label="train")
-    axes[j, i % 4].plot(test_samples[parameter], test_samples["Likelihood"], ".", label="true")
-    axes[j, i % 4].errorbar(
-        test_samples[parameter][1:],
-        prediction[1:],
-        prediction[1:] - lower.numpy()[1:],
-        fmt=".",
-        label="prediction",
-    )
-    # plt.fill_between(test_samples[parameter][1:],prediction[1:]-p_std[1:],prediction[1:]+p_std[1:], color='g', alpha= 0.4)
-    if i == 0:
-        axes[j, i % 4].set_ylabel("log-Likelihood")
-    # plt.subplot(3,number_of_parameters,i+number_of_parameters)
-    # plt.axvline(x=pGB[parameter], color='r')
-    # n, bins, patches = plt.hist(samples[parameter], n_bin, density=True, facecolor='k', alpha=0.5)
-
-    # plt.subplot(3,number_of_parameters,i+2*number_of_parameters)
-    # if parameter == 'Frequency':
-    #     plt.axvline(x=pGB[parameter]*1000, color='r')
-    #     plt.plot(samples[parameter]*1000, range(number_of_samples), 'k')
-    # else:
-    #     plt.axvline(x=pGB[parameter], color='r')
-    #     plt.plot(samples[parameter], range(number_of_samples), 'k')
-    axes[j, i % 4].set_xlabel(parameter)
-    i += 1
-plt.legend()
-
-name = "Frequency"
-plt.figure(figsize=(10, 8))
-plt.suptitle("sampled posterior")
-plt.subplot(1, 1, 1)
-plt.axvline(x=pGB[name], color="r")
-plt.plot(samples[name], samples["Likelihood"], ".", label="train", zorder=1)
-plt.plot(test_samples[name], test_samples["Likelihood"], ".", label="true")
-plt.plot(test_samples[name][1:], prediction[1:], label="prediction")
-plt.fill_between(test_samples[name][1:], lower.numpy()[1:], upper.numpy()[1:], color="g", alpha=0.4)
-plt.ylabel("log-Likelihood")
-plt.xlabel(name)
-plt.legend()
-# plt.figure()
-# plt.scatter(samples['Amplitude'],samples['Frequency'],c=samples['Likelihood'])
-# plt.xlim(max(samples['Amplitude']),max(samples['Amplitude']))
-# plt.ylim(max(samples['Frequency']),max(samples['Frequency']))
-# plt.colorbar()
-# plt.figure()
-# # plt.title('sqrt(MSE)',np.round(np.sqrt(mean_squared_error(test_y,prediction)),2))
-# plt.scatter(samples['EclipticLatitude'],samples['EclipticLongitude'],c=samples['Likelihood'])
-# plt.xlim(max(samples['EclipticLatitude']),max(samples['EclipticLatitude']))
-# plt.ylim(max(samples['EclipticLongitude']),max(samples['EclipticLongitude']))
-# plt.colorbar()
-plt.show()
-
-
-# %%
