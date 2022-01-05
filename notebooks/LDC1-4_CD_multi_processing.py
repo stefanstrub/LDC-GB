@@ -1,11 +1,14 @@
 #%%
 from re import escape
 from gpytorch.likelihoods import likelihood
+from matplotlib.markers import MarkerStyle
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib import rcParams
 from matplotlib.patches import Ellipse
 from matplotlib.lines import Line2D
+from getdist import plots, MCSamples
+import getdist
 import scipy
 from scipy import misc
 from scipy.stats import multivariate_normal
@@ -1041,6 +1044,35 @@ pGBadded7['FrequencyDerivative'] = 1e-19
 pGBadded7['Inclination'] = 0.5
 pGBadded7['InitialPhase'] = 3
 pGBadded7['Polarization'] = 2
+pGBadded8 = {}
+pGBadded8['Amplitude'] = 1.36368e-22
+pGBadded8['EclipticLatitude'] = -0.2
+pGBadded8['EclipticLongitude'] = 1.4
+pGBadded8['Frequency'] = 0.00120457
+pGBadded8['FrequencyDerivative'] = 1e-19
+pGBadded8['Inclination'] = 0.5
+pGBadded8['InitialPhase'] = 3
+pGBadded8['Polarization'] = 2
+pGBadded9 = {}
+pGBadded9['Amplitude'] = 1.36368e-21
+pGBadded9['EclipticLatitude'] = -0.2
+pGBadded9['EclipticLongitude'] = 1.4
+pGBadded9['Frequency'] = 0.00130457
+pGBadded9['FrequencyDerivative'] = 1e-19
+pGBadded9['Inclination'] = 0.5
+pGBadded9['InitialPhase'] = 3
+pGBadded9['Polarization'] = 2
+pGBadded10 = {}
+pGBadded10['Amplitude'] = 1.36368e-21*0.5
+pGBadded10['EclipticLatitude'] = -0.2
+pGBadded10['EclipticLongitude'] = 1.4
+pGBadded10['Frequency'] = 0.00140457
+pGBadded10['FrequencyDerivative'] = 1e-19
+pGBadded10['Inclination'] = 0.5
+pGBadded10['InitialPhase'] = 3
+pGBadded10['Polarization'] = 2
+pGBadded11 = {'Amplitude': 1.36368e-22, 'EclipticLatitude': -0.529009, 'EclipticLongitude': -2.51031, 'Frequency': 0.00125313, 'FrequencyDerivative': 9.159587298288947e-19, 'Inclination': 0.244346, 'InitialPhase': 2.64414439, 'Polarization': 2.229426357}
+pGBadded11['Frequency'] -= 2*10**-6
 # pGBadded = {'Amplitude': 6.486747e-24, 'EclipticLatitude': -0.318064, 'EclipticLongitude': 4.369758, 'Frequency': 0.01620542, 'FrequencyDerivative': 8.508619e-14, 'Inclination': 0.866814, 'InitialPhase': 6.28136, 'Polarization': 5.978979}
 
 prop_cycle = plt.rcParams['axes.prop_cycle']
@@ -1087,26 +1119,27 @@ noise_model = "MRDv1"
 Nmodel = get_noise_model(noise_model, np.logspace(-5, -1, 100))
 Npsd = Nmodel.psd()
 
-# reduction = 1
-# Tobs_long = float(int(p.get("ObservationDuration")/reduction))
-# tdi_ts_long = xr.Dataset(dict([["X", TimeSeries(td[:int(len(td[:,1])/reduction), 1], dt=dt)],["Y", TimeSeries(td[:int(len(td[:,1])/reduction), 2], dt=dt)],
-# ["Z", TimeSeries(td[:int(len(td[:,1])/reduction), 3], dt=dt)]]))
-# tdi_fs_long = xr.Dataset(dict([["X", tdi_ts_long['X'].ts.fft(win=window)],["Y", tdi_ts_long['Y'].ts.fft(win=window)],["Z", tdi_ts_long['Z'].ts.fft(win=window)]]))
-# GB_long = fastGB.FastGB(delta_t=dt, T=Tobs_long)  # in seconds
-# for pGBadding in [pGBadded7]:#, pGBadded2, pGBadded3, pGBadded4]:
-#     Xs_added, Ys_added, Zs_added = GB.get_fd_tdixyz(template=pGBadding, oversample=4, simulator="synthlisa")
-#     source_added = dict({"X": Xs_added, "Y": Ys_added, "Z": Zs_added})
-#     index_low = np.searchsorted(tdi_fs["X"].f, Xs_added.f[0])
-#     index_high = index_low+len(Xs_added)
-#     # tdi_fs['X'] = tdi_fs['X'] #+ Xs_added
-#     for k in ["X", "Y", "Z"]:
-#         tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] + source_added[k].data
-# tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft(dt=dt)) for k, n in [["X", 1], ["Y", 2], ["Z", 3]]]))
-# for parameter in parameters:
-#     values = p.get(parameter)
-#     values = np.append(values, pGBadded7[parameter])
-#     unit = p.units[parameter]
-#     p.addPar(parameter,values,unit)
+reduction = 1
+Tobs_long = float(int(p.get("ObservationDuration")/reduction))
+tdi_ts_long = xr.Dataset(dict([["X", TimeSeries(td[:int(len(td[:,1])/reduction), 1], dt=dt)],["Y", TimeSeries(td[:int(len(td[:,1])/reduction), 2], dt=dt)],
+["Z", TimeSeries(td[:int(len(td[:,1])/reduction), 3], dt=dt)]]))
+tdi_fs_long = xr.Dataset(dict([["X", tdi_ts_long['X'].ts.fft(win=window)],["Y", tdi_ts_long['Y'].ts.fft(win=window)],["Z", tdi_ts_long['Z'].ts.fft(win=window)]]))
+GB_long = fastGB.FastGB(delta_t=dt, T=Tobs_long)  # in seconds
+for pGBadding in [pGBadded7,pGBadded8,pGBadded9, pGBadded10, pGBadded11]:#, pGBadded2, pGBadded3, pGBadded4]:
+    for parameter in parameters:
+        values = p.get(parameter)
+        values = np.append(values, pGBadding[parameter])
+        unit = p.units[parameter]
+        p.addPar(parameter,values,unit)
+    Xs_added, Ys_added, Zs_added = GB.get_fd_tdixyz(template=pGBadding, oversample=4, simulator="synthlisa")
+    source_added = dict({"X": Xs_added, "Y": Ys_added, "Z": Zs_added})
+    index_low = np.searchsorted(tdi_fs["X"].f, Xs_added.f[0])
+    index_high = index_low+len(Xs_added)
+    # tdi_fs['X'] = tdi_fs['X'] #+ Xs_added
+    for k in ["X", "Y", "Z"]:
+        tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] + source_added[k].data
+tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft(dt=dt)) for k, n in [["X", 1], ["Y", 2], ["Z", 3]]]))
+
 
 
 pGB = {}
@@ -1178,9 +1211,9 @@ class MLP_search():
             # print('SNRm', np.round(search1.SNRm([search1.pGB]),3))
             # print('SNRflat', np.round(search1.loglikelihoodflat([search1.pGB])))
             # search1.plot()#pGBadded=pGBadded5)
-            print(pGBadded7["FrequencyDerivative"] * self.Tobs)
-            print('smear f', 300*pGBadded7["Frequency"] * 10**3 / 10**9)
-            print(search1.reduced_frequency_boundaries)
+            # print(pGBadded7["FrequencyDerivative"] * self.Tobs)
+            # print('smear f', 300*pGBadded7["Frequency"] * 10**3 / 10**9)
+            # print(search1.reduced_frequency_boundaries)
             for i in range(3):
                 # if i > 0:
                 #     search1.recombination = 0.75
@@ -1277,17 +1310,20 @@ window_length = 10**-6 # Hz
 for i in range(len(target_frequencies)):
     window_shift = ((np.random.random(1)-0.5)*window_length*0.5)[0]
     frequencies.append([target_frequencies[i]-window_length/2+window_shift,target_frequencies[i]+window_length/2+window_shift])
-number_of_windows = len(target_frequencies)
+frequencies = frequencies[:10]
+number_of_windows = len(frequencies)
 MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1)
-# # found_sources = MLP.search(frequencies[0][0], frequencies[0][1])
+# found_sources = MLP.search(frequencies[0][0], frequencies[0][1])
 # start = time.time()
 # pool = mp.Pool(mp.cpu_count())
 # found_sources_mp= pool.starmap(MLP.search, frequencies)
 # pool.close()
 # pool.join()
 # print('time to search ', number_of_windows, 'windows: ', time.time()-start)
-found_sources_mp = np.load('/home/stefan/LDC/LDC/pictures/found_sources_ldc1-3.npy', allow_pickle= True)
 
+found_sources_mp = np.load('/home/stefan/LDC/LDC/pictures/found_sources_ldc1-3.npy', allow_pickle= True)
+# found_sources_mp = found_sources_mp[:-1]
+# np.save('/home/stefan/LDC/LDC/pictures/found_sources_ldc1-3added1.npy', found_sources_mp)
 # LDC1-4 #####################################
 # frequencies = []
 # frequencies_even = []
@@ -1507,7 +1543,37 @@ for i in range(len(found_sources_mp)):
     # plt.legend()
     plt.xlabel('f [mHz]')
     plt.ylabel('|X|')
-    # fig.savefig('/home/stefan/LDC/LDC/pictures/strain final LDC1-4'+ str(lower_frequency*1000) +'.png',dpi=300,bbox_inches='tight')
+    fig.savefig('/home/stefan/LDC/LDC/pictures/strain added0'+ str(int(np.round(lower_frequency*10**8))) +'.png',dpi=300,bbox_inches='tight')
+plt.show()
+
+
+prop_cycle = plt.rcParams['axes.prop_cycle']
+colors = prop_cycle.by_key()['color']
+
+fig = plt.figure(figsize=fig_size)
+ax1 = plt.subplot(111)
+parameter1 = 'EclipticLatitude'
+parameter2 = 'EclipticLongitude'
+for i in range(len(found_sources_mp)):
+    for j in range(len(found_sources_in[i])):
+        if i == 0:
+            ax1.plot(found_sources_in[i][j][parameter1],found_sources_in[i][j][parameter2], color = colors[i], marker = '+', markersize = 8, label= 'global fit')
+        else:
+            ax1.plot(found_sources_in[i][j][parameter1],found_sources_in[i][j][parameter2], color = colors[i], marker = '+', markersize = 8)
+for i in range(len(pGB_injected)):   
+    for j in range(len( pGB_injected[i])):
+        if i == 0: 
+            ax1.plot(pGB_injected[i][j][parameter1],pGB_injected[i][j][parameter2],color='grey', marker = 'o', markersize = 8, zorder=1, label= 'true')
+        else:
+            ax1.plot(pGB_injected[i][j][parameter1],pGB_injected[i][j][parameter2],color='grey', marker = 'o', markersize = 8, zorder=1)
+# ax1.axvline(10**3*(search1.boundaries[parameter1][0]+padding), color= 'red', label='Boundaries')
+# ax1.axvline(10**3*(search1.boundaries[parameter1][1]-padding), color= 'red')
+# plt.xlim((lower_frequency-padding), (upper_frequency+padding))
+ax1.xaxis.set_major_locator(plt.MaxNLocator(4))
+plt.xlabel(parameter1)
+plt.ylabel(parameter2)
+# plt.legend(loc='upper right')
+fig.savefig('/home/stefan/LDC/LDC/pictures/global fit sky .png',dpi=300,bbox_inches='tight')
 plt.show()
 
 # np.save('/home/stefan/LDC/LDC/pictures/found_sources_ldc1-4', found_sources_mp)
@@ -1646,23 +1712,23 @@ class Posterior_computer():
         print('eval time', time.time()-start)
         return observed_pred_mean
 
-    def calculate_posterior(self,resolution = 1*10**6, prior= None, temperature = 1):
+    def calculate_posterior(self,resolution = 1*10**6, proposal= None, temperature = 1):
         self.resolution = resolution
         numPoints = 2**6+1
         start = time.time()
-        if prior is None:
+        if proposal is None:
             test_x_m = np.random.uniform(size=(self.resolution,len(parameters)))
             probability = np.ones(self.resolution)
         else:
             test_x_m = np.zeros((self.resolution,len(parameters)))
             ax = np.linspace(-0.15,1.15,numPoints)
-            mypdf,axes = fastKDE.pdf(prior[:,1],prior[:,2], axes=[ax,ax])
+            mypdf,axes = fastKDE.pdf(proposal[:,1],proposal[:,2], axes=[ax,ax])
             dist = Distribution(mypdf, transform=lambda i:i/len(mypdf[0,:])*(axes[0][-1]-axes[0][0])+axes[0][0])
             data, pdfs = dist(self.resolution)
             test_x_m[:,1] = data[1]
             test_x_m[:,2] = data[0]
             probability = pdfs
-            mypdf,axes = fastKDE.pdf(prior[:,0],prior[:,5], axes=[ax,ax])
+            mypdf,axes = fastKDE.pdf(proposal[:,0],proposal[:,5], axes=[ax,ax])
             dist = Distribution(mypdf, transform=lambda i:i/len(mypdf[0,:])*(axes[0][-1]-axes[0][0])+axes[0][0])
             data, pdfs = dist(self.resolution)
             test_x_m[:,0] = data[1]
@@ -1670,7 +1736,7 @@ class Posterior_computer():
             # plt.figure()
             # plt.scatter(np.log10(test_x_m[:10000,0]),np.arccos(test_x_m[:10000,5]* (boundaries_reduced['Inclination'][1] - boundaries_reduced['Inclination'][0]) + boundaries_reduced['Inclination'][0]), c=pdfs[:10000])
             probability *= pdfs
-            mypdf,axes = fastKDE.pdf(prior[:,3],prior[:,4], axes=[ax,ax])
+            mypdf,axes = fastKDE.pdf(proposal[:,3],proposal[:,4], axes=[ax,ax])
             dist = Distribution(mypdf, transform=lambda i:i/len(mypdf[0,:])*(axes[0][-1]-axes[0][0])+axes[0][0])
             data, pdfs = dist(self.resolution)
             test_x_m[:,3] = data[1]
@@ -1764,17 +1830,15 @@ class Posterior_computer():
         datS = np.zeros(np.shape(mcmc_samples))
         datS[:,0] = mcmc_samples_rescaled[:,2]
         datS[:,1] = mcmc_samples_rescaled[:,1]
-        datS[:,2] = mcmc_samples_rescaled[:,3]
+        datS[:,2] = mcmc_samples_rescaled[:,3]*10**3
         datS[:,3] = np.log10(mcmc_samples_rescaled[:,4])
         datS[:,4] = mcmc_samples_rescaled[:,5]
         datS[:,5] = np.log10(mcmc_samples_rescaled[:,0])
         datS[:,6] = mcmc_samples_rescaled[:,6]
         datS[:,7] = mcmc_samples_rescaled[:,7]
-        rng = []
-        lbls = [r'$\lambda$', r'$\beta$', 'f(Hz)', r'$\dot{f}$', r'$\iota$', r'$A$', r'$\phi$', r'$\Phi$']
-        for i in range(len(lbls)):
-            oner = ( datS[:,i].min(), datS[:, i].max())
-            rng.append(oner)
+
+        lbls = [r'\lambda', r'\beta', 'f(mHz)', r'\dot{f}', r'\iota', r'A', r'\phi', r'\Phi']
+
         tr_s = np.zeros(len(parameters))
         maxvalues = np.zeros(len(parameters))
         i = 0
@@ -1783,51 +1847,52 @@ class Posterior_computer():
             if parameter in ['Amplitude','FrequencyDerivative']:
                 tr_s[i] = np.log10(pGB[parameter])
                 maxvalues[i] = np.log10(self.maxpGB[parameter])
+            elif parameter in ['Frequency']:
+                tr_s[i] = pGB[parameter]*10**3
+                maxvalues[i] = self.maxpGB[parameter]*10**3
             else:
                 tr_s[i] = pGB[parameter]
                 maxvalues[i] = self.maxpGB[parameter]
             i += 1
         if tr_s[0] > np.pi:
             tr_s[0] -= 2*np.pi
-        rng = [0.999, 0.999, 0.999, 0.999, (0, np.pi), (-22,-21.4), 0.999, 0.999]
-        fig =  corner.corner(datS[:,:6],  bins=40, hist_kwargs={'density':True, 'lw':3}, plot_datapoints=False, fill_contours=False,  show_titles=True, \
-                            color='#348ABD', truths= tr_s[:6], truth_color='k', use_math_test=True, labels= lbls[:6],\
-                            levels=[0.9,0.63], title_kwargs={"fontsize": 12})
-        # Extract the axes
-        ndim = len(parameters)-2
-        axes = np.array(fig.axes).reshape((ndim, ndim))
-        # Loop over the diagonal
+
+
+        rng = []
+        for i in range(len(lbls)):
+            minrange = min(datS[:,i].min(), tr_s[i])
+            maxrange = max(datS[:,i].max(), tr_s[i])
+            range_width = np.abs(maxrange - minrange)
+            oner = ( minrange- range_width/10, maxrange + range_width/10)
+            rng.append(oner)
+        # Get the getdist MCSamples objects for the samples, specifying same parameter
+        # names and labels; if not specified weights are assumed to all be unity
+        ndim = 6
+        names = ['EclipticLongitude','EclipticLatitude','Frequency','FrequencyDerivative','Inclination','Amplitude']
+        labels =  lbls[:6]
+        samples = MCSamples(samples=datS[:,:6],names = names, labels = labels)
+
+        g = plots.get_subplot_plotter()
+        samples.updateSettings({'contours': [0.68, 0.95]})
+        g.settings.num_plot_contours = 3
+        g.triangle_plot([samples], shaded=True,title_limit=1)
+        #markers vertical
         for i in range(ndim):
-            ax = axes[i, i]
-            ax.axvline(maxvalues[i], color="g")
-        # Loop over the histograms
-        for yi in range(ndim):
-            for xi in range(yi):
-                ax = axes[yi, xi]
-                ax.axvline(maxvalues[xi], color="g")
-                ax.axhline(maxvalues[yi], color="g")
-                ax.plot(maxvalues[xi], maxvalues[yi], "sg")
-        # corner.ove(fig, maxvalues[None], marker="s", color="C1")
-        legend_elements = [Line2D([0], [0], color='k', ls='-',lw=2, label='Injected Parameters'),
-                        Line2D([0], [0], color='g', ls='-',lw=2, label='Found Parameters')]
-        axes[0,3].legend(handles=legend_elements, loc='upper left')
+            for ax in g.subplots[i:,i]:
+                ax.axvline(tr_s[i], color='orange', ls='--')
+                ax.axvline(maxvalues[i], color='green', ls='--')
+            i += 1
+        #markers horizontal
+        for i in range(ndim):
+            for ax in g.subplots[i,:i]:
+                ax.axhline(tr_s[i], color='orange', ls='--')
+                ax.axhline(maxvalues[i], color='green', ls='--')
+            i += 1
         if save_bool:
-            fig.savefig('/home/stefan/LDC/LDC/pictures/corner_frequency'+ str(pGB['Frequency']*1000) +'ldc1-3.png',dpi=300,bbox_inches='tight')
+            g.export('/home/stefan/LDC/LDC/pictures/corner_frequency'+ str(int(np.round(pGB['Frequency']*10**8))) +'added.png')
         if save_chain:
-            mcmc_samples_rescaled = np.zeros(np.shape(mcmc_samples))
-            i = 0
-            for parameter in parameters:
-                if parameter in ["EclipticLatitude"]:
-                    mcmc_samples_rescaled[:,i] = np.arcsin((mcmc_samples[:,parameters.index(parameter)] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
-                elif parameter in ["Inclination"]:
-                    mcmc_samples_rescaled[:,i] = np.arccos((mcmc_samples[:,parameters.index(parameter)] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
-                elif parameter in ['Amplitude',"FrequencyDerivative"]:
-                    mcmc_samples_rescaled[:,i] = 10**((mcmc_samples[:,parameters.index(parameter)] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
-                else:
-                    mcmc_samples_rescaled[:,i] = (mcmc_samples[:,parameters.index(parameter)] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0]
-                i += 1
             df = pd.DataFrame(data=mcmc_samples_rescaled, columns=parameters)
-            df.to_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/ETH_LDC1-3_100k/GW'+str(pGB['Frequency']*1000)+'.csv',index=False)
+            df.to_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/ETH_LDC1-3_2/GW'+str(int(np.round(pGB['Frequency']*10**8)))+'.csv',index=False)
         plt.show()
 
 
@@ -1838,12 +1903,12 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true):
     posterior1.train_model()
     mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, temperature= 10)
     # posterior1.plot_corner(mcmc_samples, pGB_injected[1][0])
-    mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, prior= mcmc_samples, temperature= 2)
+    mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, proposal= mcmc_samples, temperature= 2)
     # posterior1.plot_corner(mcmc_samples, pGB_injected[1][0])
-    mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, prior= mcmc_samples, temperature= 1)
-    mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, prior= mcmc_samples, temperature= 1)
+    mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, proposal= mcmc_samples, temperature= 1)
+    mcmc_samples = posterior1.calculate_posterior(resolution = 5*10**5, proposal= mcmc_samples, temperature= 1)
     print('time to compute posterior: ', time.time()-start)
-    posterior1.plot_corner(mcmc_samples, pGB_true, save_bool= True, save_chain= True)
+    posterior1.plot_corner(mcmc_samples, pGB_true, save_bool= True, save_chain= False)
     return mcmc_samples
 
 # LDC1-3 ######################
@@ -1855,6 +1920,117 @@ for i in range(len(found_sources_in)):
         number_of_total_signals += 1
 print('time to calculate posterior for ', number_of_total_signals, 'signals: ', time.time()-start)
 
+pGB = pGB_injected[0][0]
+
+
+
+# Seaborn, useful for graphics
+import seaborn as sns
+i =0
+j=0
+posterior1 = Posterior_computer(tdi_fs, Tobs, frequencies[i], found_sources_in[i][j])
+posterior1.reduce_boundaries()
+
+pGB = pGB_injected[i][j]
+start = time.time()
+mcmc_samples_rescaled = np.zeros(np.shape(mcmc_samples))
+i = 0
+for parameter in parameters:
+    if parameter in ["EclipticLatitude"]:
+        mcmc_samples_rescaled[:,i] = np.arcsin((mcmc_samples[:,parameters.index(parameter)] * (posterior1.boundaries_reduced[parameter][1] - posterior1.boundaries_reduced[parameter][0])) + posterior1.boundaries_reduced[parameter][0])
+    elif parameter in ["Inclination"]:
+        mcmc_samples_rescaled[:,i] = np.arccos((mcmc_samples[:,parameters.index(parameter)] * (posterior1.boundaries_reduced[parameter][1] - posterior1.boundaries_reduced[parameter][0])) + posterior1.boundaries_reduced[parameter][0])
+    elif parameter in ['Amplitude',"FrequencyDerivative"]:
+        mcmc_samples_rescaled[:,i] = 10**((mcmc_samples[:,parameters.index(parameter)] * (posterior1.boundaries_reduced[parameter][1] - posterior1.boundaries_reduced[parameter][0])) + posterior1.boundaries_reduced[parameter][0])
+    else:
+        mcmc_samples_rescaled[:,i] = (mcmc_samples[:,parameters.index(parameter)] * (posterior1.boundaries_reduced[parameter][1] - posterior1.boundaries_reduced[parameter][0])) + posterior1.boundaries_reduced[parameter][0]
+    i += 1
+print('time rescale', time.time()-start)
+# start = time.time()
+# df = pd.DataFrame(data=mcmc_samples_rescaled, columns=parameters)
+# df.to_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/Stefan_LDC14/GW'+str(int(np.round(maxpGB['Frequency']*10**8)))+'.csv',index=False)
+# print('saving time', time.time()-start)
+
+print('full time', time.time()-first_start)
+datS = np.zeros(np.shape(mcmc_samples))
+datS[:,0] = mcmc_samples_rescaled[:,2]
+datS[:,1] = mcmc_samples_rescaled[:,1]
+datS[:,2] = mcmc_samples_rescaled[:,3]*10**3
+datS[:,3] = np.log10(mcmc_samples_rescaled[:,4])
+datS[:,4] = mcmc_samples_rescaled[:,5]
+datS[:,5] = np.log10(mcmc_samples_rescaled[:,0])
+datS[:,6] = mcmc_samples_rescaled[:,6]
+datS[:,7] = mcmc_samples_rescaled[:,7]
+
+lbls = [r'$\lambda$', r'$\beta$', 'f(mHz)', r'$\dot{f}$', r'$\iota$', r'$A$', r'$\phi$', r'$\Phi$']
+lbls = [r'\lambda', r'\beta', 'f(mHz)', r'\dot{f}', r'\iota', r'A', r'\phi', r'\Phi']
+
+tr_s = np.zeros(len(parameters))
+maxvalues = np.zeros(len(parameters))
+i = 0
+# pGB = search1.pGB
+for parameter in ['EclipticLongitude','EclipticLatitude','Frequency','FrequencyDerivative','Inclination','Amplitude','InitialPhase','Polarization']:
+    if parameter in ['Amplitude','FrequencyDerivative']:
+        tr_s[i] = np.log10(pGB[parameter])
+        maxvalues[i] = np.log10(posterior1.maxpGB[parameter])
+    elif parameter in ['Frequency']:
+        tr_s[i] = pGB[parameter]*10**3
+        maxvalues[i] = posterior1.maxpGB[parameter]*10**3
+    else:
+        tr_s[i] = pGB[parameter]
+        maxvalues[i] = posterior1.maxpGB[parameter]
+    i += 1
+if tr_s[0] > np.pi:
+    tr_s[0] -= 2*np.pi
+
+rng = []
+for i in range(len(lbls)):
+    minrange = min(datS[:,i].min(), tr_s[i])
+    maxrange = max(datS[:,i].max(), tr_s[i])
+    range_width = np.abs(maxrange - minrange)
+    oner = ( minrange- range_width/10, maxrange + range_width/10)
+    rng.append(oner)
+
+
+# Get the getdist MCSamples objects for the samples, specifying same parameter
+# names and labels; if not specified weights are assumed to all be unity
+ndim = 6
+names = ['EclipticLongitude','EclipticLatitude','Frequency','FrequencyDerivative','Inclination','Amplitude']
+labels =  lbls[:6]
+samples = MCSamples(samples=datS[:,:6],names = names, labels = labels)
+
+g = plots.get_subplot_plotter()
+samples.updateSettings({'contours': [0.68, 0.95]})
+g.settings.num_plot_contours = 3
+g.triangle_plot([samples], shaded=True,title_limit=1)
+#markers vertical
+for i in range(ndim):
+    for ax in g.subplots[i:,i]:
+        ax.axvline(tr_s[i], color='gray', ls='--', label='True')
+        ax.axvline(tr_s[i], color='green', ls='--', label='MLE')
+    i += 1
+#markers horizontal
+for i in range(ndim):
+    for ax in g.subplots[i,:i]:
+        ax.axhline(tr_s[i], color='gray', ls='--')
+    i += 1
+g.export('/home/stefan/LDC/LDC/pictures/corner_frequency'+ str(int(np.round(pGB['Frequency']*10**8))) +'added.png')
+
+
+import pylab as PP
+numPoints = 2**6+1
+ax = np.linspace(-0.15,1.15,numPoints)
+mypdf,axes = fastKDE.pdf(mcmc_samples[:,0],mcmc_samples[:,1], axes=[ax,ax])
+fig,axs = PP.subplots(1,1,figsize=(10,5))
+PP.contour(axes[0],axes[1],mypdf, levels=[0.1,0.6,0.9,1,2,3])
+PP.show()
+
+df = pd.DataFrame(data=mcmc_samples_rescaled[::100], columns=parameters)
+
+grid = sns.PairGrid(data=df, vars= ['EclipticLongitude','EclipticLatitude','Frequency','FrequencyDerivative','Inclination','Amplitude'], size=2)
+grid= grid.map_upper(plt.scatter, color= 'darkred')
+grid = grid.map_lower(sns.kdeplot, cmap = 'Reds')
+grid = grid.map_diag(plt.hist, bins = 10, edgecolor =  'k', color = 'darkred')
 # LDC1-4 ####################
 for i in range(len(found_sources_in)):
     for j in range(len(found_sources_in[i])):
