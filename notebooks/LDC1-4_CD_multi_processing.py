@@ -1985,7 +1985,7 @@ class Posterior_computer():
         samples = MCSamples(samples=datS[:,:6],names = names, labels = labels)
 
         g = plots.get_subplot_plotter()
-        samples.updateSettings({'contours': [0.68, 0.9]})
+        samples.updateSettings({'contours': [0.68, 0.95]})
         g.settings.num_plot_contours = 3
         g.triangle_plot([samples], shaded=True,title_limit=1)
         #markers vertical
