@@ -459,7 +459,7 @@ class Search():
         return res
 
 
-    def plot(self, maxpGBs=None, pGBadded=None, added_label='Injection2'):
+    def plot(self, maxpGBs=None, pGBadded=None, found_sources_in= [], pGB_injected = [], added_label='Injection2', saving_label =None):
         plt.figure(figsize=fig_size)
         ax1 = plt.subplot(111)
         # plt.plot(dataX_training.f*1000,dataX_training.values, label='data')
@@ -479,9 +479,17 @@ class Search():
         # ax1.plot(Xs.f * 1000, Xs.values.real, label="VGB2", marker=".", zorder=5)
                     
         # Af = (Zs - Xs)/np.sqrt(2.0)
+        ax1.semilogy(self.DAf.f*10**3,np.abs(self.DAf),'k',zorder= 1, linewidth = 2, label = 'Data')
+        # ax1.semilogy(tdi_fs_long_subtracted.f[range_index],np.abs(tdi_fs_long_subtracted['X'][range_index])**2,'b',zorder= 5)
 
-        ax1.semilogy(self.DAf.f* 1000, np.abs(self.DAf), label='Data')
-        # ax1.semilogy(Af.f* 1000, np.abs(Af.data), marker='.', label='Injection')
+
+        for j in range(len( pGB_injected[i])):
+            Xs, Ys, Zs = GB.get_fd_tdixyz(template= pGB_injected[i][j], oversample=4, simulator="synthlisa")
+            a,Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)
+            a,Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)
+            Af = (Zs - Xs)/np.sqrt(2.0)
+            ax1.semilogy(Af.f*10**3,np.abs(Af.data), color='grey', linewidth = 3)
+
 
         if pGBadded != None:
             Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBadded, oversample=4, simulator="synthlisa")
@@ -492,9 +500,17 @@ class Search():
             Af = (Zs - Xs)/np.sqrt(2.0)
             ax1.semilogy(Af.f* 1000, np.abs(Af.data), marker='.', label=added_label)
 
+        for j in range(len(found_sources_in[i])):
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_in[i][j], oversample=4, simulator="synthlisa")
+            index_low = np.searchsorted(Xs.f, self.dataX.f[0])
+            Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+            Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+            Af = (Zs - Xs)/np.sqrt(2.0)
+            ax1.semilogy(Af.f* 1000, np.abs(Af.data),'--', color= colors[j], linewidth = 1.8)
+
         # ax1.plot(Xs_added2.f * 1000, Xs_added2.values.real, label="VGB2", marker=".", zorder=5)
-        ax1.axvline(self.boundaries['Frequency'][0]* 1000, color= 'red', label='Boundaries')
-        ax1.axvline(self.boundaries['Frequency'][1]* 1000, color= 'red')
+        ax1.axvline(lower_frequency* 1000, color= 'red', label='Boundaries')
+        ax1.axvline(upper_frequency* 1000, color= 'red')
         if self.reduced_frequency_boundaries != None:
             ax1.axvline(self.reduced_frequency_boundaries[0]* 1000, color= 'green', label='Reduced Boundaries')
             ax1.axvline(self.reduced_frequency_boundaries[1]* 1000, color= 'green')
@@ -502,7 +518,9 @@ class Search():
         # ax1.plot(Xs.f * 1000, dataX.values.real - Xs.values.real, label="residual", alpha=0.8, color="red", marker=".")
         plt.xlabel('f [mHz]')
         plt.ylabel('|A|')
-        plt.legend()
+        # plt.legend()
+        if saving_label != None:
+            plt.savefig(saving_label,dpi=300,bbox_inches='tight')
         plt.show()
         # print("p true", self.loglikelihood([pGB]), "null hypothesis", self.loglikelihood([null_pGBs]))
 
@@ -1045,25 +1063,25 @@ pGBadded7['Amplitude'] = 1.36368e-22*0.25
 pGBadded7['EclipticLatitude'] = -0.2
 pGBadded7['EclipticLongitude'] = 1.4
 pGBadded7['Frequency'] = 0.00110457
-pGBadded7['FrequencyDerivative'] = 1e-19
+pGBadded7['FrequencyDerivative'] = 1e-17
 pGBadded7['Inclination'] = 0.5
 pGBadded7['InitialPhase'] = 3
 pGBadded7['Polarization'] = 2
 pGBadded8 = {}
-pGBadded8['Amplitude'] = 1.36368e-22
+pGBadded8['Amplitude'] = 1.36368e-22*0.1
 pGBadded8['EclipticLatitude'] = -0.2
 pGBadded8['EclipticLongitude'] = 1.4
 pGBadded8['Frequency'] = 0.00120457
-pGBadded8['FrequencyDerivative'] = 1e-19
+pGBadded8['FrequencyDerivative'] = 1e-17
 pGBadded8['Inclination'] = 0.5
 pGBadded8['InitialPhase'] = 3
 pGBadded8['Polarization'] = 2
 pGBadded9 = {}
-pGBadded9['Amplitude'] = 1.36368e-21
+pGBadded9['Amplitude'] = 1.36368e-22
 pGBadded9['EclipticLatitude'] = -0.2
 pGBadded9['EclipticLongitude'] = 1.4
 pGBadded9['Frequency'] = 0.00130457
-pGBadded9['FrequencyDerivative'] = 1e-19
+pGBadded9['FrequencyDerivative'] = 1e-17
 pGBadded9['Inclination'] = 0.3
 pGBadded9['InitialPhase'] = 3
 pGBadded9['Polarization'] = 2
@@ -1072,7 +1090,7 @@ pGBadded10['Amplitude'] = 1.36368e-21*0.5
 pGBadded10['EclipticLatitude'] = -0.2
 pGBadded10['EclipticLongitude'] = 1.4
 pGBadded10['Frequency'] = 0.00140457
-pGBadded10['FrequencyDerivative'] = 1e-19
+pGBadded10['FrequencyDerivative'] = 1e-17
 pGBadded10['Inclination'] = 0.4
 pGBadded10['InitialPhase'] = 3
 pGBadded10['Polarization'] = 2
@@ -1182,20 +1200,20 @@ noise_model = "MRDv1"
 Nmodel = get_noise_model(noise_model, np.logspace(-5, -1, 100))
 Npsd = Nmodel.psd()
 
-# for pGBadding in [pGBadded7,pGBadded8,pGBadded9, pGBadded10, pGBadded11]:#, pGBadded2, pGBadded3, pGBadded4]:
-#     for parameter in parameters:
-#         values = p.get(parameter)
-#         values = np.append(values, pGBadding[parameter])
-#         unit = p.units[parameter]
-#         p.addPar(parameter,values,unit)
-#     Xs_added, Ys_added, Zs_added = GB.get_fd_tdixyz(template=pGBadding, oversample=4, simulator="synthlisa")
-#     source_added = dict({"X": Xs_added, "Y": Ys_added, "Z": Zs_added})
-#     index_low = np.searchsorted(tdi_fs["X"].f, Xs_added.f[0])
-#     index_high = index_low+len(Xs_added)
-#     # tdi_fs['X'] = tdi_fs['X'] #+ Xs_added
-#     for k in ["X", "Y", "Z"]:
-#         tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] + source_added[k].data
-# tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft(dt=dt)) for k, n in [["X", 1], ["Y", 2], ["Z", 3]]]))
+for pGBadding in [pGBadded7,pGBadded8,pGBadded9]:#, pGBadded2, pGBadded3, pGBadded4]:
+    for parameter in parameters:
+        values = p.get(parameter)
+        values = np.append(values, pGBadding[parameter])
+        unit = p.units[parameter]
+        p.addPar(parameter,values,unit)
+    Xs_added, Ys_added, Zs_added = GB.get_fd_tdixyz(template=pGBadding, oversample=4, simulator="synthlisa")
+    source_added = dict({"X": Xs_added, "Y": Ys_added, "Z": Zs_added})
+    index_low = np.searchsorted(tdi_fs["X"].f, Xs_added.f[0])
+    index_high = index_low+len(Xs_added)
+    # tdi_fs['X'] = tdi_fs['X'] #+ Xs_added
+    for k in ["X", "Y", "Z"]:
+        tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] + source_added[k].data
+tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft(dt=dt)) for k, n in [["X", 1], ["Y", 2], ["Z", 3]]]))
 
 
 
@@ -1362,7 +1380,7 @@ upper_frequency2 = 0.0039975
 
 padding = 0.5e-6
 
-save_name = 'original fd19'
+save_name = 'low SNR'
 # LDC1-3 ##########################################
 target_frequencies = p.get('Frequency')
 frequencies = []
@@ -1370,7 +1388,7 @@ window_length = 10**-6 # Hz
 for i in range(len(target_frequencies)):
     window_shift = ((np.random.random(1)-0.5)*window_length*0.5)[0]
     frequencies.append([target_frequencies[i]-window_length/2+window_shift,target_frequencies[i]+window_length/2+window_shift])
-frequencies = frequencies[:10]
+frequencies = frequencies[10:]
 number_of_windows = len(frequencies)
 MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1)
 # found_sources = MLP.search(frequencies[0][0], frequencies[0][1])
@@ -1382,8 +1400,8 @@ MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1)
 # print('time to search ', number_of_windows, 'windows: ', time.time()-start)
 
 found_sources_mp = np.load('/home/stefan/LDC/LDC/pictures/found_sources_ldc1-3'+save_name+'.npy', allow_pickle= True)
-found_sources_mp = [found_sources_mp[9]]
-frequencies = [frequencies[9]]
+# found_sources_mp = [found_sources_mp[9]]
+# frequencies = [frequencies[9]]
 # something = {'Amplitude': 5.855259880951832e-23, 'EclipticLatitude': -0.0880078368316606, 'EclipticLongitude': 2.1029894394054676, 'Frequency': 0.006220280071240212, 'FrequencyDerivative': 7.493551437342653e-16, 'Inclination': 0.5096707454042845, 'InitialPhase': 3.6493674646078746, 'Polarization': 3.141591886842793}
 # np.save('/home/stefan/LDC/LDC/pictures/found_sources_ldc1-3'+save_name+'.npy', found_sources_mp)
 
@@ -1616,9 +1634,15 @@ for i in range(len(found_sources_mp)):
     for j in range(len(found_sources_in[i])):
         print('found', search1.SNRm([found_sources_in[i][j]])[0])
 
+#plot strains
+for i in range(len(found_sources_in)):
+    lower_frequency = frequencies[i][0]
+    upper_frequency = frequencies[i][1]
+    search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
+    search1.plot(found_sources_in=found_sources_in, pGB_injected=pGB_injected, saving_label ='/home/stefan/LDC/LDC/pictures/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'.png')
 
 #plot strains
-for i in range(len(found_sources_mp)):
+for i in range(len(found_sources_in)):
     lower_frequency = frequencies[i][0]
     upper_frequency = frequencies[i][1]
     indexes = np.argsort(p.get('Frequency'))
@@ -1629,18 +1653,18 @@ for i in range(len(found_sources_mp)):
 
     fig = plt.figure(figsize=fig_size)
     ax1 = plt.subplot(111)
-    ax1.semilogy(tdi_fs.f[range_index]*10**3,np.abs(tdi_fs['X'][range_index])**2,'k',zorder= 1, linewidth = 2, label = 'Data')
+    ax1.semilogy(tdi_fs.f[range_index]*10**3,np.abs(tdi_fs['X'][range_index]),'k',zorder= 1, linewidth = 2, label = 'Data')
     # ax1.semilogy(tdi_fs_long_subtracted.f[range_index],np.abs(tdi_fs_long_subtracted['X'][range_index])**2,'b',zorder= 5)
 
 
     for j in range(len( pGB_injected[i])):
         Xs, Ys, Zs = GB.get_fd_tdixyz(template= pGB_injected[i][j], oversample=4, simulator="synthlisa")
         a,Xs = xr.align(dataX, Xs, join='left',fill_value=0)
-        ax1.semilogy(Xs.f*10**3,np.abs(Xs)**2,label= str(np.round(pGB_injected[i][j]['Frequency'],0)), color='grey', linewidth = 3)
+        ax1.semilogy(Xs.f*10**3,np.abs(Xs),label= str(np.round(pGB_injected[i][j]['Frequency'],0)), color='grey', linewidth = 3)
 
     for j in range(len(found_sources_in[i])):
         Xs, Ys, Zs = GB.get_fd_tdixyz(template= found_sources_in[i][j], oversample=4, simulator="synthlisa")
-        ax1.semilogy(Xs.f*10**3,np.abs(Xs)**2,'--', color= colors[j], linewidth = 1.8)
+        ax1.semilogy(Xs.f*10**3,np.abs(Xs),'--', color= colors[j], linewidth = 1.8)
     # Xs, Ys, Zs = GB.get_fd_tdixyz(template= found_sources_mp2[i][0], oversample=4, simulator="synthlisa")
     # ax1.semilogy(Xs.f*10**3,np.abs(Xs)**2,'-', color= colors[i], linewidth = 1.8)
     # Xs, Ys, Zs = GB.get_fd_tdixyz(template= pGB, oversample=4, simulator="synthlisa")
@@ -1991,13 +2015,13 @@ class Posterior_computer():
         #markers vertical
         for i in range(ndim):
             for ax in g.subplots[i:,i]:
-                ax.axvline(tr_s[i], color='orange', ls='--')
+                ax.axvline(tr_s[i], color='orange')
                 ax.axvline(maxvalues[i], color='green', ls='--')
             i += 1
         #markers horizontal
         for i in range(ndim):
             for ax in g.subplots[i,:i]:
-                ax.axhline(tr_s[i], color='orange', ls='--')
+                ax.axhline(tr_s[i], color='orange')
                 ax.axhline(maxvalues[i], color='green', ls='--')
             i += 1
         save_frequency = self.frequencies[0]
