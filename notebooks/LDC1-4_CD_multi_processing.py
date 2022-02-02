@@ -1,4 +1,5 @@
 #%%
+from cProfile import label
 from re import escape
 from gpytorch.likelihoods import likelihood
 from matplotlib.markers import MarkerStyle
@@ -536,7 +537,7 @@ class Search():
         # plt.legend()
         if saving_label != None:
             plt.savefig(saving_label,dpi=300,bbox_inches='tight')
-        plt.show()
+        # plt.show()
         # print("p true", self.loglikelihood([pGB]), "null hypothesis", self.loglikelihood([null_pGBs]))
 
 
@@ -567,7 +568,7 @@ class Search():
         SNR = compute_tdi_snr(source=source, noise=Nmodel, data=data)
         # p1 = np.exp(p1)
         sum_SNR = SNR['X2'] + SNR['Y2'] + SNR['Z2']
-        return sum_SNR#/10000
+        return sum_SNR, SNR#/10000
 
     def SNR2(self, pGBs):
         for i in range(len(pGBs)):
@@ -804,7 +805,7 @@ class Search():
             print('time',time.time()-start)
         else:
             start = time.time()
-            res, energies = differential_evolution(self.function_evolution, bounds=bounds, disp=False, strategy='best1exp', popsize=8,tol= 1e-10 , maxiter=1000, recombination= self.recombination, mutation=(0.5,1))
+            res, energies = differential_evolution(self.function_evolution, bounds=bounds, disp=False, strategy='best1exp', popsize=8,tol= 1e-8 , maxiter=1000, recombination= self.recombination, mutation=(0.5,1))
             print('time',time.time()-start)
         for signal in range(number_of_signals):
             pGB01 = [0.5] + res.x[signal*7:signal*7+7].tolist()
@@ -920,6 +921,28 @@ class Search():
         maxpGB = current_maxpGB
         print('final optimized loglikelihood', self.loglikelihood(maxpGB),maxpGB[0]['Frequency'])
         return maxpGB
+
+    def calculate_Amplitude(self, pGBs):
+        for i in range(len(pGBs)):
+            Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs[i], oversample=4, simulator="synthlisa")
+            if i == 0:
+                Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+                Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
+                Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+            else:
+                Xs_total += xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+                Ys_total += xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
+                Zs_total += xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+            
+        Af = (Zs_total - Xs_total)/np.sqrt(2.0)
+        Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
+        SNR2 = np.sum( np.real(self.DAf * np.conjugate(Af.data) + self.DEf * np.conjugate(Ef.data))/self.SA )
+        hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2) /self.SA)
+        logliks = 4.0*Xs.df*( SNR2 - 0.5 * hh )
+        scalar_prouct_hh = 4.0*Xs.df* hh
+        scalar_prouct_dh = 4.0*Xs.df* SNR2
+        A = scalar_prouct_dh / scalar_prouct_hh
+        return A
 
     def optimizeA(self, pGBmodes, boundaries = None):
         if boundaries == None:
@@ -1114,7 +1137,7 @@ class Search():
         derivativeAf = {}
         derivativeEf = {}
         inner_product = {}
-        for i in range(1):
+        for i in range(3):
             for parameter in parameters:
                 if i == 0:
                     step_size[parameter] = 1e-9
@@ -1163,7 +1186,7 @@ class Search():
                 for parameter2 in parameters:
                     AE = derivativeAf[parameter1]*np.conjugate(derivativeAf[parameter2]) + derivativeAf[parameter1]*np.conjugate(derivativeAf[parameter2])
                     inner_product[parameter1][parameter2] = 4*float(np.real(np.sum(AE / self.SA) * self.dataX.df))
-            # print(step_size['Amplitude'],inner_product['Amplitude']['Amplitude'],step_size['Frequency'],inner_product['Frequency']['Frequency'])
+            print(step_size['Amplitude'],inner_product['Amplitude']['Amplitude'],step_size['Frequency'],inner_product['Frequency']['Frequency'])
         return inner_product
 
 def objective(n,tdi_fs,Tobs):
@@ -1303,39 +1326,39 @@ pGBadded16 = deepcopy(pGBadded15)
 pGBadded16['EclipticLatitude'] = -0.4
 pGBadded16['EclipticLongitude'] = 1.6
 pGBadded17 = {}# low SNR
-pGBadded17['Amplitude'] = 1.45e-22*0.2
+pGBadded17['Amplitude'] = 4.15e-23
 pGBadded17['EclipticLatitude'] = -0.2
 pGBadded17['EclipticLongitude'] = 1.4
 pGBadded17['Frequency'] = 0.001104517
-pGBadded17['FrequencyDerivative'] = 1e-18
+pGBadded17['FrequencyDerivative'] = 8*1e-18
 pGBadded17['Inclination'] = 0.5
 pGBadded17['InitialPhase'] = 3
 pGBadded17['Polarization'] = 2
 pGBadded18 = {}
-pGBadded18['Amplitude'] = 1.45e-22*0.2
+pGBadded18['Amplitude'] = 4.15e-23
 pGBadded18['EclipticLatitude'] = -0.2
 pGBadded18['EclipticLongitude'] = 1.4
 pGBadded18['Frequency'] = 0.00120457
-pGBadded18['FrequencyDerivative'] = 1e-18
+pGBadded18['FrequencyDerivative'] = 5*1e-18
 pGBadded18['Inclination'] = 0.5
 pGBadded18['InitialPhase'] = 3
 pGBadded18['Polarization'] = 2
 pGBadded19 = {} 
-pGBadded19['Amplitude'] = 1.45e-22*0.2
+pGBadded19['Amplitude'] = 4.15e-23
 pGBadded19['EclipticLatitude'] = 0.2
 pGBadded19['EclipticLongitude'] = 1.5
 pGBadded19['Frequency'] = 0.00130457
-pGBadded19['FrequencyDerivative'] = 1e-18
-pGBadded19['Inclination'] = 0.5
+pGBadded19['FrequencyDerivative'] = 5*1e-18
+pGBadded19['Inclination'] = 1.2
 pGBadded19['InitialPhase'] = 3
 pGBadded19['Polarization'] = 2
 pGBadded20 = {}
-pGBadded20['Amplitude'] = 1.45e-22*0.2
+pGBadded20['Amplitude'] = 4.55e-23
 pGBadded20['EclipticLatitude'] = 0.2
 pGBadded20['EclipticLongitude'] = 1.5
 pGBadded20['Frequency'] = 0.00140457
-pGBadded20['FrequencyDerivative'] = 1e-18
-pGBadded20['Inclination'] = 0.5
+pGBadded20['FrequencyDerivative'] = 5*1e-18
+pGBadded20['Inclination'] = 1.2
 pGBadded20['InitialPhase'] = 3
 pGBadded20['Polarization'] = 2
 pGBadded21 = {}
@@ -1343,24 +1366,33 @@ pGBadded21['Amplitude'] = 1.45e-22*0.2
 pGBadded21['EclipticLatitude'] = -0.2
 pGBadded21['EclipticLongitude'] = 1.5
 pGBadded21['Frequency'] = 0.00150457
-pGBadded21['FrequencyDerivative'] = 1e-18
+pGBadded21['FrequencyDerivative'] = 5*1e-18
 pGBadded21['Inclination'] = 0.9
 pGBadded21['InitialPhase'] = 3
 pGBadded21['Polarization'] = 2
 pGBadded22 = {}
-pGBadded22['Amplitude'] = 1.45e-22*0.2
+pGBadded22['Amplitude'] = 4.15e-23
 pGBadded22['EclipticLatitude'] = -0.2
 pGBadded22['EclipticLongitude'] = 1.5
 pGBadded22['Frequency'] = 0.00160457
-pGBadded22['FrequencyDerivative'] = 1e-18
-pGBadded22['Inclination'] = 0.9
+pGBadded22['FrequencyDerivative'] = 5*1e-18
+pGBadded22['Inclination'] = 1.2
 pGBadded22['InitialPhase'] = 3
 pGBadded22['Polarization'] = 2
-
-pGBadded23 = deepcopy(pGBadded11)
-pGBadded23['Amplitude'] *= 2
-pGBadded23['EclipticLatitude'] = -0.3
+pGBadded23 = {}
+pGBadded23['Amplitude'] = 4.15e-23
+pGBadded23['EclipticLatitude'] = -0.2
 pGBadded23['EclipticLongitude'] = 1.5
+pGBadded23['Frequency'] = 0.00170457
+pGBadded23['FrequencyDerivative'] = 1e-17
+pGBadded23['Inclination'] = 1.2
+pGBadded23['InitialPhase'] = 3
+pGBadded23['Polarization'] = 2
+
+pGBadded24 = deepcopy(pGBadded11)
+pGBadded24['Amplitude'] *= 2
+pGBadded24['EclipticLatitude'] = -0.3
+pGBadded24['EclipticLongitude'] = 1.5
 # pGBadded13 = {'Amplitude': 1.36368e-22, 'EclipticLatitude': -0.529009, 'EclipticLongitude': -2.51031, 'Frequency': 0.00125313, 'FrequencyDerivative': 9.159587298288947e-19, 'Inclination': 0.244346, 'InitialPhase': 2.64414439, 'Polarization': 2.229426357}
 # pGBadded13['Frequency'] -= 2*10**-6
 # pGBadded = {'Amplitude': 6.486747e-24, 'EclipticLatitude': -0.318064, 'EclipticLongitude': 4.369758, 'Frequency': 0.01620542, 'FrequencyDerivative': 8.508619e-14, 'Inclination': 0.866814, 'InitialPhase': 6.28136, 'Polarization': 5.978979}
@@ -1463,14 +1495,27 @@ range_index = np.logical_and(tdi_fs.f > lower_frequency, tdi_fs.f < upper_freque
 # plt.show()
 
 
+
 noise_model = "MRDv1"
 Nmodel = get_noise_model(noise_model, np.logspace(-5, -1, 100))
-Npsd = Nmodel.psd()
+# Npsd_MRDv1 = Nmodel.psd(option="A")
+# noise_models = ["Proposal", "SciRDv1", "SciRDdeg1", "MRDv1", "mldc", "LCESAcall"]
+# noises = {}
+# fig = plt.figure()
+# freq = np.logspace(-5, -1, 10000)
+# for noise_model in noise_models:
+#     Nmodel = get_noise_model(noise_model, freq)
+#     noises[noise_model] = Nmodel.psd(option="A")
+#     plt.plot(freq, noises[noise_model], label=noise_model, alpha = 0.5)
+# plt.legend()
+# plt.show()
+
+
 
 # for pGBadding in [pGBadded7,pGBadded8,pGBadded9, pGBadded10]:#, pGBadded2, pGBadded3, pGBadded4]:
 # for pGBadding in [pGBadded7, pGBadded8, pGBadded9]:
-for pGBadding in [pGBadded11, pGBadded12, pGBadded23]:
-# for pGBadding in [pGBadded17, pGBadded18, pGBadded19,pGBadded20, pGBadded21, pGBadded22]:
+# for pGBadding in [pGBadded11, pGBadded12, pGBadded23]:
+for pGBadding in [pGBadded17, pGBadded18, pGBadded19,pGBadded20, pGBadded21, pGBadded22, pGBadded23]:
     for parameter in parameters:
         values = p.get(parameter)
         values = np.append(values, pGBadding[parameter])
@@ -1492,7 +1537,7 @@ ind = 0
 found_sources = []
 target_sources = []
 first_start = time.time()
-np.random.seed(42) #40
+np.random.seed(40) #40
 # for ind in range(1,len(p.get('Frequency'))):
 number_of_signals = 1
 signals_per_subtraction = 1
@@ -1568,9 +1613,13 @@ class MLP_search():
                 # else:
                 maxpGBsearch_new, energies =  search1.differential_evolution_search(search1.boundaries['Frequency'])
                 # maxpGBsearch_new = np.load('/home/stefan/LDC/LDC/pictures/found_sources_ldc1-3'+save_name+'.npy', allow_pickle= True)
-                # maxpGBsearch_new = [maxpGBsearch_new[8]]
+                # maxpGBsearch_new = [maxpGBsearch_new[0]]
+                # maxpGBsearch_new[0][0]['Amplitude'] *= 0.9
                 
-                maxpGBsearch_new = [search1.optimizeA(maxpGBsearch_new)]
+                for j in range(len(maxpGBsearch_new[0])):
+                    A_optimized = search1.calculate_Amplitude([maxpGBsearch_new[0][j]])
+                    maxpGBsearch_new[0][j]['Amplitude'] *= A_optimized.values
+                # maxpGBsearch_new2 = [search1.optimizeA(maxpGBsearch_new)]
 
                 # maxpGBsearch = [[previous_found_sources[ind-1]]]
                 # print(search1.loglikelihood(maxpGBsearch[0]), ', ', ind, '. Source')
@@ -1578,7 +1627,7 @@ class MLP_search():
                 print('which signal per window', ind, i)
                 print(maxpGBsearch_new[0][0]['Frequency'] > lower_frequency and maxpGBsearch_new[0][0]['Frequency'] < upper_frequency)
                 # if maxpGBsearch[0][0]['Frequency'] > lower_frequency and maxpGBsearch[0][0]['Frequency'] < upper_frequency:
-                new_SNR = search1.SNRm(maxpGBsearch_new[0])[0]
+                new_SNR = search1.SNRm(maxpGBsearch_new[0])[1]
                 if i == 0:
                     current_SNR = deepcopy(new_SNR)
                     maxpGBsearch = deepcopy(maxpGBsearch_new)
@@ -1655,7 +1704,7 @@ upper_frequency2 = 0.0039975
 
 padding = 0.5e-6
 
-save_name = 'original SNR'
+save_name = 'original SNR40'
 # LDC1-3 ##########################################
 target_frequencies = p.get('Frequency')
 frequencies = []
@@ -1669,20 +1718,20 @@ number_of_windows = len(frequencies)
 MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1)
 # found_sources_mp = [MLP.search(frequencies[0][0], frequencies[0][1])]
 
-start = time.time()
-pool = mp.Pool(mp.cpu_count())
-found_sources_mp= pool.starmap(MLP.search, frequencies)
-pool.close()
-pool.join()
-print('time to search ', number_of_windows, 'windows: ', time.time()-start)
+# start = time.time()
+# pool = mp.Pool(mp.cpu_count())
+# found_sources_mp= pool.starmap(MLP.search, frequencies)
+# pool.close()
+# pool.join()
+# print('time to search ', number_of_windows, 'windows: ', time.time()-start)
 
-np.save('/home/stefan/LDC/LDC/pictures/found_sources_ldc1-3'+save_name+'.npy', found_sources)
-# found_sources_mp = np.load('/home/stefan/LDC/LDC/pictures/found_sources_ldc1-3'+save_name+'.npy', allow_pickle= True)
+# np.save('/home/stefan/LDC/LDC/pictures/found_sources_ldc1-3'+save_name+'.npy', found_sources_mp)
+found_sources_mp = np.load('/home/stefan/LDC/LDC/pictures/found_sources_ldc1-3'+save_name+'.npy', allow_pickle= True)
 # for parameter in parameters:
 #     print(np.round(found_sources_mp[0][0][parameter], 3 ))
 # print('s')
-# found_sources_mp = [found_sources_mp[0]]
-# frequencies = [frequencies[8]]
+# found_sources_mp = [found_sources_mp[1]]
+# frequencies = [frequencies[1]]
 # search1 = Search(tdi_fs, Tobs, frequencies[0][0], frequencies[0][1])
 # maxpGB = search1.optimize([found_sources_mp[0]])
 
@@ -1912,22 +1961,28 @@ for i in range(len(found_sources_mp)):
     search1 = Search(tdi_fs,Tobs, frequencies[i][0], frequencies[i][1])
     for j in range(len( pGB_injected[i])):
         print(search1.SNRm([pGB_injected[i][j]]))
+        print(np.sqrt(search1.SNR([pGB_injected[i][j]])[1]['tot2']))
     for j in range(len(found_sources_in[i])):
         print('found', search1.SNRm([found_sources_in[i][j]])[:])
-#check SNR
+        print('found', search1.SNR([found_sources_in[i][j]])[:])
+#check loglikelihood
+higherSNR = 0
 for i in range(len(found_sources_mp)):
     search1 = Search(tdi_fs,Tobs, frequencies[i][0], frequencies[i][1])
     for j in range(len( pGB_injected[i])):
         print(search1.loglikelihood([pGB_injected[i][j]]))
     for j in range(len(found_sources_in[i])):
         print('found', search1.loglikelihood([found_sources_in[i][j]]))
+#     if search1.loglikelihood([pGB_injected[i][j]]) < search1.loglikelihood([found_sources_in[i][j]]):
+#         higherSNR += 1
+# print('higherSNR ',higherSNR)
 
 #plot strains
-for i in range(len(found_sources_in)):
-    lower_frequency = frequencies[i][0]
-    upper_frequency = frequencies[i][1]
-    search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
-    search1.plot(found_sources_in=found_sources_in, pGB_injected=pGB_injected, saving_label ='/home/stefan/LDC/LDC/pictures/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'.png')
+# for i in range(len(found_sources_in)):
+#     lower_frequency = frequencies[i][0]
+#     upper_frequency = frequencies[i][1]
+#     search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
+#     search1.plot(found_sources_in=found_sources_in, pGB_injected=pGB_injected, saving_label ='/home/stefan/LDC/LDC/pictures/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'.png')
 
 
 
@@ -1958,7 +2013,7 @@ plt.xlabel(parameter1)
 plt.ylabel(parameter2)
 plt.legend(loc='upper right')
 fig.savefig('/home/stefan/LDC/LDC/pictures/global fit sky'+ str(int(np.round(lower_frequency*10**7))) +save_name+'.png',dpi=300,bbox_inches='tight')
-plt.show()
+# plt.show()
 
 # np.save('/home/stefan/LDC/LDC/pictures/found_sources_ldc1-4', found_sources_mp)
 # found_sources_mp = [[{'Amplitude': 1.5472707659844358e-22, 'EclipticLatitude': 0.3239131241698293, 'EclipticLongitude': -2.7550743649206386, 'Frequency': 0.0013596198589500806, 'FrequencyDerivative': 6.760619501138522e-18, 'Inclination': 0.9617263677786225, 'InitialPhase': 0.8816156199962063, 'Polarization': 2.4981058468684956}]]
@@ -1988,11 +2043,11 @@ class Posterior_computer():
         transf = v @ np.diag(np.sqrt(lambda_))
         scalematrix = np.max(np.abs(transf), axis=1)
         scalematrix = np.sqrt(np.diag(covariance_matrix))
-
+        print('scalematrix', scalematrix)
         maxpGB01_low = deepcopy(maxpGB01)
         maxpGB01_high = deepcopy(maxpGB01)
         boundaries_reduced_fisher = {}
-        sigma_multiplyer = 2.5
+        sigma_multiplyer = 3
         for parameter in parameters:
             maxpGB01_low[parameter] = maxpGB01[parameter] - scalematrix[parameters.index(parameter)] * sigma_multiplyer 
             maxpGB01_high[parameter] = maxpGB01[parameter] + scalematrix[parameters.index(parameter)] * sigma_multiplyer 
@@ -2019,12 +2074,28 @@ class Posterior_computer():
             boundaries_reduced_fisher[parameter] = [maxpGB_fisher_low, maxpGB_fisher_high]
 
         self.boundaries_reduced = deepcopy(boundaries_reduced_fisher)
+        # correct Frequency Derivative
         split_fd = -17
-        if self.boundaries_reduced['FrequencyDerivative'][1] < split_fd+0.5:
+        if self.boundaries_reduced['FrequencyDerivative'][1] < split_fd+1:
             self.boundaries_reduced['FrequencyDerivative'][0] = -18.5
             self.boundaries_reduced['FrequencyDerivative'][1] = -16
         elif self.boundaries_reduced['FrequencyDerivative'][0] < split_fd+0.5:
             self.boundaries_reduced['FrequencyDerivative'][0] = -18.5
+        # correct Inclination and Amplitude
+        split_inclination = 0.8
+        if self.boundaries_reduced['Inclination'][1] > split_inclination:
+            self.boundaries_reduced['Inclination'][0] = 0.5
+            self.boundaries_reduced['Inclination'][1] = 1
+            parameter = 'Amplitude'
+            maxpGB01_low[parameter]  = maxpGB01[parameter] - 0.1
+            maxpGB01_high[parameter]  = maxpGB01[parameter] + 0.1
+            if maxpGB01_low[parameter] < 0:
+                maxpGB01_low[parameter] = 0
+            if maxpGB01_high[parameter] > 1:
+                maxpGB01_high[parameter] = 1
+            maxpGB_fisher_low = (maxpGB01_low[parameter] * (self.search1.boundaries[parameter][1] - self.search1.boundaries[parameter][0])) + self.search1.boundaries[parameter][0]
+            maxpGB_fisher_high = (maxpGB01_high[parameter] * (self.search1.boundaries[parameter][1] - self.search1.boundaries[parameter][0])) + self.search1.boundaries[parameter][0]
+            self.boundaries_reduced[parameter] = [maxpGB_fisher_low, maxpGB_fisher_high]
         print(self.boundaries_reduced)
     
     def train_model(self):
@@ -2044,8 +2115,10 @@ class Posterior_computer():
             start = time.time()
             samples_likelihood = np.zeros(resolution)
             samples_likelihood2 = np.zeros(resolution)
+            incl = np.zeros(resolution)
             for i in range(resolution):
                 samples_p = scaletooriginal(samples[i+j*added_trainig_size], self.boundaries_reduced)
+                incl[i] = samples_p['Inclination']
                 samples_likelihood[i] = self.search1.loglikelihood([samples_p])
             print('sample time of', resolution, 'samples ',time.time() - start)
 
@@ -2063,6 +2136,7 @@ class Posterior_computer():
                 test_y = samples_likelihood[:test_size]
                 train_x = samples_flat[test_size:]
                 test_x = samples_flat[:test_size]
+                train_x
             else:
                 train_y = np.append(train_y, samples_likelihood)
                 train_x = np.append(train_x, samples_flat,axis=0)
@@ -2193,7 +2267,7 @@ class Posterior_computer():
 
         return mcmc_samples
 
-    def plot_corner(self, mcmc_samples, pGB, save_bool = False, save_chain = False, number_of_signal = 0):
+    def plot_corner(self, mcmc_samples, pGB, save_bool = False, save_chain = False, number_of_signal = 0, parameter_titles = False):
         start = time.time()
         mcmc_samples_rescaled = np.zeros(np.shape(mcmc_samples))
         i = 0
@@ -2219,12 +2293,12 @@ class Posterior_computer():
         datS[:,1] = mcmc_samples_rescaled[:,1]
         datS[:,2] = mcmc_samples_rescaled[:,3]*10**3
         datS[:,3] = np.log10(mcmc_samples_rescaled[:,4])
-        datS[:,4] = mcmc_samples_rescaled[:,5]
+        datS[:,4] = np.cos(mcmc_samples_rescaled[:,5])
         datS[:,5] = np.log10(mcmc_samples_rescaled[:,0])
         datS[:,6] = mcmc_samples_rescaled[:,6]
         datS[:,7] = mcmc_samples_rescaled[:,7]
 
-        lbls = [r'\lambda', r'\beta', 'f$ $($mHz$)', r'\log \dot{f}$ $ ($Hz/s$)', r'\iota', r'A', r'\phi', r'\Phi']
+        lbls = [r'\lambda', r'\beta', 'f$ $($mHz$)', r'\log \dot{f}$ $ ($Hz/s$)', r'\cos \iota', r'A', r'\phi', r'\Phi']
 
         tr_s = np.zeros(len(parameters))
         maxvalues = np.zeros(len(parameters))
@@ -2237,6 +2311,9 @@ class Posterior_computer():
             elif parameter in ['Frequency']:
                 tr_s[i] = pGB[parameter]*10**3
                 maxvalues[i] = self.maxpGB[parameter]*10**3
+            elif parameter in ['Inclination']:
+                tr_s[i] = np.cos(pGB[parameter])
+                maxvalues[i] = np.cos(self.maxpGB[parameter])
             else:
                 tr_s[i] = pGB[parameter]
                 maxvalues[i] = self.maxpGB[parameter]
@@ -2262,7 +2339,11 @@ class Posterior_computer():
         g = plots.get_subplot_plotter(subplot_size=0.9)
         samples.updateSettings({'contours': [0.68, 0.95]})
         g.settings.num_plot_contours = 2
-        g.triangle_plot([samples], shaded=True, title_limit=2)
+        if parameter_titles:
+            g.triangle_plot([samples], shaded=True, title_limit=2)
+        else:
+            g.triangle_plot([samples], shaded=True)
+        
         #markers vertical
         for i in range(ndim):
             for ax in g.subplots[i:,i]:
@@ -2278,7 +2359,7 @@ class Posterior_computer():
         save_frequency = self.frequencies[0]
         save_frequency = pGB['Frequency']
         if save_bool:
-            g.export('/home/stefan/LDC/LDC/pictures/corner_frequency'+ str(int(np.round(save_frequency*10**8)))+'number of singal'+str(number_of_signal)+save_name+'.png')
+            g.export('/home/stefan/LDC/LDC/pictures/corner_frequency'+ str(int(np.round(save_frequency*10**8)))+'number of singal'+str(number_of_signal)+save_name+str(parameter_titles)+'.png')
         if save_chain:
             df = pd.DataFrame(data=mcmc_samples_rescaled, columns=parameters)
             df.to_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/ETH_2/GW'+str(int(np.round(save_frequency*10**8)))+'number of singal'+str(number_of_signal)+save_name+'.csv',index=False)
@@ -2296,8 +2377,9 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true,number_of_sign
     mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, proposal= mcmc_samples, temperature= 1)
     mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**6, proposal= mcmc_samples, temperature= 1)
     print('time to compute posterior: ', time.time()-start)
-    posterior1.plot_corner(mcmc_samples, pGB_true, save_bool= True, save_chain= True, number_of_signal = 0)
+    posterior1.plot_corner(mcmc_samples, pGB_true, save_bool= True, save_chain= True, number_of_signal = 0, parameter_titles = True)
     return mcmc_samples
+
 
 # LDC1-3 ######################
 start = time.time()
@@ -2308,9 +2390,14 @@ for i in range(len(found_sources_in)):
         number_of_total_signals += 1
 print('time to calculate posterior for ', number_of_total_signals, 'signals: ', time.time()-start)
 
-# posterior1 = Posterior_computer(tdi_fs, Tobs, frequencies[i], found_sources_in[i][j])
-# posterior1.reduce_boundaries()
-# posterior1.plot_corner(mcmc_samples, pGB_injected[i][j], save_bool= True, save_chain= True)
+i = 0
+number_of_signal = 0
+for j in range(len(found_sources_in[i])):
+    save_frequency = pGB_injected[i][j]['Frequency']
+    df = pd.read_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/ETH_2/GW'+str(int(np.round(save_frequency*10**8)))+'number of singal'+str(number_of_signal)+save_name+'.csv')
+    posterior1 = Posterior_computer(tdi_fs, Tobs, frequencies[i], found_sources_in[i][j])
+    posterior1.reduce_boundaries()
+    posterior1.plot_corner(mcmc_samples, pGB_injected[i][j], save_bool= True, save_chain= False, parameter_titles = False)
 
 # LDC1-4 ####################
 for i in range(len(found_sources_in)):
