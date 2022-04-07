@@ -167,7 +167,7 @@ def loglikelihood(pGBs):
 # Number of histogram bins.
 n_bin = 50
 # Total number of proposed samples.
-number_of_samples = 1*10 **3
+number_of_samples = 1*10 **4
 cutoff_ratio = 1000
 
 parameters = ['Amplitude','EclipticLatitude','EclipticLongitude','Frequency','FrequencyDerivative','Inclination','InitialPhase','Polarization']
@@ -409,7 +409,7 @@ model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kerne
 list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].parameters())[1].requires_grad=False
 # Amplitude
 model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].lengthscale = torch.tensor([[0.4]])
-list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].parameters())[1].requires_grad=False
+list(model.covar_module.base_kernel.kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[0].kernels[1].parameters())[0].requires_grad=False
 
 
 # Use the adam optimizer

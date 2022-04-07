@@ -33,108 +33,71 @@ class ExactGPModel(gpytorch.models.ExactGP, GPyTorchModel):
         return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
 
 
-def _get_and_fit_simple_custom_gp(train_x, train_y, **kwargs):
-    # initialize likelihood and model
-    likelihood = gpytorch.likelihoods.GaussianLikelihood()
-    model = ExactGPModel(train_x[0], train_y[0], likelihood)
+# initialize likelihood and model
+likelihood = gpytorch.likelihoods.GaussianLikelihood()
+model = ExactGPModel(train_x, train_y, likelihood)
 
-    training_iter = 50
+training_iter = 50
 
 
-    # Find optimal model hyperparameters
-    model.train()
-    likelihood.train()
+# Find optimal model hyperparameters
+model.train()
+likelihood.train()
 
-    for param_name, param in model.named_parameters():
-        print(f'Parameter name: {param_name:42} value = {param.item()}')
+for param_name, param in model.named_parameters():
+    print(f'Parameter name: {param_name:42} value = {param.item()}')
 
-    hypers = {
-        'likelihood.noise': torch.tensor(0.01),
-    }
-    model.initialize(**hypers)
+hypers = {
+    'likelihood.noise': torch.tensor(0.01),
+}
+model.initialize(**hypers)
 
-    # Use the adam optimizer
-    # optimizer = torch.optim.Adam([
-    #     {"params": model.mean_module.parameters()},
-    #     {"params": model.covar_module.parameters()},
-    # ], lr=0.1)  # Includes GaussianLikelihood parameters
-    optimizer = torch.optim.SGD(model.parameters(),
-        lr=0.1
-    )
-    list(model.likelihood.noise_covar.parameters())[0].requires_grad=False
-    # "Loss" for GPs - the marginal log likelihood
-    mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
-
-    for i in range(training_iter):
-        # Zero gradients from previous iteration
-        optimizer.zero_grad()
-        # Output from model
-        output = model(train_x)
-        # Calc loss and backprop gradients
-        loss = -mll(output, train_y)
-        loss.backward()
-        print('Iter %d/%d - Loss: %.3f   lengthscale: %.3f   noise: %.3f' % (
-            i + 1, training_iter, loss.item(),
-            model.covar_module.base_kernel.lengthscale.item(),
-            model.likelihood.noise.item()
-        ))
-        optimizer.step()
-    return model
-
-def branin(parameterization, *args):
-    x1, x2 = parameterization["x1"], parameterization["x2"]
-    y = (x2 - 5.1 / (4 * np.pi ** 2) * x1 ** 2 + 5 * x1 / np.pi - 6) ** 2
-    y += 10 * (1 - 1 / (8 * np.pi)) * np.cos(x1) + 10
-    # let's add some synthetic observation noise
-    return {"branin": (y, 0.0)}
-
-search_space = SearchSpace(
-    parameters=[
-        RangeParameter(
-            name="x1", parameter_type=ParameterType.FLOAT, lower=-5, upper=10
-        ),
-        RangeParameter(
-            name="x2", parameter_type=ParameterType.FLOAT, lower=0, upper=15
-        ),
-    ]
+# Use the adam optimizer
+# optimizer = torch.optim.Adam([
+#     {"params": model.mean_module.parameters()},
+#     {"params": model.covar_module.parameters()},
+# ], lr=0.1)  # Includes GaussianLikelihood parameters
+optimizer = torch.optim.SGD(model.parameters(),
+    lr=0.1
 )
+list(model.likelihood.noise_covar.parameters())[0].requires_grad=False
+# "Loss" for GPs - the marginal log likelihood
+mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
 
-exp = SimpleExperiment(
-    name="test_branin",
-    search_space=search_space,
-    evaluation_function=branin,
-    objective_name="branin",
-    minimize=True,
-)
+for i in range(training_iter):
+    # Zero gradients from previous iteration
+    optimizer.zero_grad()
+    # Output from model
+    output = model(train_x)
+    # Calc loss and backprop gradients
+    loss = -mll(output, train_y)
+    loss.backward()
+    print('Iter %d/%d - Loss: %.3f   lengthscale: %.3f   noise: %.3f' % (
+        i + 1, training_iter, loss.item(),
+        model.covar_module.base_kernel.lengthscale.item(),
+        model.likelihood.noise.item()
+    ))
+    optimizer.step()
 
-sobol = get_sobol(exp.search_space)
-exp.new_batch_trial(generator_run=sobol.gen(5))
 
-for i in range(5):
-    print(f"Running optimization batch {i+1}/5...")
-    model = get_botorch(
-        experiment=exp,
-        data=exp.eval(),
-        search_space=exp.search_space,
-        model_constructor=_get_and_fit_simple_custom_gp,
+
+
+best_value = train_y.max()
+EI = ExpectedImprovement(model=model, best_f=best_value)
+for i in range(20):
+    new_point_analytic, _ = optimize_acqf(
+        acq_function=EI,
+        bounds=torch.tensor([[0.0] * 1, [1.0] * 1]),
+        q=1,
+        num_restarts=1,
+        raw_samples=100,
+        options={},
     )
-    batch = exp.new_trial(generator_run=model.gen(1))
+    print('new point', new_point_analytic)
 
 # Get into evaluation (predictive posterior) mode
 model.eval()
 likelihood.eval()
-
-best_value = train_y.max()
-EI = ExpectedImprovement(model=model, best_f=best_value)
-new_point_analytic, _ = optimize_acqf(
-    acq_function=EI,
-    bounds=torch.tensor([[0.0] * 1, [1.0] * 1]),
-    q=1,
-    num_restarts=20,
-    raw_samples=100,
-    options={},
-)
-print('new point', new_point_analytic)
 # Test points are regularly spaced along [0,1]
 # Make predictions by feeding model through likelihood
 with torch.no_grad(), gpytorch.settings.fast_pred_var():
