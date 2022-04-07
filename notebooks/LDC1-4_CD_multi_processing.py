@@ -2726,7 +2726,7 @@ g.export('/home/stefan/LDC/LDC/pictures/global fit all '+save_name+'log frequenc
 
 #########################################
 # plot overlap
-lbls = [r'\lambda', r'\beta', 'f$ $($mHz$)', r'\log \dot{f}$ $ ($Hz/s$)', r'\iota', r'A']
+lbls = [r'\lambda', r'\sin \beta', 'f$ $($mHz$)', r'\log \dot{f}$ $ ($Hz/s$)', r'\cos \iota', r'\log \mathcal{A}']
 m = 0
 names = ['EclipticLongitude','EclipticLatitude','Frequency','FrequencyDerivative','Inclination','Amplitude']
 samples = []
@@ -2734,6 +2734,8 @@ for file_name in ['GW201457number of singal0LDC1-3overlap single signal', 'GW201
         df = pd.read_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/ETH_2/'+file_name+'.csv')
         df['FrequencyDerivative'] = np.log10(df['FrequencyDerivative'].values)
         df['Amplitude'] = np.log10(df['Amplitude'].values)
+        df['EclipticLatitude'] = np.sin(df['EclipticLatitude'].values)
+        df['Inclination'] = np.cos(df['Inclination'].values)
         df = df.drop(labels= ['InitialPhase', 'Polarization'], axis=1)
         df = df.reindex(columns = names)
         df['Frequency'] *= 1000
@@ -2748,11 +2750,17 @@ tr_s = np.zeros(len(parameters))
 maxvalues = np.zeros(len(parameters))
 i = 0
 pGB = pGB_injected[0][0]
+pGB = pGBadded11
+
 for parameter in names:
     if parameter in ['Amplitude','FrequencyDerivative']:
         tr_s[i] = np.log10(pGB[parameter])
     elif parameter in ['Frequency']:
         tr_s[i] = pGB[parameter]*10**3
+    elif parameter in ['EclipticLatitude']:
+        tr_s[i] = np.sin(pGB[parameter])
+    elif parameter in ['Inclination']:
+        tr_s[i] = np.cos(pGB[parameter])
     else:
         tr_s[i] = pGB[parameter]
     i += 1
@@ -2769,7 +2777,7 @@ for i in range(ndim):
     for ax in g.subplots[i,:i]:
         ax.axhline(tr_s[i], color='black', lw = 1)
     i += 1
-g.export('/home/stefan/LDC/LDC/pictures/corner overlap '+save_name+'.png')
+g.export('/home/stefan/LDC/LDC/pictures/corner overlap '+save_name+'2.png')
 
 stock = lambda A, amp, angle, phase: A * angle + amp * np.sin(angle + phase)
 theta = np.linspace(0., 2 * np.pi, 250) # x-axis
