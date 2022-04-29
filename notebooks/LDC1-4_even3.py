@@ -1795,7 +1795,8 @@ while current_frequency < search_range[1]:
     current_frequency = deepcopy(upper_limit)
     number_of_windows += 1
 
-batch_index = int(sys.argv[1])
+# batch_index = int(sys.argv[1])
+batch_index = 13
 # frequencies = frequencies[:32]
 frequencies_even = frequencies[::2]
 frequencies_odd = frequencies[1::2]

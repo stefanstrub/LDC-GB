@@ -1,0 +1,4 @@
+python setup.py build_liborbits install --prefix=/cluster/home/sstrub/Repositories/LDC/lib
+
+module load gcc/6.3.0 python/3.8.5 gsl fftw
+
