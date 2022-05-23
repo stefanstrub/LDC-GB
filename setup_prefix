@@ -2,3 +2,7 @@ python setup.py build_liborbits install --prefix=/cluster/home/sstrub/Repositori
 
 module load gcc/6.3.0 python/3.8.5 gsl fftw
 
+bsub -n 1 -W 4:00 -R "rusage[mem=2048]" python LDC1-4_even3.py 4
+
+bsub -W 30 -Is /bin/bash
+

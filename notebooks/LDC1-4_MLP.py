@@ -1835,7 +1835,7 @@ class MLP_search():
                 new_SNR = search1.SNR(maxpGBsearch_new[0])
                 if i == 0:
                     current_SNR = deepcopy(new_SNR)
-                if new_SNR > current_SNR:
+                if new_SNR >= current_SNR:
                     current_SNR = deepcopy(new_SNR)
                 if current_SNR < SNR_threshold:
                     break
@@ -1844,11 +1844,11 @@ class MLP_search():
                     for j in range(len(maxpGBsearch_new[0])):
                         A_optimized = search1.calculate_Amplitude([maxpGBsearch_new[0][j]])
                         maxpGBsearch_new[0][j]['Amplitude'] *= A_optimized.values
-                    print(maxpGBsearch_new[0][0]['Frequency'] > lower_frequency and maxpGBsearch_new[0][0]['Frequency'] < upper_frequency)
-                    new_SNR = search1.SNR(maxpGBsearch_new[0])
+                    print('in range', maxpGBsearch_new[0][0]['Frequency'] > lower_frequency and maxpGBsearch_new[0][0]['Frequency'] < upper_frequency)
+                    # new_SNR = search1.SNR(maxpGBsearch_new[0])
                     if i == 0:
                         maxpGBsearch = deepcopy(maxpGBsearch_new)
-                    if new_SNR > current_SNR:
+                    if new_SNR >= current_SNR:
                         maxpGBsearch = deepcopy(maxpGBsearch_new)
                     found_sources_all[-1] = maxpGBsearch_new
                 except:
@@ -2173,8 +2173,11 @@ if do_print:
         padding = (frequencies_search[j][1] - frequencies_search[j][0])/2 *0
         index_low = np.searchsorted(cat_sorted['Frequency'], frequencies_search[j][0]-padding)
         index_high = np.searchsorted(cat_sorted['Frequency'], frequencies_search[j][1]+padding)
-        if cat_sorted['Frequency'][index_high] < frequencies_search[j][1]:
-            index_high -= 1
+        try:
+            if cat_sorted['Frequency'][index_high] < frequencies_search[j][1]:
+                index_high -= 1
+        except:
+            pass
         indexesA = np.argsort(-cat_sorted[index_low:index_high]['Amplitude'])
         pGB_injected_window = []
         pGB_stacked = {}
