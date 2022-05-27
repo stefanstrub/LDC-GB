@@ -1946,7 +1946,7 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search):
 
 padding = 0.5e-6
 
-save_name = 'LDC1-3'
+save_name = 'LDC1-3_v2'
 indexes = np.argsort(cat['Frequency'])
 cat_sorted = cat[indexes]
 
@@ -1961,7 +1961,7 @@ for i in range(len(target_frequencies)):
 frequencies_search = frequencies
 do_subtract = False
 
-do_search = True
+do_search = False
 if do_search:
     MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1, strategy = 'DE')
     start = time.time()
@@ -2090,7 +2090,7 @@ if do_print:
                     tdi_fs_subtracted[k].data[index_low:index_high] = tdi_fs_subtracted[k].data[index_low:index_high] - source_subtracted[k].data
             search_subtracted = Search(tdi_fs_subtracted,Tobs, frequencies_search[i][0], frequencies_search[i][1])
             print('true subtracted',search_subtracted.SNRm([pGB_injected[i][j]])[2].values, 'original data', search1.SNRm([pGB_injected[i][j]])[2].values)
-        for j in range(len(found_sources_in[i])):
+        for j in range(len(found_sources_in_all[i])):
             #subtract the found sources from original
             # tdi_fs_subtracted = deepcopy(tdi_fs)
             # for n in range(len( found_sources_in[i][:j])):
@@ -2101,7 +2101,7 @@ if do_print:
             #     for k in ["X", "Y", "Z"]:
             #         tdi_fs_subtracted[k].data[index_low:index_high] = tdi_fs_subtracted[k].data[index_low:index_high] - source_subtracted[k].data
             # search_subtracted = Search(tdi_fs_subtracted,Tobs, frequencies_search[i][0], frequencies_search[i][1])
-            print('found subtracted',search_subtracted.SNRm([found_sources_in[i][j]])[2].values, 'original data', search1.SNRm([found_sources_in[i][j]])[2].values)
+            print('found subtracted',search_subtracted.SNRm([found_sources_in_all[i][j]])[2].values, 'original data', search1.SNR([found_sources_in_all[i][j]]))
             # print('found', search1.SNR([found_sources_mp_even_all[i][j]]))
 
     # #check loglikelihood all

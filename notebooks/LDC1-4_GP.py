@@ -2052,7 +2052,7 @@ if do_print:
     # found_sources_in = []
     # for i in range(len(found_sources_mp)):
     #     found_sources_in.append([])
-    #     for j in range(len(found_sources_mp[i])):
+    #     for j in range(len(found_sources_mp[i][3])):
     #         found_sources_in[i].append(found_sources_mp[i][3])
 
     pGB_injected = []
@@ -2060,8 +2060,11 @@ if do_print:
         padding = (frequencies_search[j][1] - frequencies_search[j][0])/2 *0
         index_low = np.searchsorted(cat_sorted['Frequency'], frequencies_search[j][0]-padding)
         index_high = np.searchsorted(cat_sorted['Frequency'], frequencies_search[j][1]+padding)
-        if cat_sorted['Frequency'][index_high] < frequencies_search[j][1]:
-            index_high -= 1
+        try:
+            if cat_sorted['Frequency'][index_high] < frequencies_search[j][1]:
+                index_high -= 1
+        except:
+            pass
         indexesA = np.argsort(-cat_sorted[index_low:index_high]['Amplitude'])
         pGB_injected_window = []
         pGB_stacked = {}
