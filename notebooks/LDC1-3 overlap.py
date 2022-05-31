@@ -2722,7 +2722,7 @@ for n, ax in enumerate(g.subplots[:,0]):
         ax.set_ylim([-18.5, ylim[1]+y_length*0.02])
     # if parameter2 in ['Amplitude', 'FrequencyDerivative']:
     #     ax.set_yscale('log')
-g.export('/home/stefan/LDC/LDC/pictures/global fit all '+save_name+'log frequency.png')
+g.export('/home/stefan/LDC/LDC/pictures/global fit all '+save_name+'log_frequency_1666.png')
 
 #########################################
 # plot overlap
@@ -2732,7 +2732,8 @@ names = ['EclipticLongitude','EclipticLatitude','Frequency','FrequencyDerivative
 samples = []
 # for file_name in ['GW201457number of singal0LDC1-3overlap single signal', 'GW201457number of singal0LDC1-3overlap']:
 #         df = pd.read_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/ETH_2/'+file_name+'.csv')
-for file_name in ['frequency1252567nHzLDC1-3', 'frequency1252567nHzLDC1-3fastGB']:
+# for file_name in ['frequency1252567nHzLDC1-3', 'frequency1252567nHzLDC1-3fastGB']:
+for file_name in ['frequency1666286nHzLDC1-3', 'frequency1666286nHzLDC1-3fastGB']:
         df = pd.read_csv('/home/stefan/LDC/pictures/LDC1-3_v2/Chain/'+file_name+'.csv')
         df['FrequencyDerivative'] = np.log10(df['FrequencyDerivative'].values)
         df['Amplitude'] = np.log10(df['Amplitude'].values)
@@ -2749,7 +2750,7 @@ g.triangle_plot(samples, shaded=True, legend_labels=[])
 tr_s = np.zeros(len(parameters))
 maxvalues = np.zeros(len(parameters))
 i = 0
-pGB = pGB_injected[0][0]
+pGB = pGB_injected[2][0]
 for parameter in names:
     if parameter in ['Amplitude','FrequencyDerivative']:
         tr_s[i] = np.log10(pGB[parameter])

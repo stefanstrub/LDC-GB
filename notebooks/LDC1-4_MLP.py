@@ -1944,7 +1944,7 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search):
 
 padding = 0.5e-6
 
-save_name = 'LDC1-4_4mHz_2_year_initial_half_even_SNR10'
+save_name = 'LDC1-4_4mHz_2_year_odd'
 indexes = np.argsort(cat['Frequency'])
 cat_sorted = cat[indexes]
 
@@ -1980,7 +1980,7 @@ while current_frequency < search_range[1]:
 # frequencies = frequencies[:32]
 frequencies_even = frequencies[::2]
 frequencies_odd = frequencies[1::2]
-frequencies_search = frequencies_even
+frequencies_search = frequencies_odd
 
 ##### plot number of signals per frequency window
 # frequencies_search = frequencies[::10]
@@ -2064,8 +2064,8 @@ do_subtract = True
 if do_subtract:
     # save_name_previous = 'found_sources397769to400619LDC1-4_4mHz_half_year_even3'
     # save_name_previous = 'found_sources397919to400770LDC1-4_4mHz_half_year_odd'
-    # save_name_previous = 'found_sources397956to401074LDC1-4_4mHz_2_year_initial_half_even3'
-    save_name_previous = 'found_sources397793to400909LDC1-4_4mHz_2_year_initial_half_odd_SNR10'
+    save_name_previous = 'found_sources397956to401074LDC1-4_4mHz_2_year_initial_half_even3'
+    # save_name_previous = 'found_sources397793to400909LDC1-4_4mHz_2_year_initial_half_odd_SNR10'
     # save_name_previous = 'LDC1-4 odd'
     found_sources_mp_subtract = np.load(SAVEPATH+'/'+save_name_previous+'.npy', allow_pickle = True)
     tdi_fs_subtracted = tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search)
@@ -2081,8 +2081,8 @@ found_sources_sorted = []
 use_initial_guess = True
 if use_initial_guess:
     found_sources_loaded = []
-    save_name_found_sources_previous = 'found_sources397769to400619LDC1-4_4mHz_half_year_even10'
-    # save_name_found_sources_previous = 'found_sources397919to400770LDC1-4_4mHz_half_year_odd'
+    # save_name_found_sources_previous = 'found_sources397769to400619LDC1-4_4mHz_half_year_even10'
+    save_name_found_sources_previous = 'found_sources397919to400770LDC1-4_4mHz_half_year_odd'
     found_sources_loaded.append(np.load(SAVEPATH+'/'+save_name_found_sources_previous+'.npy', allow_pickle = True))
 
     found_sources_previous = []
@@ -2119,7 +2119,7 @@ if use_initial_guess:
 # frequencies_search = [frequencies_search[7]]
 do_search = True
 if do_search:
-    MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 10, found_sources_previous = found_sources_sorted, strategy = 'DE')
+    MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 3, found_sources_previous = found_sources_sorted, strategy = 'DE')
     start = time.time()
     pool = mp.Pool(mp.cpu_count())
     found_sources_mp = pool.starmap(MLP.search, frequencies_search)
@@ -2128,7 +2128,7 @@ if do_search:
     print('time to search ', number_of_windows, 'windows: ', time.time()-start)
     np.save(SAVEPATH+'/found_sources'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', found_sources_mp)
     
-do_print = True
+do_print = False
 if do_print:
     found_sources_mp = np.load(SAVEPATH+'/found_sources'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', allow_pickle = True)
     found_sources_mp_best = []
@@ -2283,7 +2283,7 @@ if do_print:
         upper_frequency = frequencies_search[i][1]
         search1 = Search(tdi_fs_subtracted,Tobs, lower_frequency, upper_frequency)
         if len(pGB_injected[i]) > 0:
-            search1.plot(found_sources_in=found_sources_in[i], pGB_injected=pGB_injected[i], saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'.png') 
+            search1.plot(found_sources_in=found_sources_mp_best[i], pGB_injected=pGB_injected[i], saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'.png') 
             # search1.plot(found_sources_in=found_sources_in[i], pGB_injected=pGB_injected[i][:10], saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'in.png') 
 
 #     #subtract the found sources from original
@@ -2351,40 +2351,40 @@ if do_print:
 
 f_line = np.logspace(-4,-1, num=20)
 
-indexes = np.argsort(cat['Frequency'])
-pGB_injected = []
-cat_sorted = cat[indexes]
-frequencies_plot = []
-for i in range(len(f_line)-1):
-    frequencies_plot.append([f_line[i],f_line[i+1]])
-cat_plot = []
-for j in range(len(frequencies_plot)):
-    index_low = np.searchsorted(cat_sorted['Frequency'], frequencies_plot[j][0])
-    index_high = np.searchsorted(cat_sorted['Frequency'], frequencies_plot[j][1])
+# indexes = np.argsort(cat['Frequency'])
+# pGB_injected = []
+# cat_sorted = cat[indexes]
+# frequencies_plot = []
+# for i in range(len(f_line)-1):
+#     frequencies_plot.append([f_line[i],f_line[i+1]])
+# cat_plot = []
+# for j in range(len(frequencies_plot)):
+#     index_low = np.searchsorted(cat_sorted['Frequency'], frequencies_plot[j][0])
+#     index_high = np.searchsorted(cat_sorted['Frequency'], frequencies_plot[j][1])
 
-    try:
-        cat_plot.append(cat_sorted[index_low:index_low+100])
-    except:
-        cat_plot.append(cat_sorted[index_low:])
+#     try:
+#         cat_plot.append(cat_sorted[index_low:index_low+100])
+#     except:
+#         cat_plot.append(cat_sorted[index_low:])
 
-fig = plt.figure()
-parameter_x = 'Frequency'
-parameter_y = 'FrequencyDerivative'
-for i in range(len(cat_plot)):
-    for j in range(len(cat_plot[i])):
-        plt.scatter(cat_plot[i][parameter_x][j],cat_plot[i][parameter_y][j])
-plt.plot(f_line, frequency_derivative(f_line,0.1))
-plt.plot(f_line, frequency_derivative(f_line,M_chirp_upper_boundary))
-# plt.plot(f_line, frequency_derivative(f_line,100))
-# plt.plot(f_line, frequency_derivative_Neil(f_line))
-plt.hlines(0.01/Tobs**2, xmin=f_line[0], xmax=f_line[-1], linestyles='--')
-plt.hlines(0.01/(Tobs/2)**2, xmin=f_line[0], xmax=f_line[-1], linestyles='--')
-plt.hlines(0.01/(Tobs*2)**2, xmin=f_line[0], xmax=f_line[-1], linestyles='--')
-plt.xscale('log')
-plt.yscale('log')
-plt.xlabel('$\log $f $[$Hz$]$')
-plt.ylabel('$\log  \dot{f} [s^{-2}]$')
-plt.savefig(SAVEPATH+'/found_sources_'+save_name+'f-fd.png')
+# fig = plt.figure()
+# parameter_x = 'Frequency'
+# parameter_y = 'FrequencyDerivative'
+# for i in range(len(cat_plot)):
+#     for j in range(len(cat_plot[i])):
+#         plt.scatter(cat_plot[i][parameter_x][j],cat_plot[i][parameter_y][j])
+# plt.plot(f_line, frequency_derivative(f_line,0.1))
+# plt.plot(f_line, frequency_derivative(f_line,M_chirp_upper_boundary))
+# # plt.plot(f_line, frequency_derivative(f_line,100))
+# # plt.plot(f_line, frequency_derivative_Neil(f_line))
+# plt.hlines(0.01/Tobs**2, xmin=f_line[0], xmax=f_line[-1], linestyles='--')
+# plt.hlines(0.01/(Tobs/2)**2, xmin=f_line[0], xmax=f_line[-1], linestyles='--')
+# plt.hlines(0.01/(Tobs*2)**2, xmin=f_line[0], xmax=f_line[-1], linestyles='--')
+# plt.xscale('log')
+# plt.yscale('log')
+# plt.xlabel('$\log $f $[$Hz$]$')
+# plt.ylabel('$\log  \dot{f} [s^{-2}]$')
+# plt.savefig(SAVEPATH+'/found_sources_'+save_name+'f-fd.png')
 
 
 # %%

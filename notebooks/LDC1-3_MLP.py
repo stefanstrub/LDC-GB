@@ -2010,7 +2010,7 @@ for j in range(len(frequencies)):
     for i in range(len(pGB_stacked)):
         pGBs = {}
         for parameter in parameters:
-            pGBs[parameter] = pGB_stacked[parameter][0]
+            pGBs[parameter] = pGB_stacked[parameter][i]
         pGB_injected_window.append(pGBs)
     pGB_injected.append(pGB_injected_window)
 

@@ -8,6 +8,7 @@ from scipy.optimize import differential_evolution
 import numpy as np
 import xarray as xr
 import time
+from getdist import plots, MCSamples
 from copy import deepcopy
 import multiprocessing as mp
 import pandas as pd

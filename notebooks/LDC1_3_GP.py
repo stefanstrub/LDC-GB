@@ -2472,6 +2472,7 @@ posterior_calculation_input = []
 for i in range(len(found_sources_in)):
     if i > 0:
         break
+    i = 2
     for j in range(len(found_sources_in[i])):
         posterior_calculation_input.append((tdi_fs, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j]))
         mcmc_samples = compute_posterior(tdi_fs, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j])
