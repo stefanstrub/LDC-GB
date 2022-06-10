@@ -1475,6 +1475,7 @@ class MLP_search():
 
         found_sources_all = []
         number_of_evaluations_all = []
+        found_sources_in = []
         current_SNR = 100
         ind = 0
         SNR_threshold = 18
@@ -1521,7 +1522,7 @@ class MLP_search():
                         maxpGBsearch = deepcopy(maxpGBsearch_new)
                     found_sources_all[-1] = maxpGBsearch_new
                 except:
-                    break
+                    pass
                 print('current SNR', current_SNR)
 
             if current_SNR < SNR_threshold:
@@ -2055,10 +2056,10 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true, start_trainin
     posterior1.train_model(start_training_size=start_training_size)
     mcmc_samples, evalutation_time = posterior1.calculate_posterior(resolution = 1*10**5, temperature= 10)
     # posterior1.plot_corner(mcmc_samples, pGB_injected[1][0])
-    # mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, proposal= mcmc_samples, temperature= 2)
+    mcmc_samples, evalutation_time = posterior1.calculate_posterior(resolution = 1*10**5, proposal= mcmc_samples, temperature= 2)
     # posterior1.plot_corner(mcmc_samples, pGB_injected[1][0])
-    # mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, proposal= mcmc_samples, temperature= 1)
-    # mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**6, proposal= mcmc_samples, temperature= 1)
+    mcmc_samples, evalutation_time = posterior1.calculate_posterior(resolution = 1*10**5, proposal= mcmc_samples, temperature= 1)
+    mcmc_samples, evalutation_time = posterior1.calculate_posterior(resolution = 1*10**6, proposal= mcmc_samples, temperature= 1)
     print('time to compute posterior: ', time.time()-start)
     posterior1.plot_corner(mcmc_samples, pGB_true, chain_save_name, save_figure= save_figure, save_chain= save_chain, number_of_signal = 0, parameter_titles = True)
     return mcmc_samples, evalutation_time 

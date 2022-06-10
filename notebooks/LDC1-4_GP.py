@@ -1665,7 +1665,7 @@ grandparent = os.path.dirname(parent)
 
 DATAPATH = "/home/stefan/LDC/Radler/data"
 DATAPATH = grandparent+"/LDC/Radler/data"
-SAVEPATH = grandparent+"/LDC/pictures/LDC1-4_4mHz"
+SAVEPATH = grandparent+"/LDC/pictures/LDC1-4_4mHz_Euler"
 
 # sangria_fn = DATAPATH + "/dgb-tdi.h5"
 # sangria_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
@@ -2415,7 +2415,7 @@ class Posterior_computer():
         else:
             mcmc_samples_rescaled = mcmc_samples
         
-        save_frequency = self.frequencies[0]
+        save_frequency = self.maxpGB['Frequency']
         if save_chain:
             df = pd.DataFrame(data=mcmc_samples_rescaled, columns=parameters)
             df.to_csv(SAVEPATH+'/Chain/frequency'+str(int(np.round(save_frequency*10**9)))+'nHz'+save_name+'.csv',index=False)
@@ -2496,7 +2496,6 @@ class Posterior_computer():
                     ax.axhline(tr_s[i], color='black', lw = 1)
                     ax.axhline(maxvalues[i], color='green', ls='--', lw = 1)
                 i += 1
-            save_frequency = pGB['Frequency']
             g.export(SAVEPATH+'/frequency'+ str(int(np.round(save_frequency*10**8)))+save_name+str(parameter_titles)+'.png')
             plt.show()
 
@@ -2510,12 +2509,13 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true,number_of_sign
     mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, proposal= mcmc_samples, temperature= 2)
     # posterior1.plot_corner(mcmc_samples, pGB_injected[1][0])
     mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, proposal= mcmc_samples, temperature= 1)
-    mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**6, proposal= mcmc_samples, temperature= 1)
+    mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, proposal= mcmc_samples, temperature= 1)
     print('time to compute posterior: ', time.time()-start)
     posterior1.plot_corner(mcmc_samples, pGB_true, save_figure= False, save_chain= True, number_of_signal = 0, parameter_titles = True)
     return mcmc_samples
 
 
+start = time.time()
 # LDC1-4 ####################
 posterior_calculation_input = []
 for i in range(len(found_sources_in)):
@@ -2537,14 +2537,24 @@ for i in range(len(found_sources_in)):
                         index_high = index_low+len(Xs_subtracted)
                         for k in ["X", "Y", "Z"]:
                             tdi_fs_subtracted[k].data[index_low:index_high] = tdi_fs_subtracted[k].data[index_low:index_high] - source_subtracted[k].data
-        posterior_calculation_input.append((tdi_fs_subtracted, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j]))
-
-# print('time to search ', number_of_windows, 'windows: ', time.time()-start)
+        # posterior_calculation_input.append((tdi_fs_subtracted, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j]))
+        print('compute posterior of the signal',i,j, found_sources_in[i][j])
+        compute_posterior(tdi_fs_subtracted, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j])
+print('time to search ', len(posterior_calculation_input), 'signals: ', time.time()-start)
+print('number of signals',  len(posterior_calculation_input))
 start = time.time()
-pool = mp.Pool(mp.cpu_count())
-pool = mp.Pool(16)
-mcmc_samples = pool.starmap(compute_posterior,posterior_calculation_input[:16])
-pool.close()
-pool.join()
-print('time to search ', number_of_windows, 'windows: ', time.time()-start)
+# for i in range(len(posterior_calculation_input)):
+#     for j in range(len(posterior_calculation_input)):
+#         if int(np.round(posterior_calculation_input[i][3]['Frequency']*10**12)) == int(np.round(posterior_calculation_input[j][3]['Frequency']*10**12)):
+#             if i != j:
+#                 print(i,j,int(np.round(posterior_calculation_input[i][3]['Frequency']*10**12)))
+# pool = mp.Pool(mp.cpu_count())
+# number_of_threads = 16 
+# pool = mp.Pool(number_of_threads)
+# batch = 0
+# print(len(posterior_calculation_input[batch*number_of_threads:(batch+1)*number_of_threads]))
+# mcmc_samples = pool.starmap(compute_posterior,posterior_calculation_input[batch*number_of_threads:(batch+1)*number_of_threads])
+# pool.close()
+# pool.join()
+print('time to search ', len(posterior_calculation_input), 'signals: ', time.time()-start)
 

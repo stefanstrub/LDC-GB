@@ -2726,7 +2726,7 @@ g.export('/home/stefan/LDC/LDC/pictures/global fit all '+save_name+'log_frequenc
 
 #########################################
 # plot overlap
-lbls = [r'\lambda', r'\beta', 'f$ $($mHz$)', r'\log \dot{f}$ $ ($Hz/s$)', r'\iota', r'A']
+lbls = [r'\lambda', r'\sin \beta', r'f ($mHz$)', r'\log \dot{f}$ $ ($Hz/s$)', r'\cos \iota', r'\log A']
 m = 0
 names = ['EclipticLongitude','EclipticLatitude','Frequency','FrequencyDerivative','Inclination','Amplitude']
 samples = []
@@ -2735,11 +2735,13 @@ samples = []
 # for file_name in ['frequency1252567nHzLDC1-3', 'frequency1252567nHzLDC1-3fastGB']:
 for file_name in ['frequency1666286nHzLDC1-3', 'frequency1666286nHzLDC1-3fastGB']:
         df = pd.read_csv('/home/stefan/LDC/pictures/LDC1-3_v2/Chain/'+file_name+'.csv')
+        df['Inclination'] = np.cos(df['Inclination'].values)
+        df['EclipticLatitude'] = np.sin(df['EclipticLatitude'].values)
         df['FrequencyDerivative'] = np.log10(df['FrequencyDerivative'].values)
         df['Amplitude'] = np.log10(df['Amplitude'].values)
+        df['Frequency'] *= 1000
         df = df.drop(labels= ['InitialPhase', 'Polarization'], axis=1)
         df = df.reindex(columns = names)
-        df['Frequency'] *= 1000
         samples.append(MCSamples(samples=df.to_numpy(), names = names, labels = lbls))
         samples[-1].updateSettings({'contours': [0.68, 0.95]})
         m += 1
@@ -2754,6 +2756,10 @@ pGB = pGB_injected[2][0]
 for parameter in names:
     if parameter in ['Amplitude','FrequencyDerivative']:
         tr_s[i] = np.log10(pGB[parameter])
+    elif parameter in ['Inclination']:
+        tr_s[i] = np.cos(pGB[parameter])
+    elif parameter in ['EclipticLatitude']:
+        tr_s[i] = np.sin(pGB[parameter])
     elif parameter in ['Frequency']:
         tr_s[i] = pGB[parameter]*10**3
     else:
@@ -2772,7 +2778,7 @@ for i in range(ndim):
     for ax in g.subplots[i,:i]:
         ax.axhline(tr_s[i], color='black', lw = 1)
     i += 1
-g.export('/home/stefan/LDC/LDC/pictures/corner overlap '+save_name+'fastGB.png')
+g.export('/home/stefan/LDC/LDC/pictures/corner overlap '+save_name+'fastGB2.png')
 
 stock = lambda A, amp, angle, phase: A * angle + amp * np.sin(angle + phase)
 theta = np.linspace(0., 2 * np.pi, 250) # x-axis

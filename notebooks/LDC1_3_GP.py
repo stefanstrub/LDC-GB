@@ -387,7 +387,8 @@ class Search():
         snr = 2000
         amplitude_upper = 2*snr/(Tobs * np.sin(f_0/ f_transfer)/self.SA[0])**0.5
         amplitude = [amplitude_lower, amplitude_upper]
-        # print('lower frequency', lower_frequency)
+        chandrasekhar_limit = 1.4
+        M_chirp_upper_boundary = (chandrasekhar_limit**2)**(3/5)/(2*chandrasekhar_limit)**(1/5)
         # print('amplitude boundaries', amplitude)
         # print('amplitude boundaries previous', np.sqrt(np.max(psd))/1000,np.sqrt(np.max(psd))/10)
         # print('amplitude boundaries previous', np.max(np.abs(self.DAf.data))/10**7,np.max(np.abs(self.DAf.data))/10**5)
@@ -1784,6 +1785,7 @@ class MLP_search():
         # previous_found_sources = [{'Amplitude': 4.084935966774485e-22, 'EclipticLatitude': 0.8719934546490874, 'EclipticLongitude': 0.48611009683797857, 'Frequency': 0.003995221087430858, 'FrequencyDerivative': 1.0704703957490903e-16, 'Inclination': 1.0245091695238984, 'InitialPhase': 2.320136113624083, 'Polarization': 2.65883774239409}, {'Amplitude': 1.170377953453263e-22, 'EclipticLatitude': -1.1827019140449202, 'EclipticLongitude': -2.6708716710257203, 'Frequency': 0.003994619937260686, 'FrequencyDerivative': 9.604827167870394e-17, 'Inclination': 1.9399867466326164, 'InitialPhase': 2.468693959968005, 'Polarization': 2.5128702009090644}]
         found_sources_all = []
         number_of_evaluations_all = []
+        found_sources_in = []
         current_SNR = 100
         ind = 0
         SNR_threshold = 18
@@ -1856,7 +1858,7 @@ class MLP_search():
                         maxpGBsearch = deepcopy(maxpGBsearch_new)
                     found_sources_all[-1] = maxpGBsearch_new
                 except:
-                    break
+                    pass
                 print('current SNR', current_SNR)
 
             if current_SNR < SNR_threshold:
@@ -2463,26 +2465,25 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true,number_of_sign
     mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, proposal= mcmc_samples, temperature= 1)
     mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**6, proposal= mcmc_samples, temperature= 1)
     print('time to compute posterior: ', time.time()-start)
-    posterior1.plot_corner(mcmc_samples, pGB_true, save_figure= False, save_chain= True, number_of_signal = 0, parameter_titles = True)
+    posterior1.plot_corner(mcmc_samples, pGB_true, save_figure= False, save_chain= False, number_of_signal = 0, parameter_titles = True)
     return mcmc_samples
 
 
 # LDC1-3 ####################
 posterior_calculation_input = []
 for i in range(len(found_sources_in)):
-    if i > 0:
-        break
-    i = 2
+    # if i > 0:
+    #     break
+    # i = 2
     for j in range(len(found_sources_in[i])):
         posterior_calculation_input.append((tdi_fs, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j]))
-        mcmc_samples = compute_posterior(tdi_fs, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j])
-        break
-# print('time to search ', number_of_windows, 'windows: ', time.time()-start)
-# start = time.time()
-# pool = mp.Pool(mp.cpu_count())
-# pool = mp.Pool(16)
-# mcmc_samples = pool.starmap(compute_posterior,posterior_calculation_input[:16])
-# pool.close()
-# pool.join()
-# print('time to search ', number_of_windows, 'windows: ', time.time()-start)
+        # mcmc_samples = compute_posterior(tdi_fs, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j])
+
+start = time.time()
+pool = mp.Pool(mp.cpu_count())
+pool = mp.Pool(16)
+mcmc_samples = pool.starmap(compute_posterior,posterior_calculation_input[:16])
+pool.close()
+pool.join()
+print('time to search ', number_of_windows, 'windows: ', time.time()-start)
 

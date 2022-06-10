@@ -1681,7 +1681,7 @@ cat = np.rec.fromarrays(params, names=list(reduced_names))
 td = np.array(fid["H5LISA/PreProcess/TDIdata"])
 td = np.rec.fromarrays(list(td.T), names=["t", "X", "Y", "Z"])
 del_t = float(np.array(fid['H5LISA/GWSources/GalBinaries']['Cadence']))
-reduction = 1
+reduction = 4
 Tobs = float(int(np.array(fid['H5LISA/GWSources/GalBinaries']['ObservationDuration']))/reduction)
 
 dt = del_t
@@ -1781,7 +1781,9 @@ class MLP_search():
         # previous_found_sources = [{'Amplitude': 4.084935966774485e-22, 'EclipticLatitude': 0.8719934546490874, 'EclipticLongitude': 0.48611009683797857, 'Frequency': 0.003995221087430858, 'FrequencyDerivative': 1.0704703957490903e-16, 'Inclination': 1.0245091695238984, 'InitialPhase': 2.320136113624083, 'Polarization': 2.65883774239409}, {'Amplitude': 1.170377953453263e-22, 'EclipticLatitude': -1.1827019140449202, 'EclipticLongitude': -2.6708716710257203, 'Frequency': 0.003994619937260686, 'FrequencyDerivative': 9.604827167870394e-17, 'Inclination': 1.9399867466326164, 'InitialPhase': 2.468693959968005, 'Polarization': 2.5128702009090644}]
         found_sources_all = []
         number_of_evaluations_all = []
+        found_sources_in = []
         current_SNR = 100
+        SNR_threshold = 10
         ind = 0
         while current_SNR > SNR_threshold and ind < self.signals_per_window:
             ind += 1
@@ -1852,7 +1854,7 @@ class MLP_search():
                         maxpGBsearch = deepcopy(maxpGBsearch_new)
                     found_sources_all[-1] = maxpGBsearch_new
                 except:
-                    break
+                    pass
                 print('current SNR', current_SNR)
 
             if current_SNR < SNR_threshold:
@@ -1944,7 +1946,7 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search):
 
 padding = 0.5e-6
 
-save_name = 'LDC1-4_4mHz_2_year_odd'
+save_name = 'LDC1-4_4mHz_half_year_even3'
 indexes = np.argsort(cat['Frequency'])
 cat_sorted = cat[indexes]
 
@@ -1980,7 +1982,7 @@ while current_frequency < search_range[1]:
 # frequencies = frequencies[:32]
 frequencies_even = frequencies[::2]
 frequencies_odd = frequencies[1::2]
-frequencies_search = frequencies_odd
+frequencies_search = frequencies_even
 
 ##### plot number of signals per frequency window
 # frequencies_search = frequencies[::10]
@@ -2024,14 +2026,14 @@ frequencies_search = frequencies_odd
 # plt.legend()
 # plt.show()
 
-
-batch_index = 18
-start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
+# batch_index = int(sys.argv[1])
+batch_index = 0
+# start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], cat_sorted[-2]['Frequency'])-1
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.0004)-1
-batch_size = 10
-# start_index = batch_size*batch_index
-# print('batch',batch_index, start_index)
+batch_size = 256
+start_index = batch_size*batch_index
+print('batch',batch_index, start_index)
 frequencies_search = frequencies_search[start_index:start_index+batch_size]
 ### highest + padding has to be less than f Nyqist
 while frequencies_search[-1][1] + (frequencies_search[-1][1] - frequencies_search[-1][0])/2 > f_Nyquist:
@@ -2060,7 +2062,7 @@ search_range = [frequencies_search[0][0],frequencies_search[-1][1]]
 # search_range = [1619472*10**-8,2689639*10**-8]
 print('search range'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))))
 
-do_subtract = True
+do_subtract = False
 if do_subtract:
     # save_name_previous = 'found_sources397769to400619LDC1-4_4mHz_half_year_even3'
     # save_name_previous = 'found_sources397919to400770LDC1-4_4mHz_half_year_odd'
@@ -2078,7 +2080,7 @@ if do_subtract:
 # frequencies_search = frequencies_even[-100:]
 
 found_sources_sorted = []
-use_initial_guess = True
+use_initial_guess = False
 if use_initial_guess:
     found_sources_loaded = []
     # save_name_found_sources_previous = 'found_sources397769to400619LDC1-4_4mHz_half_year_even10'
@@ -2122,6 +2124,7 @@ if do_search:
     MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 3, found_sources_previous = found_sources_sorted, strategy = 'DE')
     start = time.time()
     pool = mp.Pool(mp.cpu_count())
+    pool = mp.Pool(16)
     found_sources_mp = pool.starmap(MLP.search, frequencies_search)
     pool.close()
     pool.join()

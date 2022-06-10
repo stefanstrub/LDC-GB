@@ -11,7 +11,7 @@ parent = os.path.dirname(path)
 grandparent = os.path.dirname(parent)
 folderpath = grandparent+"/LDC/pictures/LDC1-4s3"
 folderpath = grandparent+"/LDC/pictures/LDC1-4uneven"
-folderpath = grandparent+"/LDC/pictures/LDC1-4_4mHz"
+folderpath = grandparent+"/LDC/pictures/LDC1-4_4mHz_Euler"
 
 onlyfiles = [f for f in listdir(folderpath) if isfile(join(folderpath, f))]
 save_name = 'LDC1-4 low frequency'
