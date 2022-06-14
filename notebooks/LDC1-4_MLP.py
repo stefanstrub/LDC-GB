@@ -813,6 +813,7 @@ class Search():
         return -p1#/10000
 
     def loglikelihood(self, pGBs):
+        # try:
         for i in range(len(pGBs)):
             Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs[i], oversample=4, simulator="synthlisa")
             if i == 0:
@@ -838,13 +839,9 @@ class Search():
             ax[1].plot(Af.f, np.abs(self.DEf))
             ax[1].plot(Af.f, np.abs(Ef.data))
             plt.show()
-            
-        # p2 = np.sum((np.absolute(self.DAf - Af.data)**2 + np.absolute(self.DEf - Ef.data)**2) /self.SA) * Xs.df *2
-        # diff = np.abs(self.DAf - Af.data) ** 2 + np.abs(self.DEf - Ef.data) ** 2
-        # p1 = float(np.sum(diff / self.SA) * Xs.df) / 2.0
-        # loglik = 4.0*Xs.df*( SNR2 - 0.5 * hh - 0.5 * dd)
-        # print(p2, loglik)
         logliks = 4.0*Xs.df*( SNR2 - 0.5 * hh )
+        # except:
+        #     logliks = -100
         return logliks.values
 
     def loglikelihood_SNR(self, pGBs):
@@ -1946,7 +1943,7 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search):
 
 padding = 0.5e-6
 
-save_name = 'LDC1-4_4mHz_half_year_even3'
+save_name = 'LDC1-4_4mHz_half_year_odd'
 indexes = np.argsort(cat['Frequency'])
 cat_sorted = cat[indexes]
 
@@ -1982,7 +1979,6 @@ while current_frequency < search_range[1]:
 # frequencies = frequencies[:32]
 frequencies_even = frequencies[::2]
 frequencies_odd = frequencies[1::2]
-frequencies_search = frequencies_even
 
 ##### plot number of signals per frequency window
 # frequencies_search = frequencies[::10]
@@ -2026,12 +2022,13 @@ frequencies_search = frequencies_even
 # plt.legend()
 # plt.show()
 
-# batch_index = int(sys.argv[1])
-batch_index = 0
+frequencies_search = frequencies_odd
+batch_index = int(sys.argv[1])
+# batch_index = 55
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], cat_sorted[-2]['Frequency'])-1
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.0004)-1
-batch_size = 256
+batch_size = 64
 start_index = batch_size*batch_index
 print('batch',batch_index, start_index)
 frequencies_search = frequencies_search[start_index:start_index+batch_size]
@@ -2060,15 +2057,16 @@ while frequencies_search[-1][1] + (frequencies_search[-1][1] - frequencies_searc
 
 search_range = [frequencies_search[0][0],frequencies_search[-1][1]]
 # search_range = [1619472*10**-8,2689639*10**-8]
-print('search range'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))))
+print('search range '+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))))
 
-do_subtract = False
+do_subtract = True
 if do_subtract:
     # save_name_previous = 'found_sources397769to400619LDC1-4_4mHz_half_year_even3'
     # save_name_previous = 'found_sources397919to400770LDC1-4_4mHz_half_year_odd'
     save_name_previous = 'found_sources397956to401074LDC1-4_4mHz_2_year_initial_half_even3'
     # save_name_previous = 'found_sources397793to400909LDC1-4_4mHz_2_year_initial_half_odd_SNR10'
     # save_name_previous = 'LDC1-4 odd'
+    save_name_previous = 'found_sourcesLDC1-4_half_even3'
     found_sources_mp_subtract = np.load(SAVEPATH+'/'+save_name_previous+'.npy', allow_pickle = True)
     tdi_fs_subtracted = tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search)
     tdi_fs = deepcopy(tdi_fs_subtracted)
@@ -2121,7 +2119,7 @@ if use_initial_guess:
 # frequencies_search = [frequencies_search[7]]
 do_search = True
 if do_search:
-    MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 3, found_sources_previous = found_sources_sorted, strategy = 'DE')
+    MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 10, found_sources_previous = found_sources_sorted, strategy = 'DE')
     start = time.time()
     pool = mp.Pool(mp.cpu_count())
     pool = mp.Pool(16)
