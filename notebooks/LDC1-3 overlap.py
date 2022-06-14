@@ -2532,48 +2532,48 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true,number_of_sign
 
 tdi_fs_subtracted = tdi_subtraction(tdi_fs, [[found_sources_in[0][1]]], frequencies)
 # LDC1-3 ######################
-start = time.time()
-number_of_total_signals = 0
-for i in range(len(found_sources_in)):
-    for j in range(len(found_sources_in[i])):
-        mcmc_samples = compute_posterior(tdi_fs_subtracted, Tobs, frequencies[i], found_sources_in[i][j], pGB_injected[i][j], number_of_signal = j)
-        number_of_total_signals += 1
-print('time to calculate posterior for ', number_of_total_signals, 'signals: ', time.time()-start)
+# start = time.time()
+# number_of_total_signals = 0
+# for i in range(len(found_sources_in)):
+#     for j in range(len(found_sources_in[i])):
+#         mcmc_samples = compute_posterior(tdi_fs_subtracted, Tobs, frequencies[i], found_sources_in[i][j], pGB_injected[i][j], number_of_signal = j)
+#         number_of_total_signals += 1
+# print('time to calculate posterior for ', number_of_total_signals, 'signals: ', time.time()-start)
 
-number_of_signal = 0
-for i in range(len(found_sources_in)):
-    # if i != 0:
-    #     break
-    # i = 3
-    for j in range(len(found_sources_in[i])):
-        save_frequency = pGB_injected[i][j]['Frequency']
-        df = pd.read_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/ETH_2/GW'+str(int(np.round(save_frequency*10**8)))+'number of singal'+str(number_of_signal)+save_name+'.csv')
-        mcmc_samples_rescaled = df.to_numpy()
-        posterior1 = Posterior_computer(tdi_fs, Tobs, frequencies[i], found_sources_in[i][j])
-        posterior1.reduce_boundaries(plot_confidance=False)
-        posterior1.plot_corner(mcmc_samples_rescaled, pGB_injected[i][j], save_bool= True, save_chain= False, parameter_titles = False, rescaled= True)
+# number_of_signal = 0
+# for i in range(len(found_sources_in)):
+#     # if i != 0:
+#     #     break
+#     # i = 3
+#     for j in range(len(found_sources_in[i])):
+#         save_frequency = pGB_injected[i][j]['Frequency']
+#         df = pd.read_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/ETH_2/GW'+str(int(np.round(save_frequency*10**8)))+'number of singal'+str(number_of_signal)+save_name+'.csv')
+#         mcmc_samples_rescaled = df.to_numpy()
+#         posterior1 = Posterior_computer(tdi_fs, Tobs, frequencies[i], found_sources_in[i][j])
+#         posterior1.reduce_boundaries(plot_confidance=False)
+#         posterior1.plot_corner(mcmc_samples_rescaled, pGB_injected[i][j], save_bool= True, save_chain= False, parameter_titles = False, rescaled= True)
 
 # LDC1-4 ####################
-for i in range(len(found_sources_in)):
-    for j in range(len(found_sources_in[i])):
-        #subtract the found sources of neighbours and own window from original except the signal itself
-        tdi_fs_subtracted = deepcopy(tdi_fs)
-        for m in range(3):
-            if i-1+m < 0:
-                pass
-            elif i-1+m > len(found_sources_in)-1:
-                pass
-            else:
-                for n in range(len(found_sources_in[i-1+m])):
-                    if j != n or m != 1:
-                        print(i,j,m,n)
-                        Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_in[i-1+m][n], oversample=4, simulator="synthlisa")
-                        source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
-                        index_low = np.searchsorted(tdi_fs_subtracted["X"].f, Xs_subtracted.f[0])
-                        index_high = index_low+len(Xs_subtracted)
-                        for k in ["X", "Y", "Z"]:
-                            tdi_fs_subtracted[k].data[index_low:index_high] = tdi_fs_subtracted[k].data[index_low:index_high] - source_subtracted[k].data
-        mcmc_samples = compute_posterior(tdi_fs_subtracted, Tobs, frequencies[i], found_sources_in[i][j], pGB_injected[i][j], number_of_signal = j)
+# for i in range(len(found_sources_in)):
+#     for j in range(len(found_sources_in[i])):
+#         #subtract the found sources of neighbours and own window from original except the signal itself
+#         tdi_fs_subtracted = deepcopy(tdi_fs)
+#         for m in range(3):
+#             if i-1+m < 0:
+#                 pass
+#             elif i-1+m > len(found_sources_in)-1:
+#                 pass
+#             else:
+#                 for n in range(len(found_sources_in[i-1+m])):
+#                     if j != n or m != 1:
+#                         print(i,j,m,n)
+#                         Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_in[i-1+m][n], oversample=4, simulator="synthlisa")
+#                         source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
+#                         index_low = np.searchsorted(tdi_fs_subtracted["X"].f, Xs_subtracted.f[0])
+#                         index_high = index_low+len(Xs_subtracted)
+#                         for k in ["X", "Y", "Z"]:
+#                             tdi_fs_subtracted[k].data[index_low:index_high] = tdi_fs_subtracted[k].data[index_low:index_high] - source_subtracted[k].data
+#         mcmc_samples = compute_posterior(tdi_fs_subtracted, Tobs, frequencies[i], found_sources_in[i][j], pGB_injected[i][j], number_of_signal = j)
 
 cmap = plt.get_cmap("Dark2")
 prop_cycle = plt.rcParams['axes.prop_cycle']
@@ -2722,21 +2722,26 @@ for n, ax in enumerate(g.subplots[:,0]):
         ax.set_ylim([-18.5, ylim[1]+y_length*0.02])
     # if parameter2 in ['Amplitude', 'FrequencyDerivative']:
     #     ax.set_yscale('log')
-g.export('/home/stefan/LDC/LDC/pictures/global fit all '+save_name+'log frequency.png')
+g.export('/home/stefan/LDC/LDC/pictures/global fit all '+save_name+'log_frequency_1666.png')
 
 #########################################
 # plot overlap
-lbls = [r'\lambda', r'\beta', 'f$ $($mHz$)', r'\log \dot{f}$ $ ($Hz/s$)', r'\iota', r'A']
+lbls = [r'\lambda', r'\sin \beta', r'f ($mHz$)', r'\log \dot{f}$ $ ($Hz/s$)', r'\cos \iota', r'\log A']
 m = 0
 names = ['EclipticLongitude','EclipticLatitude','Frequency','FrequencyDerivative','Inclination','Amplitude']
 samples = []
-for file_name in ['GW201457number of singal0LDC1-3overlap single signal', 'GW201457number of singal0LDC1-3overlap']:
-        df = pd.read_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/ETH_2/'+file_name+'.csv')
+# for file_name in ['GW201457number of singal0LDC1-3overlap single signal', 'GW201457number of singal0LDC1-3overlap']:
+#         df = pd.read_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/ETH_2/'+file_name+'.csv')
+# for file_name in ['frequency1252567nHzLDC1-3', 'frequency1252567nHzLDC1-3fastGB']:
+for file_name in ['frequency1666286nHzLDC1-3', 'frequency1666286nHzLDC1-3fastGB']:
+        df = pd.read_csv('/home/stefan/LDC/pictures/LDC1-3_v2/Chain/'+file_name+'.csv')
+        df['Inclination'] = np.cos(df['Inclination'].values)
+        df['EclipticLatitude'] = np.sin(df['EclipticLatitude'].values)
         df['FrequencyDerivative'] = np.log10(df['FrequencyDerivative'].values)
         df['Amplitude'] = np.log10(df['Amplitude'].values)
+        df['Frequency'] *= 1000
         df = df.drop(labels= ['InitialPhase', 'Polarization'], axis=1)
         df = df.reindex(columns = names)
-        df['Frequency'] *= 1000
         samples.append(MCSamples(samples=df.to_numpy(), names = names, labels = lbls))
         samples[-1].updateSettings({'contours': [0.68, 0.95]})
         m += 1
@@ -2747,10 +2752,14 @@ g.triangle_plot(samples, shaded=True, legend_labels=[])
 tr_s = np.zeros(len(parameters))
 maxvalues = np.zeros(len(parameters))
 i = 0
-pGB = pGB_injected[0][0]
+pGB = pGB_injected[2][0]
 for parameter in names:
     if parameter in ['Amplitude','FrequencyDerivative']:
         tr_s[i] = np.log10(pGB[parameter])
+    elif parameter in ['Inclination']:
+        tr_s[i] = np.cos(pGB[parameter])
+    elif parameter in ['EclipticLatitude']:
+        tr_s[i] = np.sin(pGB[parameter])
     elif parameter in ['Frequency']:
         tr_s[i] = pGB[parameter]*10**3
     else:
@@ -2769,7 +2778,7 @@ for i in range(ndim):
     for ax in g.subplots[i,:i]:
         ax.axhline(tr_s[i], color='black', lw = 1)
     i += 1
-g.export('/home/stefan/LDC/LDC/pictures/corner overlap '+save_name+'.png')
+g.export('/home/stefan/LDC/LDC/pictures/corner overlap '+save_name+'fastGB2.png')
 
 stock = lambda A, amp, angle, phase: A * angle + amp * np.sin(angle + phase)
 theta = np.linspace(0., 2 * np.pi, 250) # x-axis
