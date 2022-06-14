@@ -16,6 +16,7 @@ import ldc.waveform.fastGB as fastGB
 from ldc.common.tools import compute_tdi_snr
 from ldc.waveform.waveform import HpHc
 
+
 DATAPATH = "/home/stefan/LDC/Sangria/data"
 sangria_fn = DATAPATH+"/dgb-tdi.h5"
 # sangria_fn = DATAPATH+"/LDC2_sangria_blind_v1.h5"
@@ -85,13 +86,14 @@ print(time.time()- start)
 # pGB['EclipticLatitude'] += 0.03
 # pGB['EclipticLongitude'] += 0.01
 # pGB['Inclination'] += 0.01
-start = time.time()
 Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB, oversample=4, simulator='synthlisa')
-print(time.time()- start)
 fmin, fmax = float(Xs.f[0]) , float(Xs.f[-1]+Xs.attrs['df'])
 source = dict({"X":Xs, "Y":Ys, "Z":Zs})
+start = time.time()
 Xs_td, Ys_td, Zs_td = GB.get_td_tdixyz(template=pGB, simulator='synthlisa')
 
+print('ftransform',time.time()- start)
+print(len(Xs))
 
 # plt.figure(figsize=(12,3))
 # # plt.plot(Xs_td.t, Xs_td2, label="TDI X")
@@ -188,7 +190,7 @@ Sn = Nmodel.psd(freq=freq, option='X')
 diff = np.abs(dataX - Xs.values)**2 + np.abs(dataY - Ys.values)**2 + np.abs(dataZ - Zs.values)**2
 
 p = float(np.sum(diff / Sn)*Xs.attrs['df'])
-p1 = np.exp(-p / 2.0)
+p1 = -p / 2.0
 samples = xr.Dataset(dict([(name,xr.DataArray(np.zeros(number_of_samples), dims=('number_of_sample'), coords={"number_of_sample": range(number_of_samples)},
                          )) for name, titles in pGBs.items()]))
 
@@ -257,7 +259,7 @@ for i in range(1, number_of_samples):
     # Evaluate posterior.
     diff = np.abs(dataX - Xs.values)**2 + np.abs(dataY - Ys.values)**2 + np.abs(dataZ - Zs.values)**2
     p = float(np.sum(diff / Sn)*Xs.attrs['df'])
-    p_test = np.exp(-p / 2.0)
+    p_test = -p / 2.0
     T_inv =  1
     # print(p_test/p1, pGBs['Frequency'])
     # Apply Metropolis rule.
