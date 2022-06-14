@@ -2049,6 +2049,7 @@ if do_print:
             else:
                 found_sources_out[i].append(found_sources_mp_best[i][j])
 
+    #### this way is faster if the frequency windows are the same as the loaded ones
     # found_sources_in = []
     # for i in range(len(found_sources_mp)):
     #     found_sources_in.append([])
@@ -2077,6 +2078,109 @@ if do_print:
             pGB_injected_window.append(pGBs)
         pGB_injected.append(pGB_injected_window)
 
+
+    #check SNR
+    for i in range(len(found_sources_in)):
+        if i != 1:
+            continue
+        print('frequency range', frequencies_search[i][0],frequencies_search[i][1])
+        search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
+        for j in range(len( pGB_injected[i][:10])):
+            #subtract the found sources from original
+            tdi_fs_subtracted = deepcopy(tdi_fs)
+            for n in range(len( pGB_injected[i][:j])):
+                Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=pGB_injected[i][n], oversample=4, simulator="synthlisa")
+                source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
+                index_low = np.searchsorted(tdi_fs_subtracted["X"].f, Xs_subtracted.f[0])
+                index_high = index_low+len(Xs_subtracted)
+                for k in ["X", "Y", "Z"]:
+                    tdi_fs_subtracted[k].data[index_low:index_high] = tdi_fs_subtracted[k].data[index_low:index_high] - source_subtracted[k].data
+            search_subtracted = Search(tdi_fs_subtracted,Tobs, frequencies_search[i][0], frequencies_search[i][1])
+            print('true subtracted',search_subtracted.SNRm([pGB_injected[i][j]])[2].values, 'original data', search1.SNRm([pGB_injected[i][j]])[2].values)
+        for j in range(len(found_sources_in[i])):
+            #subtract the found sources from original
+            tdi_fs_subtracted = deepcopy(tdi_fs)
+            for n in range(len( found_sources_in[i][:j])):
+                Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_in[i][n], oversample=4, simulator="synthlisa")
+                source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
+                index_low = np.searchsorted(tdi_fs_subtracted["X"].f, Xs_subtracted.f[0])
+                index_high = index_low+len(Xs_subtracted)
+                for k in ["X", "Y", "Z"]:
+                    tdi_fs_subtracted[k].data[index_low:index_high] = tdi_fs_subtracted[k].data[index_low:index_high] - source_subtracted[k].data
+            search_subtracted = Search(tdi_fs_subtracted,Tobs, frequencies_search[i][0], frequencies_search[i][1])
+            print('found subtracted',search_subtracted.SNRm([found_sources_in[i][j]])[2].values, 'original data', search1.SNRm([found_sources_in[i][j]])[2].values)
+            # print('found', search1.SNR([found_sources_mp_even_all[i][j]]))
+
+def SNR(pGB_injected, pGBs):
+    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs, oversample=4, simulator="synthlisa")
+    Xs_injected, Ys_injected, Zs_injected = GB.get_fd_tdixyz(template=pGB_injected, oversample=4, simulator="synthlisa")
+    Xs_aligned = xr.align(Xs_injected, Xs, join='left',fill_value=0)[1]
+    Ys_aligned = xr.align(Ys_injected, Ys, join='left',fill_value=0)[1]
+    Zs_aligned = xr.align(Zs_injected, Zs, join='left',fill_value=0)[1]
+        
+    fmin, fmax = float(Xs_injected.f[0]), float(Xs_injected.f[-1] + Xs_injected.attrs["df"])
+    freq = np.array(Xs_injected.sel(f=slice(fmin, fmax)).f)
+    Nmodel = get_noise_model(noise_model, freq)
+    SA = Nmodel.psd(freq=freq, option="A")
+
+    Af = (Zs_aligned - Xs_aligned)/np.sqrt(2.0)
+    Ef = (Zs_aligned - 2.0*Ys_aligned + Xs_aligned)/np.sqrt(6.0)
+    Af_injected = (Zs_injected - Xs_injected)/np.sqrt(2.0)
+    Ef_injected = (Zs_injected - 2.0*Ys_injected + Xs_injected)/np.sqrt(6.0)
+    SNR2 = np.sum( np.real(Af_injected * np.conjugate(Af.data) + Ef_injected * np.conjugate(Ef.data))/SA )
+    hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2) /SA)
+    ss = np.sum((np.absolute(Af_injected.data)**2 + np.absolute(Ef_injected.data)**2) /SA)
+    do_plot = False
+    if do_plot:
+        fig, ax = plt.subplots(nrows=2, sharex=True) 
+        ax[0].semilogy(Af.f, np.abs(Af_injected))
+        ax[0].semilogy(Af.f, np.abs(Af.data))
+        
+        ax[1].semilogy(Af.f, np.abs(Ef_injected))
+        ax[1].semilogy(Af.f, np.abs(Ef.data))
+        plt.show()
+        
+
+    diff = np.abs(Af_injected - Af.values) ** 2 + np.abs(Ef_injected - Af.values) ** 2
+    # p1 = -float(np.sum(diff / Sn)*Xs.attrs['df'])/2.0
+    p1 = float(np.sum(diff / SA) * Xs.df) / 2.0
+
+    SNR = 4.0*Xs.df* hh
+    SNR2 = 4.0*Xs.df* SNR2
+    SNR3 = SNR2 / (np.sqrt(SNR)*np.sqrt(4.0*Xs.df* ss))
+    # SNR3 = SNR2 / np.sqrt(SNR)**2
+    return SNR3.values, -p1/ (np.sqrt(SNR)*np.sqrt(4.0*Xs.df* ss))
+
+do_match = True
+if do_match:
+    for i in range(len(found_sources_in)):
+        # if i > 0:
+        #     break
+        if i != 1:
+            continue
+        found_match = False
+        for j in range(len(found_sources_in[i])):
+            # if j != 1:
+            #     continue
+            print('i', i, 'j',j)
+            for k in range(len(pGB_injected[i])):
+                eclipticlongitude = pGB_injected[i][k]['EclipticLongitude']
+                if pGB_injected[i][k]['EclipticLongitude'] > np.pi:
+                    eclipticlongitude -= np.pi*2
+                print('SNR', SNR(pGB_injected[i][k],found_sources_in[i][j]),pGB_injected[i][k]['EclipticLatitude'],found_sources_in[i][j]['EclipticLatitude'],eclipticlongitude, found_sources_in[i][j]['EclipticLongitude'])
+                if found_match:
+                    break
+
+#plot strains
+for i in range(len(frequencies_search)):
+    if i != 1:
+        continue
+    lower_frequency = frequencies_search[i][0]
+    upper_frequency = frequencies_search[i][1]
+    search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
+    if len(pGB_injected[i]) > 0:
+        search1.plot(found_sources_in=found_sources_in[i], pGB_injected=pGB_injected[i], saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'.png') 
+        # search1.plot(found_sources_in=found_sources_in[i], pGB_injected=pGB_injected[i][:10], saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'in.png') 
 
 class Posterior_computer():
     def __init__(self, tdi_fs, Tobs, frequencies, maxpGB) -> None:
