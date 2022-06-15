@@ -1707,7 +1707,7 @@ ind = 0
 found_sources = []
 target_sources = []
 first_start = time.time()
-np.random.seed(40) #40
+np.random.seed(42) #40
 number_of_signals = 1
 signals_per_subtraction = 1
 

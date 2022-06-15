@@ -2023,15 +2023,15 @@ frequencies_odd = frequencies[1::2]
 # plt.show()
 
 frequencies_search = frequencies_odd
-batch_index = int(sys.argv[1])
-# batch_index = 55
+# batch_index = int(sys.argv[1])
+batch_index = 55
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], cat_sorted[-2]['Frequency'])-1
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.0004)-1
 batch_size = 64
 start_index = batch_size*batch_index
 print('batch',batch_index, start_index)
-frequencies_search = frequencies_search[start_index:start_index+batch_size]
+frequencies_search = frequencies_search[start_index:start_index+10]
 ### highest + padding has to be less than f Nyqist
 while frequencies_search[-1][1] + (frequencies_search[-1][1] - frequencies_search[-1][0])/2 > f_Nyquist:
     frequencies_search = frequencies_search[:-1]
@@ -2119,7 +2119,7 @@ if use_initial_guess:
 # frequencies_search = [frequencies_search[7]]
 do_search = True
 if do_search:
-    MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 10, found_sources_previous = found_sources_sorted, strategy = 'DE')
+    MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 3, found_sources_previous = found_sources_sorted, strategy = 'DE')
     start = time.time()
     pool = mp.Pool(mp.cpu_count())
     pool = mp.Pool(16)
