@@ -1943,7 +1943,7 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search):
 
 padding = 0.5e-6
 
-save_name = 'LDC1-4_4mHz_2_year_even'
+save_name = 'LDC1-4_4mHz_half_year_even'
 indexes = np.argsort(cat['Frequency'])
 cat_sorted = cat[indexes]
 
@@ -2024,14 +2024,14 @@ frequencies_odd = frequencies[1::2]
 
 frequencies_search = frequencies_even
 # batch_index = int(sys.argv[1])
-batch_index = 55
+batch_index = 64
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], cat_sorted[-2]['Frequency'])-1
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.0004)-1
 batch_size = 64
 start_index = batch_size*batch_index
 print('batch',batch_index, start_index)
-frequencies_search = frequencies_search[start_index:start_index+10]
+frequencies_search = frequencies_search[start_index:start_index+batch_size]
 ### highest + padding has to be less than f Nyqist
 while frequencies_search[-1][1] + (frequencies_search[-1][1] - frequencies_search[-1][0])/2 > f_Nyquist:
     frequencies_search = frequencies_search[:-1]
@@ -2059,14 +2059,14 @@ search_range = [frequencies_search[0][0],frequencies_search[-1][1]]
 # search_range = [1619472*10**-8,2689639*10**-8]
 print('search range '+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))))
 
-do_subtract = False
+do_subtract = True
 if do_subtract:
     # save_name_previous = 'found_sources397769to400619LDC1-4_4mHz_half_year_even3'
     # save_name_previous = 'found_sources397919to400770LDC1-4_4mHz_half_year_odd'
     save_name_previous = 'found_sources397956to401074LDC1-4_4mHz_2_year_initial_half_even3'
     # save_name_previous = 'found_sources397793to400909LDC1-4_4mHz_2_year_initial_half_odd_SNR10'
     # save_name_previous = 'LDC1-4 odd'
-    save_name_previous = 'found_sourcesLDC1-4_half_even3'
+    save_name_previous = 'found_sourcesLDC1-4_half_odd'
     found_sources_mp_subtract = np.load(SAVEPATH+'/'+save_name_previous+'.npy', allow_pickle = True)
     tdi_fs_subtracted = tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search)
     tdi_fs = deepcopy(tdi_fs_subtracted)
@@ -2078,12 +2078,13 @@ if do_subtract:
 # frequencies_search = frequencies_even[-100:]
 
 found_sources_sorted = []
-use_initial_guess = True
+use_initial_guess = False
 if use_initial_guess:
     found_sources_loaded = []
     # save_name_found_sources_previous = 'found_sources397769to400619LDC1-4_4mHz_half_year_even10'
     save_name_found_sources_previous = 'found_sources397919to400770LDC1-4_4mHz_half_year_odd'
     save_name_found_sources_previous = 'found_sourcesLDC1-4_half_even'
+    save_name_found_sources_previous = 'found_sources2537595to3305084LDC1-4_4mHz_half_year_even'
     found_sources_loaded.append(np.load(SAVEPATH+'/'+save_name_found_sources_previous+'.npy', allow_pickle = True))
 
     found_sources_previous = []
@@ -2118,7 +2119,7 @@ if use_initial_guess:
 # found_sources_mp = MLP.search(frequencies_search[4][0], frequencies_search[4][1])
 # found_sources_mp = [found_sources_mp]
 # frequencies_search = [frequencies_search[7]]
-do_search = True
+do_search = False
 if do_search:
     MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 3, found_sources_previous = found_sources_sorted, strategy = 'DE')
     start = time.time()
@@ -2129,8 +2130,8 @@ if do_search:
     pool.join()
     print('time to search ', number_of_windows, 'windows: ', time.time()-start)
     np.save(SAVEPATH+'/found_sources'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', found_sources_mp)
-    
-do_print = False
+
+do_print = True
 if do_print:
     found_sources_mp = np.load(SAVEPATH+'/found_sources'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', allow_pickle = True)
     found_sources_mp_best = []
@@ -2232,8 +2233,17 @@ if do_print:
             if found_sources_mp_all[i][j]['Frequency'] > frequencies_search[i][0] and found_sources_mp_all[i][j]['Frequency'] < frequencies_search[i][1]:
                 found_sources_in_all[i].append(found_sources_mp_all[i][j])
 
+
+    # padding_of_initial_guess_range = 0
+    # found_sources_in = []
+    # for i in range(len(frequencies_search)):
+    #     found_sources_previous_in_range = found_sources_sorted[found_sources_sorted['Frequency'] > frequencies_search[i][0]-padding_of_initial_guess_range]
+    #     found_sources_in.append(found_sources_previous_in_range[found_sources_previous_in_range['Frequency'] < frequencies_search[i][1]+padding_of_initial_guess_range])
+
     #check SNR
     for i in range(len(found_sources_in)):
+        if i > 3:
+            continue
         print('frequency range', frequencies_search[i][0],frequencies_search[i][1])
         search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
         for j in range(len( pGB_injected[i][:10])):
@@ -2281,10 +2291,13 @@ if do_print:
 
     #plot strains
     for i in range(len(frequencies_search)):
+        if i > 2:
+            continue
+        print('plot')
         lower_frequency = frequencies_search[i][0]
         upper_frequency = frequencies_search[i][1]
         search1 = Search(tdi_fs_subtracted,Tobs, lower_frequency, upper_frequency)
-        if len(pGB_injected[i]) > 0:
+        if len(found_sources_mp_best[i]) > 0:
             search1.plot(found_sources_in=found_sources_mp_best[i], pGB_injected=pGB_injected[i], saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'.png') 
             # search1.plot(found_sources_in=found_sources_in[i], pGB_injected=pGB_injected[i][:10], saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'in.png') 
 
