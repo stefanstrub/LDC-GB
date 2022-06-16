@@ -1943,7 +1943,7 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search):
 
 padding = 0.5e-6
 
-save_name = 'LDC1-4_4mHz_half_year_odd'
+save_name = 'LDC1-4_4mHz_2_year_even'
 indexes = np.argsort(cat['Frequency'])
 cat_sorted = cat[indexes]
 
@@ -2022,7 +2022,7 @@ frequencies_odd = frequencies[1::2]
 # plt.legend()
 # plt.show()
 
-frequencies_search = frequencies_odd
+frequencies_search = frequencies_even
 # batch_index = int(sys.argv[1])
 batch_index = 55
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
@@ -2059,7 +2059,7 @@ search_range = [frequencies_search[0][0],frequencies_search[-1][1]]
 # search_range = [1619472*10**-8,2689639*10**-8]
 print('search range '+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))))
 
-do_subtract = True
+do_subtract = False
 if do_subtract:
     # save_name_previous = 'found_sources397769to400619LDC1-4_4mHz_half_year_even3'
     # save_name_previous = 'found_sources397919to400770LDC1-4_4mHz_half_year_odd'
@@ -2078,11 +2078,12 @@ if do_subtract:
 # frequencies_search = frequencies_even[-100:]
 
 found_sources_sorted = []
-use_initial_guess = False
+use_initial_guess = True
 if use_initial_guess:
     found_sources_loaded = []
     # save_name_found_sources_previous = 'found_sources397769to400619LDC1-4_4mHz_half_year_even10'
     save_name_found_sources_previous = 'found_sources397919to400770LDC1-4_4mHz_half_year_odd'
+    save_name_found_sources_previous = 'found_sourcesLDC1-4_half_even'
     found_sources_loaded.append(np.load(SAVEPATH+'/'+save_name_found_sources_previous+'.npy', allow_pickle = True))
 
     found_sources_previous = []
