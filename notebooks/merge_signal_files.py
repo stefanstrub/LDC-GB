@@ -12,11 +12,11 @@ grandparent = os.path.dirname(parent)
 folderpath = grandparent+"/LDC/pictures/LDC1-4s3"
 folderpath = grandparent+"/LDC/pictures/LDC1-4uneven"
 folderpath = grandparent+"/LDC/pictures/LDC1-4_4mHz_Euler"
-folderpath = grandparent+"/LDC/pictures/LDC1-4_half_odd"
+folderpath = grandparent+"/LDC/pictures/LDC1-4_half_even"
 
 onlyfiles = [f for f in listdir(folderpath) if isfile(join(folderpath, f))]
 save_name = 'LDC1-4 low frequency'
-save_name = 'LDC1-4_half_even3'
+save_name = 'LDC1-4_half_even'
 search_range = [0.0003, 0.033333333333]
 found_sources_mp_even_unsorted = []
 frequencies = []

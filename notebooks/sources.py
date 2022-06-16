@@ -384,7 +384,7 @@ class Search():
         # plt.plot(f[indexes], np.abs(self.DEf))
         # plt.plot(f[indexes], np.abs(self.DAf)+np.abs(self.DEf))
         # plt.show()
-        # print('frequencyrange',frequencyrange)
+        print('frequencyrange',frequencyrange)
         fmin, fmax = float(self.dataX.f[0]), float(self.dataX.f[-1] + self.dataX.attrs["df"])
         freq = np.array(self.dataX.sel(f=slice(fmin, fmax)).f)
         Nmodel = get_noise_model(noise_model, freq)
@@ -1435,17 +1435,27 @@ def objective(n,tdi_fs,Tobs):
     return maxpGB, pGB
 
 class MLP_search():
-    def __init__(self,tdi_fs, Tobs, signals_per_window, neighbor_subtracted, found_sources_previous = None, strategy = 'DE'):
+    def __init__(self,tdi_fs, Tobs, signals_per_window, neighbor_subtracted, recombination, found_sources_previous, strategy) -> None:
         self.tdi_fs = tdi_fs
         self.Tobs = Tobs
         self.signals_per_window = signals_per_window
         self.strategy = strategy
         self.found_sources_previous = found_sources_previous
         self.neighbor_subtracted = neighbor_subtracted
+        # self.dt = dt
+        # self.noise_model = noise_model
+        # self.parameters = parameters
+        # self.number_of_signals = number_of_signals
+        # self.GB = GB
+        # self.intrinsic_parameters = intrinsic_parameters
+        self.recombination = recombination
+        print('init')
 
-    def search(self, lower_frequency, upper_frequency):
+
+    def search(self, lower_frequency, upper_frequency, dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters):
         found_sources = []
         tdi_fs_search = deepcopy(self.tdi_fs)
+        print('search')
 
         initial_guess = []
         if len(self.found_sources_previous) > 0:
@@ -1465,7 +1475,7 @@ class MLP_search():
                     pGBs[parameter] = pGB_stacked[parameter][i]
                 initial_guess.append(pGBs)
             
-            search1 = Search(tdi_fs_search,self.Tobs, lower_frequency, upper_frequency)
+            search1 = Search(tdi_fs_search,self.Tobs, lower_frequency, upper_frequency, dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters, self.recombination)
             ### sort the initial guesses such that the highest loglikelihhod guess comes first
             SNR_guesses = []
             for i in range(len(initial_guess)):
@@ -1482,7 +1492,7 @@ class MLP_search():
         while current_SNR > SNR_threshold and ind < self.signals_per_window:
             ind += 1
             
-            search1 = Search(tdi_fs_search,self.Tobs, lower_frequency, upper_frequency)
+            search1 = Search(tdi_fs_search,self.Tobs, lower_frequency, upper_frequency, dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters, self.recombination)
 
             start = time.time()
             if ind <= len(initial_guess):
@@ -2064,3 +2074,7 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true, start_trainin
     posterior1.plot_corner(mcmc_samples, pGB_true, chain_save_name, save_figure= save_figure, save_chain= save_chain, number_of_signal = 0, parameter_titles = True)
     return mcmc_samples, evalutation_time 
 
+def MLP_start_search(lower_frequency, upper_frequency, tdi_fs, Tobs, signals_per_window, neighbor_subtracted, dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters, recombination=0.75, found_sources_previous = [], strategy = 'DE'):
+    MLP = MLP_search(tdi_fs, Tobs, signals_per_window = signals_per_window, neighbor_subtracted = neighbor_subtracted,recombination=recombination, found_sources_previous = found_sources_previous, strategy = strategy)
+    found_sources_mp = MLP.search(lower_frequency, upper_frequency, dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters)
+    return found_sources_mp
