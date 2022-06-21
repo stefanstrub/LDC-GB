@@ -25,6 +25,7 @@ from fastkde import fastKDE
 from sklearn.metrics import mean_squared_error
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
+from chainconsumer import ChainConsumer
 
 # customized settings
 plot_parameter = {  # 'backend': 'ps',
@@ -575,7 +576,7 @@ class Search():
         return res
 
 
-    def plot(self, maxpGBs=None, pGBadded=None, found_sources_in= [], pGB_injected = [], added_label='Injection2', saving_label =None):
+    def plot(self, maxpGBs=None, pGBadded=None, found_sources_in= [], pGB_injected = [], pGB_injected_matched = [], added_label='Injection2', saving_label =None):
         plt.figure(figsize=fig_size)
         fig, [ax1, ax2] = plt.subplots(2, 1, sharex=True, figsize=fig_size)
         # plt.plot(dataX_training.f*1000,dataX_training.values, label='data')
@@ -607,8 +608,18 @@ class Search():
             a,Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)
             Af = (Zs - Xs)/np.sqrt(2.0)
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
-            ax1.semilogy(Af.f*10**3,np.abs(Af.data), color=colors[j%10], linewidth = 4)
-            ax2.semilogy(Ef.f*10**3,np.abs(Ef.data), color=colors[j%10], linewidth = 4)
+            ax1.semilogy(Af.f*10**3,np.abs(Af.data), color='grey', linewidth = 4, alpha = 0.5)
+            ax2.semilogy(Ef.f*10**3,np.abs(Ef.data), color='grey', linewidth = 4, alpha = 0.5)
+
+        for j in range(len(pGB_injected_matched)):
+            Xs, Ys, Zs = GB.get_fd_tdixyz(template= pGB_injected_matched[j], oversample=4, simulator="synthlisa")
+            a,Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)
+            a,Ys = xr.align(self.dataY, Ys, join='left',fill_value=0)
+            a,Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)
+            Af = (Zs - Xs)/np.sqrt(2.0)
+            Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
+            ax1.semilogy(Af.f*10**3,np.abs(Af.data), color=colors[j%10], linewidth = 4, alpha = 0.5)
+            ax2.semilogy(Ef.f*10**3,np.abs(Ef.data), color=colors[j%10], linewidth = 4, alpha = 0.5)
 
 
         if pGBadded != None:
@@ -1721,11 +1732,14 @@ def frequency_derivative(f, Mc):
     Mc = Mc * 2*10**30
     Mc_s = Mc*G/c**3
     return 96/(5*np.pi*Mc_s**2)*(np.pi*Mc_s*f)**(11/3)
-def frequency_derivative_Neil(f):
-    return 8*10**8*f**(11/3)
+def frequency_derivative_thyson(f):
+    return 8*10**-8*f**(11/3)
+def frequency_derivative_thyson_lower(f):
+    return -5*10**-6*f**(13/3)
 def frequency_derivative2(f, Mc_s):
     return 96/5*np.pi**(8/3)*Mc_s**(5/3)*(f)**(11/3)
-print('frequency derivative', frequency_derivative(f,0.1),frequency_derivative(f,2),' at f=', f)
+print('frequency derivative range', frequency_derivative(f,0.1),frequency_derivative(f,1.4),' at f=', f)
+print('frequency derivative range thyson', frequency_derivative_thyson_lower(f),frequency_derivative_thyson(f),' at f=', f)
 chandrasekhar_limit = 1.4
 M_chirp_upper_boundary = (chandrasekhar_limit**2)**(3/5)/(2*chandrasekhar_limit)**(1/5)
 
@@ -1959,7 +1973,7 @@ frequencies = []
 frequencies_even = []
 frequencies_odd = []
 # search_range = [0.00398, 0.0041]
-# search_range = [0.0039885, 0.0040205]
+# search_range = [0.00397082, 0.00401004]
 # search_range = [0.0039935, 0.0039965]
 f_Nyquist = 1/dt/2
 search_range = [0.0003, f_Nyquist]
@@ -1994,35 +2008,42 @@ start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], cat_sorted[-2]['Frequency'])-1
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.0004)-1
 batch_size = 20
+start_index= len(frequencies_search)-batch_size-1
 # start_index = batch_size*batch_index
 # print('batch',batch_index, start_index)
 frequencies_search = frequencies_search[start_index:start_index+batch_size]
 ### highest + padding has to be less than f Nyqist
 while frequencies_search[-1][1] + (frequencies_search[-1][1] - frequencies_search[-1][0])/2 > f_Nyquist:
     frequencies_search = frequencies_search[:-1]
+frequencies_search_modified = []
+for i in range(int(len(frequencies_search))):
+    if i % 2 == 1:
+        continue
+    frequencies_search_modified.append([frequencies_search[i][0],frequencies_search[i+1][1]])
+# frequencies_search = frequencies_search_modified
 # frequencies_search = frequencies_search[70:80]
 # frequencies_search = frequencies_search[25:]
 
-# target_frequencies = []
-# index_low = np.searchsorted(cat_sorted['Frequency'], search_range[0])
-# for i in range(10):
-#     target_frequencies.append(cat_sorted[-10+i-1]['Frequency'])
-#     # target_frequencies.append(cat_sorted[index_low+i*100]['Frequency'])
-# # target_frequencies = cat_sorted[-17:-1]['Frequency']
-# frequencies_search = []
-# for i in range(len(target_frequencies)):
-#     current_frequency = target_frequencies[i]
-#     f_smear = current_frequency *3* 10**-4
-#     f_deviation = frequency_derivative(current_frequency,M_chirp_upper_boundary)*Tobs
-#     print(current_frequency,frequency_derivative(current_frequency,M_chirp_upper_boundary))
-#     window_length = f_smear + f_deviation
-#     window_length += 4*32*10**-9*2
-#     window_shift = ((np.random.random(1)-0.5)*window_length*0.5)[0]
-#     frequencies_search.append([target_frequencies[i]-window_length/2+window_shift,target_frequencies[i]+window_length/2+window_shift])
+target_frequencies = []
+index_low = np.searchsorted(cat_sorted['Frequency'], search_range[0])
+for i in range(10):
+    target_frequencies.append(cat_sorted[-10+i-1]['Frequency'])
+    # target_frequencies.append(cat_sorted[index_low+i*100]['Frequency'])
+# target_frequencies = cat_sorted[-17:-1]['Frequency']
+frequencies_search = []
+for i in range(len(target_frequencies)):
+    current_frequency = target_frequencies[i]
+    f_smear = current_frequency *3* 10**-4
+    f_deviation = frequency_derivative(current_frequency,M_chirp_upper_boundary)*Tobs
+    print(current_frequency,frequency_derivative(current_frequency,M_chirp_upper_boundary))
+    window_length = f_smear + f_deviation
+    window_length += 4*32*10**-9*2
+    window_shift = ((np.random.random(1)-0.5)*window_length*0.5)[0]
+    frequencies_search.append([target_frequencies[i]-window_length/2+window_shift,target_frequencies[i]+window_length/2+window_shift])
 
 search_range = [frequencies_search[0][0],frequencies_search[-1][1]]
 # search_range = [1619472*10**-8,2689639*10**-8]
-print('search range'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))))
+print('search range '+ str(np.round(search_range[0]*10**3,4))+' mHz to '+ str(np.round(search_range[1]*10**3,4))+' mHz')
 
 do_print = True
 if do_print:
@@ -2039,7 +2060,7 @@ if do_print:
     number_of_signals_to_estimate = 0
     found_sources_in = []
     found_sources_out = []
-    for i in range(len(found_sources_mp_best)):
+    for i in range(len(frequencies_search)):
         found_sources_in.append([])
         found_sources_out.append([])
         for j in range(len(found_sources_mp_best[i])):
@@ -2153,13 +2174,12 @@ def SNR(pGB_injected, pGBs):
 
 do_match = True
 pGB_injected_matched = []
+number_of_matched_signals = 0
 if do_match:
     for i in range(len(found_sources_in)):
         pGB_injected_matched.append([])
-        # if i > 0:
-        #     break
-        if i != 1:
-            continue
+        # if i != 0:
+        #     continue
         for j in range(len(found_sources_in[i])):
             found_match = False
             # if j != 1:
@@ -2169,22 +2189,37 @@ if do_match:
                 eclipticlongitude = pGB_injected[i][k]['EclipticLongitude']
                 if pGB_injected[i][k]['EclipticLongitude'] > np.pi:
                     eclipticlongitude -= np.pi*2
-                print('SNR', SNR(pGB_injected[i][k],found_sources_in[i][j])[0],pGB_injected[i][k]['EclipticLatitude'],found_sources_in[i][j]['EclipticLatitude'],eclipticlongitude, found_sources_in[i][j]['EclipticLongitude'])
-                if SNR(pGB_injected[i][k],found_sources_in[i][j])[0] > 0.9:
+                print('SNR', SNR(pGB_injected[i][k],found_sources_in[i][j]),'prameter comparison:',pGB_injected[i][k]['EclipticLatitude'],found_sources_in[i][j]['EclipticLatitude'],eclipticlongitude, found_sources_in[i][j]['EclipticLongitude'])
+                if SNR(pGB_injected[i][k],found_sources_in[i][j])[0] > 0.7:
                     found_match = True
                 if found_match:
                     pGB_injected_matched[-1].append(pGB_injected[i][k])
+                    number_of_matched_signals += 1
                     break
-pGB_injected = pGB_injected_matched
+number_of_injected_signals = 0
+for i in range(len(pGB_injected)):
+    for j in range(len(pGB_injected[i])):
+        number_of_injected_signals += 1
+number_of_found_signals = 0
+for i in range(len(found_sources_in)):
+    for j in range(len(found_sources_in[i])):
+        number_of_found_signals += 1
+print(number_of_matched_signals ,'matched signals out of', number_of_injected_signals , 'injected signals and',number_of_found_signals, 'found signals')
+print('sensitivity = matched signals/injected signals:', number_of_matched_signals/number_of_injected_signals)
+# pGB_injected = pGB_injected_matched
+
 #plot strains
 for i in range(len(frequencies_search)):
-    if i != 1:
+    if i != 9:
         continue
     lower_frequency = frequencies_search[i][0]
     upper_frequency = frequencies_search[i][1]
     search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
+    found_extended = found_sources_in[i]#+found_sources_in[i+1]
+    injected_extended = pGB_injected[i]#+pGB_injected[i+1]
+    matched_extended = pGB_injected_matched[i]#+pGB_injected_matched[i+1]
     if len(pGB_injected[i]) > 0:
-        search1.plot(found_sources_in=found_sources_in[i], pGB_injected=pGB_injected[i], saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'.png') 
+        search1.plot(found_sources_in=found_extended, pGB_injected= injected_extended, pGB_injected_matched= matched_extended, saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'.png') 
         # search1.plot(found_sources_in=found_sources_in[i], pGB_injected=pGB_injected[i][:10], saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'in.png') 
 
 class Posterior_computer():
@@ -2620,9 +2655,8 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true,number_of_sign
     mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, proposal= mcmc_samples, temperature= 1)
     mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, proposal= mcmc_samples, temperature= 1)
     print('time to compute posterior: ', time.time()-start)
-    posterior1.plot_corner(mcmc_samples, pGB_true, save_figure= False, save_chain= True, number_of_signal = 0, parameter_titles = True)
+    posterior1.plot_corner(mcmc_samples, pGB_true, save_figure= False, save_chain= False, number_of_signal = 0, parameter_titles = True)
     return mcmc_samples
-
 
 start = time.time()
 # LDC1-4 ####################
