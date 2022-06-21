@@ -607,8 +607,8 @@ class Search():
             a,Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)
             Af = (Zs - Xs)/np.sqrt(2.0)
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
-            ax1.semilogy(Af.f*10**3,np.abs(Af.data), color='grey', linewidth = 4)
-            ax2.semilogy(Ef.f*10**3,np.abs(Ef.data), color='grey', linewidth = 4)
+            ax1.semilogy(Af.f*10**3,np.abs(Af.data), color=colors[j%10], linewidth = 4)
+            ax2.semilogy(Ef.f*10**3,np.abs(Ef.data), color=colors[j%10], linewidth = 4)
 
 
         if pGBadded != None:
@@ -2152,14 +2152,16 @@ def SNR(pGB_injected, pGBs):
     return SNR3.values, -p1/ (np.sqrt(SNR)*np.sqrt(4.0*Xs.df* ss))
 
 do_match = True
+pGB_injected_matched = []
 if do_match:
     for i in range(len(found_sources_in)):
+        pGB_injected_matched.append([])
         # if i > 0:
         #     break
         if i != 1:
             continue
-        found_match = False
         for j in range(len(found_sources_in[i])):
+            found_match = False
             # if j != 1:
             #     continue
             print('i', i, 'j',j)
@@ -2167,10 +2169,13 @@ if do_match:
                 eclipticlongitude = pGB_injected[i][k]['EclipticLongitude']
                 if pGB_injected[i][k]['EclipticLongitude'] > np.pi:
                     eclipticlongitude -= np.pi*2
-                print('SNR', SNR(pGB_injected[i][k],found_sources_in[i][j]),pGB_injected[i][k]['EclipticLatitude'],found_sources_in[i][j]['EclipticLatitude'],eclipticlongitude, found_sources_in[i][j]['EclipticLongitude'])
+                print('SNR', SNR(pGB_injected[i][k],found_sources_in[i][j])[0],pGB_injected[i][k]['EclipticLatitude'],found_sources_in[i][j]['EclipticLatitude'],eclipticlongitude, found_sources_in[i][j]['EclipticLongitude'])
+                if SNR(pGB_injected[i][k],found_sources_in[i][j])[0] > 0.9:
+                    found_match = True
                 if found_match:
+                    pGB_injected_matched[-1].append(pGB_injected[i][k])
                     break
-
+pGB_injected = pGB_injected_matched
 #plot strains
 for i in range(len(frequencies_search)):
     if i != 1:
