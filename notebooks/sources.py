@@ -972,7 +972,6 @@ class Search():
         return [maxpGB], energies
 
     def searchCD(self):
-        # np.random.seed(42)
 
         parameters_recorded = [None] * 10
 
@@ -1781,7 +1780,7 @@ class Posterior_computer():
         train_size = start_training_size - added_trainig_size
         j = 0
         samples = np.random.rand(6000,8)
-        while rmse > rmse_threshold and j < 1:
+        while rmse > rmse_threshold and j < 5:
             j += 1
             train_size += added_trainig_size
             if j == 1:
@@ -1823,6 +1822,7 @@ class Posterior_computer():
             kernel = RBF(length_scale=[1,2,5,1,1,1,1,1],length_scale_bounds=[(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,30),(0.1,30)])
             start = time.time()
             self.gpr = GaussianProcessRegressor(kernel=kernel, random_state=0).fit(train_x, train_y_normalized)
+            training_time = time.time() - start
             print('train',time.time() - start)
             start = time.time()
             observed_pred_sk = self.gpr.predict(test_x)
@@ -1830,6 +1830,7 @@ class Posterior_computer():
             observed_pred_sk_scaled = observed_pred_sk*self.sigma + self.mu
             rmse = np.sqrt(mean_squared_error(test_y,observed_pred_sk_scaled))
             print("RMSE ",rmse,'with training size', len(train_y))
+        return training_time
 
     def evaluate(self, x):
         partial_length = 1*10**3
@@ -1984,7 +1985,6 @@ class Posterior_computer():
         # print('saving time', time.time()-start)
 
         if save_figure:
-            print('full time', time.time()-first_start)
             datS = np.zeros(np.shape(mcmc_samples))
             datS[:,0] = mcmc_samples_rescaled[:,2]
             datS[:,1] = np.sin(mcmc_samples_rescaled[:,1])
@@ -2059,11 +2059,12 @@ class Posterior_computer():
             g.export(SAVEPATH+'/frequency'+ str(int(np.round(save_frequency*10**8)))+self.save_name+str(parameter_titles)+'.png')
             plt.show()
 
+
 def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true, start_training_size, dt, noise_model, parameters ,number_of_signals, GB, intrinsic_parameters, chain_save_name, save_figure= False, save_chain= False, number_of_signal = 0):
     start = time.time()
     posterior1 = Posterior_computer(tdi_fs, Tobs, frequencies, maxpGB, dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters)
     posterior1.reduce_boundaries()
-    posterior1.train_model(start_training_size=start_training_size)
+    training_time = posterior1.train_model(start_training_size=start_training_size)
     mcmc_samples, evalutation_time = posterior1.calculate_posterior(resolution = 1*10**5, temperature= 10)
     # posterior1.plot_corner(mcmc_samples, pGB_injected[1][0])
     mcmc_samples, evalutation_time = posterior1.calculate_posterior(resolution = 1*10**5, proposal= mcmc_samples, temperature= 2)
@@ -2072,7 +2073,7 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true, start_trainin
     mcmc_samples, evalutation_time = posterior1.calculate_posterior(resolution = 1*10**6, proposal= mcmc_samples, temperature= 1)
     print('time to compute posterior: ', time.time()-start)
     posterior1.plot_corner(mcmc_samples, pGB_true, chain_save_name, save_figure= save_figure, save_chain= save_chain, number_of_signal = 0, parameter_titles = True)
-    return mcmc_samples, evalutation_time 
+    return mcmc_samples, evalutation_time, training_time
 
 def MLP_start_search(lower_frequency, upper_frequency, tdi_fs, Tobs, signals_per_window, neighbor_subtracted, dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters, recombination=0.75, found_sources_previous = [], strategy = 'DE'):
     MLP = MLP_search(tdi_fs, Tobs, signals_per_window = signals_per_window, neighbor_subtracted = neighbor_subtracted,recombination=recombination, found_sources_previous = found_sources_previous, strategy = strategy)

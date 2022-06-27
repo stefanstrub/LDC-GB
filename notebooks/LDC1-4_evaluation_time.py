@@ -82,11 +82,11 @@ grandparent = os.path.dirname(parent)
 
 DATAPATH = "/home/stefan/LDC/Radler/data"
 DATAPATH = grandparent+"/LDC/Radler/data"
-SAVEPATH = grandparent+"/LDC/pictures/LDC1-3_v2"
+SAVEPATH = grandparent+"/LDC/pictures"
 
 # sangria_fn = DATAPATH + "/dgb-tdi.h5"
-sangria_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
-# sangria_fn = DATAPATH + "/LDC1-4_GB_v2.hdf5"
+# sangria_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
+sangria_fn = DATAPATH + "/LDC1-4_GB_v2.hdf5"
 # sangria_fn = DATAPATH + "/LDC1-3_VGB_v2_FD_noiseless.hdf5"
 fid = h5py.File(sangria_fn)
 # get the source parameters
@@ -153,20 +153,49 @@ while current_frequency < end_frequency:
 
 padding = 0.5e-6
 
-save_name = 'LDC1-3'
+save_name = 'LDC1-4_4mHz_fd_comparison'
 indexes = np.argsort(cat['Frequency'])
 cat_sorted = cat[indexes]
 
-# LDC1-3 ##########################################
-target_frequencies = cat_sorted['Frequency']
+# LDC1-4 #####################################
 frequencies = []
-window_length = 10**-6 # Hz
-for i in range(len(target_frequencies)):
-    window_shift = ((np.random.random(1)-0.5)*window_length*0.5)[0]
-    frequencies.append([target_frequencies[i]-window_length/2+window_shift,target_frequencies[i]+window_length/2+window_shift])
-# frequencies = [frequencies[2]]
-frequencies_search = frequencies
-do_subtract = False
+frequencies_even = []
+frequencies_odd = []
+f_Nyquist = 1/dt/2
+search_range = [0.0003, f_Nyquist]
+number_of_windows = 0
+current_frequency = search_range[0]
+while current_frequency < search_range[1]:
+    f_smear = current_frequency *3* 10**-4
+    # if current_frequency < 0.004:
+    #     f_smear = current_frequency *3* 10**-4 *(1+ 3/0.004*(0.004 -current_frequency))
+        # f_smear = current_frequency *3* 10**-4 *(1+ 4*np.log10(0.004 -current_frequency))
+    f_deviation = frequency_derivative(current_frequency,2)*Tobs
+    # window_length = np.max([f_smear, f_deviation])
+    window_length = f_smear + f_deviation
+    window_length += 4*32*10**-9*2
+    upper_limit = current_frequency+window_length
+    frequencies.append([current_frequency, upper_limit])
+    current_frequency = deepcopy(upper_limit)
+    number_of_windows += 1
+frequencies_even = frequencies[::2]
+frequencies_odd = frequencies[1::2]
+frequencies_search = frequencies_even
+# batch_index = int(sys.argv[1])
+batch_index = 64
+start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
+# start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], cat_sorted[-2]['Frequency'])-1
+# start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.0004)-1
+batch_size = 16
+# start_index = batch_size*batch_index
+print('batch',batch_index, start_index)
+frequencies_search = frequencies_search[start_index:start_index+batch_size]
+### highest + padding has to be less than f Nyqist
+while frequencies_search[-1][1] + (frequencies_search[-1][1] - frequencies_search[-1][0])/2 > f_Nyquist:
+    frequencies_search = frequencies_search[:-1]
+search_range = [frequencies_search[0][0],frequencies_search[-1][1]]
+# search_range = [1619472*10**-8,2689639*10**-8]
+print('search range '+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))))
 
 do_search = False
 if do_search:
@@ -181,7 +210,7 @@ if do_search:
     
 do_print = True
 if do_print:
-    found_sources_mp = np.load(SAVEPATH+'/found_sources' +save_name+'.npy', allow_pickle = True)
+    found_sources_mp = np.load(SAVEPATH+'/found_sources'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', allow_pickle = True)
     found_sources_mp_best = []
     found_sources_mp_all = []
     frequencies_search = []
@@ -221,8 +250,50 @@ if do_print:
             pGB_injected_window.append(pGBs)
         pGB_injected.append(pGB_injected_window)
 
+
+    
+    found_sources_in_all = []
+    for i in range(len(found_sources_mp_all)):
+        found_sources_in_all.append([])
+        for j in range(len(found_sources_mp_all[i])):
+            if found_sources_mp_all[i][j]['Frequency'] > frequencies_search[i][0] and found_sources_mp_all[i][j]['Frequency'] < frequencies_search[i][1]:
+                found_sources_in_all[i].append(found_sources_mp_all[i][j])
+
+    found_sources_in_all = []
+    number_of_evaluations = []
+    for i in range(len(found_sources_mp)):
+        found_sources_in_all.append([])
+        number_of_evaluations.append([])
+        for j in range(len(found_sources_mp[i][1])):
+            if found_sources_mp[i][1][j][0][0]['Frequency'] > frequencies[i][0] and found_sources_mp[i][1][j][0][0]['Frequency'] < frequencies[i][1]:
+                found_sources_in_all[i].append(found_sources_mp[i][1][j][0][0])
+                number_of_evaluations[i].append(found_sources_mp[i][2][j])
+
+
+    #check loglikelihood
+    higherSNR = 0
+    search_results = {}
+    search_results['Frequency'] = []
+    search_results['success rate'] = []
+    search_results['nfe'] = []
+    for i in range(len(found_sources_in_all)):
+        higher_loglikelihood = 0
+        search1 = Search(tdi_fs,Tobs, frequencies[i][0], frequencies[i][1])
+        # for j in range(len( pGB_injected[i])):
+            # print(frequencies[i], search1.loglikelihood([pGB_injected[i][j]]))
+        for j in range(len(found_sources_in_all[i])):
+            # print('found', search1.loglikelihood([found_sources_in_all[i][j]]))
+            if search1.loglikelihood([pGB_injected[i][0]]) < search1.loglikelihood([found_sources_in_all[i][j]]):
+                higherSNR += 1
+                higher_loglikelihood += 1    
+        search_results['success rate'].append(higher_loglikelihood/20)
+        search_results['nfe'].append(int(np.mean(number_of_evaluations[i])))
+        search_results['Frequency'].append(pGB_injected[i][0]['Frequency']*1000)
+        print('higherloglikelihood ',higher_loglikelihood, 'number of evaluations', np.mean(number_of_evaluations[i]))
+
+
 # LDC1-3 ####################
-start_training_size = 500
+start_training_size = 2000
 evalutation_times = []
 posterior_calculation_input = []
 for i in range(len(found_sources_in)):
@@ -230,7 +301,7 @@ for i in range(len(found_sources_in)):
     #     break
     for j in range(len(found_sources_in[i])):
         posterior_calculation_input.append((tdi_fs, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j]))
-        chain_save_name = SAVEPATH+'/Chain/frequency'+str(int(np.round(frequencies_search[i][0]*10**9)))+'nHz'+save_name+'fastGB_500.csv'
+        chain_save_name = SAVEPATH+'/Chain/frequency'+str(int(np.round(frequencies_search[i][0]*10**9)))+'nHz'+save_name+'fastGB.csv'
         mcmc_samples, evalutation_time = compute_posterior(tdi_fs, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j], start_training_size, dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters, chain_save_name)
         evalutation_times.append(evalutation_time)
 

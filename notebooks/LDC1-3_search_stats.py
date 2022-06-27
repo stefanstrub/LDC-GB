@@ -2063,7 +2063,7 @@ for i in range(len(found_sources_in_all)):
         if search1.loglikelihood([pGB_injected[i][0]]) < search1.loglikelihood([found_sources_in_all[i][j]]):
             higherSNR += 1
             higher_loglikelihood += 1    
-    search_results['success rate2'].append(higher_loglikelihood/20)
+            
     search_results['nfe2'].append(int(np.mean(number_of_evaluations[i])))
     print('higherloglikelihood ',higher_loglikelihood, 'number of evaluations', np.mean(number_of_evaluations[i]))
 print('higher loglikelihood ',higherSNR)

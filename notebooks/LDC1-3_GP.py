@@ -124,7 +124,7 @@ ind = 0
 found_sources = []
 target_sources = []
 first_start = time.time()
-np.random.seed(42) #40
+np.random.seed(40) #40
 number_of_signals = 1
 signals_per_subtraction = 1
 
@@ -224,28 +224,29 @@ if do_print:
 # LDC1-3 ####################
 start_training_size = 1000
 evalutation_times = []
+training_times = []
 posterior_calculation_input = []
 for i in range(len(found_sources_in)):
-    # if i > 0:
-    #     break
-    i = 2
+    # if i != 5:
+    #     continue
     for j in range(len(found_sources_in[i])):
         posterior_calculation_input.append((tdi_fs, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j]))
-        chain_save_name = SAVEPATH+'/Chain/frequency'+str(int(np.round(frequencies_search[i][0]*10**9)))+'nHz'+save_name+'second.csv'
-        mcmc_samples, evalutation_time = compute_posterior(tdi_fs, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j],
+        chain_save_name = SAVEPATH+'/Chain/frequency'+str(int(np.round(frequencies_search[i][0]*10**9)))+'nHz'+save_name+'evaluation_time_seed40.csv'
+        mcmc_samples, evalutation_time, training_time = compute_posterior(tdi_fs, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j],
                                             start_training_size, dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters, 
                                             chain_save_name, save_chain= True)
         evalutation_times.append(evalutation_time)
-    break
+        training_times.append(training_time)
 
 print('mean evaluation time', np.mean(evalutation_times), 'with ', start_training_size, 'training samples')
+print('mean training time', np.mean(training_times), 'with ', start_training_size, 'training samples')
 
-print('time to search ', number_of_windows, 'windows: ', time.time()-start)
-start = time.time()
-pool = mp.Pool(mp.cpu_count())
-pool = mp.Pool(16)
-mcmc_samples = pool.starmap(compute_posterior,posterior_calculation_input[:16])
-pool.close()
-pool.join()
-print('time to search ', number_of_windows, 'windows: ', time.time()-start)
+# print('time to search ', number_of_windows, 'windows: ', time.time()-start)
+# start = time.time()
+# pool = mp.Pool(mp.cpu_count())
+# pool = mp.Pool(16)
+# mcmc_samples = pool.starmap(compute_posterior,posterior_calculation_input[:16])
+# pool.close()
+# pool.join()
+# print('time to search ', number_of_windows, 'windows: ', time.time()-start)
 

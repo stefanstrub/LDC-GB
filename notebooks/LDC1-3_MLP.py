@@ -73,7 +73,7 @@ def objective(trial,changeableparameters, maxpGB2, signal):
             maxpGB2[signal][parameter] = np.arcsin(parametervalue)
         elif parameter in ["Inclination"]:
             maxpGB2[signal][parameter] = np.arccos(parametervalue)
-        elif parameter in ['Amplitude',"FrequencyDerivative"]:
+        elif parameter in parameters_log_uniform:
             maxpGB2[signal][parameter] = 10**(parametervalue)
         # elif parameter in ['Amplitude']:
         #     maxpGB2[signal][parameter] = 10**(parametervalue)/100
@@ -87,7 +87,7 @@ def scaletooriginal(previous_max, boundaries):
             maxpGB[parameter] = np.arcsin((previous_max[parameters.index(parameter)] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
         elif parameter in ["Inclination"]:
             maxpGB[parameter] = np.arccos((previous_max[parameters.index(parameter)] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
-        elif parameter in ['Amplitude',"FrequencyDerivative"]:
+        elif parameter in parameters_log_uniform:
             maxpGB[parameter] = 10**((previous_max[parameters.index(parameter)] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
         else:
             maxpGB[parameter] = (previous_max[parameters.index(parameter)] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0]
@@ -100,7 +100,7 @@ def scaletooriginalparameter(previous_max, boundaries):
             maxpGB[parameter] = np.arcsin((previous_max[parameter] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
         elif parameter in ["Inclination"]:
             maxpGB[parameter] = np.arccos((previous_max[parameter] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
-        elif parameter in ['Amplitude',"FrequencyDerivative"]:
+        elif parameter in parameters_log_uniform:
             maxpGB[parameter] = 10**((previous_max[parameter] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0])
         else:
             maxpGB[parameter] = (previous_max[parameter] * (boundaries[parameter][1] - boundaries[parameter][0])) + boundaries[parameter][0]
@@ -113,7 +113,7 @@ def scaleto01(previous_max, boundaries):
             maxpGB[parameter] = (np.sin(previous_max[parameter]) - boundaries[parameter][0]) / (boundaries[parameter][1] - boundaries[parameter][0])
         elif parameter in ["Inclination"]:
             maxpGB[parameter] = (np.cos(previous_max[parameter]) - boundaries[parameter][0]) / (boundaries[parameter][1] - boundaries[parameter][0])
-        elif parameter in ['Amplitude',"FrequencyDerivative"]:
+        elif parameter in parameters_log_uniform:
             maxpGB[parameter] = (np.log10(previous_max[parameter]) - boundaries[parameter][0]) / (boundaries[parameter][1] - boundaries[parameter][0])
         else:
             maxpGB[parameter] = (previous_max[parameter] - boundaries[parameter][0]) / (boundaries[parameter][1] - boundaries[parameter][0])
@@ -179,7 +179,7 @@ def CoordinateMC(n, pGBs, boundaries, parameters_recorded, loglikelihood, n_tria
                 maxpGB[i][parameter] = np.arcsin(parametervalue)
             elif parameter in ["Inclination"]:
                 maxpGB[i][parameter] = np.arccos(parametervalue)
-            elif parameter in ['Amplitude',"FrequencyDerivative"]:
+            elif parameter in parameters_log_uniform:
                 maxpGB[i][parameter] = 10**(parametervalue)
             parameters_recorded1[i][parameter] = []
             parameters_recorded1[i][parameter].append(maxpGB[i][parameter])
@@ -222,7 +222,7 @@ def CoordinateMC(n, pGBs, boundaries, parameters_recorded, loglikelihood, n_tria
                     maxpGB2[signal][parameter] = np.arcsin(parametervalue)
                 elif parameter in ["Inclination"]:
                     maxpGB2[signal][parameter] = np.arccos(parametervalue)
-                elif parameter in ['Amplitude',"FrequencyDerivative"]:
+                elif parameter in parameters_log_uniform:
                     maxpGB2[signal][parameter] = 10**(parametervalue)
                 k += 1
             suggestion = loglikelihood(maxpGB2)
@@ -402,6 +402,8 @@ class Search():
         # self.pGB = {'Amplitude': 3.676495e-22, 'EclipticLatitude': 0.018181, 'EclipticLongitude': 1.268061, 'Frequency': 0.01158392, 'FrequencyDerivative': 8.009579e-15, 'Inclination': 0.686485, 'InitialPhase': 4.201455, 'Polarization': 2.288223}
         
         fd_range = [np.log10(frequency_derivative(lower_frequency,0.1)),np.log10(frequency_derivative(lower_frequency,M_chirp_upper_boundary))]
+        # fd_range = [frequency_derivative(lower_frequency,0.1),frequency_derivative(lower_frequency,M_chirp_upper_boundary)]
+        fd_range = [frequency_derivative_thyson_lower(lower_frequency),frequency_derivative_thyson(lower_frequency)]
         self.boundaries = {
             "Amplitude": [np.log10(amplitude[0]),np.log10(amplitude[1])],
             # "Amplitude": [-23.5,-21],
@@ -439,7 +441,7 @@ class Search():
                 self.pGBs[parameter] = np.arcsin((previous_max[i] * (self.boundaries[parameter][1] - self.boundaries[parameter][0])) + self.boundaries[parameter][0])
             elif parameter in ["Inclination"]:
                 self.pGBs[parameter] = np.arccos((previous_max[i] * (self.boundaries[parameter][1] - self.boundaries[parameter][0])) + self.boundaries[parameter][0])
-            elif parameter in ['Amplitude',"FrequencyDerivative"]:
+            elif parameter in parameters_log_uniform:
                 self.pGBs[parameter] = 10**((previous_max[i] * (self.boundaries[parameter][1] - self.boundaries[parameter][0])) + self.boundaries[parameter][0])
             else:
                 self.pGBs[parameter] = (previous_max[i] * (self.boundaries[parameter][1] - self.boundaries[parameter][0])) + self.boundaries[parameter][0]
@@ -1038,7 +1040,7 @@ class Search():
                             pGBs01[signal][parameter] = (np.sin(maxpGB[signal][parameter]) - boundaries_reduced[signal][parameter][0]) / (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])
                         elif parameter in ["Inclination"]:
                             pGBs01[signal][parameter] = (np.cos(maxpGB[signal][parameter]) - boundaries_reduced[signal][parameter][0]) / (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])
-                        elif parameter in ['Amplitude',"FrequencyDerivative"]:
+                        elif parameter in parameters_log_uniform:
                             pGBs01[signal][parameter] = (np.log10(maxpGB[signal][parameter]) - boundaries_reduced[signal][parameter][0]) / (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])
                         else:
                             pGBs01[signal][parameter] = (maxpGB[signal][parameter] - boundaries_reduced[signal][parameter][0]) / (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])
@@ -1098,7 +1100,7 @@ class Search():
                             pGBs01[signal][parameter] = (np.sin(maxpGB[signal][parameter]) - self.boundaries_reduced[parameter][0]) / (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])
                         elif parameter in ["Inclination"]:
                             pGBs01[signal][parameter] = (np.cos(maxpGB[signal][parameter]) - self.boundaries_reduced[parameter][0]) / (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])
-                        elif parameter in ['Amplitude',"FrequencyDerivative"]:
+                        elif parameter in parameters_log_uniform:
                             pGBs01[signal][parameter] = (np.log10(maxpGB[signal][parameter]) - self.boundaries_reduced[parameter][0]) / (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])
                         else:
                             pGBs01[signal][parameter] = (maxpGB[signal][parameter] - self.boundaries_reduced[parameter][0]) / (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])
@@ -1185,7 +1187,7 @@ class Search():
                             pGBs01[signal][parameter] = (np.sin(maxpGB[signal][parameter]) - boundaries_reduced[signal][parameter][0]) / (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])
                         elif parameter in ["Inclination"]:
                             pGBs01[signal][parameter] = (np.cos(maxpGB[signal][parameter]) - boundaries_reduced[signal][parameter][0]) / (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])
-                        elif parameter in ['Amplitude',"FrequencyDerivative"]:
+                        elif parameter in parameters_log_uniform:
                             pGBs01[signal][parameter] = (np.log10(maxpGB[signal][parameter]) - boundaries_reduced[signal][parameter][0]) / (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])
                         else:
                             pGBs01[signal][parameter] = (maxpGB[signal][parameter] - boundaries_reduced[signal][parameter][0]) / (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])
@@ -1288,7 +1290,7 @@ class Search():
                     if pGBs01[signal*8:signal*8+8][i] > 1:
                         shifted_inclination = pGBs01[signal*8:signal*8+8][i] - 1
                     pGBs[signal][parameter] = np.arccos((shifted_inclination * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0])
-                elif parameter in ['Amplitude',"FrequencyDerivative"]:
+                elif parameter in parameters_log_uniform:
                     pGBs[signal][parameter] = 10**((pGBs01[signal*8:signal*8+8][i] * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0])
                 else:
                     pGBs[signal][parameter] = (pGBs01[signal*8:signal*8+8][i] * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0]
@@ -1309,8 +1311,8 @@ class Search():
                 elif parameter in ['Amplitude']:
                     i -= 1
                     pGBs[signal][parameter] = 10**((0.1 * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
-                elif parameter in ["FrequencyDerivative"]:
-                    pGBs[signal][parameter] = 10**((pGBs01[signal*7:signal*7+7][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
+                # elif parameter in ["FrequencyDerivative"]:
+                #     pGBs[signal][parameter] = 10**((pGBs01[signal*7:signal*7+7][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
                 else:
                     pGBs[signal][parameter] = (pGBs01[signal*7:signal*7+7][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0]
                 i += 1
@@ -1349,7 +1351,7 @@ class Search():
                     pGBs[signal][parameter] = np.arcsin((pGBs01[signal*8:signal*8+8][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
                 elif parameter in ["Inclination"]:
                     pGBs[signal][parameter] = np.arccos((pGBs01[signal*8:signal*8+8][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
-                elif parameter in ['Amplitude',"FrequencyDerivative"]:
+                elif parameter in parameters_log_uniform:
                     pGBs[signal][parameter] = 10**((pGBs01[signal*8:signal*8+8][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
                 else:
                     pGBs[signal][parameter] = (pGBs01[signal*8:signal*8+8][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0]
@@ -1427,6 +1429,19 @@ def objective(n,tdi_fs,Tobs):
     maxpGB, pGB =  search.optimize(pGBmodes)
     return maxpGB, pGB
 
+
+def frequency_derivative(f, Mc):
+    G = 6.674*10**(-11)
+    c = 3*10**8
+    Mc = Mc * 2*10**30
+    Mc_s = Mc*G/c**3
+    return 96/(5*np.pi*Mc_s**2)*(np.pi*Mc_s*f)**(11/3)
+def frequency_derivative_thyson(f):
+    return 8*10**-7*f**(11/3)
+def frequency_derivative_thyson_lower(f):
+    return -5*10**-6*f**(13/3)
+def frequency_derivative2(f, Mc_s):
+    return 96/5*np.pi**(8/3)*Mc_s**(5/3)*(f)**(11/3)
 # Neil2005
 # pGB['Amplitude'] = 1.4e-22
 # pGB['EclipticLatitude'] = 0.399
@@ -1618,11 +1633,20 @@ pGBadded23['FrequencyDerivative'] = 1e-17
 pGBadded23['Inclination'] = 1.2
 pGBadded23['InitialPhase'] = 3
 pGBadded23['Polarization'] = 2
-
-pGBadded24 = deepcopy(pGBadded11)
-pGBadded24['Amplitude'] *= 2
-pGBadded24['EclipticLatitude'] = -0.3
+pGBadded24 = {}
+pGBadded24['Amplitude'] = 4.15e-23
+pGBadded24['EclipticLatitude'] = -0.2
 pGBadded24['EclipticLongitude'] = 1.5
+pGBadded24['Frequency'] = 0.00370457
+pGBadded24['FrequencyDerivative'] = frequency_derivative_thyson_lower(pGBadded24['Frequency'])*0.7
+pGBadded24['Inclination'] = 1.2
+pGBadded24['InitialPhase'] = 3
+pGBadded24['Polarization'] = 2
+
+pGBadded25 = deepcopy(pGBadded11)
+pGBadded25['Amplitude'] *= 2
+pGBadded25['EclipticLatitude'] = -0.3
+pGBadded25['EclipticLongitude'] = 1.5
 # pGBadded13 = {'Amplitude': 1.36368e-22, 'EclipticLatitude': -0.529009, 'EclipticLongitude': -2.51031, 'Frequency': 0.00125313, 'FrequencyDerivative': 9.159587298288947e-19, 'Inclination': 0.244346, 'InitialPhase': 2.64414439, 'Polarization': 2.229426357}
 # pGBadded13['Frequency'] -= 2*10**-6
 # pGBadded = {'Amplitude': 6.486747e-24, 'EclipticLatitude': -0.318064, 'EclipticLongitude': 4.369758, 'Frequency': 0.01620542, 'FrequencyDerivative': 8.508619e-14, 'Inclination': 0.866814, 'InitialPhase': 6.28136, 'Polarization': 5.978979}
@@ -1640,6 +1664,8 @@ parameters = [
     "InitialPhase",
     "Polarization",
 ]
+# parameters_log_uniform = ['Amplitude','FrequencyDerivative']
+parameters_log_uniform = ['Amplitude']
 parameters_no_amplitude = parameters[1:]
 intrinsic_parameters = ['EclipticLatitude','EclipticLongitude','Frequency', 'FrequencyDerivative']
 
@@ -1688,11 +1714,11 @@ tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", 
 GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
 
 # add signal
-for pGBadding in [pGBadded20]: # faint
+for pGBadding in [pGBadded24]: # faint
 # for pGBadding in [pGBadded11]:              # overlap single signal
     cat = np.hstack((cat,cat[0]))
     for parameter in parameters:
-        cat[-1][parameter] = pGBadded20[parameter]
+        cat[-1][parameter] = pGBadding[parameter]
     Xs_added, Ys_added, Zs_added = GB.get_fd_tdixyz(template=pGBadding, oversample=4, simulator="synthlisa")
     source_added = dict({"X": Xs_added, "Y": Ys_added, "Z": Zs_added})
     index_low = np.searchsorted(tdi_fs["X"].f, Xs_added.f[0])
@@ -1718,16 +1744,6 @@ print(pGBadded7["FrequencyDerivative"] * Tobs)
 print('smear f', pGBadded7["Frequency"] *2* 10**-4)
 
 f = 0.0115248
-def frequency_derivative(f, Mc):
-    G = 6.674*10**(-11)
-    c = 3*10**8
-    Mc = Mc * 2*10**30
-    Mc_s = Mc*G/c**3
-    return 96/(5*np.pi*Mc_s**2)*(np.pi*Mc_s*f)**(11/3)
-def frequency_derivative_Neil(f):
-    return 8*10**8*f**(11/3)
-def frequency_derivative2(f, Mc_s):
-    return 96/5*np.pi**(8/3)*Mc_s**(5/3)*(f)**(11/3)
 print('frequency derivative', frequency_derivative(f,0.1),frequency_derivative(f,2),' at f=', f)
 chandrasekhar_limit = 1.4
 M_chirp_upper_boundary = (chandrasekhar_limit**2)**(3/5)/(2*chandrasekhar_limit)**(1/5)
@@ -1781,7 +1797,7 @@ class MLP_search():
             # print(pGBadded7["FrequencyDerivative"] * self.Tobs)
             # print('smear f', 300*pGBadded7["Frequency"] * 10**3 / 10**9)
             # print(search1.reduced_frequency_boundaries)
-            for i in range(4):
+            for i in range(20):
                 # if i > 0:
                 #     search1.recombination = 0.75
                 #     maxpGBsearch_new, energies =  search1.differential_evolution_search(search1.boundaries['Frequency'], initial_guess=maxpGBsearch[0])
@@ -1918,7 +1934,7 @@ upper_frequency2 = 0.0039975
 
 padding = 0.5e-6
 
-save_name = 'LDC1-3_faint_wide_window'
+save_name = 'LDC1-3_negative_fd_linear_comparison'
 indexes = np.argsort(cat['Frequency'])
 cat_sorted = cat[indexes]
 
@@ -1933,7 +1949,7 @@ for i in range(len(target_frequencies)):
     window_length = 10**-6 # Hz
     window_shift = ((np.random.random(1)-0.5)*window_length*0.5)[0]*0
     frequencies.append([target_frequencies[i]-window_length/2+window_shift,target_frequencies[i]+window_length/2+window_shift])
-frequencies = [frequencies[-1]]
+# frequencies = [frequencies[-1]]
 # frequencies = frequencies[::2]
 number_of_windows = len(frequencies)
 MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1, strategy = 'DE')
@@ -2014,6 +2030,9 @@ for j in range(len(frequencies)):
         pGB_injected_window.append(pGBs)
     pGB_injected.append(pGB_injected_window)
 
+index = 1
+print(found_sources_in[index][0]['Amplitude'], pGB_injected[index][0]['Amplitude'])
+
 #check loglikelihood
 higherSNR = 0
 search_results = {}
@@ -2023,10 +2042,9 @@ search_results['number_of_evaluations2'] = []
 for i in range(len(found_sources_in_all)):
     higher_loglikelihood = 0
     search1 = Search(tdi_fs,Tobs, frequencies[i][0], frequencies[i][1])
-    # for j in range(len( pGB_injected[i])):
-        # print(frequencies[i], search1.loglikelihood([pGB_injected[i][j]]))
     for j in range(len(found_sources_in_all[i])):
-        # print('found', search1.loglikelihood([found_sources_in_all[i][j]]))
+        # print(frequencies[i],'found', search1.loglikelihood([found_sources_in_all[i][j]]), search1.loglikelihood([pGB_injected[i][j]]))
+        # print(frequencies[i], search1.loglikelihood([pGB_injected[i][j]]))
         if search1.loglikelihood([pGB_injected[i][0]]) < search1.loglikelihood([found_sources_in_all[i][j]]):
             higherSNR += 1
             higher_loglikelihood += 1    
@@ -2038,6 +2056,18 @@ print('higher loglikelihood ',higherSNR)
 df_search_results = pd.DataFrame(data=search_results)
 print(df_search_results.to_latex(index=False))
 
+
+#plot strains
+# for i in range(len(frequencies)):
+#     if i != 10:
+#         continue
+#     print('plot')
+#     lower_frequency = frequencies[i][0]
+#     upper_frequency = frequencies[i][1]
+#     search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
+#     if len(pGB_injected[i]) > 0:
+#         search1.plot(found_sources_in=found_sources_in[i], pGB_injected=pGB_injected[i], saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'.png') 
+
 class Posterior_computer():
     def __init__(self, tdi_fs, Tobs, frequencies, maxpGB) -> None:
         self.tdi_fs = tdi_fs
@@ -2045,6 +2075,7 @@ class Posterior_computer():
         self.frequencies = frequencies
         self.maxpGB = maxpGB
         self.search1 = Search(self.tdi_fs,self.Tobs, self.frequencies[0], self.frequencies[1])
+        self.save_frequency = self.frequencies[0]
 
     def reduce_boundaries(self, plot_confidance = False):
         fisher_information_matrix = self.search1.fisher_information(self.maxpGB)
@@ -2054,15 +2085,15 @@ class Posterior_computer():
                 FIM[i,j] = fisher_information_matrix[parameter1][parameter2]
         covariance_matrix = scipy.linalg.inv(FIM)
         maxpGB01 = scaleto01(self.maxpGB, self.search1.boundaries)
-
+        plot_confidance = True
         if plot_confidance:
             cov2d = np.zeros((2,2))
             index_parameter1 = parameters.index('Frequency')
             index_parameter2 = parameters.index('FrequencyDerivative')
             # index_parameter1 = parameters.index('Inclination')
             # index_parameter2 = parameters.index('Amplitude')
-            index_parameter1 = parameters.index('EclipticLongitude')
-            index_parameter2 = parameters.index('EclipticLatitude')
+            # index_parameter1 = parameters.index('EclipticLongitude')
+            # index_parameter2 = parameters.index('EclipticLatitude')
             scale_to_original = []
             scale_to_original.append((self.search1.boundaries[parameters[index_parameter1]][1] - self.search1.boundaries[parameters[index_parameter1]][0]))
             scale_to_original.append((self.search1.boundaries[parameters[index_parameter2]][1] - self.search1.boundaries[parameters[index_parameter2]][0]))
@@ -2119,7 +2150,7 @@ class Posterior_computer():
             plt.ylim(y-ylim*4,y+ylim*4)
             # plt.axis('scaled')
             plt.legend()
-            plt.savefig('/home/stefan/LDC/LDC/pictures/confidance'+ str(int(np.round(save_frequency*10**8)))+'number of singal'+str(number_of_signal)+save_name+'.png')
+            plt.savefig('/home/stefan/LDC/LDC/pictures/confidance'+ str(int(np.round(self.save_frequency*10**8)))+save_name+'.png')
 
         lambda_, v = scipy.linalg.eig(covariance_matrix)
         transf = np.zeros((len(lambda_),len(lambda_)))
@@ -2146,11 +2177,11 @@ class Posterior_computer():
             if parameter in [ 'Frequency']:
                 maxpGB01_low[parameter] = maxpGB01[parameter] - scalematrix[parameters.index(parameter)]  * 1
                 maxpGB01_high[parameter] = maxpGB01[parameter] + scalematrix[parameters.index(parameter)] * 1
-            if parameter == 'FrequencyDerivative':
-                print('scale',scalematrix[parameters.index(parameter)])
-                if scalematrix[parameters.index(parameter)] > 0.07:
-                    maxpGB01_low[parameter] = maxpGB01[parameter] - 0.1
-                    maxpGB01_high[parameter] = maxpGB01[parameter] + 0.1
+            # if parameter == 'FrequencyDerivative':
+            #     print('scale',scalematrix[parameters.index(parameter)])
+            #     if scalematrix[parameters.index(parameter)] > 0.07:
+            #         maxpGB01_low[parameter] = maxpGB01[parameter] - 0.1
+            #         maxpGB01_high[parameter] = maxpGB01[parameter] + 0.1
             if maxpGB01_low[parameter] < 0:
                 maxpGB01_low[parameter] = 0
             if maxpGB01_high[parameter] > 1:
@@ -2161,12 +2192,13 @@ class Posterior_computer():
 
         self.boundaries_reduced = deepcopy(boundaries_reduced_fisher)
         # correct Frequency Derivative
-        split_fd = -17
-        if self.boundaries_reduced['FrequencyDerivative'][1] < split_fd+1:
-            self.boundaries_reduced['FrequencyDerivative'][0] = -18.5
-            self.boundaries_reduced['FrequencyDerivative'][1] = -15.5
-        elif self.boundaries_reduced['FrequencyDerivative'][0] < split_fd+0.5:
-            self.boundaries_reduced['FrequencyDerivative'][0] = -18.5
+        # split_fd = -17
+        # if self.boundaries_reduced['FrequencyDerivative'][1] < split_fd+1:
+        #     self.boundaries_reduced['FrequencyDerivative'][0] = -18.5
+        #     self.boundaries_reduced['FrequencyDerivative'][1] = -15.5
+        # elif self.boundaries_reduced['FrequencyDerivative'][0] < split_fd+0.5:
+        #     self.boundaries_reduced['FrequencyDerivative'][0] = -18.5
+        self.boundaries_reduced['FrequencyDerivative'] = self.search1.boundaries['FrequencyDerivative']
         # correct Inclination and Amplitude
         split_inclination = 0.9
         if self.boundaries_reduced['Inclination'][1] > split_inclination or self.boundaries_reduced['Inclination'][0] < -split_inclination:
@@ -2366,7 +2398,7 @@ class Posterior_computer():
                     mcmc_samples_rescaled[:,i] = np.arcsin((mcmc_samples[:,parameters.index(parameter)] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
                 elif parameter in ["Inclination"]:
                     mcmc_samples_rescaled[:,i] = np.arccos((mcmc_samples[:,parameters.index(parameter)] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
-                elif parameter in ['Amplitude',"FrequencyDerivative"]:
+                elif parameter in parameters_log_uniform:
                     mcmc_samples_rescaled[:,i] = 10**((mcmc_samples[:,parameters.index(parameter)] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
                 else:
                     mcmc_samples_rescaled[:,i] = (mcmc_samples[:,parameters.index(parameter)] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0]
@@ -2384,7 +2416,8 @@ class Posterior_computer():
         datS[:,0] = mcmc_samples_rescaled[:,2]
         datS[:,1] = np.sin(mcmc_samples_rescaled[:,1])
         datS[:,2] = mcmc_samples_rescaled[:,3]*10**3
-        datS[:,3] = np.log10(mcmc_samples_rescaled[:,4])
+        # datS[:,3] = np.log10(mcmc_samples_rescaled[:,4])
+        datS[:,3] = mcmc_samples_rescaled[:,4]
         datS[:,4] = np.cos(mcmc_samples_rescaled[:,5])
         datS[:,5] = np.log10(mcmc_samples_rescaled[:,0])
         datS[:,6] = mcmc_samples_rescaled[:,6]
@@ -2396,7 +2429,7 @@ class Posterior_computer():
         i = 0
         # pGB = search1.pGB
         for parameter in ['EclipticLongitude','EclipticLatitude','Frequency','FrequencyDerivative','Inclination','Amplitude','InitialPhase','Polarization']:
-            if parameter in ['Amplitude','FrequencyDerivative']:
+            if parameter in parameters_log_uniform:
                 tr_s[i] = np.log10(pGB[parameter])
                 maxvalues[i] = np.log10(self.maxpGB[parameter])
             elif parameter in ['Frequency']:
@@ -2469,7 +2502,7 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true,number_of_sign
     mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, proposal= mcmc_samples, temperature= 2)
     # posterior1.plot_corner(mcmc_samples, pGB_injected[1][0])
     mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, proposal= mcmc_samples, temperature= 1)
-    mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**6, proposal= mcmc_samples, temperature= 1)
+    # mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**6, proposal= mcmc_samples, temperature= 1)
     print('time to compute posterior: ', time.time()-start)
     posterior1.plot_corner(mcmc_samples, pGB_true, save_bool= True, save_chain= True, number_of_signal = 0, parameter_titles = True)
     return mcmc_samples
@@ -2483,6 +2516,8 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true,number_of_sign
 start = time.time()
 number_of_total_signals = 0
 for i in range(len(found_sources_in)):
+    if i != 1:
+        continue
     for j in range(len(found_sources_in[i])):
         mcmc_samples = compute_posterior(tdi_fs, Tobs, frequencies[i], found_sources_in[i][j], pGB_injected[i][j], number_of_signal = j)
         number_of_total_signals += 1
@@ -2491,7 +2526,7 @@ print('time to calculate posterior for ', number_of_total_signals, 'signals: ', 
 number_of_signal = 0
 for i in range(len(found_sources_in)):
     # if i != 0:
-    #     break
+    #     continue
     # i = 3
     for j in range(len(found_sources_in[i])):
         save_frequency = pGB_injected[i][j]['Frequency']
@@ -2502,7 +2537,7 @@ for i in range(len(found_sources_in)):
         posterior1.plot_corner(mcmc_samples_rescaled, pGB_injected[i][j], save_bool= True, save_chain= False, parameter_titles = False, rescaled= True)
 
 search1 = Search(tdi_fs, Tobs, frequencies[0][0], frequencies[0][1])
-search1.plot(found_sources_in = found_sources_in[0], pGB_injected = pGB_injected[0], saving_label = '/home/stefan/LDC/LDC/pictures/corner_frequency strain faint signal')
+search1.plot(found_sources_in = found_sources_in[0], pGB_injected = pGB_injected[0], saving_label = '/home/stefan/LDC/LDC/pictures/corner_frequency_neg_frequency_derivative')
 
 cmap = plt.get_cmap("Dark2")
 prop_cycle = plt.rcParams['axes.prop_cycle']
