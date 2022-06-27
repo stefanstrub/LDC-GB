@@ -2140,49 +2140,6 @@ if do_search:
     print('time to search ', len(frequencies_search), 'windows: ', time.time()-start)
     np.save(SAVEPATH+'/found_sources'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', found_sources_mp)
 
-
-pGB_injected = []
-for j in range(len(frequencies_search)):
-    padding = (frequencies_search[j][1] - frequencies_search[j][0])/2 *0
-    index_low = np.searchsorted(cat_sorted['Frequency'], frequencies_search[j][0]-padding)
-    index_high = np.searchsorted(cat_sorted['Frequency'], frequencies_search[j][1]+padding)
-    try:
-        if cat_sorted['Frequency'][index_high] < frequencies_search[j][1]:
-            index_high -= 1
-    except:
-        pass
-    indexesA = np.argsort(-cat_sorted[index_low:index_high]['Amplitude'])
-    pGB_injected_window = []
-    pGB_stacked = {}
-    for parameter in parameters:
-        pGB_stacked[parameter] = cat_sorted[parameter][index_low:index_high][indexesA]
-    for i in range(len(cat_sorted['Amplitude'][index_low:index_high])):
-        pGBs = {}
-        for parameter in parameters:
-            pGBs[parameter] = pGB_stacked[parameter][i]
-        pGB_injected_window.append(pGBs)
-    pGB_injected.append(pGB_injected_window)
-
-evalutation_times = []
-training_times = []
-frequencies[0] = [pGB_injected[0][0]['Frequency'], 0.000001+pGB_injected[0][0]['Frequency']]
-start = time.time()
-for i in range(1000):
-    x,y,z = GB.get_fd_tdixyz(template=pGB_injected[0][0], oversample=4, simulator="synthlisa")
-print(time.time() - start)
-search1 = Search(tdi_fs,Tobs, frequencies[0][0], frequencies[0][1])
-l = search1.loglikelihood_SNR(pGB_injected[0])
-start = time.time()
-for i in range(10):
-    l = search1.loglikelihood_SNR(pGB_injected[0])
-print(time.time() - start)
-search1 = Search(tdi_fs,Tobs, frequencies[0][0], frequencies[0][1])
-l = search1.loglikelihood_SNR(pGB_injected[0])
-start = time.time()
-for i in range(10):
-    l = search1.loglikelihood_SNR(pGB_injected[0])
-print(time.time() - start)
-
 do_print = True
 if do_print:
     found_sources_mp = np.load(SAVEPATH+'/found_sources'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', allow_pickle = True)
