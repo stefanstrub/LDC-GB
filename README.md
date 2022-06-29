@@ -14,3 +14,9 @@ Paths to FFTW and GSL can be set explicitly by editing `setup.cfg`.
 # Documentation
 
 - [API documentation](https://lisa.pages.in2p3.fr/LDC/)
+
+# Running the notebooks
+
+To run the MLE search run the script called LDC1-3_MLE.py
+
+To calculate the posterior distribution using Gaussian Process Regression run the script called LDC1-3_GP.py
