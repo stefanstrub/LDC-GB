@@ -354,6 +354,8 @@ class Search():
         self.upper_frequency = upper_frequency
         self.padding = (upper_frequency - lower_frequency)/2
         self.parameters = parameters
+        self.parameters_no_amplitude = deepcopy(parameters)
+        self.parameters_no_amplitude.remove('Amplitude')
         self.GB = GB
         self.number_of_signals = number_of_signals
         self.intrinsic_parameters = intrinsic_parameters
@@ -688,138 +690,12 @@ class Search():
             ax[1].plot(Af.f, np.abs(self.DEf))
             ax[1].plot(Af.f, np.abs(Ef.data))
             plt.show()
-            
-        # p2 = np.sum((np.absolute(self.DAf - Af.data)**2 + np.absolute(self.DEf - Ef.data)**2) /self.SA) * Xs.df *2
-        # diff = np.abs(self.DAf - Af.data) ** 2 + np.abs(self.DEf - Ef.data) ** 2
-        # p1 = float(np.sum(diff / self.SA) * Xs.df) / 2.0
-        # loglik = 4.0*Xs.df*( SNR2 - 0.5 * hh - 0.5 * dd)
-        # print(p2, loglik)
         SNR = 4.0*Xs.df* hh
         SNR2 = 4.0*Xs.df* SNR2
         SNR3 = SNR2 / np.sqrt(SNR)
         return SNR3.values
 
-    def SNR2(self, pGBs):
-        for i in range(len(pGBs)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, simulator="synthlisa")
-            index_low = np.searchsorted(Xs.f, self.dataX.f[0])
-            if i == 0:
-                Xs_total = Xs[index_low : index_low + len(self.dataX)]
-                Ys_total = Ys[index_low : index_low + len(self.dataY)]
-                Zs_total = Zs[index_low : index_low + len(self.dataZ)]
-            else:
-                Xs_total += Xs[index_low : index_low + len(self.dataX)]
-                Ys_total += Ys[index_low : index_low + len(self.dataY)]
-                Zs_total += Zs[index_low : index_low + len(self.dataZ)]
-            if len(Xs_total) < len(self.dataX):
-                a,Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)
-                a,Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)
-                a,Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)
-        Af = (Zs_total - Xs_total)/np.sqrt(2.0)
-        Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
 
-        diff = np.abs(Af.values) ** 2 + np.abs(Ef.values) ** 2
-        SNR = -float(np.sum(diff / self.SA) * self.dataX.df) /2
-
-        return SNR#/10000
-
-    def loglikelihoodXYZ(self, pGBs):
-        for i in range(len(pGBs)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, simulator="synthlisa")
-            index_low = np.searchsorted(Xs.f, self.dataX.f[0])
-            if i == 0:
-                Xs_total = Xs[index_low : index_low + len(self.dataX)]
-                Ys_total = Ys[index_low : index_low + len(self.dataY)]
-                Zs_total = Zs[index_low : index_low + len(self.dataZ)]
-            else:
-                Xs_total += Xs[index_low : index_low + len(self.dataX)]
-                Ys_total += Ys[index_low : index_low + len(self.dataY)]
-                Zs_total += Zs[index_low : index_low + len(self.dataZ)]
-            if len(Xs_total) < len(self.dataX):
-                a,Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)
-                a,Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)
-                a,Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)
-
-        # Af = (Zs_total - Xs_total)/np.sqrt(2.0)
-        # Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
-        # diff = np.abs(self.DAf - Af.values) ** 2 + np.abs(self.DEf - Ef.values) ** 2
-        diff = np.abs(self.dataX - Xs_total.values) ** 2 + np.abs(self.dataY - Ys_total.values) ** 2 + np.abs(self.dataZ - Zs_total.values) ** 2
-        # p1 = -float(np.sum(diff / Sn)*Xs.attrs['df'])/2.0
-        p1 = float(np.sum(diff / self.Sn) * Xs_total.df) / 2.0
-        # p1 = np.exp(p1)
-        return -p1#/10000
-
-    def loglikelihoodsdf(self,pGBs, plotIt = False):
-        for i in range(len(pGBs)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, simulator="synthlisa")
-            index_low = np.searchsorted(Xs.f, self.dataX.f[0])
-            if i == 0:
-                Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
-                Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
-                Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
-            else:
-                Xs_total += xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
-                Ys_total += xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
-                Zs_total += xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
-            
-        Af = (Zs_total - Xs_total)/np.sqrt(2.0)
-        Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
-        # Af = (2/3*Xs_total - Ys_total - Zs_total)/3.0
-        # Ef = (Zs_total - Ys_total)/np.sqrt(3.0)
-        if plotIt:
-            fig, ax = plt.subplots(nrows=2, sharex=True) 
-            ax[0].plot(Af.f, np.abs(self.DAf))
-            ax[0].plot(Af.f, np.abs(Af.data))
-            
-            ax[1].plot(Af.f, np.abs(self.DEf))
-            ax[1].plot(Af.f, np.abs(Ef.data))
-            plt.show()
-
-        diff = np.abs(self.DAf - Af.values) ** 2 + np.abs(self.DEf - Ef.values) ** 2
-        loglik2 = -float(np.sum(diff / self.SA) * self.dataX.df) /2
-
-        scalarproduct_signal_subtracted_data = 4*np.real(np.sum(((self.DAf-Af)*np.conjugate((self.DAf-Af)) / self.SA).values) * self.dataX.df)
-        scalarproduct_signal_subtracted_data += 4*np.real(np.sum(((self.DEf-Ef)*np.conjugate(self.DEf-Ef) / self.SE).values) * self.dataX.df)
-
-        scalarproduct_signal = 4*np.real(np.sum((Af*np.conjugate(Af) / self.SA).values) * self.dataX.df)
-        scalarproduct_signal += 4*np.real(np.sum((Ef*np.conjugate(Ef) / self.SE).values) * self.dataX.df)
-        scalarproduct_data_signal = 4*np.real(np.sum((self.DAf*np.conjugate(Af) / self.SA).values) * self.dataX.df)
-        scalarproduct_data_signal += 4*np.real(np.sum((self.DEf*np.conjugate(Ef) / self.SE).values) * self.dataX.df) 
-        scalarproduct_data = 4*np.real(np.sum((self.DAf*np.conjugate(self.DAf) / self.SA).values) * self.dataX.df)
-        scalarproduct_data += 4*np.real(np.sum((self.DEf*np.conjugate(self.DEf) / self.SE).values) * self.dataX.df) 
-        loglik = scalarproduct_data_signal - scalarproduct_signal/2   - scalarproduct_data/2
-
-        return loglik2*4, loglik, -scalarproduct_signal_subtracted_data/2
-
-    def loglikelihood3(self, pGBs):
-        for i in range(len(pGBs)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, simulator="synthlisa")
-
-            a,Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)
-            a,Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)
-            a,Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)
-
-
-        diff = np.abs(self.dataX - Xs_total) ** 2 + np.abs(self.dataY - Ys_total) ** 2 + np.abs(self.dataZ - Zs_total) ** 2
-        # p1 = -float(np.sum(diff / Sn)*Xs.attrs['df'])/2.0
-        p1 = float(np.sum(diff / self.Sn) * Xs_total.df) / 2.0
-        # p1 = np.exp(p1)
-        return -p1#/10000
-
-    def loglikelihood2(self, pGBs):
-        for i in range(len(pGBs)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, simulator="synthlisa")
-
-            _ , Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0, copy=False)
-            _ , Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0, copy=False)
-            _ , Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0, copy=False)
-
-
-        diff = np.abs(self.dataX - Xs_total.values) ** 2 + np.abs(self.dataY - Ys_total.values) ** 2 + np.abs(self.dataZ - Zs_total.values) ** 2
-        # p1 = -float(np.sum(diff / Sn)*Xs.attrs['df'])/2.0
-        p1 = float(np.sum(diff / self.Sn) * Xs_total.df) / 2.0
-        # p1 = np.exp(p1)
-        return -p1#/10000
 
     def loglikelihood(self, pGBs):
         for i in range(len(pGBs)):
@@ -928,12 +804,12 @@ class Search():
             for signal in range(self.number_of_signals):
                 pGBstart01 = scaleto01(initial_guess[signal], self.boundaries_reduced, self.parameters)
 
-                for count, parameter in enumerate(parameters_no_amplitude):
+                for count, parameter in enumerate(self.parameters_no_amplitude):
                     if pGBstart01[parameter] < 0:
                         pGBstart01[parameter] = 0
                     if pGBstart01[parameter] > 1:
                         pGBstart01[parameter] = 1
-                    initial_guess01[count+(len(parameters_no_amplitude))*signal] = pGBstart01[parameter]
+                    initial_guess01[count+(len(self.parameters_no_amplitude))*signal] = pGBstart01[parameter]
             start = time.time()
             res = differential_evolution(self.function_evolution, bounds=bounds, disp=False, strategy='best1exp', popsize=10,tol= 1e-8 , maxiter=1000, recombination= self.recombination, mutation=(0.5,1), x0=initial_guess01)
             print('time',time.time()-start)
@@ -950,31 +826,8 @@ class Search():
         # print(pGB)
         return [maxpGB], res.nfev
 
-    def differential_evolution_search_F(self, frequency_boundaries):
-        bounds = []
-        for signal in range(self.number_of_signals):
-            for i in range(4):
-                bounds.append((0,1))
-
-        maxpGB = []
-        self.boundaries_reduced = deepcopy(self.boundaries)
-        self.boundaries_reduced['Frequency'] = frequency_boundaries
-        start = time.time()
-        res, energies = differential_evolution(self.function_evolution_F, bounds=bounds, disp=True, strategy='best1exp', popsize=5,tol= 1e-6 , maxiter=300, recombination= self.recombination, mutation=(0.5,1))
-        print('time',time.time()-start)
-        for signal in range(self.number_of_signals):
-            pGB01 = [0.5] + res.x[signal*4:signal*4+4].tolist() + [0.5,0.5,0.5] 
-            maxpGB.append(scaletooriginal(pGB01,self.boundaries_reduced, self.parameters))
-        print(res)
-        print(maxpGB)
-        print(self.loglikelihood(maxpGB))
-        # print(pGB)
-        return [maxpGB], energies
-
     def searchCD(self):
-
         parameters_recorded = [None] * 10
-
         n_trials = 50
         number_of_evaluations = 0
         for n in range(len(parameters_recorded)):
@@ -1002,7 +855,7 @@ class Search():
             pGBmodes.append([])
             for i in range(self.number_of_signals):
                 pGBmodes[-1].append({})
-                for parameter in parameters_no_amplitude + ['Loglikelihood']:
+                for parameter in self.parameters_no_amplitude + ['Loglikelihood']:
                     if parameter == 'Loglikelihood':
                         pGBmodes[-1][i][parameter] = parameters_recorded[n][0][parameter][-1]
                     else:
@@ -1074,6 +927,7 @@ class Search():
         maxpGB = current_maxpGB
         print('final optimized loglikelihood', self.loglikelihood(maxpGB),maxpGB[0]['Frequency'])
         return maxpGB
+
     def optimize_without_amplitude(self, pGBmodes, boundaries = None):
         if boundaries == None:
             boundaries = self.boundaries
@@ -1225,83 +1079,6 @@ class Search():
         print('final optimized loglikelihood', self.loglikelihood(maxpGB),maxpGB[0]['Frequency'])
         return maxpGB
 
-    def functionA(self, a):
-        pGBs01 = self.pGBx
-        boundaries_reduced = deepcopy(self.boundaries)
-        pGBs = []
-        for signal in range(int(len(pGBs01)/8)):
-            pGBs.append({})
-            i = 0
-            for parameter in self.parameters:
-                if parameter in ["EclipticLatitude"]:
-                    pGBs[signal][parameter] = np.arcsin((pGBs01[signal*8:signal*8+8][i] * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0])
-                elif parameter in ["Inclination"]:
-                    shifted_inclination = pGBs01[signal*8:signal*8+8][i]
-                    if pGBs01[signal*8:signal*8+8][i] < 0:
-                        shifted_inclination = pGBs01[signal*8:signal*8+8][i] + 1
-                    if pGBs01[signal*8:signal*8+8][i] > 1:
-                        shifted_inclination = pGBs01[signal*8:signal*8+8][i] - 1
-                    pGBs[signal][parameter] = np.arccos((shifted_inclination * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0])
-                elif parameter in ["FrequencyDerivative"]:
-                    pGBs[signal][parameter] = 10**((pGBs01[signal*8:signal*8+8][i] * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0])
-                elif parameter in ['Amplitude']:
-                    pGBs[signal][parameter] = 10**((a[0] * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0])
-                else:
-                    pGBs[signal][parameter] = (pGBs01[signal*8:signal*8+8][i] * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0]
-                i += 1
-        
-        print(pGBs)
-        p = -self.loglikelihood(pGBs)
-        return p#/10**4
-
-    def functiona(self,a, pGBs01, boundaries_reduced):
-        pGBs = []
-        for signal in range(int(len(pGBs01)/8)):
-            pGBs.append({})
-            i = 0
-            for parameter in self.parameters:
-                if parameter in ["EclipticLatitude"]:
-                    pGBs[signal][parameter] = np.arcsin((pGBs01[signal*8:signal*8+8][i] * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0])
-                elif parameter in ["Inclination"]:
-                    shifted_inclination = pGBs01[signal*8:signal*8+8][i]
-                    if pGBs01[signal*8:signal*8+8][i] < 0:
-                        shifted_inclination = pGBs01[signal*8:signal*8+8][i] + 1
-                    if pGBs01[signal*8:signal*8+8][i] > 1:
-                        shifted_inclination = pGBs01[signal*8:signal*8+8][i] - 1
-                    pGBs[signal][parameter] = np.arccos((shifted_inclination * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0])
-                elif parameter in ["FrequencyDerivative"]:
-                    pGBs[signal][parameter] = 10**((pGBs01[signal*8:signal*8+8][i] * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0])
-                elif parameter in ['Amplitude']:
-                    pGBs[signal][parameter] = 10**((a[0] * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0])
-                else:
-                    pGBs[signal][parameter] = (pGBs01[signal*8:signal*8+8][i] * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0]
-                i += 1
-        p = -self.loglikelihood(pGBs)
-        return p#/10**4
-
-    def function(self, pGBs01, boundaries_reduced):
-        pGBs = []
-        for signal in range(int(len(pGBs01)/8)):
-            pGBs.append({})
-            i = 0
-            for parameter in self.parameters:
-                if parameter in ["EclipticLatitude"]:
-                    pGBs[signal][parameter] = np.arcsin((pGBs01[signal*8:signal*8+8][i] * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0])
-                elif parameter in ["Inclination"]:
-                    shifted_inclination = pGBs01[signal*8:signal*8+8][i]
-                    if pGBs01[signal*8:signal*8+8][i] < 0:
-                        shifted_inclination = pGBs01[signal*8:signal*8+8][i] + 1
-                    if pGBs01[signal*8:signal*8+8][i] > 1:
-                        shifted_inclination = pGBs01[signal*8:signal*8+8][i] - 1
-                    pGBs[signal][parameter] = np.arccos((shifted_inclination * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0])
-                elif parameter in ['Amplitude',"FrequencyDerivative"]:
-                    pGBs[signal][parameter] = 10**((pGBs01[signal*8:signal*8+8][i] * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0])
-                else:
-                    pGBs[signal][parameter] = (pGBs01[signal*8:signal*8+8][i] * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0]
-                i += 1
-        p = -self.loglikelihood(pGBs)
-        return p#/10**4
-
     def function_evolution(self, pGBs01):
         pGBs = []
         for signal in range(self.number_of_signals):
@@ -1322,46 +1099,6 @@ class Search():
                 i += 1
         p = -self.loglikelihood_SNR(pGBs)
         return p
-
-    def function_evolution_F(self, pGBs01):
-        pGBs =  {}
-        i = 0
-        for parameter in self.intrinsic_parameters:
-            if parameter in ["EclipticLatitude"]:
-                pGBs[parameter] = np.arcsin((pGBs01[i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
-            elif parameter in ["Inclination"]:
-                pGBs[parameter] = np.arccos((pGBs01[i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
-            elif parameter in ['Amplitude']:
-                i -= 1
-                pGBs[parameter] = 10**((0.1 * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
-            elif parameter in ["FrequencyDerivative"]:
-                pGBs[parameter] = 10**((pGBs01[i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
-            else:
-                pGBs[parameter] = (pGBs01[i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0]
-            i += 1
-        intrinsic_parameter_values = {}
-        for parameter in self.intrinsic_parameters:
-            intrinsic_parameter_values[parameter] = pGBs[parameter]
-        p = -self.F(intrinsic_parameter_values)
-        return p
-
-    def function_evolution_8(self, pGBs01):
-        pGBs = []
-        for signal in range(self.number_of_signals):
-            pGBs.append({})
-            i = 0
-            for parameter in self.parameters:
-                if parameter in ["EclipticLatitude"]:
-                    pGBs[signal][parameter] = np.arcsin((pGBs01[signal*8:signal*8+8][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
-                elif parameter in ["Inclination"]:
-                    pGBs[signal][parameter] = np.arccos((pGBs01[signal*8:signal*8+8][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
-                elif parameter in ['Amplitude',"FrequencyDerivative"]:
-                    pGBs[signal][parameter] = 10**((pGBs01[signal*8:signal*8+8][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
-                else:
-                    pGBs[signal][parameter] = (pGBs01[signal*8:signal*8+8][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0]
-                i += 1
-        p = -self.loglikelihood(pGBs)
-        return p#/10**4
 
     def fisher_information(self, maxpGB):
         maxpGB_changed = deepcopy(maxpGB)
