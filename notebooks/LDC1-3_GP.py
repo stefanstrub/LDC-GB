@@ -82,12 +82,12 @@ grandparent = os.path.dirname(parent)
 
 DATAPATH = "/home/stefan/LDC/Radler/data"
 DATAPATH = grandparent+"/LDC/Radler/data"
-SAVEPATH = grandparent+"/LDC/pictures/LDC1-3_v2"
+SAVEPATH = grandparent+"/LDC/pictures/"
 
 # sangria_fn = DATAPATH + "/dgb-tdi.h5"
 sangria_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
 # sangria_fn = DATAPATH + "/LDC1-4_GB_v2.hdf5"
-# sangria_fn = DATAPATH + "/LDC1-3_VGB_v2_FD_noiseless.hdf5"
+sangria_fn = DATAPATH + "/LDC1-3_VGB_v2_FD_noiseless.hdf5"
 fid = h5py.File(sangria_fn)
 # get the source parameters
 names = np.array(fid['H5LISA/GWSources/GalBinaries'])
@@ -179,6 +179,22 @@ if do_search:
     print('time to search ', number_of_windows, 'windows: ', time.time()-start)
     np.save(SAVEPATH+'/found_sources' +save_name+'.npy', found_sources_mp)
     
+file_name = 'parameters_LDC13_Franzi.csv'
+  
+df=pd.read_csv(SAVEPATH+file_name, sep='  ',header=None)
+data = df.values
+found_sources = []
+for i in range(len(data)):
+    found_sources.append({})
+    j = 0
+    for parameter in ['EclipticLongitude','EclipticLatitude','Polarization','Amplitude','Inclination','Frequency','InitialPhase','FrequencyDerivative']:
+        found_sources[-1][parameter] = data[i,j]
+        j += 1
+        if parameter == 'Amplitude':
+            found_sources[-1][parameter] = found_sources[-1][parameter]*10**-18
+for i in range(len(data)):
+    found_sources[i] = [found_sources[i]]
+
 do_print = True
 if do_print:
     found_sources_mp = np.load(SAVEPATH+'/found_sources' +save_name+'.npy', allow_pickle = True)
@@ -221,17 +237,40 @@ if do_print:
             pGB_injected_window.append(pGBs)
         pGB_injected.append(pGB_injected_window)
 
+found_sources_in2 = deepcopy(pGB_injected)
+for i in range(len(pGB_injected)):
+    print((found_sources[i][0]['Frequency']-pGB_injected[i][0]['Frequency'])/(1/Tobs*2),(found_sources_in[i][0]['Frequency']-pGB_injected[i][0]['Frequency'])*10**9,pGB_injected[i][0]['Frequency'])
+for i in range(len(pGB_injected)):
+    found_sources_in2[i][0]['Frequency'] = found_sources[i][0]['Frequency']
+    search1 = Search(tdi_fs,Tobs, frequencies[i][0], frequencies[i][1], dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters)
+    print(i,search1.loglikelihood(found_sources[i]),search1.loglikelihood(found_sources_in2[i]),search1.loglikelihood(found_sources_in[i]),search1.loglikelihood(pGB_injected[i]))
+
+n_samples = 1000
+for i in range(len(pGB_injected)-7):
+    ff = np.linspace(frequencies[i][0],frequencies[i][1],n_samples)
+    search1 = Search(tdi_fs,Tobs, frequencies[i][0], frequencies[i][1], dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters)
+    ll = []
+    pGB = deepcopy(pGB_injected[i])
+    for j in range(n_samples):
+        pGB[0]['Frequency'] = ff[j]
+        ll.append(search1.loglikelihood(pGB))
+    fig = plt.figure()
+    plt.plot((ff-frequencies[i][0])*10**9,ll)
+    plt.scatter((found_sources[i][0]['Frequency']-frequencies[i][0])*10**9,search1.loglikelihood(found_sources[i]))
+    plt.show()
+
 # LDC1-3 ####################
 start_training_size = 1000
 evalutation_times = []
 training_times = []
 posterior_calculation_input = []
+found_sources_in = found_sources
 for i in range(len(found_sources_in)):
     # if i != 5:
     #     continue
     for j in range(len(found_sources_in[i])):
         posterior_calculation_input.append((tdi_fs, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j]))
-        chain_save_name = SAVEPATH+'/Chain/frequency'+str(int(np.round(frequencies_search[i][0]*10**9)))+'nHz'+save_name+'seed43.csv'
+        chain_save_name = SAVEPATH+'/Chain/frequency'+str(int(np.round(frequencies_search[i][0]*10**9)))+'nHz'+save_name+'franzi.csv'
         mcmc_samples, evalutation_time, training_time = compute_posterior(tdi_fs, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j],
                                             start_training_size, dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters, 
                                             chain_save_name, save_chain= True)
