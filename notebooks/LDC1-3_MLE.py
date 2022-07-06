@@ -1404,15 +1404,15 @@ MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1, number_of_searches_per_si
 # found_sources_mp = [MLP.search(frequencies[0][0], frequencies[0][1])]
 
 #### parallelized search
-# print('start search')
-# start = time.time()
-# pool = mp.Pool(mp.cpu_count())
-# found_sources_mp = pool.starmap(MLP.search, frequencies)
-# pool.close()
-# pool.join()
-# print('time to search ', number_of_windows, 'windows: ', time.time()-start)
-# print(found_sources_mp)
-# np.save(SAVEPATH+'/found_sources'+save_name+'.npy', found_sources_mp)
+print('start search')
+start = time.time()
+pool = mp.Pool(mp.cpu_count())
+found_sources_mp = pool.starmap(MLP.search, frequencies)
+pool.close()
+pool.join()
+print('time to search ', number_of_windows, 'windows: ', time.time()-start)
+print(found_sources_mp)
+np.save(SAVEPATH+'/found_sources'+save_name+'.npy', found_sources_mp)
 
 found_sources_mp = np.load(SAVEPATH+'/found_sources'+save_name+'.npy', allow_pickle= True)
 # found_sources_mp = np.load(SAVEPATH+'/found_sources'+save_name+'_test.npy', allow_pickle= True)
