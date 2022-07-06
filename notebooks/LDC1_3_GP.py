@@ -1700,7 +1700,7 @@ tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt)) for 
 tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
 
-noise_model = "MRDv1"
+noise_model = "SciRDv1"
 Nmodel = get_noise_model(noise_model, np.logspace(-5, -1, 100))
 
 pGB = {}

@@ -116,7 +116,7 @@ tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt)) for 
 tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
 
-noise_model = "MRDv1"
+noise_model = "SciRDv1"
 Nmodel = get_noise_model(noise_model, np.logspace(-5, -1, 100))
 
 pGB = {}
@@ -191,7 +191,7 @@ for i in range(len(data)):
         found_sources[-1][parameter] = data[i,j]
         j += 1
         if parameter == 'Amplitude':
-            found_sources[-1][parameter] = found_sources[-1][parameter]*10**-18
+            found_sources[-1][parameter] = found_sources[-1][parameter]*10**-22
 for i in range(len(data)):
     found_sources[i] = [found_sources[i]]
 
@@ -239,7 +239,7 @@ if do_print:
 
 found_sources_in2 = deepcopy(pGB_injected)
 for i in range(len(pGB_injected)):
-    print((found_sources[i][0]['Frequency']-pGB_injected[i][0]['Frequency'])/(1/Tobs*2),(found_sources_in[i][0]['Frequency']-pGB_injected[i][0]['Frequency'])*10**9,pGB_injected[i][0]['Frequency'])
+    print((found_sources[i][0]['Frequency']-pGB_injected[i][0]['Frequency']),(found_sources_in[i][0]['Frequency']-pGB_injected[i][0]['Frequency'])*10**9,pGB_injected[i][0]['Frequency'])
 for i in range(len(pGB_injected)):
     found_sources_in2[i][0]['Frequency'] = found_sources[i][0]['Frequency']
     search1 = Search(tdi_fs,Tobs, frequencies[i][0], frequencies[i][1], dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters)
@@ -256,7 +256,7 @@ for i in range(len(pGB_injected)-7):
         ll.append(search1.loglikelihood(pGB))
     fig = plt.figure()
     plt.plot((ff-frequencies[i][0])*10**9,ll)
-    plt.scatter((found_sources[i][0]['Frequency']-frequencies[i][0])*10**9,search1.loglikelihood(found_sources[i]))
+    plt.scatter((found_sources[i][0]['Frequency']-frequencies[i][0])*10**9,0)
     plt.show()
 
 # LDC1-3 ####################

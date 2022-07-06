@@ -1546,7 +1546,7 @@ range_index = np.logical_and(tdi_fs.f > lower_frequency, tdi_fs.f < upper_freque
 # plt.plot(tdi_fs.f[range_index],tdi_fs['X'][range_index])
 # plt.show()
 
-noise_model = "MRDv1"
+noise_model = "SciRDv1"
 Nmodel = get_noise_model(noise_model, np.logspace(-5, -1, 100))
 # Npsd_MRDv1 = Nmodel.psd(option="A")
 # noise_models = ["Proposal", "SciRDv1", "SciRDdeg1", "MRDv1", "mldc", "LCESAcall"]

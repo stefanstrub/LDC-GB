@@ -666,7 +666,7 @@ class Search():
 
     def SNR(self, pGBs):
         for i in range(len(pGBs)):
-            Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs[i], oversample=4, simulator="synthlisa")
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, simulator="synthlisa")
             if i == 0:
                 Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
                 Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
@@ -680,6 +680,28 @@ class Search():
         Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
         SNR2 = np.sum( np.real(self.DAf * np.conjugate(Af.data) + self.DEf * np.conjugate(Ef.data))/self.SA )
         hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2) /self.SA)
+        SNR = 4.0*Xs.df* hh
+        SNR2 = 4.0*Xs.df* SNR2
+        SNR3 = SNR2 / np.sqrt(SNR)
+        return SNR3.values
+
+    def hypothesis_ratio(self, pGBs):
+        for i in range(len(pGBs)):
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, simulator="synthlisa")
+            if i == 0:
+                Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+                Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
+                Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+            else:
+                Xs_total += xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+                Ys_total += xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
+                Zs_total += xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+            
+        Af = (Zs_total - Xs_total)/np.sqrt(2.0)
+        Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
+        SNR2 = np.sum( np.real(self.DAf * np.conjugate(Af.data) + self.DEf * np.conjugate(Ef.data))/self.SA )
+        hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2) /self.SA)
+        dd = np.sum((np.absolute(self.DAf)**2 + np.absolute(self.DEf)**2) /self.SA)
         # dd = np.sum((np.absolute(self.DAf.data)**2 + np.absolute(self.DEf.data)**2) /self.SA)
         plotIt = False
         if plotIt:
@@ -691,8 +713,9 @@ class Search():
             ax[1].plot(Af.f, np.abs(Ef.data))
             plt.show()
         SNR = 4.0*Xs.df* hh
+        SNR_dd = 4.0*Xs.df* dd
         SNR2 = 4.0*Xs.df* SNR2
-        SNR3 = SNR2 / np.sqrt(SNR)
+        SNR3 = SNR2 / SNR_dd
         return SNR3.values
 
 
@@ -887,7 +910,7 @@ class Search():
                         for parameter in self.parameters:
                             maxpGB[signal][parameter] = pGBmodes[i][signal][parameter]
                     # print(maxpGB)
-                    boundaries_reduced[signal] = Reduce_boundaries(maxpGB[signal], boundaries,ratio=0.1)
+                    # boundaries_reduced[signal] = Reduce_boundaries(maxpGB[signal], boundaries,ratio=0.1)
                     if j == 2:
                         boundaries_reduced[signal] = Reduce_boundaries(maxpGB[signal], boundaries,ratio=0.1)
                     if j in [0,1]:
@@ -1232,9 +1255,9 @@ class MLP_search():
 
             start = time.time()
             if ind <= len(initial_guess):
-                search_repetitions = 1
+                search_repetitions = 3
             else:
-                search_repetitions = 2
+                search_repetitions = 3
             for i in range(search_repetitions):
                 if self.strategy == 'DE':
                     try:
