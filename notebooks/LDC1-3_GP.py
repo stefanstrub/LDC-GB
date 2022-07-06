@@ -270,8 +270,6 @@ print('mean training time', np.mean(training_times), 'with ', start_training_siz
 
 ##### plot
 for i in range(len(found_sources_in)):
-    if i != 1:
-        continue
     for j in range(len(found_sources_in[i])):
         posterior1 = Posterior_computer(tdi_fs, Tobs, frequencies_search[i], found_sources_in[i][j], dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters)
         posterior1.reduce_boundaries()
