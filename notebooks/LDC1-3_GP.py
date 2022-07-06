@@ -80,15 +80,14 @@ parent = os.path.dirname(path)
 # grandparent directory
 grandparent = os.path.dirname(parent)
 
-DATAPATH = "/home/stefan/LDC/Radler/data"
 DATAPATH = grandparent+"/LDC/Radler/data"
-SAVEPATH = grandparent+"/LDC/pictures/"
+SAVEPATH = grandparent+"/LDC/pictures"
 
-# sangria_fn = DATAPATH + "/dgb-tdi.h5"
-sangria_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
-# sangria_fn = DATAPATH + "/LDC1-4_GB_v2.hdf5"
-sangria_fn = DATAPATH + "/LDC1-3_VGB_v2_FD_noiseless.hdf5"
-fid = h5py.File(sangria_fn)
+# radler_fn = DATAPATH + "/dgb-tdi.h5"
+radler_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
+# radler_fn = DATAPATH + "/LDC1-4_GB_v2.hdf5"
+# radler_fn = DATAPATH + "/LDC1-3_VGB_v2_FD_noiseless.hdf5"
+fid = h5py.File(radler_fn)
 # get the source parameters
 names = np.array(fid['H5LISA/GWSources/GalBinaries'])
 params = [fid['H5LISA/GWSources/GalBinaries'][k] for k in names]
@@ -179,22 +178,6 @@ if do_search:
     print('time to search ', number_of_windows, 'windows: ', time.time()-start)
     np.save(SAVEPATH+'/found_sources' +save_name+'.npy', found_sources_mp)
     
-file_name = 'parameters_LDC13_Franzi.csv'
-  
-df=pd.read_csv(SAVEPATH+file_name, sep='  ',header=None)
-data = df.values
-found_sources = []
-for i in range(len(data)):
-    found_sources.append({})
-    j = 0
-    for parameter in ['EclipticLongitude','EclipticLatitude','Polarization','Amplitude','Inclination','Frequency','InitialPhase','FrequencyDerivative']:
-        found_sources[-1][parameter] = data[i,j]
-        j += 1
-        if parameter == 'Amplitude':
-            found_sources[-1][parameter] = found_sources[-1][parameter]*10**-22
-for i in range(len(data)):
-    found_sources[i] = [found_sources[i]]
-
 do_print = True
 if do_print:
     found_sources_mp = np.load(SAVEPATH+'/found_sources' +save_name+'.npy', allow_pickle = True)
@@ -237,56 +220,152 @@ if do_print:
             pGB_injected_window.append(pGBs)
         pGB_injected.append(pGB_injected_window)
 
-found_sources_in2 = deepcopy(pGB_injected)
-for i in range(len(pGB_injected)):
-    print((found_sources[i][0]['Frequency']-pGB_injected[i][0]['Frequency']),(found_sources_in[i][0]['Frequency']-pGB_injected[i][0]['Frequency'])*10**9,pGB_injected[i][0]['Frequency'])
-for i in range(len(pGB_injected)):
-    found_sources_in2[i][0]['Frequency'] = found_sources[i][0]['Frequency']
-    search1 = Search(tdi_fs,Tobs, frequencies[i][0], frequencies[i][1], dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters)
-    print(i,search1.loglikelihood(found_sources[i]),search1.loglikelihood(found_sources_in2[i]),search1.loglikelihood(found_sources_in[i]),search1.loglikelihood(pGB_injected[i]))
-
-n_samples = 1000
-for i in range(len(pGB_injected)-7):
-    ff = np.linspace(frequencies[i][0],frequencies[i][1],n_samples)
-    search1 = Search(tdi_fs,Tobs, frequencies[i][0], frequencies[i][1], dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters)
-    ll = []
-    pGB = deepcopy(pGB_injected[i])
-    for j in range(n_samples):
-        pGB[0]['Frequency'] = ff[j]
-        ll.append(search1.loglikelihood(pGB))
-    fig = plt.figure()
-    plt.plot((ff-frequencies[i][0])*10**9,ll)
-    plt.scatter((found_sources[i][0]['Frequency']-frequencies[i][0])*10**9,0)
-    plt.show()
+    for i in range(len(pGB_injected)):
+        if i != 1:
+            continue
+        # search1 = Search(tdi_fs,Tobs, frequencies[i][0], frequencies[i][1])
+        search1 = Search(tdi_fs,Tobs, frequencies[i][0], frequencies[i][1], dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters)
+        print(search1.loglikelihood_SNR(found_sources_in[i]), search1.loglikelihood_SNR(pGB_injected[i]))
+        print('ratio',search1.loglikelihood(found_sources_in[i]), search1.loglikelihood(pGB_injected[i]))
+        print(found_sources_in[i])
+        print(pGB_injected[i])
+        print(frequencies[i])
 
 # LDC1-3 ####################
 start_training_size = 1000
 evalutation_times = []
 training_times = []
 posterior_calculation_input = []
-found_sources_in = found_sources
 for i in range(len(found_sources_in)):
-    # if i != 5:
-    #     continue
+    if i != 1:
+        continue
     for j in range(len(found_sources_in[i])):
-        posterior_calculation_input.append((tdi_fs, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j]))
-        chain_save_name = SAVEPATH+'/Chain/frequency'+str(int(np.round(frequencies_search[i][0]*10**9)))+'nHz'+save_name+'franzi.csv'
-        mcmc_samples, evalutation_time, training_time = compute_posterior(tdi_fs, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j],
-                                            start_training_size, dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters, 
-                                            chain_save_name, save_chain= True)
-        evalutation_times.append(evalutation_time)
-        training_times.append(training_time)
+        chain_save_name = SAVEPATH+'/Chain/frequency'+str(int(np.round(found_sources_in[i][j]['Frequency']*10**9)))+'nHz'+save_name
+        # posterior_calculation_input.append((tdi_fs, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j]),start_training_size, dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters, 
+                                                # chain_save_name, save_chain= True)
+        calculate_posterior_sequentially = True
+        if calculate_posterior_sequentially:
+            mcmc_samples, evalutation_time, training_time = compute_posterior(tdi_fs, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j],
+                                                start_training_size, dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters, 
+                                                chain_save_name, save_chain= True, save_figure=False)
+            evalutation_times.append(evalutation_time)
+            training_times.append(training_time)
+
+#### Parallelization
+calculate_posterior_parallelized = False
+if calculate_posterior_parallelized:
+    print('time to search ', number_of_windows, 'windows: ', time.time()-start)
+    start = time.time()
+    pool = mp.Pool(mp.cpu_count())
+    pool = mp.Pool(16)
+    mcmc_samples = pool.starmap(compute_posterior,posterior_calculation_input[:16])
+    pool.close()
+    pool.join()
+    print('time to search ', number_of_windows, 'windows: ', time.time()-start)
+
 
 print('mean evaluation time', np.mean(evalutation_times), 'with ', start_training_size, 'training samples')
 print('mean training time', np.mean(training_times), 'with ', start_training_size, 'training samples')
 
-#### Parallelization
-# print('time to search ', number_of_windows, 'windows: ', time.time()-start)
-# start = time.time()
-# pool = mp.Pool(mp.cpu_count())
-# pool = mp.Pool(16)
-# mcmc_samples = pool.starmap(compute_posterior,posterior_calculation_input[:16])
-# pool.close()
-# pool.join()
-# print('time to search ', number_of_windows, 'windows: ', time.time()-start)
 
+##### plot
+for i in range(len(found_sources_in)):
+    if i != 1:
+        continue
+    for j in range(len(found_sources_in[i])):
+        posterior1 = Posterior_computer(tdi_fs, Tobs, frequencies_search[i], found_sources_in[i][j], dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters)
+        posterior1.reduce_boundaries()
+        chain_save_name = SAVEPATH+'/Chain/frequency'+str(int(np.round(found_sources_in[i][0]['Frequency']*10**9)))+'nHz'+save_name
+        df = pd.read_csv(chain_save_name+'.csv')
+        mcmc_samples = df.to_numpy()
+        posterior1.plot_corner(mcmc_samples, pGB_injected[i][0], chain_save_name, save_figure= True, save_chain= False, number_of_signal = 0, parameter_titles = True, rescaled=True)
+
+
+
+injected_frequencies = []
+m = 0
+for i in range(len(pGB_injected)):   
+    for j in range(len( pGB_injected[i])):
+        injected_frequencies.append(pGB_injected[i][j]['Frequency'])
+        m += 1
+pGB_injected_reshaped = np.reshape(pGB_injected, m)
+def closest(list, Number):
+    aux = []
+    for valor in list:
+        aux.append(abs(Number-valor))
+
+    return aux.index(min(aux))
+
+lbls = [ r'\log \mathcal{A}', r'\sin \beta',r'\lambda', 'f - f_{True} $ $ ($nHz$)', '\log \dot{f} $ $ ($Hz/s$)', r'\cos \iota', r'\phi', r'\Phi']
+g = plots.get_subplot_plotter(subplot_size_ratio=9/16*0.7, subplot_size=8)
+g.settings.scaling_factor = 1
+g.settings.line_styles = 'tab10'
+g.settings.solid_colors='tab10'
+boundaries = {
+    "EclipticLatitude": [-1.0, 1.0],
+    "EclipticLongitude": [-np.pi, np.pi],
+    "Inclination": [-1.0, 1.0],
+    "InitialPhase": [0.0, 2.0 * np.pi],
+    "Polarization": [0.0, 1.0 * np.pi],
+}
+names = parameters
+parameter_pairs = [['EclipticLongitude', 'EclipticLatitude'],['Inclination', 'Amplitude'],['Frequency', 'FrequencyDerivative']]
+samples = []
+pGB_injected_sorted_index = []
+m = 0
+for i in range(len(found_sources_mp)):
+    for j in range(len(found_sources_in[i])):
+        save_frequency = pGB_injected[i][j]['Frequency']
+        df = pd.read_csv(chain_save_name+'.csv')
+        df['Inclination'] = np.cos(df['Inclination'].values)
+        df['EclipticLatitude'] = np.sin(df['EclipticLatitude'].values)
+        df['FrequencyDerivative'] = np.log10(df['FrequencyDerivative'].values)
+        df['Amplitude'] = np.log10(df['Amplitude'].values)
+        pGB_injected_sorted_index.append(closest(injected_frequencies, df['Frequency'][0]))
+        df['Frequency'] = (df['Frequency'] - pGB_injected_reshaped[pGB_injected_sorted_index[-1]]['Frequency'] + m*2e-9) * 1e9
+        samples.append(MCSamples(samples=df.to_numpy(), names = names, labels = lbls))
+        samples[-1].updateSettings({'contours': [0.68, 0.95]})
+        m += 1
+pGB_injected_sorted = []
+for i in range(len(found_sources_mp)):
+    pGB_injected_sorted.append(pGB_injected_reshaped[pGB_injected_sorted_index[i]])
+
+g.settings.num_plot_contours = 2
+# 3D (scatter) triangle plot
+# you can adjust the scaling factor if font sizes are too small when
+# making many subplots in a fixed size (default=2 would give smaller fonts)
+g.settings.scaling_factor = 2
+g.plots_2d(samples, param_pairs=parameter_pairs,legend_labels=[],lws=1.5)
+for n, ax in enumerate(g.subplots[:,0]):
+    parameter1, parameter2 = parameter_pairs[n]
+    m = 0
+    for i in range(len(pGB_injected_sorted)):   
+        pGB_injected_scaled = deepcopy(pGB_injected_sorted[i])
+        pGB_injected_scaled['Inclination'] = np.cos(pGB_injected_scaled['Inclination'])
+        pGB_injected_scaled['EclipticLatitude'] = np.sin(pGB_injected_scaled['EclipticLatitude'])
+        pGB_injected_scaled['FrequencyDerivative'] = np.log10(pGB_injected_scaled['FrequencyDerivative'])
+        pGB_injected_scaled['Amplitude'] = np.log10(pGB_injected_scaled['Amplitude'])
+        pGB_injected_scaled['Frequency'] = m * 2
+        m += 1
+        ax.plot(pGB_injected_scaled[parameter1],pGB_injected_scaled[parameter2],color='black', marker = '+',zorder=1, markersize = 10, label= 'true')
+        ax.plot(pGB_injected_scaled[parameter1],pGB_injected_scaled[parameter2], marker = '+',zorder=1.1, markersize = 15,alpha = 0.5, label= 'true', linewidth = 4)
+    try:
+        ax.set_xlim(boundaries[parameter1])
+    except:
+        xlim = ax.get_xlim()
+        x_length = xlim[1]-xlim[0]
+        ax.set_xlim([xlim[0]-x_length*0.02, xlim[1]+x_length*0.02])
+    try:
+        ax.set_ylim(boundaries[parameter2])
+    except:
+        ylim = ax.get_ylim()
+        y_length = ylim[1]-ylim[0]
+        ax.set_ylim([ylim[0]-y_length*0.02, ylim[1]+y_length*0.02])
+    if parameter2 in ['FrequencyDerivative']:
+        ax.axhline(y=np.log10(1/Tobs**2/100), color='grey', linestyle = '--', zorder = 0.5)
+        ylim = ax.get_ylim()
+        y_length = ylim[1]-ylim[0]
+        ax.set_ylim([-18.5, ylim[1]+y_length*0.02])
+    # if parameter2 in ['Amplitude', 'FrequencyDerivative']:
+    #     ax.set_yscale('log')
+g.export(chain_save_name+'posterior.png')

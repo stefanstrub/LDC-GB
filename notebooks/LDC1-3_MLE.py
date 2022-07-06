@@ -743,12 +743,6 @@ class Search():
             ax[1].plot(Af.f, np.abs(self.DEf))
             ax[1].plot(Af.f, np.abs(Ef.data))
             plt.show()
-            
-        # p2 = np.sum((np.absolute(self.DAf - Af.data)**2 + np.absolute(self.DEf - Ef.data)**2) /self.SA) * Xs.df *2
-        # diff = np.abs(self.DAf - Af.data) ** 2 + np.abs(self.DEf - Ef.data) ** 2
-        # p1 = float(np.sum(diff / self.SA) * Xs.df) / 2.0
-        # loglik = 4.0*Xs.df*( SNR2 - 0.5 * hh - 0.5 * dd)
-        # print(p2, loglik)
         logliks = 4.0*Xs.df*( SNR2 - 0.5 * hh )
         return logliks.values
 
@@ -1143,137 +1137,6 @@ class Search():
             print(step_size['Amplitude'],inner_product['Amplitude']['Amplitude'],step_size['Frequency'],inner_product['Frequency']['Frequency'])
         return inner_product
 
-def objective(n,tdi_fs,Tobs):
-    print('index',n)
-    search = Search(n,tdi_fs,Tobs)
-    # search.plot(search.pGBs)
-    pGBmodes =  search.search()
-    maxpGB, pGB =  search.optimize(pGBmodes)
-    return maxpGB, pGB
-
-
-def frequency_derivative(f, Mc):
-    G = 6.674*10**(-11)
-    c = 3*10**8
-    Mc = Mc * 2*10**30
-    Mc_s = Mc*G/c**3
-    return 96/(5*np.pi*Mc_s**2)*(np.pi*Mc_s*f)**(11/3)
-def frequency_derivative_thyson(f):
-    return 8*10**-7*f**(11/3)
-def frequency_derivative_thyson_lower(f):
-    return -5*10**-6*f**(13/3)
-def frequency_derivative2(f, Mc_s):
-    return 96/5*np.pi**(8/3)*Mc_s**(5/3)*(f)**(11/3)
-
-pGBadded20 = {}
-pGBadded20['Amplitude'] = 4.55e-23
-pGBadded20['EclipticLatitude'] = 0.2
-pGBadded20['EclipticLongitude'] = 1.5
-pGBadded20['Frequency'] = 0.00140457
-pGBadded20['FrequencyDerivative'] = 5*1e-18
-pGBadded20['Inclination'] = 1.2
-pGBadded20['InitialPhase'] = 3
-pGBadded20['Polarization'] = 2
-
-prop_cycle = plt.rcParams['axes.prop_cycle']
-colors = prop_cycle.by_key()['color']
-
-parameters = [
-    "Amplitude",
-    "EclipticLatitude",
-    "EclipticLongitude",
-    "Frequency",
-    "FrequencyDerivative",
-    "Inclination",
-    "InitialPhase",
-    "Polarization",
-]
-parameters_log_uniform = ['Amplitude','FrequencyDerivative']
-# parameters_log_uniform = ['Amplitude']
-parameters_no_amplitude = parameters[1:]
-intrinsic_parameters = ['EclipticLatitude','EclipticLongitude','Frequency', 'FrequencyDerivative']
-
-# get current directory
-path = os.getcwd()
- 
-# parent directory
-parent = os.path.dirname(path)
-# grandparent directory
-grandparent = os.path.dirname(parent)
-
-DATAPATH = "/home/stefan/LDC/Radler/data"
-DATAPATH = grandparent+"/LDC/Radler/data"
-SAVEPATH = grandparent+"/LDC/pictures"
-
-# sangria_fn = DATAPATH + "/dgb-tdi.h5"
-sangria_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
-# sangria_fn = DATAPATH + "/LDC1-4_GB_v2.hdf5"
-# sangria_fn = DATAPATH + "/LDC1-3_VGB_v2_FD_noiseless.hdf5"
-fid = h5py.File(sangria_fn)
-# get the source parameters
-names = np.array(fid['H5LISA/GWSources/GalBinaries'])
-params = [fid['H5LISA/GWSources/GalBinaries'][k] for k in names]
-reduced_names = []
-i = 0
-for p in params:
-    i += 1
-    if p.shape:
-        reduced_names.append(names[i-1])
-params = [np.array(p) for p in params if p.shape]
-cat = np.rec.fromarrays(params, names=list(reduced_names))
-
-# get TDI 
-td = np.array(fid["H5LISA/PreProcess/TDIdata"])
-td = np.rec.fromarrays(list(td.T), names=["t", "X", "Y", "Z"])
-del_t = float(np.array(fid['H5LISA/GWSources/GalBinaries']['Cadence']))
-reduction = 1
-Tobs = float(int(np.array(fid['H5LISA/GWSources/GalBinaries']['ObservationDuration']))/reduction)
-
-dt = del_t
-# Build timeseries and frequencyseries object for X,Y,Z
-tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
-# tdi_ts = xr.Dataset(dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]]))
-# tdi_ts = xr.Dataset(dict([(k,TimeSeries(tdi_ts[k][:,1], dt=dt)) for k in ["X", "Y", "Z"]]))
-tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
-GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
-
-# add signal
-for pGBadding in [pGBadded20]: # faint
-# for pGBadding in [pGBadded11]:              # overlap single signal
-    cat = np.hstack((cat,cat[0]))
-    for parameter in parameters:
-        cat[-1][parameter] = pGBadding[parameter]
-    Xs_added, Ys_added, Zs_added = GB.get_fd_tdixyz(template=pGBadding, oversample=4, simulator="synthlisa")
-    source_added = dict({"X": Xs_added, "Y": Ys_added, "Z": Zs_added})
-    index_low = np.searchsorted(tdi_fs["X"].f, Xs_added.f[0])
-    index_high = index_low+len(Xs_added)
-    # tdi_fs['X'] = tdi_fs['X'] #+ Xs_added
-    for k in ["X", "Y", "Z"]:
-        tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] + source_added[k].data
-tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft(dt=dt)) for k, n in [["X", 1], ["Y", 2], ["Z", 3]]]))
-
-noise_model = "SciRDv1"
-Nmodel = get_noise_model(noise_model, np.logspace(-5, -1, 100))
-
-pGB = {}
-ind = 0
-found_sources = []
-target_sources = []
-first_start = time.time()
-np.random.seed(42) #40
-number_of_signals = 1
-signals_per_subtraction = 1
-
-chandrasekhar_limit = 1.4
-M_chirp_upper_boundary = (chandrasekhar_limit**2)**(3/5)/(2*chandrasekhar_limit)**(1/5)
-
-start_frequency = 0.0005
-end_frequency = 0.02
-number_of_windows = 0
-current_frequency = deepcopy(start_frequency)
-while current_frequency < end_frequency:
-    current_frequency += 300*current_frequency * 10**3 / 10**9
-    number_of_windows += 1
 
 class MLP_search():
     def __init__(self,tdi_fs, Tobs, signals_per_window, number_of_searches_per_signal = 3, strategy = 'DE'):
@@ -1392,16 +1255,133 @@ class MLP_search():
                 index_high = index_low+len(Xs_subtracted)
                 for k in ["X", "Y", "Z"]:
                     tdi_fs_search[k].data[index_low:index_high] = tdi_fs_search[k].data[index_low:index_high] - source_subtracted[k].data
-        return found_sources, found_sources_all, number_of_evaluations_all
+        return found_sources, found_sources_all, number_of_evaluations_all, found_sources_in, [lower_frequency, upper_frequency]
 
-lower_frequency = 0.0039945
-upper_frequency = 0.0039955
-lower_frequency2 = 0.0039965
-upper_frequency2 = 0.0039975
+def frequency_derivative(f, Mc):
+    G = 6.674*10**(-11)
+    c = 3*10**8
+    Mc = Mc * 2*10**30
+    Mc_s = Mc*G/c**3
+    return 96/(5*np.pi*Mc_s**2)*(np.pi*Mc_s*f)**(11/3)
+def frequency_derivative_tyson(f):
+    return 8*10**-7*f**(11/3)
+def frequency_derivative_tyson_lower(f):
+    return -5*10**-6*f**(13/3)
+def frequency_derivative2(f, Mc_s):
+    return 96/5*np.pi**(8/3)*Mc_s**(5/3)*(f)**(11/3)
+
+pGBadded20 = {}
+pGBadded20['Amplitude'] = 4.55e-23
+pGBadded20['EclipticLatitude'] = 0.2
+pGBadded20['EclipticLongitude'] = 1.5
+pGBadded20['Frequency'] = 0.00140457
+pGBadded20['FrequencyDerivative'] = 5*1e-18
+pGBadded20['Inclination'] = 1.2
+pGBadded20['InitialPhase'] = 3
+pGBadded20['Polarization'] = 2
+
+prop_cycle = plt.rcParams['axes.prop_cycle']
+colors = prop_cycle.by_key()['color']
+
+parameters = [
+    "Amplitude",
+    "EclipticLatitude",
+    "EclipticLongitude",
+    "Frequency",
+    "FrequencyDerivative",
+    "Inclination",
+    "InitialPhase",
+    "Polarization",
+]
+parameters_log_uniform = ['Amplitude','FrequencyDerivative']
+# parameters_log_uniform = ['Amplitude']
+parameters_no_amplitude = parameters[1:]
+intrinsic_parameters = ['EclipticLatitude','EclipticLongitude','Frequency', 'FrequencyDerivative']
+
+# get current directory
+path = os.getcwd()
+ 
+# parent directory
+parent = os.path.dirname(path)
+# grandparent directory
+grandparent = os.path.dirname(parent)
+
+DATAPATH = grandparent+"/LDC/Radler/data"
+SAVEPATH = grandparent+"/LDC/pictures"
+
+# radler_fn = DATAPATH + "/dgb-tdi.h5"
+radler_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
+# radler_fn = DATAPATH + "/LDC1-4_GB_v2.hdf5"
+# radler_fn = DATAPATH + "/LDC1-3_VGB_v2_FD_noiseless.hdf5"
+fid = h5py.File(radler_fn)
+# get the source parameters
+names = np.array(fid['H5LISA/GWSources/GalBinaries'])
+params = [fid['H5LISA/GWSources/GalBinaries'][k] for k in names]
+reduced_names = []
+i = 0
+for p in params:
+    i += 1
+    if p.shape:
+        reduced_names.append(names[i-1])
+params = [np.array(p) for p in params if p.shape]
+cat = np.rec.fromarrays(params, names=list(reduced_names))
+
+# get TDI 
+td = np.array(fid["H5LISA/PreProcess/TDIdata"])
+td = np.rec.fromarrays(list(td.T), names=["t", "X", "Y", "Z"])
+del_t = float(np.array(fid['H5LISA/GWSources/GalBinaries']['Cadence']))
+reduction = 1
+Tobs = float(int(np.array(fid['H5LISA/GWSources/GalBinaries']['ObservationDuration']))/reduction)
+
+dt = del_t
+# Build timeseries and frequencyseries object for X,Y,Z
+tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
+tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
+
+# add signal
+add_signal = False
+if add_signal:
+    for pGBadding in [pGBadded20]: # faint
+    # for pGBadding in [pGBadded11]:              # overlap single signal
+        cat = np.hstack((cat,cat[0]))
+        for parameter in parameters:
+            cat[-1][parameter] = pGBadding[parameter]
+        Xs_added, Ys_added, Zs_added = GB.get_fd_tdixyz(template=pGBadding, oversample=4, simulator="synthlisa")
+        source_added = dict({"X": Xs_added, "Y": Ys_added, "Z": Zs_added})
+        index_low = np.searchsorted(tdi_fs["X"].f, Xs_added.f[0])
+        index_high = index_low+len(Xs_added)
+        # tdi_fs['X'] = tdi_fs['X'] #+ Xs_added
+        for k in ["X", "Y", "Z"]:
+            tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] + source_added[k].data
+    tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft(dt=dt)) for k, n in [["X", 1], ["Y", 2], ["Z", 3]]]))
+
+noise_model = "SciRDv1"
+Nmodel = get_noise_model(noise_model, np.logspace(-5, -1, 100))
+
+pGB = {}
+ind = 0
+found_sources = []
+target_sources = []
+first_start = time.time()
+np.random.seed(42) #40
+number_of_signals = 1
+signals_per_subtraction = 1
+
+chandrasekhar_limit = 1.4
+M_chirp_upper_boundary = (chandrasekhar_limit**2)**(3/5)/(2*chandrasekhar_limit)**(1/5)
+
+start_frequency = 0.0005
+end_frequency = 0.02
+number_of_windows = 0
+current_frequency = deepcopy(start_frequency)
+while current_frequency < end_frequency:
+    current_frequency += 300*current_frequency * 10**3 / 10**9
+    number_of_windows += 1
 
 padding = 0.5e-6
 
-save_name = 'LDC1-3_faint_signal'
+save_name = 'LDC1-3'
 indexes = np.argsort(cat['Frequency'])
 cat_sorted = cat[indexes]
 cat = cat_sorted
@@ -1409,22 +1389,16 @@ cat = cat_sorted
 # LDC1-3 ##########################################
 target_frequencies = cat['Frequency']
 frequencies = []
-# window_length = 10**-6 # Hz
 for i in range(len(target_frequencies)):
     f_smear = target_frequencies[i] *3* 10**-4
     f_deviation = frequency_derivative(target_frequencies[i],2)*Tobs
     window_length = np.max([f_smear, f_deviation])
     window_length = 10**-6 # Hz
-    window_shift = ((np.random.random(1)-0.5)*window_length*0.5)[0]*0
+    window_shift = ((np.random.random(1)-0.5)*window_length*0.5)[0]
     frequencies.append([target_frequencies[i]-window_length/2+window_shift,target_frequencies[i]+window_length/2+window_shift])
-frequencies = [frequencies[2]]
-# frequencies = frequencies[::2]
-
-
-
 
 number_of_windows = len(frequencies)
-MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1, number_of_searches_per_signal=1, strategy = 'DE')
+MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1, number_of_searches_per_signal=2, strategy = 'DE')
 # found_sources_mp = [MLP.search(frequencies[0][0], frequencies[0][1])]
 # MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1, strategy = 'CD')
 # found_sources_mp = [MLP.search(frequencies[0][0], frequencies[0][1])]
@@ -1441,6 +1415,7 @@ MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1, number_of_searches_per_si
 # np.save(SAVEPATH+'/found_sources'+save_name+'.npy', found_sources_mp)
 
 found_sources_mp = np.load(SAVEPATH+'/found_sources'+save_name+'.npy', allow_pickle= True)
+# found_sources_mp = np.load(SAVEPATH+'/found_sources'+save_name+'_test.npy', allow_pickle= True)
 
 found_sources_in = []
 found_sources_out = []
@@ -1481,14 +1456,15 @@ print(search1.loglikelihood_SNR(pGB_injected[0]))
 print(search1.loglikelihood_SNR(found_sources_in[0]))
 
 for i in range(len(pGB_injected)):
+    if i != 1:
+        continue
+    # search1 = Search(tdi_fs,Tobs, frequencies[i][0], frequencies[i][1])
     search1 = Search(tdi_fs,Tobs, frequencies[i][0], frequencies[i][1])
-    found_sources_in2 = deepcopy(found_sources_in)
-    found_sources_in2[i][0]['Frequency'] = found_sources_in2[i][0]['Frequency']+5*10**-9
-    print(search1.loglikelihood_SNR(found_sources_in[i]), search1.loglikelihood_SNR(found_sources_in2[i]), search1.loglikelihood_SNR(pGB_injected[i]))
-    print('ratio',search1.loglikelihood(found_sources_in[i]), search1.loglikelihood(found_sources_in2[i]), search1.loglikelihood(pGB_injected[i]))
-    print(search1.SNR(found_sources_in[i]))
-    print(search1.SNRm(found_sources_in[i]))    
-    print(search1.hypothesis_ratio(found_sources_in[i]),search1.hypothesis_ratio(pGB_injected[i]))    
+    print(search1.loglikelihood_SNR(found_sources_in[i]), search1.loglikelihood_SNR(pGB_injected[i]))
+    print('ratio',search1.loglikelihood(found_sources_in[i]), search1.loglikelihood(pGB_injected[i]))
+    print(found_sources_in[i])
+    print(pGB_injected[i])
+    print(frequencies[i])
 
 index = 1
 print(found_sources_in[index][0]['Amplitude'], pGB_injected[index][0]['Amplitude'])
@@ -1519,12 +1495,11 @@ print(df_search_results.to_latex(index=False))
 
 #plot strains
 for i in range(len(frequencies)):
-    if i != 0:
-        continue
+    # if i != 5:
+    #     continue
     print('plot')
     lower_frequency = frequencies[i][0]
     upper_frequency = frequencies[i][1]
     search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
     if len(pGB_injected[i]) > 0:
         search1.plot(found_sources_in=found_sources_in[i], pGB_injected=pGB_injected[i], saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'.png') 
-

@@ -719,7 +719,6 @@ class Search():
         return SNR3.values
 
 
-
     def loglikelihood(self, pGBs):
         for i in range(len(pGBs)):
             Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, simulator="synthlisa")
@@ -746,12 +745,6 @@ class Search():
             ax[1].plot(Af.f, np.abs(self.DEf))
             ax[1].plot(Af.f, np.abs(Ef.data))
             plt.show()
-            
-        # p2 = np.sum((np.absolute(self.DAf - Af.data)**2 + np.absolute(self.DEf - Ef.data)**2) /self.SA) * Xs.df *2
-        # diff = np.abs(self.DAf - Af.data) ** 2 + np.abs(self.DEf - Ef.data) ** 2
-        # p1 = float(np.sum(diff / self.SA) * Xs.df) / 2.0
-        # loglik = 4.0*Xs.df*( SNR2 - 0.5 * hh - 0.5 * dd)
-        # print(p2, loglik)
         logliks = 4.0*Xs.df*( SNR2 - 0.5 * hh )
         return logliks.values
 
@@ -1738,7 +1731,7 @@ class Posterior_computer():
         save_frequency = self.frequencies[0]
         if save_chain:
             df = pd.DataFrame(data=mcmc_samples_rescaled, columns=self.parameters)
-            df.to_csv(chain_save_name,index=False)
+            df.to_csv(chain_save_name+'.csv',index=False)
         # start = time.time()
         # df = pd.DataFrame(data=mcmc_samples_rescaled, columns=self.parameters)
         # df.to_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/Stefan_LDC14/GW'+str(int(np.round(maxpGB['Frequency']*10**8)))+'.csv',index=False)
@@ -1816,7 +1809,7 @@ class Posterior_computer():
                     ax.axhline(maxvalues[i], color='green', ls='--', lw = 1)
                 i += 1
             save_frequency = pGB['Frequency']
-            g.export(SAVEPATH+'/frequency'+ str(int(np.round(save_frequency*10**8)))+self.save_name+str(parameter_titles)+'.png')
+            g.export(chain_save_name+'.png')
             plt.show()
 
 
