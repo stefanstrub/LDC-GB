@@ -65,5 +65,6 @@ void spacecraft(double t, double *x, double *y, double *z)
 	y[2] = AU*sa + AU*ec*(sa*ca*cb - (1. + ca*ca)*sb);
 	z[2] = -SQ3*AU*ec*(ca*cb + sa*sb);
 
+
 	return;
 }
