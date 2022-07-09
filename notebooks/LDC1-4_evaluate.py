@@ -2211,7 +2211,7 @@ if get_pGB_injected:
 def get_SNR(pGB_injected, lower_frequency, upper_frequency):
     search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
     intrinsic_SNR_injected = []
-    print(lower_frequency)
+    # print(lower_frequency)
     for i in range(len(pGB_injected)):
         pGB_injected_dict = {}
         for parameter in parameters:
@@ -2221,16 +2221,15 @@ def get_SNR(pGB_injected, lower_frequency, upper_frequency):
             break
     return intrinsic_SNR_injected
 
-intrinsic_SNR_injected = []
-input = []
-index = []
-for i in range(len(pGB_injected)):
-# for i in range(16):
-    intrinsic_SNR_injected.append([])
-    if len(pGB_injected[i]) > 0:
-        index.append(i)
-        input.append((pGB_injected[i],frequencies_search[i][0], frequencies_search[i][1]))
-    print(i)
+# intrinsic_SNR_injected = []
+# input = []
+# index = []
+# for i in range(len(pGB_injected)):
+# # for i in range(16):
+#     intrinsic_SNR_injected.append([])
+#     if len(pGB_injected[i]) > 0:
+#         index.append(i)
+#         input.append((pGB_injected[i],frequencies_search[i][0], frequencies_search[i][1]))
 
 # start = time.time()
 # pool = mp.Pool(16)
@@ -2243,6 +2242,7 @@ for i in range(len(pGB_injected)):
 #         if len(pGB_injected[i]) > 0:
 #             pGB_injected[index[i]][j]['IntrinsicSNR'] = SNR_intrinsic[i][j]
 
+#### sequential
 # for i in range(len(pGB_injected)):
 #     print(i)
 #     # if i != 5:
@@ -2257,8 +2257,9 @@ for i in range(len(pGB_injected)):
 #         if j > 300:
 #             break
         # print('SNR for noise model', noise_model, intrinsic_SNR_injected[-1], 'loglikelihood ratio',search1.loglikelihood([pGB_injected[i][j]]), 'SNR data',search1.loglikelihood_SNR([pGB_injected[i][j]]))
-np.save(SAVEPATH+'/found_sources_pGB_injected_array_half_year'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', np.asarray(pGB_injected))
-pGB_injected = np.load(SAVEPATH+'/found_sources_pGB_injected_array_half_year'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', allow_pickle = True)
+# np.save(SAVEPATH+'/found_sources_pGB_injected_array2_half_year'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', np.asarray(pGB_injected))
+pGB_injected = np.load(SAVEPATH+'/found_sources_pGB_injected_array2_half_year'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', allow_pickle = True)
+
 
 do_match = True
 pGB_injected_matched = []
@@ -2269,12 +2270,15 @@ number_of_matched_signals = 0
 correlation_list = []
 if do_match:
     start = time.time()
+    percentage = 0
     for i in range(len(found_sources_in)):
     # for i in range(100):
         # found_sources_not_matched[i] = found_sources_not_matched[i].tolist()
         pGB_injected_matched.append([])
         found_sources_matched.append([])
-        print(i)
+        if i%int(len(found_sources_in)/100) == 0:
+            percentage += 1
+            print(percentage,'%')
         # if i != 3:
         #     continue
         for j in range(len(found_sources_in[i])):
@@ -2292,7 +2296,8 @@ if do_match:
                     pGB_injected_dict[parameter] = pGB_injected[i][k][parameter]
                     found_dict[parameter] = found_sources_in[i][j][parameter]
                 # print('SNR', SNR_match(pGB_injected_not_matched[i][k],found_sources_in[i][j]),'parameter comparison:',pGB_injected_not_matched[i][k]['EclipticLatitude'],found_sources_in[i][j]['EclipticLatitude'],eclipticlongitude, found_sources_in[i][j]['EclipticLongitude'])
-                correlation = SNR_match(pGB_injected_dict,found_dict)
+                correlation = SNR_match(pGB_injected_not_matched[i][k],found_sources_in[i][j])
+                # correlation = SNR_match(pGB_injected_dict,found_dict)
                 if correlation > 0.5:
                     found_match = True
                 if found_match:
@@ -2303,7 +2308,7 @@ if do_match:
                     number_of_matched_signals += 1
                     correlation_list.append(correlation)
                     break
-                if k > 200:
+                if k > 300:
                     break
     print('time to match', time.time()-start)
     for i in range(len(found_sources_not_matched)):
@@ -2330,27 +2335,27 @@ for i in range(len(pGB_injected_matched)):
     for j in range(len(pGB_injected_matched[i])):
         pGB_injected_matched_flat.append(pGB_injected_matched[i][j])
 
-for i in range(len(pGB_injected_matched)):
-    # if i != 5:
-    #     continue
-    if len(pGB_injected_matched[i]) > 0:
-        search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
-    for j in range(len(pGB_injected_matched[i])):
-        pGB_dict = {}
-        for parameter in parameters:
-            pGB_dict[parameter] = pGB_injected_matched[i][j][parameter]
-        pGB_injected_matched[i][j]['IntrinsicSNR'] = search1.intrinsic_SNR([pGB_dict])
+# for i in range(len(pGB_injected_matched)):
+#     # if i != 5:
+#     #     continue
+#     if len(pGB_injected_matched[i]) > 0:
+#         search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
+#     for j in range(len(pGB_injected_matched[i])):
+#         pGB_dict = {}
+#         for parameter in parameters:
+#             pGB_dict[parameter] = pGB_injected_matched[i][j][parameter]
+#         pGB_injected_matched[i][j]['IntrinsicSNR'] = search1.intrinsic_SNR([pGB_dict])
 
-for i in range(len(pGB_injected_not_matched)):
-    # if i != 5:
-    #     continue
-    if len(pGB_injected_not_matched[i]) > 0:
-        search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
-    for j in range(len(pGB_injected_not_matched[i])):
-        pGB_dict = {}
-        for parameter in parameters:
-            pGB_dict[parameter] = pGB_injected_not_matched[i][j][parameter]
-        pGB_injected_not_matched[i][j]['IntrinsicSNR'] = search1.intrinsic_SNR([pGB_dict])
+# for i in range(len(pGB_injected_not_matched)):
+#     # if i != 5:
+#     #     continue
+#     if len(pGB_injected_not_matched[i]) > 0:
+#         search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
+#     for j in range(len(pGB_injected_not_matched[i])):
+#         pGB_dict = {}
+#         for parameter in parameters:
+#             pGB_dict[parameter] = pGB_injected_not_matched[i][j][parameter]
+#         pGB_injected_not_matched[i][j]['IntrinsicSNR'] = search1.intrinsic_SNR([pGB_dict])
 
 # for i in range(len(pGB_injected_not_matched)):
 #     # if i != 6:
@@ -2385,7 +2390,10 @@ for i in range(len(frequencies_search)):
     injected_extended = pGB_injected[i]#+pGB_injected[i+1]
     matched_extended = pGB_injected_matched[i]#+pGB_injected_matched[i+1]
     if len(pGB_injected[i]) > 0:
-        search1.plot(found_sources_in=found_extended, pGB_injected= injected_extended, pGB_injected_matched= matched_extended, saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'.png') 
+        if len(pGB_injected[i]) > 20:
+            search1.plot(found_sources_in=found_extended, pGB_injected= injected_extended[:20], pGB_injected_matched= matched_extended, saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'.png') 
+        else:
+            search1.plot(found_sources_in=found_extended, pGB_injected= injected_extended, pGB_injected_matched= matched_extended, saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'.png') 
         # search1.plot(found_sources_in=found_sources_mp_best[i], pGB_injected=pGB_injected[i][:10], pGB_injected_matched= matched_extended, saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'in.png') 
 
 #### plot SNR - frequency
@@ -2398,14 +2406,14 @@ for i in range(len(pGB_injected_matched)):
             is_labeled = True
         else:
             plt.scatter(pGB_injected_matched[i][j]['Frequency']*10**3,pGB_injected_matched[i][j]['IntrinsicSNR'], color = 'green')
-is_labeled = False
-for i in range(len(found_sources_not_matched)):
-    for j in range(len(found_sources_not_matched[i])):
-        if not(is_labeled):
-            plt.scatter(found_sources_not_matched[i][j]['Frequency']*10**3,found_sources_not_matched[i][j]['IntrinsicSNR'], s=80, facecolors = 'none', edgecolors = 'blue', label = 'found not matched')
-            is_labeled = True
-        else:
-            plt.scatter(found_sources_not_matched[i][j]['Frequency']*10**3,found_sources_not_matched[i][j]['IntrinsicSNR'], s=80, facecolors = 'none', edgecolors = 'blue')
+# is_labeled = False
+# for i in range(len(found_sources_not_matched)):
+#     for j in range(len(found_sources_not_matched[i])):
+#         if not(is_labeled):
+#             plt.scatter(found_sources_not_matched[i][j]['Frequency']*10**3,found_sources_not_matched[i][j]['IntrinsicSNR'], s=80, facecolors = 'none', edgecolors = 'blue', label = 'found not matched')
+#             is_labeled = True
+#         else:
+#             plt.scatter(found_sources_not_matched[i][j]['Frequency']*10**3,found_sources_not_matched[i][j]['IntrinsicSNR'], s=80, facecolors = 'none', edgecolors = 'blue')
 # is_labeled = False
 # for i in range(len(pGB_injected_not_matched)):
 #     for j in range(len(pGB_injected_not_matched[i])):
@@ -2414,7 +2422,10 @@ for i in range(len(found_sources_not_matched)):
 #             is_labeled = True
 #         else:
 #             plt.scatter(pGB_injected_not_matched[i][j]['Frequency']*10**3,pGB_injected_not_matched[i][j]['IntrinsicSNR'],marker='x', color = 'red')
+#         if j > 3:
+#             break
 plt.yscale('log')
+plt.xscale('log')
 plt.xlabel('f (mHz)')
 plt.ylabel('SNR')    
 plt.legend()
@@ -2506,9 +2517,10 @@ for parameter in parameters:
 ##### plot correlation histogramm
 correlation_list= np.asarray(correlation_list)
 fig = plt.figure()
-plt.hist(correlation_list,20)
+plt.hist(correlation_list,50)
 plt.xlabel('Correlation')
 plt.ylabel('Count')
+plt.yscale('log')
 plt.savefig(SAVEPATH+'/Evaluation/correlation',dpi=300,bbox_inches='tight')
 plt.show()
 
