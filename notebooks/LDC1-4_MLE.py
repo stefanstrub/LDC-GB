@@ -329,6 +329,11 @@ class Distribution(object):
             index = index + np.random.uniform(size=index.shape)
         return self.transform(index), pdfs
 
+def moving_average(a, n=3) :
+    ret = np.cumsum(a, dtype=float)
+    ret[n:] = ret[n:] - ret[:-n]
+    return ret[n - 1:] / n
+
 class Search():
     def __init__(self,tdi_fs,Tobs, lower_frequency, upper_frequency, recombination=0.75):
         self.tdi_fs = tdi_fs
@@ -376,9 +381,9 @@ class Search():
         f_0 = fmin
         f_transfer = 19.1*10**-3
         snr = 7
-        amplitude_lower = 2*snr/(Tobs * np.sin(f_0/ f_transfer)/self.SA[0])**0.5
+        amplitude_lower = 2*snr/(Tobs * np.sin(f_0/ f_transfer)**2/self.SA[0])**0.5
         snr = 2000
-        amplitude_upper = 2*snr/(Tobs * np.sin(f_0/ f_transfer)/self.SA[0])**0.5
+        amplitude_upper = 2*snr/(Tobs * np.sin(f_0/ f_transfer)**2/self.SA[0])**0.5
         amplitude = [amplitude_lower, amplitude_upper]
         # print('lower frequency', lower_frequency)
         # print('amplitude boundaries', amplitude)
@@ -794,6 +799,7 @@ class Search():
 
         return loglik2*4, loglik, -scalarproduct_signal_subtracted_data/2
 
+
     def loglikelihood3(self, pGBs):
         for i in range(len(pGBs)):
             Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, simulator="synthlisa")
@@ -895,6 +901,29 @@ class Search():
         Af = (Zs_total - Xs_total)/np.sqrt(2.0)
         Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
         hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2) /self.SA)
+        SNR = 4.0*Xs.df* hh
+        return np.sqrt(SNR)
+
+    def SNR_with_rolling_mean(self, pGBs):
+        for i in range(len(pGBs)):
+            Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs[i], oversample=4, simulator="synthlisa")
+            if i == 0:
+                Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+                Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
+                Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+            else:
+                Xs_total += xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+                Ys_total += xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
+                Zs_total += xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+            
+        Af = (Zs_total - Xs_total)/np.sqrt(2.0)
+        Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
+        residual_A = self.DAf - Af.data
+        residual_E = self.DEf - Ef.data
+        average_length = 7
+        noise_rolling_mean_A = moving_average(np.abs(residual_A.values)**2, n=average_length)
+
+        hh = np.sum((np.absolute(Af.data[int((average_length-1)/2):len(Af.data)-int((average_length-1)/2)])**2 + np.absolute(Ef.data[int((average_length-1)/2):len(Af.data)-int((average_length-1)/2)])**2) /noise_rolling_mean_A)
         SNR = 4.0*Xs.df* hh
         return np.sqrt(SNR)
 
@@ -1713,7 +1742,7 @@ cat = np.rec.fromarrays(params, names=list(reduced_names))
 td = np.array(fid["H5LISA/PreProcess/TDIdata"])
 td = np.rec.fromarrays(list(td.T), names=["t", "X", "Y", "Z"])
 del_t = float(np.array(fid['H5LISA/GWSources/GalBinaries']['Cadence']))
-reduction = 4
+reduction = 1
 Tobs = float(int(np.array(fid['H5LISA/GWSources/GalBinaries']['ObservationDuration']))/reduction)
 
 dt = del_t
@@ -2065,7 +2094,7 @@ start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.007977)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], cat_sorted[-2]['Frequency'])-1
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.0004)-1
-batch_size = 64
+batch_size = 10
 # start_index = batch_size*batch_index
 print('batch',batch_index, start_index)
 frequencies_search = frequencies_search[start_index:start_index+batch_size]
@@ -2074,12 +2103,6 @@ while frequencies_search[-1][1] + (frequencies_search[-1][1] - frequencies_searc
     frequencies_search = frequencies_search[:-1]
 # frequencies_search = frequencies_search[70:80]
 # frequencies_search = frequencies_search[25:]
-
-frequencies_search_table = []
-for i in range(65):
-    batch_size = 64
-    start_index = batch_size*i
-    frequencies_search_table.append([frequencies_search[start_index][0],frequencies_search[start_index+batch_size][1]])
 
 # target_frequencies = []
 # index_low = np.searchsorted(cat_sorted['Frequency'], search_range[0])
@@ -2227,11 +2250,12 @@ if use_initial_guess:
 # cat_negative_frequency_derivative = cat_sorted['Frequency'][cat_sorted['FrequencyDerivative']<0]
 # np.max(cat_negative_frequency_derivative)
 
+
 # MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 10, found_sources_previous = found_sources_sorted,  strategy = 'DE')
 # found_sources_mp = MLP.search(frequencies_search[3][0], frequencies_search[3][1])
 # found_sources_mp = [found_sources_mp]
 # frequencies_search = [frequencies_search[7]]
-do_search = True
+do_search = False
 if do_search:
     MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 3, found_sources_previous = found_sources_sorted, strategy = 'DE')
     start = time.time()
@@ -2367,6 +2391,9 @@ if do_print:
             pGB_injected_window.append(pGBs)
         pGB_injected.append(pGB_injected_window)
 
+    search1 = Search(tdi_fs,Tobs, frequencies_search[3][0], frequencies_search[3][1])
+    search1.intrinsic_SNR([pGB_injected[3][0]])
+    search1.SNR_with_rolling_mean([pGB_injected[3][0]])
 
     do_match = True
     pGB_injected_matched = []
@@ -2407,7 +2434,7 @@ if do_print:
         search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
         for j in range(len(pGB_injected[i])):
             intrinsic_SNR.append(search1.intrinsic_SNR([pGB_injected[i][j]]))
-            print('SNR for noise model', noise_model, intrinsic_SNR[-1], 'loglikelihood ratio',search1.loglikelihood([pGB_injected[i][j]]), 'SNR data',search1.loglikelihood_SNR([pGB_injected[i][j]]))
+            print('SNR for noise model', noise_model, intrinsic_SNR[-1],'rolling mean SNR', search1.SNR_with_rolling_mean([pGB_injected[i][j]]), 'loglikelihood ratio',search1.loglikelihood([pGB_injected[i][j]]), 'SNR data',search1.loglikelihood_SNR([pGB_injected[i][j]]))
                             
     intrinsic_SNR = []
     for i in range(len(pGB_injected_not_matched)):
@@ -2650,6 +2677,7 @@ if do_print:
 #     found_sources_mp = np.load(SAVEPATH+'/found_sources_'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', allow_pickle= True)
 
 nperseg = 5 * 1.0/ dt / 1e-6
+nperseg = len(tdi_fs["X"])
 noise_model = "SciRDv1"
 f, psd_x_noisy = scipy.signal.welch(tdi_ts["X"], fs=1.0/dt, window='hanning', nperseg=nperseg)
 fmin, fmax = 0.00001, 0.1
