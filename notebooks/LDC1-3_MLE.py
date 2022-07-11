@@ -384,9 +384,9 @@ class Search():
         f_0 = fmin
         f_transfer = 19.1*10**-3
         snr = 7
-        amplitude_lower = 2*snr/(Tobs * np.sin(f_0/ f_transfer)/self.SA[0])**0.5
+        amplitude_lower = 2*snr/(Tobs * np.sin(f_0/ f_transfer)**2/self.SA[0])**0.5
         snr = 2000
-        amplitude_upper = 2*snr/(Tobs * np.sin(f_0/ f_transfer)/self.SA[0])**0.5
+        amplitude_upper = 2*snr/(Tobs * np.sin(f_0/ f_transfer)**2/self.SA[0])**0.5
         amplitude = [amplitude_lower, amplitude_upper]
         # print('lower frequency', lower_frequency)
         # print('amplitude boundaries', amplitude)
@@ -1312,7 +1312,7 @@ SAVEPATH = grandparent+"/LDC/pictures"
 # radler_fn = DATAPATH + "/dgb-tdi.h5"
 radler_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
 # radler_fn = DATAPATH + "/LDC1-4_GB_v2.hdf5"
-# radler_fn = DATAPATH + "/LDC1-3_VGB_v2_FD_noiseless.hdf5"
+radler_fn = DATAPATH + "/LDC1-3_VGB_v2_FD_noiseless.hdf5"
 fid = h5py.File(radler_fn)
 # get the source parameters
 names = np.array(fid['H5LISA/GWSources/GalBinaries'])
@@ -1503,3 +1503,35 @@ for i in range(len(frequencies)):
     search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
     if len(pGB_injected[i]) > 0:
         search1.plot(found_sources_in=found_sources_in[i], pGB_injected=pGB_injected[i], saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'.png') 
+
+def moving_average(a, n=3) :
+    ret = np.cumsum(a, dtype=float)
+    ret[n:] = ret[n:] - ret[:-n]
+    return ret[n - 1:] / n
+
+average_length = 7
+noise_rolling_mean_A = moving_average(np.abs(tdi_fs["X"].values)**2, n=average_length)
+
+nperseg = 5 * 1.0/ dt / 1e-8
+# nperseg = len(tdi_fs["X"])
+noise_model = "SciRDv1"
+f, psd_x_noisy = scipy.signal.welch(tdi_ts["X"], fs=1.0/dt, window='hanning', nperseg=nperseg)
+fmin, fmax = 0.00001, 0.1
+freq = np.array(tdi_fs['X'].sel(f=slice(fmin, fmax)).f)
+freq = f[f>0]
+Nmodel = get_noise_model(noise_model, freq)
+npsd = Nmodel.psd(option='X') # could be A, E, XY
+noise_model = "MRDv1"
+Nmodel = get_noise_model(noise_model, freq)
+npsd_mrd = Nmodel.psd(option='X') # could be A, E, XY
+
+plt.figure(figsize=(15,6))
+plt.loglog(f, np.sqrt(psd_x_noisy), label='Signal + noise', color='orange')
+plt.loglog(freq, np.sqrt(npsd), label='Noise PSD', color='green')
+plt.loglog(freq, np.sqrt(npsd_mrd), label='Noise PSD mrd')
+plt.loglog(tdi_fs.f[int((average_length-1)/2):len(tdi_fs.f)-int((average_length-1)/2)], np.sqrt(noise_rolling_mean_A), label='Rolling mean')
+# plt.axis([1e-5, 1/dt/2, 1e-24, 1e-18])
+plt.ylabel("TDI X")
+plt.xlabel("Freq [Hz]")
+plt.legend(loc='upper left')
+plt.show()
