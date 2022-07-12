@@ -636,6 +636,24 @@ class Search():
         plt.show()
         # print("p true", self.loglikelihood([pGB]), "null hypothesis", self.loglikelihood([null_pGBs]))
 
+    def norm(self, maxpGBs=None, pGBadded=None, found_sources_in= [], pGB_injected = [], added_label='Injection2', saving_label =None):
+        
+        for j in range(len( pGB_injected)):
+            Xs, Ys, Zs = GB.get_fd_tdixyz(template= pGB_injected[j], oversample=4, simulator="synthlisa")
+            a,Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)
+            a,Ys = xr.align(self.dataY, Ys, join='left',fill_value=0)
+            a,Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)
+
+        residual_X = self.dataX - Xs.data
+        residual_Y = self.dataY - Ys.data
+        residual_Z = self.dataZ - Zs.data
+
+        error_X = np.linalg.norm(residual_X)/ np.linalg.norm(self.dataX)
+        error_Y = np.linalg.norm(residual_Y)/ np.linalg.norm(self.dataY)
+        error_Z = np.linalg.norm(residual_Z)/ np.linalg.norm(self.dataZ)
+        sum_error = (error_X + error_Y + error_Z)/3
+        return sum_error
+
     def SNR(self, pGBs):
         for i in range(len(pGBs)):
             Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, simulator="synthlisa")
@@ -1312,7 +1330,7 @@ SAVEPATH = grandparent+"/LDC/pictures"
 # radler_fn = DATAPATH + "/dgb-tdi.h5"
 radler_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
 # radler_fn = DATAPATH + "/LDC1-4_GB_v2.hdf5"
-radler_fn = DATAPATH + "/LDC1-3_VGB_v2_FD_noiseless.hdf5"
+# radler_fn = DATAPATH + "/LDC1-3_VGB_v2_FD_noiseless.hdf5"
 fid = h5py.File(radler_fn)
 # get the source parameters
 names = np.array(fid['H5LISA/GWSources/GalBinaries'])
@@ -1393,7 +1411,7 @@ for i in range(len(target_frequencies)):
     f_smear = target_frequencies[i] *3* 10**-4
     f_deviation = frequency_derivative(target_frequencies[i],2)*Tobs
     window_length = np.max([f_smear, f_deviation])
-    window_length = 10**-6 # Hz
+    window_length = 4*10**-6 # Hz
     window_shift = ((np.random.random(1)-0.5)*window_length*0.5)[0]
     frequencies.append([target_frequencies[i]-window_length/2+window_shift,target_frequencies[i]+window_length/2+window_shift])
 
@@ -1404,15 +1422,15 @@ MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1, number_of_searches_per_si
 # found_sources_mp = [MLP.search(frequencies[0][0], frequencies[0][1])]
 
 #### parallelized search
-print('start search')
-start = time.time()
-pool = mp.Pool(mp.cpu_count())
-found_sources_mp = pool.starmap(MLP.search, frequencies)
-pool.close()
-pool.join()
-print('time to search ', number_of_windows, 'windows: ', time.time()-start)
-print(found_sources_mp)
-np.save(SAVEPATH+'/found_sources'+save_name+'.npy', found_sources_mp)
+# print('start search')
+# start = time.time()
+# pool = mp.Pool(mp.cpu_count())
+# found_sources_mp = pool.starmap(MLP.search, frequencies)
+# pool.close()
+# pool.join()
+# print('time to search ', number_of_windows, 'windows: ', time.time()-start)
+# print(found_sources_mp)
+# np.save(SAVEPATH+'/found_sources'+save_name+'.npy', found_sources_mp)
 
 found_sources_mp = np.load(SAVEPATH+'/found_sources'+save_name+'.npy', allow_pickle= True)
 # found_sources_mp = np.load(SAVEPATH+'/found_sources'+save_name+'_test.npy', allow_pickle= True)
@@ -1454,6 +1472,11 @@ for j in range(len(frequencies)):
 search1 = Search(tdi_fs,Tobs, frequencies[0][0],frequencies[0][1])
 print(search1.loglikelihood_SNR(pGB_injected[0]))
 print(search1.loglikelihood_SNR(found_sources_in[0]))
+
+# get error of model to ldc data
+for i in range(len(pGB_injected)):
+    search1 = Search(tdi_fs,Tobs, frequencies[i][0],frequencies[i][1])
+    print(i,'frequency',pGB_injected[i][0]['Frequency'],'error',search1.norm(pGB_injected= pGB_injected[i]))
 
 for i in range(len(pGB_injected)):
     if i != 1:

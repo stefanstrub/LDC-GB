@@ -1208,6 +1208,7 @@ class MLP_search():
         found_sources = []
         tdi_fs_search = deepcopy(self.tdi_fs)
         print('search')
+        signals_per_subtraction = 1
 
         initial_guess = []
         if len(self.found_sources_previous) > 0:
@@ -1239,23 +1240,52 @@ class MLP_search():
         number_of_evaluations_all = []
         found_sources_in = []
         current_SNR = 100
+        SNR_threshold = 10
+        loglikelihood_ratio_threshold = 50
+        current_loglikelihood_ratio = 1000
         ind = 0
-        SNR_threshold = 18
-        while current_SNR > SNR_threshold and ind < self.signals_per_window:
+        # while current_SNR > SNR_threshold and ind < self.signals_per_window:
+        while current_loglikelihood_ratio > loglikelihood_ratio_threshold and ind < self.signals_per_window:
             ind += 1
             
-            search1 = Search(tdi_fs_search,self.Tobs, lower_frequency, upper_frequency, dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters, self.recombination)
-
+            search1 = Search(tdi_fs_search,self.Tobs, lower_frequency, upper_frequency)
+            # N_frequency = 5
+            # F_stat, frequencies_F_stat, eclipticlatitude_F_stat, eclipticlongitude_F_stat =  search1.f_statistic(N_frequency,5)
+            # ind = np.unravel_index(np.argmax(F_stat, axis=None), F_stat.shape)
+            # if ind[0]>1:
+            #     lower_index = ind[0]-2
+            # else:
+            #     lower_index = ind[0]
+            # if ind[0]<N_frequency-2:
+            #     upper_index = ind[0]+2
+            # else:
+            #     upper_index = ind[0]
+            # print(frequencies_F_stat[ind[0]])
+            # search1.reduced_frequency_boundaries = [frequencies_F_stat[lower_index],frequencies_F_stat[upper_index]]
             start = time.time()
+
+            # print('SNR ',np.round(search1.SNR([search1.pGB])))
+            # print('SNR2', np.round(search1.loglikelihood([search1.pGB])))
+            # print('SNR2', np.round(search1.loglikelihoodsdf([search1.pGB])))
+            # print('SNRm', np.round(search1.SNRm([search1.pGB]),3))
+            # print('SNRflat', np.round(search1.loglikelihoodflat([search1.pGB])))
+            # search1.plot()#pGBadded=pGBadded5)
+            # print(pGBadded7["FrequencyDerivative"] * self.Tobs)
+            # print('smear f', 300*pGBadded7["Frequency"] * 10**3 / 10**9)
+            # print(search1.reduced_frequency_boundaries)
             if ind <= len(initial_guess):
                 search_repetitions = 3
             else:
                 search_repetitions = 3
             for i in range(search_repetitions):
+                # if i > 0:
+                #     search1.recombination = 0.75
+                #     maxpGBsearch_new, energies =  search1.differential_evolution_search(search1.boundaries['Frequency'], initial_guess=maxpGBsearch[0])
+                # else:
                 if self.strategy == 'DE':
-                    try:
+                    if ind <= len(initial_guess) and i == 0:
                         maxpGBsearch_new, number_of_evaluations =  search1.differential_evolution_search(search1.boundaries['Frequency'], initial_guess = [initial_guess[ind-1]])
-                    except:
+                    else:
                         maxpGBsearch_new, number_of_evaluations =  search1.differential_evolution_search(search1.boundaries['Frequency'])
                 if self.strategy == 'CD':
                     maxpGBsearch_new, number_of_evaluations =  search1.searchCD()
@@ -1269,32 +1299,38 @@ class MLP_search():
                     current_SNR = deepcopy(new_SNR)
                 if new_SNR >= current_SNR:
                     current_SNR = deepcopy(new_SNR)
-                if current_SNR < SNR_threshold:
-                    break
-                
-                try:
-                    for j in range(len(maxpGBsearch_new[0])):
+
+                print('to optimize Amplitude', maxpGBsearch_new[0])
+                for j in range(len(maxpGBsearch_new[0])):
+                    try:
                         A_optimized = search1.calculate_Amplitude([maxpGBsearch_new[0][j]])
                         maxpGBsearch_new[0][j]['Amplitude'] *= A_optimized.values
-                    print('in range', maxpGBsearch_new[0][0]['Frequency'] > lower_frequency and maxpGBsearch_new[0][0]['Frequency'] < upper_frequency)
-                    # new_SNR = search1.SNR(maxpGBsearch_new[0])
-                    if i == 0:
-                        maxpGBsearch = deepcopy(maxpGBsearch_new)
-                    if new_SNR >= current_SNR:
-                        maxpGBsearch = deepcopy(maxpGBsearch_new)
-                    found_sources_all[-1] = maxpGBsearch_new
-                except:
-                    pass
-                print('current SNR', current_SNR)
+                        print('loglikelihood optimized amplitude',search1.loglikelihood([maxpGBsearch_new[0][j]]))
+                    except:
+                        print('Amplitude optimization failed with parameters:', maxpGBsearch_new[0][j])
+                        print('switch to optimize with scipy minimize trust-constr')
+                        maxpGBsearch_new[0][j] = search1.optimizeA([[maxpGBsearch_new[0][j]]])[0]
+                print('in range', maxpGBsearch_new[0][0]['Frequency'] > lower_frequency and maxpGBsearch_new[0][0]['Frequency'] < upper_frequency)
+                # new_SNR = search1.SNR(maxpGBsearch_new[0])
 
-            if current_SNR < SNR_threshold:
+
+                if i == 0:
+                    maxpGBsearch = deepcopy(maxpGBsearch_new)
+                if new_SNR >= current_SNR:
+                    maxpGBsearch = deepcopy(maxpGBsearch_new)
+                found_sources_all[-1] = maxpGBsearch_new
+                print('current SNR', current_SNR)
+                current_loglikelihood_ratio = search1.loglikelihood(maxpGBsearch[0])
+                print('current loglikelihood ratio', current_loglikelihood_ratio)
+
+            if current_loglikelihood_ratio < loglikelihood_ratio_threshold:
                 break
             maxpGB = []
-            for j in range(self.signals_per_subtraction):
+            for j in range(signals_per_subtraction):
                 maxpGB.append(maxpGBsearch[j])
                 print(maxpGB[-1])
-            for j in range(self.signals_per_subtraction):
-                for i in range(self.number_of_signals):
+            for j in range(signals_per_subtraction):
+                for i in range(number_of_signals):
                     found_sources.append(maxpGB[j][i])
 
             # create two sets of found sources. found_sources_in with signals inside the boundary and founce_sources_out with outside sources
