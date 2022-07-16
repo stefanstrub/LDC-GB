@@ -15,6 +15,8 @@ folderpath = grandparent+"/LDC/pictures/LDC1-4_4mHz_Euler"
 folderpath = grandparent+"/LDC/pictures/LDC1-4_half_even"
 folderpath = grandparent+"/LDC/pictures/LDC1-4_4mHz/Found_signals"
 folderpath = grandparent+"/LDC/pictures/LDC1-4/Found_signals"
+folderpath = grandparent+"/LDC/pictures/LDC1-4/Found_signals_half_year_even3_T"
+folderpath = grandparent+"/LDC/pictures/LDC1-4/Found_signals_half_year_odd_T"
 
 onlyfiles = [f for f in listdir(folderpath) if isfile(join(folderpath, f))]
 save_name = 'LDC1-4 low frequency'
