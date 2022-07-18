@@ -20,8 +20,7 @@ folderpath = grandparent+"/LDC/pictures/LDC1-4/Found_signals_half_year_odd_T"
 
 onlyfiles = [f for f in listdir(folderpath) if isfile(join(folderpath, f))]
 save_name = 'LDC1-4 low frequency'
-save_name = 'LDC1-4_half_even'
-search_range = [0.0003, 0.033333333333]
+save_name = 'LDC1-4_half_odd'
 found_sources_mp_even_unsorted = []
 frequencies = []
 for i in range(len(onlyfiles)):
@@ -41,7 +40,5 @@ sorted_indexes = np.argsort(frequencies)
 found_sources_mp = []
 for i in range(len(sorted_indexes)):
     found_sources_mp.append(found_sources_mp_even_unsorted[sorted_indexes[i]])
-
-# np.save(folderpath+'/found_sources_even3s'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', found_sources_mp_even)
 
 np.save(folderpath+'/found_sources' +save_name+'.npy', found_sources_mp)

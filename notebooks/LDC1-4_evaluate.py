@@ -1601,7 +1601,7 @@ grandparent = os.path.dirname(parent)
 
 DATAPATH = "/home/stefan/LDC/Radler/data"
 DATAPATH = grandparent+"/LDC/Radler/data"
-SAVEPATH = grandparent+"/LDC/pictures/LDC1-4_4mHz"
+SAVEPATH = grandparent+"/LDC/pictures/LDC1-4"
 
 # sangria_fn = DATAPATH + "/dgb-tdi.h5"
 # sangria_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
@@ -1624,7 +1624,7 @@ cat = np.rec.fromarrays(params, names=list(reduced_names))
 td = np.array(fid["H5LISA/PreProcess/TDIdata"])
 td = np.rec.fromarrays(list(td.T), names=["t", "X", "Y", "Z"])
 del_t = float(np.array(fid['H5LISA/GWSources/GalBinaries']['Cadence']))
-reduction = 1
+reduction = 4
 Tobs = float(int(np.array(fid['H5LISA/GWSources/GalBinaries']['ObservationDuration']))/reduction)
 
 dt = del_t
@@ -1664,7 +1664,7 @@ print('frequency derivative', frequency_derivative(f,0.1),frequency_derivative(f
 chandrasekhar_limit = 1.4
 M_chirp_upper_boundary = (chandrasekhar_limit**2)**(3/5)/(2*chandrasekhar_limit)**(1/5)
 
-save_name = 'LDC1-4_4mHz'
+save_name = 'LDC1-4_half_odd'
 try:
     cat = np.load(SAVEPATH+'/cat_sorted.npy', allow_pickle = True)
     print('cat sorted loaded')
@@ -1706,18 +1706,19 @@ while current_frequency < search_range[1]:
 frequencies_even = frequencies[::2]
 frequencies_odd = frequencies[1::2]
 
-frequencies_search = frequencies
+frequencies_search = frequencies_odd
 # batch_index = int(sys.argv[1])
-batch_index = 65
-start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
+batch_index = 64
+# start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
+# start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.019)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00040707)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.007977)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], cat_sorted[-2]['Frequency'])-1
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.0004)-1
-batch_size = 20
-# start_index = batch_size*batch_index
+batch_size = 64
+start_index = batch_size*batch_index
 print('batch',batch_index, start_index)
-frequencies_search = frequencies_search[start_index:start_index+batch_size]
+# frequencies_search = frequencies_search[start_index:start_index+batch_size]
 # print(i, frequencies_search[0])
 ### highest + padding has to be less than f Nyqist
 while frequencies_search[-1][1] + (frequencies_search[-1][1] - frequencies_search[-1][0])/2 > f_Nyquist:
@@ -1785,10 +1786,14 @@ indexes_in = np.argsort(found_sources_in_flat_frequency)
 found_sources_in_flat_frequency = found_sources_in_flat_frequency[indexes_in]
 found_sources_in_flat = found_sources_in_flat[indexes_in]
 
+np.save(SAVEPATH+'/found_sources_flat.npy', np.asarray(found_sources_in_flat))
+
 found_sources_in = []
 for i in range(len(frequencies_search)):
     lower_index = np.searchsorted(found_sources_in_flat_frequency,frequencies_search[i][0])
     higher_index = np.searchsorted(found_sources_in_flat_frequency,frequencies_search[i][1])
+    if i == 102:
+        print(lower_index, higher_index)
     found_sources_in.append(found_sources_in_flat[lower_index:higher_index])
 
 new_dt = np.dtype(cat_sorted.dtype.descr + [('IntrinsicSNR','<f8')])
@@ -1825,26 +1830,26 @@ def get_SNR(pGB_injected, lower_frequency, upper_frequency):
             break
     return intrinsic_SNR_injected
 
-##### parallel
-intrinsic_SNR_injected = []
-input = []
-index = []
-for i in range(len(pGB_injected)):
-# for i in range(16):
-    intrinsic_SNR_injected.append([])
-    if len(pGB_injected[i]) > 0:
-        index.append(i)
-        input.append((pGB_injected[i],frequencies_search[i][0], frequencies_search[i][1]))
-start = time.time()
-pool = mp.Pool(16)
-SNR_intrinsic = pool.starmap(get_SNR, input)
-pool.close()
-pool.join()
-print('time to calculate SNR for', len(frequencies_search), 'windows: ', time.time()-start)
-for i in range(len(SNR_intrinsic)):
-    for j in range(len(SNR_intrinsic[i])):
-        if len(pGB_injected[i]) > 0:
-            pGB_injected[index[i]][j]['IntrinsicSNR'] = SNR_intrinsic[i][j]
+#### parallel
+# intrinsic_SNR_injected = []
+# input = []
+# index = []
+# for i in range(len(pGB_injected)):
+# # for i in range(16):
+#     intrinsic_SNR_injected.append([])
+#     if len(pGB_injected[i]) > 0:
+#         index.append(i)
+#         input.append((pGB_injected[i],frequencies_search[i][0], frequencies_search[i][1]))
+# start = time.time()
+# pool = mp.Pool(16)
+# SNR_intrinsic = pool.starmap(get_SNR, input)
+# pool.close()
+# pool.join()
+# print('time to calculate SNR for', len(frequencies_search), 'windows: ', time.time()-start)
+# for i in range(len(SNR_intrinsic)):
+#     for j in range(len(SNR_intrinsic[i])):
+#         if len(pGB_injected[i]) > 0:
+#             pGB_injected[index[i]][j]['IntrinsicSNR'] = SNR_intrinsic[i][j]
 
 #### sequential
 # for i in range(len(pGB_injected)):
@@ -1862,17 +1867,17 @@ for i in range(len(SNR_intrinsic)):
 #             break
         # print('SNR for noise model', noise_model, intrinsic_SNR_injected[-1], 'loglikelihood ratio',search1.loglikelihood([pGB_injected[i][j]]), 'SNR data',search1.loglikelihood_SNR([pGB_injected[i][j]]))
 
-pGB_injected_SNR_sorted = []
-for i in range(len(pGB_injected)):
-    indexesSNR = np.argsort(-pGB_injected[i]['IntrinsicSNR'])
-    pGB_injected_SNR_sorted.append(pGB_injected[i][indexesSNR])
+# pGB_injected_SNR_sorted = []
+# for i in range(len(pGB_injected)):
+#     indexesSNR = np.argsort(-pGB_injected[i]['IntrinsicSNR'])
+#     pGB_injected_SNR_sorted.append(pGB_injected[i][indexesSNR])
 
-pGB_injected = pGB_injected_SNR_sorted
-np.save(SAVEPATH+'/found_sources_pGB_injected'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', np.asarray(pGB_injected))
+# pGB_injected = pGB_injected_SNR_sorted
+# np.save(SAVEPATH+'/found_sources_pGB_injected'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', np.asarray(pGB_injected))
 # np.save(SAVEPATH+'/found_sources_pGB_injected_in_out_intrinsic_SNR_sorted'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', np.asarray(pGB_injected_SNR_sorted))
-pGB_injected = np.load(SAVEPATH+'/found_sources_pGB_injected'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', allow_pickle = True)
+# pGB_injected = np.load(SAVEPATH+'/found_sources_pGB_injected'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', allow_pickle = True)
 # pGB_injected = np.load(SAVEPATH+'/found_sources_pGB_injected_array2_half_year30000to3305084LDC1-4_half_even_T'+'.npy', allow_pickle = True)
-# pGB_injected = np.load(SAVEPATH+'/found_sources_pGB_injected_in_out_intrinsic_SNR_sorted30035to3316929LDC1-4_half_odd_T'+'.npy', allow_pickle = True)
+pGB_injected = np.load(SAVEPATH+'/found_sources_pGB_injected_in_out_intrinsic_SNR_sorted30035to3316929LDC1-4_half_odd_T'+'.npy', allow_pickle = True)
 
 pGB_injected_SNR_sorted = pGB_injected
 
@@ -2033,6 +2038,7 @@ for i in range(len(found_sources_not_matched)):
 
 ### determine index of a specific frequency
 index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.00264612)
+index_of_interest_to_plot = 102
 #plot strains
 for i in range(len(frequencies_search)):
     if i != index_of_interest_to_plot:
@@ -2040,11 +2046,11 @@ for i in range(len(frequencies_search)):
     search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
     found_extended = found_sources_matched[i]#+found_sources_not_matched[i]
     matched_extended = pGB_injected_matched[i]#+pGB_injected_matched[i+1]
-    if len(pGB_injected_SNR_sorted[i]) > 0:
-        if len(pGB_injected_SNR_sorted[i]) > 20:
-            search1.plot(found_sources_in=found_extended, pGB_injected= pGB_injected_SNR_sorted[i][:20], found_sources_not_matched=found_sources_not_matched[i], pGB_injected_matched= matched_extended, saving_label =SAVEPATH+'/strain added'+ str(int(np.round(frequencies_search[i][0]*10**8))) +save_name+'.png') 
-        else:
-            search1.plot(found_sources_in=found_extended, pGB_injected= pGB_injected_SNR_sorted[i], found_sources_not_matched=found_sources_not_matched[i], pGB_injected_matched= matched_extended, saving_label =SAVEPATH+'/strain added'+ str(int(np.round(frequencies_search[i][0]*10**8))) +save_name+'.png') 
+    # if len(pGB_injected_SNR_sorted[i]) > 0:
+    if len(pGB_injected_SNR_sorted[i]) > 20:
+        search1.plot(found_sources_in=found_extended, pGB_injected= pGB_injected_SNR_sorted[i][:20], found_sources_not_matched=found_sources_not_matched[i], pGB_injected_matched= matched_extended, saving_label =SAVEPATH+'/strain added'+ str(int(np.round(frequencies_search[i][0]*10**8))) +save_name+'.png') 
+    else:
+        search1.plot(found_sources_in=found_extended, pGB_injected= pGB_injected_SNR_sorted[i], found_sources_not_matched=found_sources_not_matched[i], pGB_injected_matched= matched_extended, saving_label =SAVEPATH+'/strain added'+ str(int(np.round(frequencies_search[i][0]*10**8))) +save_name+'.png') 
         # search1.plot(found_sources_in=found_sources_mp_best[i], pGB_injected=pGB_injected[i][:10], pGB_injected_matched= matched_extended, saving_label =SAVEPATH+'/strain added'+ str(int(np.round(frequencies_search[i][0]*10**8))) +save_name+'in.png') 
 
 correlation_list2 = []
@@ -2127,7 +2133,7 @@ plt.yscale('log')
 plt.xlabel('f (mHz)')
 plt.ylabel(parameter_to_plot)    
 plt.legend()
-plt.savefig(SAVEPATH+'/Evaluation/'+parameter_to_plot+save_name+'AET',dpi=300,bbox_inches='tight')
+plt.savefig(SAVEPATH+'/Evaluation/'+parameter_to_plot+save_name+'high_frequency',dpi=300,bbox_inches='tight')
 plt.show()
 
 
