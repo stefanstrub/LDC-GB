@@ -1600,7 +1600,7 @@ grandparent = os.path.dirname(parent)
 
 DATAPATH = "/home/stefan/LDC/Radler/data"
 DATAPATH = grandparent+"/LDC/Radler/data"
-SAVEPATH = grandparent+"/LDC/pictures/LDC1-4_4mHz"
+SAVEPATH = grandparent+"/LDC/Radler/LDC1-4_evaluation"
 
 # sangria_fn = DATAPATH + "/dgb-tdi.h5"
 # sangria_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
@@ -1760,7 +1760,8 @@ def SNR_match(pGB_injected, pGB_found):
     SNR3 = SNR2 / (np.sqrt(SNR)*np.sqrt(4.0*Xs.df* ss))
     return SNR3.values
 
-found_sources = np.load(SAVEPATH+'/found_sources_flat.npy', allow_pickle = True)
+# found_sources = np.load(SAVEPATH+'/found_sources.npy', allow_pickle = True)
+found_sources = np.load(SAVEPATH+'/Montana.npy', allow_pickle = True)
 
 
 found_sources_in_flat_frequency = []
@@ -1774,6 +1775,16 @@ for i in range(len(frequencies_search)):
     higher_index = np.searchsorted(found_sources_in_flat_frequency,frequencies_search[i][1])
     found_sources_in.append(found_sources[lower_index:higher_index])
 
+frequencies_search = np.asarray(frequencies_search)
+xx = np.arange(stop=len(frequencies_search))
+fig = plt.figure()
+for i in range(len(frequencies_search)):
+    plt.plot(frequencies_search[i,0],0,'r.')
+    plt.plot(frequencies_search[i,1],0,'g.')
+for i in range(2604, 2604+len(found_sources_in_flat_frequency[2604:2634])):
+    plt.plot(found_sources_in_flat_frequency[i],0,'b.')
+plt.show()
+
 new_dt = np.dtype(cat_sorted.dtype.descr + [('IntrinsicSNR','<f8')])
 cat_sorted_SNR = np.zeros(cat_sorted.shape, dtype=new_dt)
 for parameter in parameters:
@@ -1784,7 +1795,7 @@ get_pGB_injected = True
 if get_pGB_injected:
     pGB_injected = []
     for j in range(len(frequencies_search)):
-        padding = (frequencies_search[j][1] - frequencies_search[j][0])/2
+        padding = (frequencies_search[j][1] - frequencies_search[j][0])/2 *0
         index_low = np.searchsorted(cat_sorted['Frequency'], frequencies_search[j][0]-padding)
         index_high = np.searchsorted(cat_sorted['Frequency'], frequencies_search[j][1]+padding)
         try:
@@ -1809,25 +1820,25 @@ def get_SNR(pGB_injected, lower_frequency, upper_frequency):
     return intrinsic_SNR_injected
 
 ##### parallel
-# intrinsic_SNR_injected = []
-# input = []
-# index = []
-# for i in range(len(pGB_injected)):
-# # for i in range(16):
-#     intrinsic_SNR_injected.append([])
-#     if len(pGB_injected[i]) > 0:
-#         index.append(i)
-#         input.append((pGB_injected[i],frequencies_search[i][0], frequencies_search[i][1]))
-# start = time.time()
-# pool = mp.Pool(16)
-# SNR_intrinsic = pool.starmap(get_SNR, input)
-# pool.close()
-# pool.join()
-# print('time to calculate SNR for', len(frequencies_search), 'windows: ', time.time()-start)
-# for i in range(len(SNR_intrinsic)):
-#     for j in range(len(SNR_intrinsic[i])):
-#         if len(pGB_injected[i]) > 0:
-#             pGB_injected[index[i]][j]['IntrinsicSNR'] = SNR_intrinsic[i][j]
+intrinsic_SNR_injected = []
+input = []
+index = []
+for i in range(len(pGB_injected)):
+# for i in range(16):
+    intrinsic_SNR_injected.append([])
+    if len(pGB_injected[i]) > 0:
+        index.append(i)
+        input.append((pGB_injected[i],frequencies_search[i][0], frequencies_search[i][1]))
+start = time.time()
+pool = mp.Pool(16)
+SNR_intrinsic = pool.starmap(get_SNR, input)
+pool.close()
+pool.join()
+print('time to calculate SNR for', len(frequencies_search), 'windows: ', time.time()-start)
+for i in range(len(SNR_intrinsic)):
+    for j in range(len(SNR_intrinsic[i])):
+        if len(pGB_injected[i]) > 0:
+            pGB_injected[index[i]][j]['IntrinsicSNR'] = SNR_intrinsic[i][j]
 
 #### sequential
 # for i in range(len(pGB_injected)):
@@ -1845,17 +1856,14 @@ def get_SNR(pGB_injected, lower_frequency, upper_frequency):
 #             break
         # print('SNR for noise model', noise_model, intrinsic_SNR_injected[-1], 'loglikelihood ratio',search1.loglikelihood([pGB_injected[i][j]]), 'SNR data',search1.loglikelihood_SNR([pGB_injected[i][j]]))
 
-# pGB_injected_SNR_sorted = []
-# for i in range(len(pGB_injected)):
-#     indexesSNR = np.argsort(-pGB_injected[i]['IntrinsicSNR'])
-#     pGB_injected_SNR_sorted.append(pGB_injected[i][indexesSNR])
+pGB_injected_SNR_sorted = []
+for i in range(len(pGB_injected)):
+    indexesSNR = np.argsort(-pGB_injected[i]['IntrinsicSNR'])
+    pGB_injected_SNR_sorted.append(pGB_injected[i][indexesSNR])
 
 # pGB_injected = pGB_injected_SNR_sorted
-# np.save(SAVEPATH+'/found_sources_pGB_injected'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', np.asarray(pGB_injected))
-# np.save(SAVEPATH+'/found_sources_pGB_injected_in_out_intrinsic_SNR_sorted'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', np.asarray(pGB_injected_SNR_sorted))
+np.save(SAVEPATH+'/found_sources_pGB_injected'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', np.asarray(pGB_injected))
 pGB_injected = np.load(SAVEPATH+'/found_sources_pGB_injected'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', allow_pickle = True)
-# pGB_injected = np.load(SAVEPATH+'/found_sources_pGB_injected_array2_half_year30000to3305084LDC1-4_half_even_T'+'.npy', allow_pickle = True)
-# pGB_injected = np.load(SAVEPATH+'/found_sources_pGB_injected_in_out_intrinsic_SNR_sorted30035to3316929LDC1-4_half_odd_T'+'.npy', allow_pickle = True)
 
 pGB_injected_SNR_sorted = pGB_injected
 
@@ -2015,7 +2023,7 @@ for i in range(len(found_sources_not_matched)):
 
 
 ### determine index of a specific frequency
-index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.00264612)
+index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.003988)
 #plot strains
 for i in range(len(frequencies_search)):
     if i != index_of_interest_to_plot:
@@ -2040,7 +2048,7 @@ for i in range(len(frequencies_search)):
             #     continue
             # print('i', i, 'j',j)
             correlation_list_of_one_signal = []
-            for k in range(len(pGB_injected_not_matched[i])):
+            for k in range(len(pGB_injected_SNR_sorted[i])):
                 pGB_injected_dict = {}
                 found_dict = {}
                 for parameter in parameters:
@@ -2048,6 +2056,8 @@ for i in range(len(frequencies_search)):
                     found_dict[parameter] = found_sources_in[i][j][parameter]
                 # print('SNR', SNR_match(pGB_injected_not_matched[i][k],found_sources_in[i][j]),'parameter comparison:',pGB_injected_not_matched[i][k]['EclipticLatitude'],found_sources_in[i][j]['EclipticLatitude'],eclipticlongitude, found_sources_in[i][j]['EclipticLongitude'])
                 correlation = SNR_match(pGB_injected_dict,found_dict)
+                print(pGB_injected_dict,found_dict)
+                print(correlation)
                 correlation_list_of_one_signal.append(correlation)
                 if k > 19:
                     break
@@ -2121,14 +2131,13 @@ for i in range(len(pGB_injected_matched)):
         pGB_injected_matched_frequencies.append(pGB_injected_matched[i][j]['Frequency']*10**3)
 pGB_injected_not_matched_frequencies = []
 for i in range(len(pGB_injected_not_matched)):
-    for j in range(len(pGB_injected_not_matched[i])):
-        pGB_injected_not_matched_frequencies.append(pGB_injected_not_matched[i][j]['Frequency']*10**3)
+    pGB_injected_not_matched_frequencies.append(pGB_injected_not_matched[i]['Frequency']*10**3)
 fig = plt.figure()
 plt.hist(pGB_injected_matched_frequencies, 20, color = 'green')
 plt.hist(pGB_injected_not_matched_frequencies, 20, color = 'red')
 plt.xlabel('f (mHz)')
 plt.legend()
-plt.savefig(SAVEPATH+'/Evaluation/_SNR_histo',dpi=300,bbox_inches='tight')
+plt.savefig(SAVEPATH+'/Evaluation/_SNR_histo'+save_name,dpi=300,bbox_inches='tight')
 plt.show()
 
 
@@ -2172,7 +2181,7 @@ for parameter in parameters:
     plt.errorbar(frequencies_search[:,0],mean_error[parameter],yerr=std_table[parameter])
     plt.xlabel(parameter)
     plt.ylabel('Error')
-    plt.savefig(SAVEPATH+'/Evaluation/'+parameter+'_error_histo',dpi=300,bbox_inches='tight')
+    plt.savefig(SAVEPATH+'/Evaluation/'+parameter+'_error_histo'+save_name,dpi=300,bbox_inches='tight')
     plt.show()
 
 ###### plot errors scatter
@@ -2192,7 +2201,7 @@ for parameter in parameters:
         plt.ylabel(parameter+' Error (Hz)')    
     if parameter == 'FrequencyDerivative':
         plt.ylabel(parameter+' Error (Hz/s)')    
-    plt.savefig(SAVEPATH+'/Evaluation/'+parameter+'_error',dpi=300,bbox_inches='tight')
+    plt.savefig(SAVEPATH+'/Evaluation/'+parameter+'_error'+save_name,dpi=300,bbox_inches='tight')
     plt.show()
 
 ##### plot correlation histogramm

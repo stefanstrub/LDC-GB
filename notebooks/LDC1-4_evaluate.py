@@ -1708,7 +1708,7 @@ frequencies_odd = frequencies[1::2]
 
 frequencies_search = frequencies_odd
 # batch_index = int(sys.argv[1])
-batch_index = 64
+batch_index = 28
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.019)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00040707)
@@ -1946,6 +1946,8 @@ for i in range(len(pGB_injected_not_matched_with_overlap_of_windows)):
     for j in range(len(pGB_injected_not_matched_with_overlap_of_windows[i])):
         if pGB_injected_not_matched_with_overlap_of_windows[i][j]['Frequency'] > frequencies_search[i][0] and pGB_injected_not_matched_with_overlap_of_windows[i][j]['Frequency'] < frequencies_search[i][1]:
             pGB_injected_not_matched.append(pGB_injected_not_matched_with_overlap_of_windows[i][j])
+        if j > 19:
+            break
 pGB_injected_flat = []
 for i in range(len(pGB_injected)):
     for j in range(len(pGB_injected[i])):
@@ -2038,7 +2040,6 @@ for i in range(len(found_sources_not_matched)):
 
 ### determine index of a specific frequency
 index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.00264612)
-index_of_interest_to_plot = 102
 #plot strains
 for i in range(len(frequencies_search)):
     if i != index_of_interest_to_plot:
@@ -2091,18 +2092,18 @@ is_labeled = False
 for i in range(len(found_sources_matched)):
     for j in range(len(found_sources_matched[i])):
         if not(is_labeled):
-            plt.scatter(found_sources_matched[i][j]['Frequency']*10**3,found_sources_matched[i][j][parameter_to_plot], color = 'orange', alpha= 1, label = 'Match')
+            plt.scatter(found_sources_matched[i][j]['Frequency']*10**3,found_sources_matched[i][j][parameter_to_plot], color = 'orange', alpha= 0.3, label = 'Match')
             is_labeled = True
         else:
-            plt.scatter(found_sources_matched[i][j]['Frequency']*10**3,found_sources_matched[i][j][parameter_to_plot], color = 'orange', alpha= 1)
+            plt.scatter(found_sources_matched[i][j]['Frequency']*10**3,found_sources_matched[i][j][parameter_to_plot], color = 'orange', alpha= 0.3)
 is_labeled = False
 for i in range(len(found_sources_not_matched)):
     for j in range(len(found_sources_not_matched[i])):
         if not(is_labeled):
-            plt.scatter(found_sources_not_matched[i][j]['Frequency']*10**3,found_sources_not_matched[i][j][parameter_to_plot], s=80, facecolors = 'none', edgecolors = 'blue', alpha= 1, label = 'found not matched')
+            plt.scatter(found_sources_not_matched[i][j]['Frequency']*10**3,found_sources_not_matched[i][j][parameter_to_plot], s=80, facecolors = 'none', edgecolors = 'blue', alpha= 0.3, label = 'found not matched')
             is_labeled = True
         else:
-            plt.scatter(found_sources_not_matched[i][j]['Frequency']*10**3,found_sources_not_matched[i][j][parameter_to_plot], s=80, facecolors = 'none', edgecolors = 'blue', alpha= 1)
+            plt.scatter(found_sources_not_matched[i][j]['Frequency']*10**3,found_sources_not_matched[i][j][parameter_to_plot], s=80, facecolors = 'none', edgecolors = 'blue', alpha= 0.3)
 # is_labeled = False
 # for i in range(3500,len(pGB_injected)):
 #     for j in range(len(pGB_injected[i])):
@@ -2111,29 +2112,28 @@ for i in range(len(found_sources_not_matched)):
 #             is_labeled = True
 #         else:
 #             plt.scatter(pGB_injected[i][j]['Frequency']*10**3,pGB_injected[i][j]['IntrinsicSNR'], color = 'purple')
-# is_labeled = False
-# for i in range(len(pGB_injected_not_matched)):
-#     for j in range(len(pGB_injected_not_matched[i])):
-#         if not(is_labeled):
-#             plt.scatter(pGB_injected_not_matched[i][j]['Frequency']*10**3,pGB_injected_not_matched[i][j]['IntrinsicSNR'],marker='x', color = 'red', alpha= 1, label = 'injected not matched')
-#             is_labeled = True
-#         else:
-#             plt.scatter(pGB_injected_not_matched[i][j]['Frequency']*10**3,pGB_injected_not_matched[i][j]['IntrinsicSNR'],marker='x', color = 'red', alpha= 1)
-#         if j > 3:
-#             break
 is_labeled = False
 for i in range(len(pGB_injected_not_matched)):
     if not(is_labeled):
-        plt.scatter(pGB_injected_not_matched[i]['Frequency']*10**3,pGB_injected_not_matched[i]['IntrinsicSNR'],marker='x', color = 'red', alpha= 1, label = 'injected not matched')
+        plt.scatter(pGB_injected_not_matched[i]['Frequency']*10**3,pGB_injected_not_matched[i]['IntrinsicSNR'],marker='x', color = 'red', alpha= 0.3, label = 'injected not matched')
         is_labeled = True
     else:
-        plt.scatter(pGB_injected_not_matched[i]['Frequency']*10**3,pGB_injected_not_matched[i]['IntrinsicSNR'],marker='x', color = 'red', alpha= 1)
+        plt.scatter(pGB_injected_not_matched[i]['Frequency']*10**3,pGB_injected_not_matched[i]['IntrinsicSNR'],marker='x', color = 'red', alpha= 0.3)
+    if j > 3:
+        break
+# is_labeled = False
+# for i in range(len(pGB_injected_not_matched)):
+#     if not(is_labeled):
+#         plt.scatter(pGB_injected_not_matched[i]['Frequency']*10**3,pGB_injected_not_matched[i]['IntrinsicSNR'],marker='x', color = 'red', alpha= 1, label = 'injected not matched')
+#         is_labeled = True
+#     else:
+#         plt.scatter(pGB_injected_not_matched[i]['Frequency']*10**3,pGB_injected_not_matched[i]['IntrinsicSNR'],marker='x', color = 'red', alpha= 1)
 plt.yscale('log')
-# plt.xscale('log')
+plt.xscale('log')
 plt.xlabel('f (mHz)')
 plt.ylabel(parameter_to_plot)    
 plt.legend()
-plt.savefig(SAVEPATH+'/Evaluation/'+parameter_to_plot+save_name+'high_frequency',dpi=300,bbox_inches='tight')
+plt.savefig(SAVEPATH+'/Evaluation/'+parameter_to_plot+save_name,dpi=300,bbox_inches='tight')
 plt.show()
 
 
@@ -2151,7 +2151,7 @@ plt.hist(pGB_injected_matched_frequencies, 20, color = 'green')
 plt.hist(pGB_injected_not_matched_frequencies, 20, color = 'red')
 plt.xlabel('f (mHz)')
 plt.legend()
-plt.savefig(SAVEPATH+'/Evaluation/_SNR_histo',dpi=300,bbox_inches='tight')
+plt.savefig(SAVEPATH+'/Evaluation/_SNR_histo'+save_name,dpi=300,bbox_inches='tight')
 plt.show()
 
 
@@ -2195,7 +2195,7 @@ for parameter in parameters:
     plt.errorbar(frequencies_search[:,0],mean_error[parameter],yerr=std_table[parameter])
     plt.xlabel(parameter)
     plt.ylabel('Error')
-    plt.savefig(SAVEPATH+'/Evaluation/'+parameter+'_error_histo',dpi=300,bbox_inches='tight')
+    plt.savefig(SAVEPATH+'/Evaluation/'+parameter+'_error_histo'+save_name,dpi=300,bbox_inches='tight')
     plt.show()
 
 ###### plot errors scatter
@@ -2215,7 +2215,8 @@ for parameter in parameters:
         plt.ylabel(parameter+' Error (Hz)')    
     if parameter == 'FrequencyDerivative':
         plt.ylabel(parameter+' Error (Hz/s)')    
-    plt.savefig(SAVEPATH+'/Evaluation/'+parameter+'_error',dpi=300,bbox_inches='tight')
+    plt.xscale('log')
+    plt.savefig(SAVEPATH+'/Evaluation/'+parameter+'_error_log_'+save_name,dpi=300,bbox_inches='tight')
     plt.show()
 
 ##### plot correlation histogramm

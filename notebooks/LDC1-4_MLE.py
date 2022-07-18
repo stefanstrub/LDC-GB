@@ -602,7 +602,7 @@ class Search():
         # ax1.plot(Xs.f * 1000, Xs.values.real, label="VGB2", marker=".", zorder=5)
                     
         # Af = (Zs - Xs)/np.sqrt(2.0)
-        ax1.plot(self.DAf.f*10**3,np.abs(self.DAf),'k',zorder= 1, linewidth = 2, label = 'Data')
+        ax1.plot(self.DAf.f*10**3,self.DAf,'k',zorder= 1, linewidth = 2, label = 'Data')
         ax2.plot(self.DEf.f*10**3,np.abs(self.DEf),'k',zorder= 1, linewidth = 2, label = 'Data')
         # ax1.plot(tdi_fs_long_subtracted.f[range_index],np.abs(tdi_fs_long_subtracted['X'][range_index])**2,'b',zorder= 5)
 
@@ -612,7 +612,7 @@ class Search():
             a,Zs = xr.align(self.dataZ, second_data['Z'], join='left',fill_value=0)
             Af = (Zs - Xs)/np.sqrt(2.0)
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
-            ax1.plot(Af.f*10**3,np.abs(Af),'k--',zorder= 1, linewidth = 2, label = 'Data subtracted')
+            ax1.plot(Af.f*10**3,Af,'k--',zorder= 1, linewidth = 2, label = 'Data subtracted')
             ax2.plot(Ef.f*10**3,np.abs(Ef),'k--',zorder= 1, linewidth = 2, label = 'Data subtracted')
 
         for j in range(len( pGB_injected)):
@@ -622,7 +622,7 @@ class Search():
             a,Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)
             Af = (Zs - Xs)/np.sqrt(2.0)
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
-            ax1.plot(Af.f*10**3,np.abs(Af.data), color='grey', linewidth = 5, alpha = 0.5)
+            ax1.plot(Af.f*10**3,Af.data, color='grey', linewidth = 5, alpha = 0.5)
             ax2.plot(Ef.f*10**3,np.abs(Ef.data), color='grey', linewidth = 5, alpha = 0.5)
 
         for j in range(len(pGB_injected_matched)):
@@ -632,7 +632,7 @@ class Search():
             a,Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)
             Af = (Zs - Xs)/np.sqrt(2.0)
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
-            ax1.plot(Af.f*10**3,np.abs(Af.data), color=colors[j%10], linewidth = 5, alpha = 0.5)
+            ax1.plot(Af.f*10**3,Af.data, color=colors[j%10], linewidth = 5, alpha = 0.5)
             ax2.plot(Ef.f*10**3,np.abs(Ef.data), color=colors[j%10], linewidth = 5, alpha = 0.5)
 
 
@@ -644,7 +644,7 @@ class Search():
             Zs = Zs[index_low : index_low + len(self.dataZ)]
             Af = (Zs - Xs)/np.sqrt(2.0)
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
-            ax1.plot(Af.f* 1000, np.abs(Af.data), marker='.', label=added_label)
+            ax1.plot(Af.f* 1000, Af.data, marker='.', label=added_label)
             ax2.plot(Ef.f* 1000, np.abs(Ef.data), marker='.', label=added_label)
 
         for j in range(len(found_sources_in)):
@@ -654,7 +654,7 @@ class Search():
             Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
             Af = (Zs - Xs)/np.sqrt(2.0)
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
-            ax1.plot(Af.f* 1000, np.abs(Af.data),'--', color= colors[j%10], linewidth = 1.6)
+            ax1.plot(Af.f* 1000, Af.data,'--', color= colors[j%10], linewidth = 1.6)
             ax2.plot(Ef.f* 1000, np.abs(Ef.data),'--', color= colors[j%10], linewidth = 1.6)
 
         # ax1.plot(Xs_added2.f * 1000, Xs_added2.values.real, label="VGB2", marker=".", zorder=5)
@@ -670,9 +670,9 @@ class Search():
 
         # ax1.plot(Xs.f * 1000, dataX.values.real - Xs.values.real, label="residual", alpha=0.8, color="red", marker=".")
         plt.xlabel('f (mHz)')
-        ax1.set_ylabel('|A|')    
+        ax1.set_ylabel('A')    
         ax2.set_ylabel('|E|') 
-        ax1.set_yscale('log')  
+        # ax1.set_yscale('log')  
         ax2.set_yscale('log')   
         ax1.set_xlim((self.lower_frequency-self.padding)*10**3, (self.upper_frequency+self.padding)*10**3)
         ax2.set_xlim((self.lower_frequency-self.padding)*10**3, (self.upper_frequency+self.padding)*10**3)
@@ -2096,7 +2096,7 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search):
                 tdi_fs_subtracted2[k].data[index_low:index_high] -= source_subtracted[k].data
     return tdi_fs_subtracted2
 
-save_name = 'LDC1-4_half_odd_T_component'
+save_name = 'LDC1-4_half_even10_T'
 try:
     cat = np.load(SAVEPATH+'/cat_sorted.npy', allow_pickle = True)
     print('cat sorted loaded')
@@ -2181,11 +2181,11 @@ frequencies_odd = frequencies[1::2]
 # plt.show()
 
 # for i in range(65):
-frequencies_search = frequencies_odd
-# batch_index = int(sys.argv[1])
-batch_index = 31
+frequencies_search = frequencies_even
+batch_index = int(sys.argv[1])
+# batch_index = 31
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
-# start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00252)
+# start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00264612)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.007977)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], cat_sorted[-2]['Frequency'])-1
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.0004)-1
@@ -2236,13 +2236,14 @@ if do_subtract:
     # save_name_previous = 'found_sources40747to41468LDC1-4_04mHz_loglikelihood_ratio_threshold_odd'
     # save_name_previous = 'LDC1-4 odd'
     # save_name_previous = 'found_sourcesLDC1-4_half_even'
-    save_name_previous = 'found_sourcesLDC1-4_half_even_T'
+    # save_name_previous = 'found_sourcesLDC1-4_half_even_T'
+    save_name_previous = 'found_sourcesLDC1-4_half_odd'
     found_sources_mp_subtract = np.load(SAVEPATH+'/'+save_name_previous+'.npy', allow_pickle = True)
     tdi_fs_subtracted = tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search)
     print('subtraction time', time.time()-start)
     plot_subraction = False
     if plot_subraction:
-        i = 5
+        i = 10
         lower_frequency = frequencies_search[i][0]
         upper_frequency = frequencies_search[i][1]
         search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
@@ -2871,16 +2872,19 @@ if do_print:
 
     #plot strains
     for i in range(len(frequencies_search)):
-        if i != 6:
+        if i != 0:
             continue
         lower_frequency = frequencies_search[i][0]
         upper_frequency = frequencies_search[i][1]
         search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
-        if len(pGB_injected[i]) > 0:
-            # search1.plot(found_sources_in=found_sources_mp_best[i], pGB_injected=pGB_injected[i], saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'.png') 
-            search1.plot(pGB_injected=pGB_injected[i], saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'.png') 
-            # search1.plot(found_sources_in=found_sources_in[i], pGB_injected=pGB_injected[i][:10], saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'in.png') 
 
+        A_optimized = search1.calculate_Amplitude([found_sources_mp_all[i][6]])
+        found_sources_mp_all[i][6]['Amplitude'] *= A_optimized.values
+        if len(pGB_injected[i]) > 0:
+            search1.plot(found_sources_in=found_sources_mp_best[i], pGB_injected=pGB_injected[i], saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'.png') 
+            # search1.plot(pGB_injected=pGB_injected[i], saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'.png') 
+            # search1.plot(found_sources_in=found_sources_in[i], pGB_injected=pGB_injected[i][:10], saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'in.png') 
+        correlation = SNR_match(found_sources_mp_best[i][1],found_sources_mp_best[i][3])
 #     #subtract the found sources from original
 #     tdi_fs_subtracted = deepcopy(tdi_fs)
 #     for i in range(len(found_sources_in)):
