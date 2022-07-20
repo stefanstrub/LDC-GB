@@ -13,6 +13,7 @@ import pandas as pd
 import os
 import h5py
 import sys
+import yaml
 
 from ldc.lisa.noise import get_noise_model
 from ldc.common.series import TimeSeries, window
@@ -581,7 +582,7 @@ class Search():
         res = 4*float(np.sum(diff / self.Sn) * self.dataX.df)
         return res
 
-    def plot(self, maxpGBs=None, pGBadded=None, found_sources_in= [], found_sources_not_matched= [], pGB_injected = [], pGB_injected_matched = [], added_label='Injection2', saving_label =None):
+    def plot(self, maxpGBs=None, pGBadded=None, second_data = None , found_sources_in= [], found_sources_not_matched=[], pGB_injected = [], pGB_injected_matched = [], added_label='Injection2', saving_label =None):
         plt.figure(figsize=fig_size)
         fig, [ax1, ax2] = plt.subplots(2, 1, sharex=True, figsize=fig_size)
         # plt.plot(dataX_training.f*1000,dataX_training.values, label='data')
@@ -601,10 +602,18 @@ class Search():
         # ax1.plot(Xs.f * 1000, Xs.values.real, label="VGB2", marker=".", zorder=5)
                     
         # Af = (Zs - Xs)/np.sqrt(2.0)
-        ax1.plot(self.DAf.f*10**3,np.abs(self.DAf),'k',zorder= 1, linewidth = 2, label = 'Data')
+        ax1.plot(self.DAf.f*10**3,self.DAf,'k',zorder= 1, linewidth = 2, label = 'Data')
         ax2.plot(self.DEf.f*10**3,np.abs(self.DEf),'k',zorder= 1, linewidth = 2, label = 'Data')
         # ax1.plot(tdi_fs_long_subtracted.f[range_index],np.abs(tdi_fs_long_subtracted['X'][range_index])**2,'b',zorder= 5)
 
+        if second_data != None:
+            a,Xs = xr.align(self.dataX, second_data['X'], join='left',fill_value=0)
+            a,Ys = xr.align(self.dataY, second_data['Y'], join='left',fill_value=0)
+            a,Zs = xr.align(self.dataZ, second_data['Z'], join='left',fill_value=0)
+            Af = (Zs - Xs)/np.sqrt(2.0)
+            Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
+            ax1.plot(Af.f*10**3,Af,'k--',zorder= 1, linewidth = 2, label = 'Data subtracted')
+            ax2.plot(Ef.f*10**3,np.abs(Ef),'k--',zorder= 1, linewidth = 2, label = 'Data subtracted')
 
         for j in range(len( pGB_injected)):
             Xs, Ys, Zs = GB.get_fd_tdixyz(template= pGB_injected[j], oversample=4, simulator="synthlisa")
@@ -613,7 +622,7 @@ class Search():
             a,Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)
             Af = (Zs - Xs)/np.sqrt(2.0)
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
-            ax1.plot(Af.f*10**3,np.abs(Af.data), color='grey', linewidth = 5, alpha = 0.5)
+            ax1.plot(Af.f*10**3,Af.data, color='grey', linewidth = 5, alpha = 0.5)
             ax2.plot(Ef.f*10**3,np.abs(Ef.data), color='grey', linewidth = 5, alpha = 0.5)
 
         for j in range(len(pGB_injected_matched)):
@@ -623,7 +632,7 @@ class Search():
             a,Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)
             Af = (Zs - Xs)/np.sqrt(2.0)
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
-            ax1.plot(Af.f*10**3,np.abs(Af.data), color=colors[j%10], linewidth = 5, alpha = 0.5)
+            ax1.plot(Af.f*10**3,Af.data, color=colors[j%10], linewidth = 5, alpha = 0.5)
             ax2.plot(Ef.f*10**3,np.abs(Ef.data), color=colors[j%10], linewidth = 5, alpha = 0.5)
 
 
@@ -635,7 +644,7 @@ class Search():
             Zs = Zs[index_low : index_low + len(self.dataZ)]
             Af = (Zs - Xs)/np.sqrt(2.0)
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
-            ax1.plot(Af.f* 1000, np.abs(Af.data), marker='.', label=added_label)
+            ax1.plot(Af.f* 1000, Af.data, marker='.', label=added_label)
             ax2.plot(Ef.f* 1000, np.abs(Ef.data), marker='.', label=added_label)
 
         for j in range(len(found_sources_in)):
@@ -645,7 +654,7 @@ class Search():
             Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
             Af = (Zs - Xs)/np.sqrt(2.0)
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
-            ax1.plot(Af.f* 1000, np.abs(Af.data),'--', color= colors[j%10], linewidth = 1.6)
+            ax1.plot(Af.f* 1000, Af.data,'--', color= colors[j%10], linewidth = 1.6)
             ax2.plot(Ef.f* 1000, np.abs(Ef.data),'--', color= colors[j%10], linewidth = 1.6)
 
         for j in range(len(found_sources_not_matched)):
@@ -671,9 +680,9 @@ class Search():
 
         # ax1.plot(Xs.f * 1000, dataX.values.real - Xs.values.real, label="residual", alpha=0.8, color="red", marker=".")
         plt.xlabel('f (mHz)')
-        ax1.set_ylabel('|A|')    
+        ax1.set_ylabel('A')    
         ax2.set_ylabel('|E|') 
-        ax1.set_yscale('log')  
+        # ax1.set_yscale('log')  
         ax2.set_yscale('log')   
         ax1.set_xlim((self.lower_frequency-self.padding)*10**3, (self.upper_frequency+self.padding)*10**3)
         ax2.set_xlim((self.lower_frequency-self.padding)*10**3, (self.upper_frequency+self.padding)*10**3)
@@ -1760,8 +1769,8 @@ def SNR_match(pGB_injected, pGB_found):
     SNR3 = SNR2 / (np.sqrt(SNR)*np.sqrt(4.0*Xs.df* ss))
     return SNR3.values
 
-# found_sources = np.load(SAVEPATH+'/found_sources.npy', allow_pickle = True)
-found_sources = np.load(SAVEPATH+'/Montana.npy', allow_pickle = True)
+found_sources = np.load(SAVEPATH+'/ETH.npy', allow_pickle = True)
+# found_sources = np.load(SAVEPATH+'/Montana.npy', allow_pickle = True)
 
 
 found_sources_in_flat_frequency = []
@@ -1774,6 +1783,29 @@ for i in range(len(frequencies_search)):
     lower_index = np.searchsorted(found_sources_in_flat_frequency,frequencies_search[i][0])
     higher_index = np.searchsorted(found_sources_in_flat_frequency,frequencies_search[i][1])
     found_sources_in.append(found_sources[lower_index:higher_index])
+
+
+
+for i in range(len(found_sources_in)):
+    if len(found_sources_in[i]) > 0:
+        search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
+        for j in range(len(found_sources_in[i])):
+            pGB_dict = {}
+            for parameter in parameters:
+                pGB_dict[parameter] = found_sources_in[i][j][parameter]
+            found_sources_in[i][j]['IntrinsicSNR'] = search1.intrinsic_SNR([pGB_dict])
+
+found_sources_in_flat = np.concatenate(found_sources_in)
+
+member = deepcopy(found_sources_in_flat)
+for i in range(len(member)):
+    for parameter in parameters:
+        member[i][parameter] = str(member[i][parameter])
+    member[i]['IntrinsicSNR'] = str(member[i]['IntrinsicSNR'])
+with open(SAVEPATH+'ETH_LDC1-4_4mHz.yaml', 'w') as file:
+    documents = yaml.dump(member, file)
+
+
 
 frequencies_search = np.asarray(frequencies_search)
 xx = np.arange(stop=len(frequencies_search))
@@ -2054,8 +2086,12 @@ for i in range(len(frequencies_search)):
                 for parameter in parameters:
                     pGB_injected_dict[parameter] = pGB_injected_SNR_sorted[i][k][parameter]
                     found_dict[parameter] = found_sources_in[i][j][parameter]
+                    if parameter in ['InitialPhase','Polarization']:
+                        found_dict[parameter] = pGB_injected_SNR_sorted[i][k][parameter]
                 # print('SNR', SNR_match(pGB_injected_not_matched[i][k],found_sources_in[i][j]),'parameter comparison:',pGB_injected_not_matched[i][k]['EclipticLatitude'],found_sources_in[i][j]['EclipticLatitude'],eclipticlongitude, found_sources_in[i][j]['EclipticLongitude'])
                 correlation = SNR_match(pGB_injected_dict,found_dict)
+                print(search1.SNR([pGB_injected_dict]))
+                print('found',search1.SNR([found_dict]))
                 print(pGB_injected_dict,found_dict)
                 print(correlation)
                 correlation_list_of_one_signal.append(correlation)
@@ -2066,22 +2102,22 @@ for i in range(len(frequencies_search)):
 #### plot SNR - frequency
 parameter_to_plot = 'IntrinsicSNR'
 fig = plt.figure()
-# is_labeled = False
-# for i in range(len(pGB_injected_matched)):
-#     for j in range(len(pGB_injected_matched[i])):
-#         if not(is_labeled):
-#             plt.scatter(pGB_injected_matched[i][j]['Frequency']*10**3,pGB_injected_matched[i][j]['IntrinsicSNR'], color = 'green', label = 'Match')
-#             is_labeled = True
-#         else:
-#             plt.scatter(pGB_injected_matched[i][j]['Frequency']*10**3,pGB_injected_matched[i][j]['IntrinsicSNR'], color = 'green')
 is_labeled = False
-for i in range(len(found_sources_matched)):
-    for j in range(len(found_sources_matched[i])):
+for i in range(len(pGB_injected_matched)):
+    for j in range(len(pGB_injected_matched[i])):
         if not(is_labeled):
-            plt.scatter(found_sources_matched[i][j]['Frequency']*10**3,found_sources_matched[i][j][parameter_to_plot], color = 'orange', alpha= 1, label = 'Match')
+            plt.scatter(pGB_injected_matched[i][j]['Frequency']*10**3,pGB_injected_matched[i][j]['IntrinsicSNR'], color = 'green', label = 'Match')
             is_labeled = True
         else:
-            plt.scatter(found_sources_matched[i][j]['Frequency']*10**3,found_sources_matched[i][j][parameter_to_plot], color = 'orange', alpha= 1)
+            plt.scatter(pGB_injected_matched[i][j]['Frequency']*10**3,pGB_injected_matched[i][j]['IntrinsicSNR'], color = 'green')
+# is_labeled = False
+# for i in range(len(found_sources_matched)):
+#     for j in range(len(found_sources_matched[i])):
+#         if not(is_labeled):
+#             plt.scatter(found_sources_matched[i][j]['Frequency']*10**3,found_sources_matched[i][j][parameter_to_plot], color = 'orange', alpha= 1, label = 'Match')
+#             is_labeled = True
+#         else:
+#             plt.scatter(found_sources_matched[i][j]['Frequency']*10**3,found_sources_matched[i][j][parameter_to_plot], color = 'orange', alpha= 1)
 is_labeled = False
 for i in range(len(found_sources_not_matched)):
     for j in range(len(found_sources_not_matched[i])):

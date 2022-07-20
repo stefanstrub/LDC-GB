@@ -1829,7 +1829,7 @@ cat = np.rec.fromarrays(params, names=list(reduced_names))
 td = np.array(fid["H5LISA/PreProcess/TDIdata"])
 td = np.rec.fromarrays(list(td.T), names=["t", "X", "Y", "Z"])
 del_t = float(np.array(fid['H5LISA/GWSources/GalBinaries']['Cadence']))
-reduction = 4
+reduction = 1
 Tobs = float(int(np.array(fid['H5LISA/GWSources/GalBinaries']['ObservationDuration']))/reduction)
 
 dt = del_t
@@ -2096,7 +2096,7 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search):
                 tdi_fs_subtracted2[k].data[index_low:index_high] -= source_subtracted[k].data
     return tdi_fs_subtracted2
 
-save_name = 'LDC1-4_half_even10_T'
+save_name = 'LDC1-4_2year_odd'
 try:
     cat = np.load(SAVEPATH+'/cat_sorted.npy', allow_pickle = True)
     print('cat sorted loaded')
@@ -2181,9 +2181,9 @@ frequencies_odd = frequencies[1::2]
 # plt.show()
 
 # for i in range(65):
-frequencies_search = frequencies_even
+frequencies_search = frequencies_odd
 batch_index = int(sys.argv[1])
-# batch_index = 31
+# batch_index = 20
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00264612)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.007977)
@@ -2237,11 +2237,12 @@ if do_subtract:
     # save_name_previous = 'LDC1-4 odd'
     # save_name_previous = 'found_sourcesLDC1-4_half_even'
     # save_name_previous = 'found_sourcesLDC1-4_half_even_T'
-    save_name_previous = 'found_sourcesLDC1-4_half_odd'
+    # save_name_previous = 'found_sourcesLDC1-4_half_odd'
+    save_name_previous = 'found_sourcesLDC1-4_2_even3'
     found_sources_mp_subtract = np.load(SAVEPATH+'/'+save_name_previous+'.npy', allow_pickle = True)
     tdi_fs_subtracted = tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search)
     print('subtraction time', time.time()-start)
-    plot_subraction = False
+    plot_subraction = True
     if plot_subraction:
         i = 10
         lower_frequency = frequencies_search[i][0]
@@ -2309,13 +2310,14 @@ if do_subtract:
 # frequencies_search = frequencies_even[-100:]
 
 found_sources_sorted = []
-use_initial_guess = False
+use_initial_guess = True
 if use_initial_guess:
     found_sources_loaded = []
     # save_name_found_sources_previous = 'found_sources397769to400619LDC1-4_4mHz_half_year_even10'
-    save_name_found_sources_previous = 'found_sources397919to400770LDC1-4_4mHz_half_year_odd'
-    save_name_found_sources_previous = 'found_sourcesLDC1-4_half_even'
-    save_name_found_sources_previous = 'found_sources2537595to3305084LDC1-4_4mHz_half_year_even'
+    # save_name_found_sources_previous = 'found_sources397919to400770LDC1-4_4mHz_half_year_odd'
+    # save_name_found_sources_previous = 'found_sources2537595to3305084LDC1-4_4mHz_half_year_even'
+    # save_name_found_sources_previous = 'found_sourcesLDC1-4_half_even10'
+    save_name_found_sources_previous = 'found_sourcesLDC1-4_half_odd'
     found_sources_loaded.append(np.load(SAVEPATH+'/'+save_name_found_sources_previous+'.npy', allow_pickle = True))
 
     found_sources_previous = []
@@ -2361,8 +2363,8 @@ do_search = True
 if do_search:
     MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 10, found_sources_previous = found_sources_sorted, strategy = 'DE')
     start = time.time()
-    pool = mp.Pool(mp.cpu_count())
-    pool = mp.Pool(16)
+    cpu_cores = 16
+    pool = mp.Pool(cpu_cores)
     found_sources_mp = pool.starmap(MLP.search, frequencies_search)
     pool.close()
     pool.join()

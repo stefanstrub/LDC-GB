@@ -9,18 +9,22 @@ path = os.getcwd()
 parent = os.path.dirname(path)
 # grandparent directory
 grandparent = os.path.dirname(parent)
-folderpath = grandparent+"/LDC/pictures/LDC1-4s3"
-folderpath = grandparent+"/LDC/pictures/LDC1-4uneven"
-folderpath = grandparent+"/LDC/pictures/LDC1-4_4mHz_Euler"
-folderpath = grandparent+"/LDC/pictures/LDC1-4_half_even"
-folderpath = grandparent+"/LDC/pictures/LDC1-4_4mHz/Found_signals"
-folderpath = grandparent+"/LDC/pictures/LDC1-4/Found_signals"
-folderpath = grandparent+"/LDC/pictures/LDC1-4/Found_signals_half_year_even3_T"
-folderpath = grandparent+"/LDC/pictures/LDC1-4/Found_signals_half_year_odd_T"
+# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4s3"
+# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4uneven"
+# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4_4mHz_Euler"
+# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4_half_even"
+# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4_4mHz/Found_signals"
+# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/Found_signals"
+# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/Found_signals_half_year_even3_T"
+# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/Found_signals_half_year_odd_T"
+# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/found_signals_half_year_even10"
+# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/found_signals_half_year_full"
+folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/found_signals"
 
+name = '_2_even3'
+save_name = 'LDC1-4' + name
+folderpath = folderpath_parent + name
 onlyfiles = [f for f in listdir(folderpath) if isfile(join(folderpath, f))]
-save_name = 'LDC1-4 low frequency'
-save_name = 'LDC1-4_half_odd'
 found_sources_mp_even_unsorted = []
 frequencies = []
 for i in range(len(onlyfiles)):
