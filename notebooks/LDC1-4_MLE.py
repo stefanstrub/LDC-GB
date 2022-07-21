@@ -2182,8 +2182,8 @@ frequencies_odd = frequencies[1::2]
 
 # for i in range(65):
 frequencies_search = frequencies_odd
-batch_index = int(sys.argv[1])
-# batch_index = 20
+# batch_index = int(sys.argv[1])
+batch_index = 42
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00264612)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.007977)
@@ -2242,7 +2242,7 @@ if do_subtract:
     found_sources_mp_subtract = np.load(SAVEPATH+'/'+save_name_previous+'.npy', allow_pickle = True)
     tdi_fs_subtracted = tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search)
     print('subtraction time', time.time()-start)
-    plot_subraction = True
+    plot_subraction = False
     if plot_subraction:
         i = 10
         lower_frequency = frequencies_search[i][0]
