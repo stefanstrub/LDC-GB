@@ -21,7 +21,7 @@ grandparent = os.path.dirname(parent)
 # folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/found_signals_half_year_full"
 folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/found_signals"
 
-name = '_2_even3'
+name = '_2_years_full'
 save_name = 'LDC1-4' + name
 folderpath = folderpath_parent + name
 onlyfiles = [f for f in listdir(folderpath) if isfile(join(folderpath, f))]
