@@ -552,7 +552,7 @@ class Search():
         return res
 
 
-    def plot(self, maxpGBs=None, pGBadded=None, found_sources_in= [], pGB_injected = [], added_label='Injection2', saving_label =None):
+    def plot(self, maxpGBs=None, pGBadded=None, found_sources_in= [], pGB_injected = [], added_label='Injection2', saving_label =None, second_data = None):
         plt.figure(figsize=fig_size)
         fig, [ax1, ax2] = plt.subplots(2, 1, sharex=True, figsize=fig_size)
         # plt.plot(dataX_training.f*1000,dataX_training.values, label='data')
@@ -576,6 +576,15 @@ class Search():
         ax2.semilogy(self.DEf.f*10**3,np.abs(self.DEf),'k',zorder= 1, linewidth = 2, label = 'Data')
         # ax1.semilogy(tdi_fs_long_subtracted.f[range_index],np.abs(tdi_fs_long_subtracted['X'][range_index])**2,'b',zorder= 5)
 
+
+        if second_data != None:
+            a,Xs = xr.align(self.dataX, second_data['X'], join='left',fill_value=0)
+            a,Ys = xr.align(self.dataY, second_data['Y'], join='left',fill_value=0)
+            a,Zs = xr.align(self.dataZ, second_data['Z'], join='left',fill_value=0)
+            Af = (Zs - Xs)/np.sqrt(2.0)
+            Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
+            ax1.plot(Af.f*10**3,np.abs(Af),'--', color= 'red',zorder= 5, linewidth = 2, label = 'Data subtracted')
+            ax2.plot(Ef.f*10**3,np.abs(Ef),'--', color= 'red',zorder= 5, linewidth = 2, label = 'Data subtracted')
 
         for j in range(len( pGB_injected)):
             Xs, Ys, Zs = GB.get_fd_tdixyz(template= pGB_injected[j], oversample=4, simulator="synthlisa")
@@ -1288,6 +1297,24 @@ def frequency_derivative_tyson_lower(f):
 def frequency_derivative2(f, Mc_s):
     return 96/5*np.pi**(8/3)*Mc_s**(5/3)*(f)**(11/3)
 
+pGBadded11 = {}
+pGBadded11['Amplitude'] = 1.36368e-22
+pGBadded11['EclipticLatitude'] = -0.2
+pGBadded11['EclipticLongitude'] = 1.4
+pGBadded11['Frequency'] = 0.00201457
+pGBadded11['FrequencyDerivative'] = 1e-17
+pGBadded11['Inclination'] = 0.8
+pGBadded11['InitialPhase'] = 2
+pGBadded11['Polarization'] = 1
+pGBadded12 = {}
+pGBadded12['Amplitude'] = 1.36368e-22
+pGBadded12['EclipticLatitude'] = 0.4
+pGBadded12['EclipticLongitude'] = -1
+pGBadded12['Frequency'] = 0.00201457
+pGBadded12['FrequencyDerivative'] = 1e-17
+pGBadded12['Inclination'] = 0.8
+pGBadded12['InitialPhase'] = 2
+pGBadded12['Polarization'] = 1
 pGBadded20 = {}
 pGBadded20['Amplitude'] = 4.55e-23
 pGBadded20['EclipticLatitude'] = 0.2
@@ -1358,10 +1385,11 @@ tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", 
 GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
 
 # add signal
-add_signal = False
+add_signal = True
 if add_signal:
-    for pGBadding in [pGBadded20]: # faint
+    # for pGBadding in [pGBadded20]: # faint
     # for pGBadding in [pGBadded11]:              # overlap single signal
+    for pGBadding in [pGBadded11, pGBadded12]:              # overlap
         cat = np.hstack((cat,cat[0]))
         for parameter in parameters:
             cat[-1][parameter] = pGBadding[parameter]
@@ -1399,7 +1427,7 @@ while current_frequency < end_frequency:
 
 padding = 0.5e-6
 
-save_name = 'LDC1-3'
+save_name = 'LDC1-3_overlap_both'
 indexes = np.argsort(cat['Frequency'])
 cat_sorted = cat[indexes]
 cat = cat_sorted
@@ -1411,13 +1439,14 @@ for i in range(len(target_frequencies)):
     f_smear = target_frequencies[i] *3* 10**-4
     f_deviation = frequency_derivative(target_frequencies[i],2)*Tobs
     window_length = np.max([f_smear, f_deviation])
-    window_length = 4*10**-6 # Hz
-    window_shift = ((np.random.random(1)-0.5)*window_length*0.5)[0]
+    window_length = 1*10**-6 # Hz
+    window_shift = ((np.random.random(1)-0.5)*window_length*0.5)[0] * 0
     frequencies.append([target_frequencies[i]-window_length/2+window_shift,target_frequencies[i]+window_length/2+window_shift])
 
+frequencies = [frequencies[6]]
 number_of_windows = len(frequencies)
-MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1, number_of_searches_per_signal=2, strategy = 'DE')
-# found_sources_mp = [MLP.search(frequencies[0][0], frequencies[0][1])]
+MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 2, number_of_searches_per_signal=1, strategy = 'DE')
+found_sources_mp = [MLP.search(frequencies[0][0], frequencies[0][1])]
 # MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1, strategy = 'CD')
 # found_sources_mp = [MLP.search(frequencies[0][0], frequencies[0][1])]
 
@@ -1430,7 +1459,7 @@ MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1, number_of_searches_per_si
 # pool.join()
 # print('time to search ', number_of_windows, 'windows: ', time.time()-start)
 # print(found_sources_mp)
-# np.save(SAVEPATH+'/found_sources'+save_name+'.npy', found_sources_mp)
+np.save(SAVEPATH+'/found_sources'+save_name+'.npy', found_sources_mp)
 
 found_sources_mp = np.load(SAVEPATH+'/found_sources'+save_name+'.npy', allow_pickle= True)
 # found_sources_mp = np.load(SAVEPATH+'/found_sources'+save_name+'_test.npy', allow_pickle= True)
@@ -1515,17 +1544,33 @@ print('higher loglikelihood ',higherSNR)
 df_search_results = pd.DataFrame(data=search_results)
 print(df_search_results.to_latex(index=False))
 
+found_sources_unoptimized = []
+for i in range(len( found_sources_mp[0][1] )):
+    found_sources_unoptimized.append(found_sources_mp[0][1][i][0][0])
+
+
+#subtract the found sources from original
+tdi_fs_search = deepcopy(tdi_fs)
+for i in range(len(found_sources_in[0])):
+    Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_in[0][i], oversample=4, simulator="synthlisa")
+    source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
+    index_low = np.searchsorted(tdi_fs_search["X"].f, Xs_subtracted.f[0])
+    index_high = index_low+len(Xs_subtracted)
+    for k in ["X", "Y", "Z"]:
+        tdi_fs_search[k].data[index_low:index_high] = tdi_fs_search[k].data[index_low:index_high] - source_subtracted[k].data
 
 #plot strains
 for i in range(len(frequencies)):
-    # if i != 5:
-    #     continue
     print('plot')
     lower_frequency = frequencies[i][0]
     upper_frequency = frequencies[i][1]
     search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
+    found_sources_plot = [found_sources_unoptimized[1]]
+    found_sources_plot = found_sources_in[0]
+    found_sources_plot = []
+    second_data = None
     if len(pGB_injected[i]) > 0:
-        search1.plot(found_sources_in=found_sources_in[i], pGB_injected=pGB_injected[i], saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'.png') 
+        search1.plot(second_data=second_data, found_sources_in=found_sources_plot, pGB_injected=pGB_injected[i], saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'.png') 
 
 def moving_average(a, n=3) :
     ret = np.cumsum(a, dtype=float)
