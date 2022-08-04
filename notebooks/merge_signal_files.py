@@ -33,7 +33,8 @@ for i in range(len(onlyfiles)):
     frequency = 0
     for j in range(len(sources)):
         try:
-            frequency = sources[j][1][0][0][0]['Frequency']
+            # frequency = sources[j][1][0][0][0]['Frequency']
+            frequency = sources[j][4][0]
             frequencies.append(frequency)
             found_sources_mp_even_unsorted.append(sources[j])
         except:

@@ -1861,7 +1861,7 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true, start_trainin
     mcmc_samples, evalutation_time = posterior1.calculate_posterior(resolution = 1*10**5, proposal= mcmc_samples, temperature= 1)
     mcmc_samples, evalutation_time = posterior1.calculate_posterior(resolution = 1*10**6, proposal= mcmc_samples, temperature= 1)
     print('time to compute posterior: ', time.time()-start)
-    posterior1.plot_corner(mcmc_samples, pGB_true, chain_save_name, save_figure= save_figure, save_chain= save_chain, number_of_signal = 0, parameter_titles = True)
+    posterior1.plot_corner(mcmc_samples, pGB_true, chain_save_name, save_figure= save_figure, save_chain= save_chain, number_of_signal = 0, parameter_titles = False)
     return mcmc_samples, evalutation_time, training_time
 
 def MLP_start_search(lower_frequency, upper_frequency, tdi_fs, Tobs, signals_per_window, neighbor_subtracted, dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters, recombination=0.75, found_sources_previous = [], strategy = 'DE'):

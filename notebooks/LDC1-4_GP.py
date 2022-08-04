@@ -1593,6 +1593,7 @@ parameters = [
     "InitialPhase",
     "Polarization",
 ]
+parameters_log_uniform = ['Amplitude']
 parameters_no_amplitude = parameters[1:]
 intrinsic_parameters = ['EclipticLatitude','EclipticLongitude','Frequency', 'FrequencyDerivative']
 
@@ -1606,7 +1607,7 @@ grandparent = os.path.dirname(parent)
 
 DATAPATH = "/home/stefan/LDC/Radler/data"
 DATAPATH = grandparent+"/LDC/Radler/data"
-SAVEPATH = grandparent+"/LDC/pictures/LDC1-4_4mHz_Euler"
+SAVEPATH = grandparent+"/LDC/pictures/LDC1-4_4mHz"
 
 # sangria_fn = DATAPATH + "/dgb-tdi.h5"
 # sangria_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
@@ -1659,14 +1660,14 @@ def frequency_derivative(f, Mc):
     Mc = Mc * 2*10**30
     Mc_s = Mc*G/c**3
     return 96/(5*np.pi*Mc_s**2)*(np.pi*Mc_s*f)**(11/3)
-def frequency_derivative_thyson(f):
+def frequency_derivative_tyson(f):
     return 8*10**-8*f**(11/3)
-def frequency_derivative_thyson_lower(f):
+def frequency_derivative_tyson_lower(f):
     return -5*10**-6*f**(13/3)
 def frequency_derivative2(f, Mc_s):
     return 96/5*np.pi**(8/3)*Mc_s**(5/3)*(f)**(11/3)
 print('frequency derivative range', frequency_derivative(f,0.1),frequency_derivative(f,1.4),' at f=', f)
-print('frequency derivative range thyson', frequency_derivative_thyson_lower(f),frequency_derivative_thyson(f),' at f=', f)
+print('frequency derivative range thyson', frequency_derivative_tyson_lower(f),frequency_derivative_tyson(f),' at f=', f)
 chandrasekhar_limit = 1.4
 M_chirp_upper_boundary = (chandrasekhar_limit**2)**(3/5)/(2*chandrasekhar_limit)**(1/5)
 
@@ -1754,7 +1755,7 @@ start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], cat_sorted[-2]['Frequency'])-1
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.0004)-1
 batch_size = 20
-start_index= len(frequencies_search)-batch_size-1
+# start_index= len(frequencies_search)-batch_size-1
 # start_index = batch_size*batch_index
 # print('batch',batch_index, start_index)
 frequencies_search = frequencies_search[start_index:start_index+batch_size]
@@ -1770,22 +1771,22 @@ for i in range(int(len(frequencies_search))):
 # frequencies_search = frequencies_search[70:80]
 # frequencies_search = frequencies_search[25:]
 
-target_frequencies = []
-index_low = np.searchsorted(cat_sorted['Frequency'], search_range[0])
-for i in range(10):
-    target_frequencies.append(cat_sorted[-10+i-1]['Frequency'])
-    # target_frequencies.append(cat_sorted[index_low+i*100]['Frequency'])
-# target_frequencies = cat_sorted[-17:-1]['Frequency']
-frequencies_search = []
-for i in range(len(target_frequencies)):
-    current_frequency = target_frequencies[i]
-    f_smear = current_frequency *3* 10**-4
-    f_deviation = frequency_derivative(current_frequency,M_chirp_upper_boundary)*Tobs
-    print(current_frequency,frequency_derivative(current_frequency,M_chirp_upper_boundary))
-    window_length = f_smear + f_deviation
-    window_length += 4*32*10**-9*2
-    window_shift = ((np.random.random(1)-0.5)*window_length*0.5)[0]
-    frequencies_search.append([target_frequencies[i]-window_length/2+window_shift,target_frequencies[i]+window_length/2+window_shift])
+# target_frequencies = []
+# index_low = np.searchsorted(cat_sorted['Frequency'], search_range[0])
+# for i in range(10):
+#     target_frequencies.append(cat_sorted[-10+i-1]['Frequency'])
+#     # target_frequencies.append(cat_sorted[index_low+i*100]['Frequency'])
+# # target_frequencies = cat_sorted[-17:-1]['Frequency']
+# frequencies_search = []
+# for i in range(len(target_frequencies)):
+#     current_frequency = target_frequencies[i]
+#     f_smear = current_frequency *3* 10**-4
+#     f_deviation = frequency_derivative(current_frequency,M_chirp_upper_boundary)*Tobs
+#     print(current_frequency,frequency_derivative(current_frequency,M_chirp_upper_boundary))
+#     window_length = f_smear + f_deviation
+#     window_length += 4*32*10**-9*2
+#     window_shift = ((np.random.random(1)-0.5)*window_length*0.5)[0]
+#     frequencies_search.append([target_frequencies[i]-window_length/2+window_shift,target_frequencies[i]+window_length/2+window_shift])
 
 search_range = [frequencies_search[0][0],frequencies_search[-1][1]]
 # search_range = [1619472*10**-8,2689639*10**-8]
@@ -1863,7 +1864,7 @@ if do_print:
                 for k in ["X", "Y", "Z"]:
                     tdi_fs_subtracted[k].data[index_low:index_high] = tdi_fs_subtracted[k].data[index_low:index_high] - source_subtracted[k].data
             search_subtracted = Search(tdi_fs_subtracted,Tobs, frequencies_search[i][0], frequencies_search[i][1])
-            print('true subtracted',search_subtracted.SNRm([pGB_injected[i][j]])[2].values, 'original data', search1.SNRm([pGB_injected[i][j]])[2].values)
+            print('true subtracted',search_subtracted.SNR([pGB_injected[i][j]]), 'original data', search1.SNR([pGB_injected[i][j]]))
         for j in range(len(found_sources_in[i])):
             #subtract the found sources from original
             tdi_fs_subtracted = deepcopy(tdi_fs)
@@ -1875,7 +1876,7 @@ if do_print:
                 for k in ["X", "Y", "Z"]:
                     tdi_fs_subtracted[k].data[index_low:index_high] = tdi_fs_subtracted[k].data[index_low:index_high] - source_subtracted[k].data
             search_subtracted = Search(tdi_fs_subtracted,Tobs, frequencies_search[i][0], frequencies_search[i][1])
-            print('found subtracted',search_subtracted.SNRm([found_sources_in[i][j]])[2].values, 'original data', search1.SNRm([found_sources_in[i][j]])[2].values)
+            print('found subtracted',search_subtracted.SNR([found_sources_in[i][j]]), 'original data', search1.SNR([found_sources_in[i][j]]))
             # print('found', search1.SNR([found_sources_mp_even_all[i][j]]))
 
 class Posterior_computer():

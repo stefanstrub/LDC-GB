@@ -59,6 +59,26 @@ rcParams.update({"figure.figsize": fig_size})
 prop_cycle = plt.rcParams['axes.prop_cycle']
 colors = prop_cycle.by_key()['color']
 
+
+pGBadded11 = {}
+pGBadded11['Amplitude'] = 1.36368e-22
+pGBadded11['EclipticLatitude'] = -0.2
+pGBadded11['EclipticLongitude'] = 1.4
+pGBadded11['Frequency'] = 0.00201457
+pGBadded11['FrequencyDerivative'] = 1e-17
+pGBadded11['Inclination'] = 0.8
+pGBadded11['InitialPhase'] = 2
+pGBadded11['Polarization'] = 1
+pGBadded12 = {}
+pGBadded12['Amplitude'] = 1.36368e-22
+pGBadded12['EclipticLatitude'] = 0.4
+pGBadded12['EclipticLongitude'] = -1
+pGBadded12['Frequency'] = 0.00201457
+pGBadded12['FrequencyDerivative'] = 1e-17
+pGBadded12['Inclination'] = 0.8
+pGBadded12['InitialPhase'] = 2
+pGBadded12['Polarization'] = 1
+
 parameters = [
     "Amplitude",
     "EclipticLatitude",
@@ -142,6 +162,26 @@ print('frequency derivative', frequency_derivative(f,0.1),frequency_derivative(f
 chandrasekhar_limit = 1.4
 M_chirp_upper_boundary = (chandrasekhar_limit**2)**(3/5)/(2*chandrasekhar_limit)**(1/5)
 
+
+# add signal
+add_signal = True
+if add_signal:
+    # for pGBadding in [pGBadded20]: # faint
+    for pGBadding in [pGBadded11]:              # overlap single signal
+    # for pGBadding in [pGBadded11, pGBadded12]:              # overlap
+        cat = np.hstack((cat,cat[0]))
+        for parameter in parameters:
+            cat[-1][parameter] = pGBadding[parameter]
+        Xs_added, Ys_added, Zs_added = GB.get_fd_tdixyz(template=pGBadding, oversample=4, simulator="synthlisa")
+        source_added = dict({"X": Xs_added, "Y": Ys_added, "Z": Zs_added})
+        index_low = np.searchsorted(tdi_fs["X"].f, Xs_added.f[0])
+        index_high = index_low+len(Xs_added)
+        # tdi_fs['X'] = tdi_fs['X'] #+ Xs_added
+        for k in ["X", "Y", "Z"]:
+            tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] + source_added[k].data
+    tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft(dt=dt)) for k, n in [["X", 1], ["Y", 2], ["Z", 3]]]))
+
+
 start_frequency = 0.0005
 end_frequency = 0.02
 number_of_windows = 0
@@ -152,7 +192,7 @@ while current_frequency < end_frequency:
 
 padding = 0.5e-6
 
-save_name = 'LDC1-3'
+save_name = 'LDC1-3_overlap2'
 indexes = np.argsort(cat['Frequency'])
 cat_sorted = cat[indexes]
 
@@ -163,7 +203,7 @@ window_length = 10**-6 # Hz
 for i in range(len(target_frequencies)):
     window_shift = ((np.random.random(1)-0.5)*window_length*0.5)[0]
     frequencies.append([target_frequencies[i]-window_length/2+window_shift,target_frequencies[i]+window_length/2+window_shift])
-# frequencies = [frequencies[2]]
+frequencies = [frequencies[6]]
 frequencies_search = frequencies
 do_subtract = False
 
@@ -245,7 +285,7 @@ for i in range(len(found_sources_in)):
         if calculate_posterior_sequentially:
             mcmc_samples, evalutation_time, training_time = compute_posterior(tdi_fs, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j],
                                                 start_training_size, dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters, 
-                                                chain_save_name, save_chain= True, save_figure=False)
+                                                chain_save_name, save_chain= True, save_figure=True)
             evalutation_times.append(evalutation_time)
             training_times.append(training_time)
 

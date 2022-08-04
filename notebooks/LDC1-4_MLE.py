@@ -1810,7 +1810,7 @@ SAVEPATH = grandparent+"/LDC/pictures/"
 
 # sangria_fn = DATAPATH + "/dgb-tdi.h5"
 # sangria_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
-sangria_fn = DATAPATH + "/LDC1-4_GB_v2.hdf5"
+sangria_fn = DATAPATH + "/LDC1-4_GB_v1.hdf5"
 # sangria_fn = DATAPATH + "/LDC1-3_VGB_v2_FD_noiseless.hdf5"
 fid = h5py.File(sangria_fn)
 # get the source parameters
@@ -2096,14 +2096,14 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search):
                 tdi_fs_subtracted2[k].data[index_low:index_high] -= source_subtracted[k].data
     return tdi_fs_subtracted2
 
-save_name = 'LDC1-4_2year_even10'
+save_name = 'LDC1-4_v1'
 try:
-    cat = np.load(SAVEPATH+'/cat_sorted.npy', allow_pickle = True)
+    cat = np.load(SAVEPATH+'/cat_sorted_v1.npy', allow_pickle = True)
     print('cat sorted loaded')
 except:
     indexes = np.argsort(cat['Frequency'])
     cat = cat[indexes]
-    np.save(SAVEPATH+'/cat_sorted.npy',cat)
+    np.save(SAVEPATH+'/cat_sorted_v1.npy',cat)
 cat_sorted = cat
 # LDC1-4 #####################################
 frequencies = []
@@ -2181,18 +2181,21 @@ frequencies_odd = frequencies[1::2]
 # plt.show()
 
 # for i in range(65):
-frequencies_search = frequencies_even
-batch_index = int(sys.argv[1])
-# batch_index = 38
+frequencies_search = frequencies_odd
+# batch_index = int(sys.argv[1])
+batch_index = 38
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
+start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00399)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00264612)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.007977)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], cat_sorted[-2]['Frequency'])-1
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.0004)-1
-batch_size = 64
-start_index = batch_size*batch_index
+batch_size = 4
+# start_index = batch_size*batch_index
 print('batch',batch_index, start_index)
 frequencies_search = frequencies_search[start_index:start_index+batch_size]
+# frequencies_search = frequencies_search[2864:2864+1]
+
 # print(i, frequencies_search[0])
 ### highest + padding has to be less than f Nyqist
 while frequencies_search[-1][1] + (frequencies_search[-1][1] - frequencies_search[-1][0])/2 > f_Nyquist:
@@ -2222,7 +2225,7 @@ search_range = [frequencies_search[0][0],frequencies_search[-1][1]]
 # search_range = [1619472*10**-8,2689639*10**-8]
 print('search range '+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))))
 
-do_subtract = True
+do_subtract = False
 if do_subtract:
     start = time.time()
     # save_name_previous = 'found_sources397769to400619LDC1-4_4mHz_half_year_even3'
@@ -2311,7 +2314,7 @@ if do_subtract:
 # frequencies_search = frequencies_even[-100:]
 
 found_sources_sorted = []
-use_initial_guess = True
+use_initial_guess = False
 if use_initial_guess:
     found_sources_loaded = []
     # save_name_found_sources_previous = 'found_sources397769to400619LDC1-4_4mHz_half_year_even10'
@@ -2355,10 +2358,18 @@ if use_initial_guess:
 
 
 # from sources import *
-# MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1, found_sources_previous = found_sources_sorted,  strategy = 'DE')
-# found_sources_mp = MLP.search(frequencies_search[1][0], frequencies_search[1][1])
+MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1, found_sources_previous = found_sources_sorted,  strategy = 'DE')
+found_sources_mp = MLP.search(frequencies_search[1][0], frequencies_search[1][1])
 # found_sources_mp = [found_sources_mp]
 # frequencies_search = [frequencies_search[7]]
+
+
+search1 = Search(tdi_fs,Tobs, frequencies_search[1][0], frequencies_search[1][1])
+search1.plot()
+search1.plot(found_sources_in= [found_sources_mp[0][0]])
+
+search1.SNR(found_sources_mp[0])
+search1.SNR([pGB_injected[0][0]])
 
 do_search = True
 if do_search:
