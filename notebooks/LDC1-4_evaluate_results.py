@@ -1675,7 +1675,7 @@ DATAPATH = "/home/stefan/LDC/Radler/data"
 DATAPATH = grandparent+"/LDC/Radler/data"
 SAVEPATH = grandparent+"/LDC/Radler/LDC1-4_evaluation"
 
-version = '2'
+version = '1'
 # sangria_fn = DATAPATH + "/dgb-tdi.h5"
 # sangria_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
 sangria_fn = DATAPATH + "/LDC1-4_GB_v"+version+".hdf5"
@@ -1737,9 +1737,9 @@ print('frequency derivative', frequency_derivative(f,0.1),frequency_derivative(f
 chandrasekhar_limit = 1.4
 M_chirp_upper_boundary = (chandrasekhar_limit**2)**(3/5)/(2*chandrasekhar_limit)**(1/5)
 
-# data_file_name = 'Montana'
+data_file_name = 'Montana'
 # data_file_name = 'APC'
-data_file_name = 'ETH'
+# data_file_name = 'ETH'
 save_name = 'LDC1-4_4mHz'+data_file_name
 try:
     cat = np.load(SAVEPATH+'/cat_sorted_v'+version+'.npy', allow_pickle = True)
@@ -2150,7 +2150,7 @@ for i in range(len(found_sources_not_matched)):
 
 ### determine index of a specific frequency
 index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.003988)
-index_of_interest_to_plot = 4
+index_of_interest_to_plot = 0
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.0040225)-1
 # 3.971727e-22, 0.870896, 0.486536, 0.00399522, 1.106162e-16, 1.009082, 5.44632, 4.229721, 380.58279089
 # [{'Amplitude': 4.025544020660238e-22, 'EclipticLatitude': 0.869957126225, 'EclipticLongitude': 0.48668207609643543, 'Frequency': 0.003995221105148993, 'FrequencyDerivative': 1.0656655206912889e-16, 'Inclination': 2.130022010879545, 'InitialPhase': 3.9219373061129934, 'Polarization': 2.0811811837621965}]
@@ -2213,6 +2213,7 @@ for i in range(len(frequencies_search)):
 
 for parameter in parameters:
     print(parameter, best_match[parameter] - found_extended[2][parameter])
+
 
 correlation_list2 = []
 for i in range(len(frequencies_search)):

@@ -7,6 +7,7 @@ import scipy
 from scipy.optimize import differential_evolution
 import numpy as np
 import xarray as xr
+from getdist import plots, MCSamples
 import time
 from copy import deepcopy
 import multiprocessing as mp

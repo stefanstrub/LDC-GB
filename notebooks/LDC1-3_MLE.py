@@ -1237,7 +1237,7 @@ class MLP_search():
             #global optimization
             if len(found_sources_in) > 1:
                 if maxpGBsearch[0][0]['Frequency'] > lower_frequency and maxpGBsearch[0][0]['Frequency'] < upper_frequency:
-                    tdi_fs_subtracted = deepcopy(tdi_fs)
+                    tdi_fs_subtracted = deepcopy(self.tdi_fs)
                     for i in range(len(found_sources_out)):
                         Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_out[i], oversample=4, simulator="synthlisa")
                         source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
