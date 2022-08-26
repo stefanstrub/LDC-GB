@@ -16,6 +16,9 @@ import h5py
 import sys
 sys.path.append('/cluster/home/sstrub/Repositories/LDC/lib/lib64/python3.8/site-packages/ldc-0.1-py3.8-linux-x86_64.egg')
 
+from astropy import units as u
+from astropy.coordinates import SkyCoord
+
 from ldc.lisa.noise import get_noise_model
 from ldc.common.series import TimeSeries, window
 import ldc.waveform.fastGB as fastGB
@@ -1871,9 +1874,9 @@ search_range = [frequencies_search[0][0],frequencies_search[-1][1]]
 # search_range = [1619472*10**-8,2689639*10**-8]
 print('search range '+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))))
 
-i = 44
-search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
-search1.plot()
+# i = 44
+# search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
+# search1.plot()
 
 def SNR_match(pGB_injected, pGB_found):
     Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4, simulator="synthlisa")
@@ -2377,45 +2380,46 @@ for i in range(len(pGB_injected_matched)):
 #             pGB_dict[parameter] = pGB_injected_not_matched[i][j][parameter]
 #         pGB_injected_not_matched[i][j]['IntrinsicSNR'] = search1.intrinsic_SNR([pGB_dict])
 
-for i in range(len(found_sources_in)):
-    if len(found_sources_in[i]) > 0:
-        search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
-    for j in range(len(found_sources_in[i])):
-        pGB_dict = {}
-        for parameter in parameters:
-            pGB_dict[parameter] = found_sources_in[i][j][parameter]
-        found_sources_in[i][j]['IntrinsicSNR'] = search1.intrinsic_SNR([pGB_dict])
 
-for i in range(len(found_sources_matched)):
-    if len(found_sources_matched[i]) > 0:
-        search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
-    for j in range(len(found_sources_matched[i])):
-        pGB_dict = {}
-        for parameter in parameters:
-            pGB_dict[parameter] = found_sources_matched[i][j][parameter]
-        found_sources_matched[i][j]['IntrinsicSNR'] = search1.intrinsic_SNR([pGB_dict])
+# for i in range(len(found_sources_in)):
+#     if len(found_sources_in[i]) > 0:
+#         search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
+#     for j in range(len(found_sources_in[i])):
+#         pGB_dict = {}
+#         for parameter in parameters:
+#             pGB_dict[parameter] = found_sources_in[i][j][parameter]
+#         found_sources_in[i][j]['IntrinsicSNR'] = search1.intrinsic_SNR([pGB_dict])
 
-for i in range(len(found_sources_not_matched)):
-    if len(found_sources_not_matched[i]) > 0:
-        search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
-    for j in range(len(found_sources_not_matched[i])):
-        pGB_dict = {}
-        for parameter in parameters:
-            pGB_dict[parameter] = found_sources_not_matched[i][j][parameter]
-        found_sources_not_matched[i][j]['IntrinsicSNR'] = search1.intrinsic_SNR([pGB_dict])     
+# for i in range(len(found_sources_matched)):
+#     if len(found_sources_matched[i]) > 0:
+#         search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
+#     for j in range(len(found_sources_matched[i])):
+#         pGB_dict = {}
+#         for parameter in parameters:
+#             pGB_dict[parameter] = found_sources_matched[i][j][parameter]
+#         found_sources_matched[i][j]['IntrinsicSNR'] = search1.intrinsic_SNR([pGB_dict])
 
-found_sources_matched_array = []
-for i in range(len(found_sources_matched)):
-    found_sources_matched_array.append(np.asarray(found_sources_matched[i]))
-found_sources_matched_array = np.asarray(found_sources_matched_array)
-found_sources_not_matched_array = []
-for i in range(len(found_sources_not_matched)):
-    found_sources_not_matched_array.append(np.asarray(found_sources_not_matched[i]))
-found_sources_not_matched_array = np.asarray(found_sources_not_matched_array)
-np.save(SAVEPATH+'/found_sources_matched_matchfix' +save_name+'.npy', found_sources_matched_array)
-np.save(SAVEPATH+'/found_sources_not_matched_matchfix' +save_name+'.npy', found_sources_not_matched_array)
-np.save(SAVEPATH+'/injected_not_matched_windows_matchfix' +save_name+'.npy', pGB_injected_not_matched)
-np.save(SAVEPATH+'/injected_matched_windows_matchfix' +save_name+'.npy', pGB_injected_matched)
+# for i in range(len(found_sources_not_matched)):
+#     if len(found_sources_not_matched[i]) > 0:
+#         search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
+#     for j in range(len(found_sources_not_matched[i])):
+#         pGB_dict = {}
+#         for parameter in parameters:
+#             pGB_dict[parameter] = found_sources_not_matched[i][j][parameter]
+#         found_sources_not_matched[i][j]['IntrinsicSNR'] = search1.intrinsic_SNR([pGB_dict])     
+
+# found_sources_matched_array = []
+# for i in range(len(found_sources_matched)):
+#     found_sources_matched_array.append(np.asarray(found_sources_matched[i]))
+# found_sources_matched_array = np.asarray(found_sources_matched_array)
+# found_sources_not_matched_array = []
+# for i in range(len(found_sources_not_matched)):
+#     found_sources_not_matched_array.append(np.asarray(found_sources_not_matched[i]))
+# found_sources_not_matched_array = np.asarray(found_sources_not_matched_array)
+# np.save(SAVEPATH+'/found_sources_matched_matchfix' +save_name+'.npy', found_sources_matched_array)
+# np.save(SAVEPATH+'/found_sources_not_matched_matchfix' +save_name+'.npy', found_sources_not_matched_array)
+# np.save(SAVEPATH+'/injected_not_matched_windows_matchfix' +save_name+'.npy', pGB_injected_not_matched)
+# np.save(SAVEPATH+'/injected_matched_windows_matchfix' +save_name+'.npy', pGB_injected_matched)
 
 found_sources_matched = np.load(SAVEPATH+'/found_sources_matched_matchfix' +save_name+'.npy', allow_pickle=True)
 found_sources_not_matched = np.load(SAVEPATH+'/found_sources_not_matched_matchfix' +save_name+'.npy', allow_pickle=True)
@@ -2800,8 +2804,6 @@ for i in range(len(pGB_injected_matched)):
             if parameter == 'Amplitude':
                 error[i][j][parameter] = np.log10(pGB_injected_matched[i][j][parameter]) - np.log10(found_sources_matched[i][j][parameter])
             found_sources_matched[i][j][parameter+'Error'] = error[i][j][parameter]
-
-      
 found_sources_matched_flat = np.concatenate(found_sources_matched)
 found_sources_matched_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_matched_flat]) for attribute in found_sources_matched_flat[0].keys()}
 found_sources_matched_flat_df = pd.DataFrame(found_sources_matched_flat_array)
@@ -2834,25 +2836,135 @@ for parameter in parameters:
     plt.savefig(SAVEPATH+'/Evaluation/'+parameter+'_error_histo'+save_name,dpi=300,bbox_inches='tight')
     plt.show()
 
+
+#### get distance
+def get_distance2(amplitude, frequency, frequency_derivative):
+    M_chirp = (96/5*np.pi**(8/3)*frequency**(11/3)/frequency_derivative)**(-3/5)
+    G = 6.674*10**(-11)
+    c = 3*10**8
+    M_c= M_chirp / (2*10**30)
+    Mc_s = M_c/G*c**3
+    print(M_chirp)
+    distance = 2*M_chirp**(5/3)*np.pi*(2/3)*frequency**(2/3)/amplitude
+    print('Mc',Mc_s)
+    return distance
+def get_distance(amplitude, frequency, frequency_derivative):
+    c = 3*10**8
+    distance = 2/(96/5*np.pi**(8/3)*frequency**(11/3)/frequency_derivative)*np.pi*(2/3)*frequency**(2/3)/amplitude*c /3.086e+19 #to pc
+    return distance
+postitive_fd_mask = found_sources_matched_flat_df['FrequencyDerivative'] >= 0
+distance = get_distance(found_sources_matched_flat_df['Amplitude'][postitive_fd_mask], found_sources_matched_flat_df['Frequency'][postitive_fd_mask],  found_sources_matched_flat_df['FrequencyDerivative'][postitive_fd_mask])
+found_sources_matched_flat_df['Distance'][postitive_fd_mask] = distance
+
+#### get galactic coordinates
+coord = SkyCoord(found_sources_matched_flat_df['EclipticLongitude'], found_sources_matched_flat_df['EclipticLatitude'], unit='rad', frame='barycentricmeanecliptic')
+found_sources_matched_flat_df['GalacticLongitude'] = coord.galactic.l.value
+found_sources_matched_flat_df['GalacticLatitude'] = coord.galactic.b.value
+boundaries = deepcopy(search1.boundaries)
+boundaries['GalacticLongitude'] = [0,360]
+boundaries['GalacticLatitude'] = [-90,90]
+
+#### get galactic coordinates with distance
+coord = SkyCoord(found_sources_matched_flat_df['EclipticLongitude'], found_sources_matched_flat_df['EclipticLatitude'], found_sources_matched_flat_df['Distance'], unit='rad', frame='barycentricmeanecliptic')
+found_sources_matched_flat_df['GalacticLongitude'] = coord.galactic.l.value
+found_sources_matched_flat_df['GalacticLatitude'] = coord.galactic.b.value
+found_sources_matched_flat_df['GalacticDistance'] = coord.galactic.distance.value
+boundaries = deepcopy(search1.boundaries)
+boundaries['GalacticLongitude'] = [0,360]
+boundaries['GalacticLatitude'] = [-90,90]
+boundaries['GalacticDistance'] = [np.nanmin(found_sources_matched_flat_df['GalacticDistance']),np.nanmax(found_sources_matched_flat_df['GalacticDistance'])]
+
+##### plot distance
+fig = plt.figure()
+plt.plot(found_sources_matched_flat_df['GalacticLatitude'],found_sources_matched_flat_df['Distance'],'.')
+plt.xlabel('GalacticLatitude')
+plt.ylabel('Distance [pc]')
+plt.show()
+
+fig = plt.figure()
+plt.plot(found_sources_matched_flat_df['GalacticLongitude'],found_sources_matched_flat_df['Distance'],'.')
+plt.xlabel('GalacticLongitude')
+plt.ylabel('Distance [pc]')
+plt.show()
+
 ##### sky location error histogram
-n_bins = 10
-parameter_x = 'EclipticLongitude'
-parameter_y = 'EclipticLatitude'
+parameter_x = 'GalacticLongitude'
+parameter_y = 'GalacticLatitude'
+parameter_x_ecliptic = 'EclipticLongitude'
+parameter_y_ecliptic = 'EclipticLatitude'
+n_bins = 300
+x_coordinates = []
+y_coordinates = []
+for i in range(n_bins+1):
+    length = (boundaries[parameter_x][1] - boundaries[parameter_x][0])/n_bins
+    x_coordinates.append(boundaries[parameter_x][0]+length*i)
+    length = (boundaries[parameter_y][1] - boundaries[parameter_y][0])/n_bins
+    y_coordinates.append(boundaries[parameter_y][0]+length*i)
+
+
 error = []
+std = []
+count = []
 found_sources_matched_flat_df_parameter_x_sorted = found_sources_matched_flat_df.sort_values(by=parameter_x)
 for i in range(n_bins):
-    length = (search1.boundaries[parameter_x][1] - search1.boundaries[parameter_x][0])/n_bins
-    start_index = np.searchsorted(found_sources_matched_flat_df_parameter_x_sorted[parameter_x],search1.boundaries[parameter_x][0]+length*i, side='left')
-    end_index = np.searchsorted(found_sources_matched_flat_df_parameter_x_sorted[parameter_x],search1.boundaries[parameter_x][0]+length*(1+i), side='left')
+    error.append([])
+    std.append([])
+    count.append([])
+    length = (boundaries[parameter_x][1] - boundaries[parameter_x][0])/n_bins
+    start_index = np.searchsorted(found_sources_matched_flat_df_parameter_x_sorted[parameter_x],boundaries[parameter_x][0]+length*i, side='left')
+    end_index = np.searchsorted(found_sources_matched_flat_df_parameter_x_sorted[parameter_x],boundaries[parameter_x][0]+length*(i+1), side='left')
     section = found_sources_matched_flat_df_parameter_x_sorted[start_index:end_index]
     for j in range(n_bins):
         section_parameter_y_sorted = section.sort_values(by=parameter_y)
-        length = (search1.boundaries[parameter_y][1] - search1.boundaries[parameter_y][0])/n_bins
-        start_index = np.searchsorted(section_parameter_y_sorted[parameter_y],search1.boundaries[parameter_y][0]+length*j, side='left')
-        end_index = np.searchsorted(section_parameter_y_sorted[parameter_y],search1.boundaries[parameter_y][0]+length*(1+j), side='left')
-        field = section[j:j*n_bins]
-        error.append(np.mean(field[parameter_x+'Error']))
+        length = (boundaries[parameter_y][1] - boundaries[parameter_y][0])/n_bins
+        start_index = np.searchsorted(section_parameter_y_sorted[parameter_y],boundaries[parameter_y][0]+length*j, side='left')
+        end_index = np.searchsorted(section_parameter_y_sorted[parameter_y],boundaries[parameter_y][0]+length*(1+j), side='left')
+        field = section[start_index:end_index]
+        error[-1].append(np.mean(np.sqrt(field[parameter_x_ecliptic+'Error']**2 + field[parameter_y_ecliptic+'Error']**2)))
+        std[-1].append(np.std(np.sqrt(field[parameter_x_ecliptic+'Error']**2 + field[parameter_y_ecliptic+'Error']**2)))
+        count[-1].append(len(field[parameter_x_ecliptic+'Error']))
 
+for i in range(len(count)):
+    for j in range(len(count[i])):
+        if count[i][j] == 0:
+            count[i][j] = np.nan
+
+fig, (ax0, ax1, ax2) = plt.subplots(nrows=3)
+fig.set_size_inches(8,10)
+im = ax0.pcolormesh(x_coordinates,y_coordinates, np.array(error).T)
+im.set_clim(0,0.5)
+fig.colorbar(im, ax=ax0)
+ax0.set_title('mean error')
+im1 = ax1.pcolormesh(x_coordinates,y_coordinates, np.array(std).T)
+im1.set_clim(0,0.5)
+fig.colorbar(im1, ax=ax1)
+ax1.set_title('standard deviation')
+im2 = ax2.pcolormesh(x_coordinates,y_coordinates, np.array(count).T)
+fig.colorbar(im2, ax=ax2)
+ax2.set_title('number of signals')
+ax2.set_xlabel(parameter_x)
+ax0.set_ylabel(parameter_y)
+ax1.set_ylabel(parameter_y)
+ax2.set_ylabel(parameter_y)
+fig.tight_layout()
+plt.show()
+
+
+fig = plt.figure()
+plt.title('Error')
+plt.pcolormesh(x_coordinates,y_coordinates, error)
+plt.xlabel(parameter_x)
+plt.ylabel(parameter_y)
+plt.show()
+
+
+fig = plt.figure()
+plt.pcolormesh(std)
+plt.show()
+
+fig = plt.figure()
+plt.pcolormesh(count)
+plt.show()
 
 
 from fast_histogram import histogram2d
@@ -2889,14 +3001,11 @@ plt.imshow(h)
 plt.axis('off')
 plt.show()
 
-###### plot errors scatter
-# for parameter in parameters:
-if parameter in ['EclipticLongitude', 'EclipticLongitude', 'Inclination', 'InitialPhase', 'Polarization']:
+###### plot errors
+for parameter in parameters:
+# if parameter in ['EclipticLongitude', 'EclipticLongitude', 'Inclination', 'InitialPhase', 'Polarization']:
     fig = plt.figure()
-    for i in range(len(found_sources_matched)):
-        for j in range(len(found_sources_matched[i])):
-            plt.scatter(found_sources_matched[i][j]['Frequency']*10**3,np.abs(error[i][j][parameter]), alpha= 0.1, color = 'green')
-    # plt.yscale('log')
+    plt.plot(found_sources_matched_flat_df['Frequency']*10**3,np.abs(found_sources_matched_flat_df[parameter+'Error']),'.', alpha= 0.1, color = 'green')
     plt.xlabel('f (mHz)')
     plt.ylabel(parameter+' error')   
     if parameter == 'Amplitude':
@@ -2908,7 +3017,7 @@ if parameter in ['EclipticLongitude', 'EclipticLongitude', 'Inclination', 'Initi
     if parameter == 'FrequencyDerivative':
         plt.ylabel(parameter+' Error (Hz/s)')    
     plt.xscale('log')
-    plt.yscale('log')
+    # plt.yscale('log')
     plt.savefig(SAVEPATH+'/Evaluation/'+parameter+'_error_loglog_shaded_closest_angle'+save_name,dpi=300,bbox_inches='tight')
     plt.show()
 
