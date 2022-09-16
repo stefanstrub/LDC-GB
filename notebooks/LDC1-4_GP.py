@@ -1646,7 +1646,7 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search):
 
 padding = 0.5e-6
 
-save_name = 'LDC1-4_2_years_full'
+save_name = 'LDC1-4_2_optimized_second'
 indexes = np.argsort(cat['Frequency'])
 cat_sorted = cat[indexes]
 
@@ -1774,8 +1774,8 @@ if do_subtract:
 
 do_print = True
 if do_print:
-    # found_sources_mp = np.load(SAVEPATH+'found_sources' +save_name+'.npy', allow_pickle = True)
-    found_sources_mp = np.load(SAVEPATH+'found_sources' +save_name+'optimized.npy', allow_pickle = True)
+    found_sources_mp = np.load(SAVEPATH+'found_sources' +save_name+'.npy', allow_pickle = True)
+    # found_sources_mp = np.load(SAVEPATH+'found_sources' +save_name+'optimized.npy', allow_pickle = True)
 
     ####### change to optimized signals with neighboors removed and inside singals only
     # found_sources_mp_o = np.load(SAVEPATH+'found_sources' +save_name+'.npy', allow_pickle = True)
@@ -2343,13 +2343,13 @@ frequencies_found = []
 # LDC1-4 ####################
 posterior_calculation_input = []
 for i in range(len(found_sources_in)):
-    if i != 10:
+    if i < 73:
         continue
     if i in [0,len(found_sources_in)-1]:
         continue
     for j in range(len(found_sources_in[i])):
-        if j != 0:
-            continue
+        # if j != 0:
+        #     continue
         #subtract the found sources of neighbours and own window from original except the signal itself
         tdi_fs_subtracted = deepcopy(tdi_fs)
         for m in range(3):
@@ -2371,19 +2371,19 @@ for i in range(len(found_sources_in)):
                             tdi_fs_subtracted[k].data[index_low:index_high] = tdi_fs_subtracted[k].data[index_low:index_high] - source_subtracted[k].data
 
         search_subtracted = Search(tdi_fs_subtracted,Tobs, frequencies_search[i][0], frequencies_search[i][1])
-        optimizer = Global_optimizer(tdi_fs=tdi_fs_subtracted, Tobs=Tobs)
-        found_sources_mp_optimized = optimizer.optimize(frequencies_search[i][0], frequencies_search[i][1], [found_sources_in[i][j]])
-        found_sources_in_optimized = found_sources_mp_optimized[3]
-        print(search_subtracted.SNR([found_sources_in[i][j]]))
-        print(search_subtracted.SNR([found_sources_in_optimized[0]]))
+        # optimizer = Global_optimizer(tdi_fs=tdi_fs_subtracted, Tobs=Tobs)
+        # found_sources_mp_optimized = optimizer.optimize(frequencies_search[i][0], frequencies_search[i][1], [found_sources_in[i][j]])
+        # found_sources_in_optimized = found_sources_mp_optimized[3]
+        # print(search_subtracted.SNR([found_sources_in[i][j]]))
+        # print(search_subtracted.SNR([found_sources_in_optimized[0]]))
 
-        optimizer = Global_optimizer(tdi_fs=tdi_fs_subtracted, Tobs=Tobs)
-        found_sources_mp_optimized = optimizer.optimize(frequencies_search[i][0], frequencies_search[i][1], found_sources_in[i])
-        found_sources_in_optimized = found_sources_mp_optimized[3]
-        print(search_subtracted.SNR(found_sources_in[i]))
-        print(search_subtracted.SNR(found_sources_in_optimized))
+        # optimizer = Global_optimizer(tdi_fs=tdi_fs_subtracted, Tobs=Tobs)
+        # found_sources_mp_optimized = optimizer.optimize(frequencies_search[i][0], frequencies_search[i][1], found_sources_in[i])
+        # found_sources_in_optimized = found_sources_mp_optimized[3]
+        # print(search_subtracted.SNR(found_sources_in[i]))
+        # print(search_subtracted.SNR(found_sources_in_optimized))
 
-        plot_subraction = True
+        plot_subraction = False
         if plot_subraction:
             search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
             search1.plot(second_data= tdi_fs_subtracted, found_sources_in=found_sources_in[i])
