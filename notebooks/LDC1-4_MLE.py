@@ -1,5 +1,4 @@
 #%%
-from re import A
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 import scipy
@@ -903,44 +902,38 @@ class Search():
         return -p1#/10000
 
     def loglikelihood(self, pGBs):
-        try:
-            for i in range(len(pGBs)):
-                Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs[i], oversample=4, simulator="synthlisa")
-                if i == 0:
-                    Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
-                    Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
-                    Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
-                else:
-                    Xs_total += xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
-                    Ys_total += xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
-                    Zs_total += xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
-                
-            Af = (Zs_total - Xs_total)/np.sqrt(2.0)
-            Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
-            Tf = (Zs_total + Ys_total + Xs_total)/np.sqrt(3.0)
-            if self.use_T_component:
-                Tf = (Zs_total + Ys_total + Xs_total)/np.sqrt(3.0)
-                hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2)/self.SA + np.absolute(Tf.data)**2 /self.ST)
-                SNR2 = np.sum( np.real(self.DAf * np.conjugate(Af.data) + self.DEf * np.conjugate(Ef.data))/self.SA + np.real(self.DTf * np.conjugate(Tf.data))/self.ST )
+        for i in range(len(pGBs)):
+            Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs[i], oversample=4, simulator="synthlisa")
+            if i == 0:
+                Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+                Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
+                Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
             else:
-                SNR2 = np.sum( np.real(self.DAf * np.conjugate(Af.data) + self.DEf * np.conjugate(Ef.data))/self.SA )
-                hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2) /self.SA)
-            # dd = np.sum((np.absolute(self.DAf.data)**2 + np.absolute(self.DEf.data)**2) /self.SA)
-            plotIt = False
-            if plotIt:
-                fig, ax = plt.subplots(nrows=2, sharex=True) 
-                ax[0].plot(Af.f, np.abs(self.DAf))
-                ax[0].plot(Af.f, np.abs(Af.data))
-                
-                ax[1].plot(Af.f, np.abs(self.DEf))
-                ax[1].plot(Af.f, np.abs(Ef.data))
-                plt.show()
-            logliks = 4.0*Xs.df*( SNR2 - 0.5 * hh )
-        except:
-            for i in range(30):
-                print('pGB error!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!',pGBs)
-            dd = np.sum((np.absolute(self.DAf.data)**2 + np.absolute(self.DEf.data)**2) /self.SA)
-            logliks = np.sqrt(4.0*Xs.df*( dd ))/1000
+                Xs_total += xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+                Ys_total += xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
+                Zs_total += xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+            
+        Af = (Zs_total - Xs_total)/np.sqrt(2.0)
+        Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
+        Tf = (Zs_total + Ys_total + Xs_total)/np.sqrt(3.0)
+        if self.use_T_component:
+            Tf = (Zs_total + Ys_total + Xs_total)/np.sqrt(3.0)
+            hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2)/self.SA + np.absolute(Tf.data)**2 /self.ST)
+            SNR2 = np.sum( np.real(self.DAf * np.conjugate(Af.data) + self.DEf * np.conjugate(Ef.data))/self.SA + np.real(self.DTf * np.conjugate(Tf.data))/self.ST )
+        else:
+            SNR2 = np.sum( np.real(self.DAf * np.conjugate(Af.data) + self.DEf * np.conjugate(Ef.data))/self.SA )
+            hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2) /self.SA)
+        # dd = np.sum((np.absolute(self.DAf.data)**2 + np.absolute(self.DEf.data)**2) /self.SA)
+        plotIt = False
+        if plotIt:
+            fig, ax = plt.subplots(nrows=2, sharex=True) 
+            ax[0].plot(Af.f, np.abs(self.DAf))
+            ax[0].plot(Af.f, np.abs(Af.data))
+            
+            ax[1].plot(Af.f, np.abs(self.DEf))
+            ax[1].plot(Af.f, np.abs(Ef.data))
+            plt.show()
+        logliks = 4.0*Xs.df*( SNR2 - 0.5 * hh )
         return logliks.values
 
     def loglikelihood_noise_matrix(self, pGBs):
@@ -1066,11 +1059,11 @@ class Search():
                         pGBstart01[parameter] = 1
                     initial_guess01[count+(len(parameters_no_amplitude))*signal] = pGBstart01[parameter]
             start = time.time()
-            res = differential_evolution(self.function_evolution, bounds=bounds, disp=False, strategy='best1exp', popsize=10,tol= 1e-8 , maxiter=1500, recombination= self.recombination, mutation=(0.5,1), x0=initial_guess01)
+            res = differential_evolution(self.function_evolution, bounds=bounds, disp=False, strategy='best1exp', popsize=8,tol= 1e-8 , maxiter=1000, recombination= self.recombination, mutation=(0.5,1), x0=initial_guess01)
             print('time',time.time()-start)
         else:
             start = time.time()
-            res = differential_evolution(self.function_evolution, bounds=bounds, disp=False, strategy='best1exp', popsize=8, tol= 1e-8 , maxiter=1500, recombination= self.recombination, mutation=(0.5,1))
+            res = differential_evolution(self.function_evolution, bounds=bounds, disp=False, strategy='best1exp', popsize=8, tol= 1e-8 , maxiter=1000, recombination= self.recombination, mutation=(0.5,1))
             print('time',time.time()-start)
         for signal in range(number_of_signals):
             pGB01 = [0.5] + res.x[signal*7:signal*7+7].tolist()
@@ -1802,7 +1795,6 @@ path = os.getcwd()
 parent = os.path.dirname(path)
 # grandparent directory
 grandparent = os.path.dirname(parent)
-
 Radler = False
 if Radler:
     DATAPATH = grandparent+"/LDC/Radler/data"
@@ -1834,32 +1826,32 @@ else:
     dt = td["t"][1]-td["t"][0]
     
     td_mbhb = fid["sky/mbhb/tdi"][()]
-    cat_mbhb = fid["sky/mbhb/cat"]
+    # cat_mbhb = fid["sky/mbhb/cat"]
     td_mbhb  = np.rec.fromarrays(list(td_mbhb .T), names=["t", "X", "Y", "Z"])
     td_mbhb  = td_mbhb ['t']
-    tdi_ts_mbhb = dict([(k, TimeSeries(td_mbhb[k][:int(len(td_mbhb[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
-    tdi_fs_mbhb = xr.Dataset(dict([(k, tdi_ts_mbhb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+    # tdi_ts_mbhb = dict([(k, TimeSeries(td_mbhb[k][:int(len(td_mbhb[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
+    # tdi_fs_mbhb = xr.Dataset(dict([(k, tdi_ts_mbhb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 
-    td_dgb = fid["sky/dgb/tdi"][()]
-    cat_dgb = fid["sky/dgb/cat"]
-    td_dgb  = np.rec.fromarrays(list(td_dgb .T), names=["t", "X", "Y", "Z"])
-    td_dgb  = td_dgb ['t']
-    tdi_ts_dgb = dict([(k, TimeSeries(td_dgb[k][:int(len(td_dgb[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
-    tdi_fs_dgb = xr.Dataset(dict([(k, tdi_ts_dgb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+    # td_dgb = fid["sky/dgb/tdi"][()]
+    # cat_dgb = fid["sky/dgb/cat"]
+    # td_dgb  = np.rec.fromarrays(list(td_dgb .T), names=["t", "X", "Y", "Z"])
+    # td_dgb  = td_dgb ['t']
+    # tdi_ts_dgb = dict([(k, TimeSeries(td_dgb[k][:int(len(td_dgb[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
+    # tdi_fs_dgb = xr.Dataset(dict([(k, tdi_ts_dgb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 
-    td_igb = fid["sky/igb/tdi"][()]
-    cat_igb = fid["sky/igb/cat"]
-    td_igb  = np.rec.fromarrays(list(td_igb .T), names=["t", "X", "Y", "Z"])
-    td_igb  = td_igb ['t']
-    tdi_ts_igb = dict([(k, TimeSeries(td_igb[k][:int(len(td_igb[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
-    tdi_fs_igb = xr.Dataset(dict([(k, tdi_ts_igb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+    # td_igb = fid["sky/igb/tdi"][()]
+    # cat_igb = fid["sky/igb/cat"]
+    # td_igb  = np.rec.fromarrays(list(td_igb .T), names=["t", "X", "Y", "Z"])
+    # td_igb  = td_igb ['t']
+    # tdi_ts_igb = dict([(k, TimeSeries(td_igb[k][:int(len(td_igb[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
+    # tdi_fs_igb = xr.Dataset(dict([(k, tdi_ts_igb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 
-    td_vgb = fid["sky/vgb/tdi"][()]
-    cat_vgb = fid["sky/vgb/cat"]
-    td_vgb  = np.rec.fromarrays(list(td_vgb .T), names=["t", "X", "Y", "Z"])
-    td_vgb  = td_vgb ['t']
-    tdi_ts_vgb = dict([(k, TimeSeries(td_vgb[k][:int(len(td_vgb[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
-    tdi_fs_vgb = xr.Dataset(dict([(k, tdi_ts_vgb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+    # td_vgb = fid["sky/vgb/tdi"][()]
+    # cat_vgb = fid["sky/vgb/cat"]
+    # td_vgb  = np.rec.fromarrays(list(td_vgb .T), names=["t", "X", "Y", "Z"])
+    # td_vgb  = td_vgb ['t']
+    # tdi_ts_vgb = dict([(k, TimeSeries(td_vgb[k][:int(len(td_vgb[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
+    # tdi_fs_vgb = xr.Dataset(dict([(k, tdi_ts_vgb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 
     Tobs = float(int(np.array(fid['obs/config/t_max']))/reduction)
     for k in ["X", "Y", "Z"]:
@@ -2024,14 +2016,18 @@ class MLP_search():
 
             print('to optimize Amplitude', maxpGBsearch[0])
             for j in range(len(maxpGBsearch[0])):
-                try:
-                    A_optimized = search1.calculate_Amplitude([maxpGBsearch[0][j]])
+                A_optimized = search1.calculate_Amplitude([maxpGBsearch[0][j]])
+                # A_optimized.values = -1
+                if A_optimized.values > 0:
                     maxpGBsearch[0][j]['Amplitude'] *= A_optimized.values
-                    print('loglikelihood optimized amplitude',search1.loglikelihood([maxpGBsearch[0][j]]))
-                except:
+                else:
+                    for i in range(30):
+                        print('pGB error!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
                     print('Amplitude optimization failed with parameters:', maxpGBsearch[0][j])
                     print('switch to optimize with scipy minimize trust-constr')
                     maxpGBsearch[0][j] = search1.optimizeA([[maxpGBsearch[0][j]]])[0]
+                    print('Optimized with parameters:', maxpGBsearch[0][j])
+                print('loglikelihood optimized amplitude',search1.loglikelihood([maxpGBsearch[0][j]]))
             print('in range', maxpGBsearch[0][0]['Frequency'] > lower_frequency and maxpGBsearch[0][0]['Frequency'] < upper_frequency)
             # new_SNR = search1.SNR(maxpGBsearch[0])
 
@@ -2081,8 +2077,16 @@ class MLP_search():
                 # total_boundaries['Amplitude'] = [total_boundaries['Amplitude'][0] - amplitudes_length/10,total_boundaries['Amplitude'][1] + amplitudes_length/10,]
                 
                 start = time.time()
-                found_sources_in = search_out_subtracted.optimize([found_sources_in], boundaries= total_boundaries)
+                found_sources_in_opt = search_out_subtracted.optimize([found_sources_in], boundaries= total_boundaries)
                 print('global optimization time', time.time()-start)
+
+                #### after optimization a signal inside window could lay outside. Therefore new selection is required
+                found_sources_in = []
+                for i in range(len(found_sources_in_opt)):
+                    if found_sources_in_opt[i]['Frequency'] > lower_frequency and found_sources_in_opt[i]['Frequency'] < upper_frequency:
+                        found_sources_in.append(found_sources_in_opt[i])
+                    else:
+                        found_sources_out.append(found_sources_in_opt[i])
 
             found_sources = found_sources_in + found_sources_out
 
@@ -2119,8 +2123,10 @@ class Global_optimizer():
 
             total_boundaries = deepcopy(search_out_subtracted.boundaries)
             start = time.time()
+            start_SNR = search_out_subtracted.SNR(found_sources_in)
             found_sources_in = search_out_subtracted.optimize([found_sources_in], boundaries= total_boundaries)
-            print('global optimization time', time.time()-start)
+            optimized_SNR = search_out_subtracted.SNR(found_sources_in)
+            print('global optimization time', np.round(time.time()-start), 'initial SNR', np.round(start_SNR,5), 'optimized_SNR', np.round(optimized_SNR,5))
 
             found_sources = found_sources_in + found_sources_out
 
@@ -2156,41 +2162,37 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search):
                 tdi_fs_subtracted2[k].data[index_low:index_high] -= source_subtracted[k].data
     return tdi_fs_subtracted2
 
-save_name = 'Sangria_half_even3'
-try:
-    cat = np.load(SAVEPATH+'/cat_sorted.npy', allow_pickle = True)
-    print('cat sorted loaded')
-except:
-    # get the source parameters
-    # Radler
-    if Radler:
-        names = np.array(fid['H5LISA/GWSources/GalBinaries']) # radler
-        params = [fid['H5LISA/GWSources/GalBinaries'][k] for k in names]
-        reduced_names = []
-        i = 0
-        for p in params:
-            i += 1
-            if p.shape:
-                reduced_names.append(names[i-1])
-        params = [np.array(p) for p in params if p.shape]
-        names = reduced_names
-    # Sangria
-    else:
-        names_dgb = fid["sky/dgb/cat"].dtype.names # Sangria
-        params_dgb = [np.array(fid["sky/dgb/cat"][k]).squeeze() for k in names_dgb]
-        names_igb = fid["sky/igb/cat"].dtype.names # Sangria
-        params_igb = [np.array(fid["sky/igb/cat"][k]).squeeze() for k in names_igb]
-        names_vgb = fid["sky/vgb/cat"].dtype.names # Sangria
-        params_vgb = [np.array(fid["sky/vgb/cat"][k]).squeeze() for k in names_vgb]
-        params = params_dgb
-        names = params_dgb
+# try:
+#     cat = np.load(SAVEPATH+'cat_sorted.npy', allow_pickle = True)
+#     print('cat sorted loaded')
+# except:
+#     # get the source parameters
+#     # Radler
+#     if Radler:
+#         names = np.array(fid['H5LISA/GWSources/GalBinaries']) # radler
+#         params = [fid['H5LISA/GWSources/GalBinaries'][k] for k in names]
+#         reduced_names = []
+#         i = 0
+#         for p in params:
+#             i += 1
+#             if p.shape:
+#                 reduced_names.append(names[i-1])
+#         params = [np.array(p) for p in params if p.shape]
+#         names = reduced_names
+#     # Sangria
+#     else:
+#         names_dgb = fid["sky/dgb/cat"].dtype.names # Sangria
+#         params_dgb = [np.array(fid["sky/dgb/cat"][k]).squeeze() for k in names_dgb]
+#         names_igb = fid["sky/igb/cat"].dtype.names # Sangria
+#         params_igb = [np.array(fid["sky/igb/cat"][k]).squeeze() for k in names_igb]
+#         names_vgb = fid["sky/vgb/cat"].dtype.names # Sangria
+#         params_vgb = [np.array(fid["sky/vgb/cat"][k]).squeeze() for k in names_vgb]
 
-    cat = np.rec.fromarrays(params, names=list(names))
-    indexes = np.argsort(cat['Frequency'])
-    cat = cat[indexes]
-    np.save(SAVEPATH+'/cat_sorted.npy',cat)
+#     cat = np.rec.fromarrays(params_dgb, names=list(names_dgb))
+#     indexes = np.argsort(cat['Frequency'])
+#     cat = cat[indexes]
+#     np.save(SAVEPATH+'cat_sorted.npy',cat)
 
-cat_sorted = cat
 # LDC1-4 #####################################
 frequencies = []
 frequencies_even = []
@@ -2220,6 +2222,10 @@ while current_frequency < search_range[1]:
     current_frequency = deepcopy(upper_limit)
     number_of_windows += 1
 
+frequencies_half_shifted = []
+for i in range(len(frequencies)-1):
+    frequencies_half_shifted.append([(frequencies[i][1]-frequencies[i][0])/2 +frequencies[i][0],(frequencies[i+1][1]-frequencies[i+1][0])/2 +frequencies[i+1][0]])
+frequencies = frequencies_half_shifted
 # frequencies = frequencies[:32]
 frequencies_even = frequencies[::2]
 frequencies_odd = frequencies[1::2]
@@ -2266,19 +2272,28 @@ frequencies_odd = frequencies[1::2]
 # plt.legend()
 # plt.show()
 
+
+save_name = 'Sangria_1_full_opt2_even'
 # for i in range(65):
 frequencies_search = frequencies_even
+frequencies_search_full = deepcopy(frequencies_search)
 # batch_index = int(sys.argv[1])
-batch_index = 36
-start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
+
+batch_index = 3
+# start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00399)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00404)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00264612)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.007977)
-# start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], cat_sorted[-2]['Frequency'])-1
+# start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.016308)-1
+# start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00545)-1
+# start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.001373)-1
+# start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.02355)-1
+# start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.01488)-1
+# start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], cat[-1]['Frequency'])-5
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.0004)-1
-batch_size = 16
-# start_index = batch_size*batch_index
+batch_size = 64*4
+start_index = batch_size*batch_index
 print('batch',batch_index, start_index)
 frequencies_search = frequencies_search[start_index:start_index+batch_size]
 
@@ -2294,27 +2309,120 @@ if change_to_optimized_values:
     ####### change to optimized signals with neighboors removed and inside singals only
     # found_sources_mp_o = np.load(SAVEPATH+'found_sourcesLDC1-4_2_years_full.npy', allow_pickle = True)
     # found_sources_mp_o = np.load(SAVEPATH+'found_sourcesLDC1-4_2_even_optimized.npy', allow_pickle = True)
-    found_sources_mp_o = np.load(SAVEPATH+'found_sourcesLDC1-4_2_optimized.npy', allow_pickle = True)
+    # found_sources_mp_o = np.load(SAVEPATH+'found_sourcesLDC1-4_2_optimized.npy', allow_pickle = True)
+    # found_sources_mp_o = np.load(SAVEPATH+'found_sourcesSangria_1_full.npy', allow_pickle = True)
+    found_sources_mp_o = np.load(SAVEPATH+'found_sourcesSangria_1_full_opt1.npy', allow_pickle = True)
+    # found_sources_mp_o = np.load(SAVEPATH+'found_sourcesSangria_1_even.npy', allow_pickle = True)
     # found_sources_mp_o = np.load(SAVEPATH+'found_sources' +save_name+'optimized.npy', allow_pickle = True)
     frequencies_mp = []
     for i in range(len(found_sources_mp_o)):
-        frequencies_mp.append(found_sources_mp_o[i][4][0])
+        frequencies_mp.append(found_sources_mp_o[i][4])
     # found_sources_mp_o = np.load(SAVEPATH+'/found_sources387654to408404LDC1-4_2year_even10noise_matrix.npy', allow_pickle = True)
     # found_sources_mp = np.load(SAVEPATH+'found_sources387812to408573LDC1-4_v1final_optimized.npy', allow_pickle = True) #odd
     # found_sources_mp = np.load(SAVEPATH+'found_sources387654to408404LDC1-4_v1final_optimized.npy', allow_pickle = True) #even
     # found_sources_mp = np.load(SAVEPATH+'found_sources387812to408573LDC1-4_2_oddfinal_optimized.npy', allow_pickle = True) #odd
     # found_sources_mp = np.load(SAVEPATH+'found_sources387654to408404LDC1-4_2_evenfinal_optimized.npy', allow_pickle = True) #even
     # found_sources_mp = np.load(SAVEPATH+'found_sourcesLDC1-4_2_even_optimized.npy', allow_pickle = True) #even
-    found_sources_mp = np.load(SAVEPATH+'found_sourcesLDC1-4_2_optimized_odd_second.npy', allow_pickle = True) #odd
+    # found_sources_mp = np.load(SAVEPATH+'found_sourcesLDC1-4_2_optimized_odd_second.npy', allow_pickle = True) #odd
+    found_sources_mp = np.load(SAVEPATH+'found_sourcesSangria_1_even_opt2_shift.npy', allow_pickle = True) #odd
     found_sources_mp_2 = deepcopy(found_sources_mp_o)
+    # extra_out_signals = []
+    # for i in range(len(found_sources_mp)):
+    #     start_index = np.searchsorted(frequencies_mp, found_sources_mp[i][4][0])
+    #     found_in = []
+    #     for j in range(len(found_sources_mp_o[start_index][0])):
+    #         if found_sources_mp_o[start_index][0][j]['Frequency'] > found_sources_mp_o[start_index][4][0] and found_sources_mp_o[start_index][0][j]['Frequency'] < found_sources_mp_o[start_index][4][1]:
+    #             found_in.append(found_sources_mp_o[start_index][0][j])
+    #     if len(found_in) != len(found_sources_mp[i][3]):
+    #         print(found_sources_mp_o[start_index][4][0])
+    #         print(len(found_sources_mp_o[start_index][3]), len(found_sources_mp[i][3]))
+    #         # if found_sources_mp_o[start_index][4][0] > 0.01630 and found_sources_mp_o[start_index][4][0] < 0.01631:
+    #         print(start_index)
+            # search1 = Search(tdi_fs,Tobs, found_sources_mp_o[start_index][4][0], found_sources_mp_o[start_index][4][1])
+            # if len(found_sources_mp_o[start_index][3]) > 0:
+            #     print(search1.SNR(found_sources_mp_o[start_index][3]))
+            # print(search1.SNR(found_sources_mp_o[start_index][0]))
+            # # create two sets of found sources. found_sources_in with signals inside the boundary and founce_sources_out with outside sources
+            # found_sources_in = []
+            # found_sources_out = []
+            # for k in range(len(found_sources_mp_o[start_index][0])):
+            #     if found_sources_mp_o[start_index][0][k]['Frequency'] > found_sources_mp_o[start_index][4][0] and found_sources_mp_o[start_index][0][k]['Frequency'] < found_sources_mp_o[start_index][4][1]:
+            #         found_sources_in.append(found_sources_mp_o[start_index][0][k])
+            #     else:
+            #         found_sources_out.append(found_sources_mp_o[start_index][0][k])
+            # for k in range(len(found_sources_out)):
+            #     print(search1.SNR([found_sources_out[k]]),search1.loglikelihood([found_sources_out[k]]))
+            #     if search1.loglikelihood([found_sources_out[k]]) > 50:
+            #         extra_out_signals.append([found_sources_out[k], search1.loglikelihood([found_sources_out[k]])])
+            #         if found_sources_out[k]['Frequency'] < found_sources_mp_o[start_index][4][0]:
+            #             found_sources_mp_2[start_index-1][0].append(found_sources_out[k])
+            #             found_sources_mp_2[start_index-1][3].append(found_sources_out[k])
+            #         if found_sources_out[k]['Frequency'] > found_sources_mp_o[start_index][4][1]:
+            #             found_sources_mp_2[start_index+1][3].append(found_sources_out[k])
+            #             found_sources_mp_2[start_index+1][3].append(found_sources_out[k])
+
+        # if len(found_sources_mp_2[start_index][3]) != len(found_sources_mp[i][3]):
+        #     print(start_index, frequencies_mp[start_index],found_sources_mp[i][4][0], len(found_sources_mp_2[start_index][3]), len(found_sources_mp[i][3]), len(found_sources_mp_2[start_index][0]), len(found_sources_mp[i][0]))
+        #     print(found_sources_mp_2[start_index][3], found_sources_mp[i][3])
+        #     print(found_sources_mp_2[start_index][3], found_sources_mp[i][3])
+            # for j in range(len(found_sources_mp[i][0])):
+            #     if found_sources_mp[i][0][j] < found_sources_mp_2[start_index][4][1]:
+
+
+    found_sources_in_flat = []
+    found_sources_in_flat_frequency = []
     for i in range(len(found_sources_mp)):
-        start_index = np.searchsorted(frequencies_mp, found_sources_mp[i][4][0])
-        print(start_index)
-        found_sources_mp_2[start_index][0] = found_sources_mp[i][0]
-        found_sources_mp_2[start_index][3] = found_sources_mp[i][3]
-        found_sources_mp_2[start_index][4] = found_sources_mp[i][4]
-    found_sources_mp = deepcopy(found_sources_mp_2)
-    np.save(SAVEPATH+'found_sourcesLDC1-4_2_optimized_new.npy', found_sources_mp)
+        for j in range(len(found_sources_mp[i][3])):
+            found_sources_in_flat.append(found_sources_mp[i][3][j])
+            found_sources_in_flat_frequency.append(found_sources_in_flat[-1]['Frequency'])
+    found_sources_in_flat_frequency = np.asarray(found_sources_in_flat_frequency)
+    found_sources_in_flat = np.asarray(found_sources_in_flat)
+    indexes_in = np.argsort(found_sources_in_flat_frequency)
+    found_sources_in_flat_frequency = found_sources_in_flat_frequency[indexes_in]
+    found_sources_in_flat = found_sources_in_flat[indexes_in]
+
+    found_sources_flat = []
+    found_sources_flat_frequency = []
+    for i in range(len(found_sources_mp_o)):
+        for j in range(len(found_sources_mp_o[i][3])):
+            found_sources_flat.append(found_sources_mp_o[i][3][j])
+            found_sources_flat_frequency.append(found_sources_flat[-1]['Frequency'])
+    found_sources_flat_frequency = np.asarray(found_sources_flat_frequency)
+    found_sources_flat = np.asarray(found_sources_flat)
+    indexes_in = np.argsort(found_sources_flat_frequency)
+    found_sources_flat_frequency = found_sources_flat_frequency[indexes_in]
+    found_sources_flat = found_sources_flat[indexes_in]
+    found_sources_out_flat = []
+    found_sources_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_flat]) for attribute in found_sources_flat[0].keys()}
+    found_sources_flat_df = pd.DataFrame(found_sources_flat_array)
+
+    for i in range(len(found_sources_mp)):
+        found_sources_flat_df = found_sources_flat_df[(found_sources_flat_df['Frequency']< found_sources_mp[i][4][0]) | (found_sources_flat_df['Frequency']> found_sources_mp[i][4][1])]
+    found_sources_flat_out = found_sources_flat_df.to_dict(orient='records')
+        # indexes = found_sources_flat_frequency < found_sources_mp[i][4][0]
+        # found_sources_flat_frequency = found_sources_flat_frequency[indexes]
+        # found_sources_flat = found_sources_flat[indexes]
+        # indexes = found_sources_flat_frequency > found_sources_mp[i][4][1]
+        # found_sources_flat_frequency = found_sources_flat_frequency[indexes]
+        # found_sources_flat = found_sources_flat[indexes]
+
+        # lower_index = np.searchsorted(found_sources_flat_frequency,found_sources_mp[i][4][0])
+        # higher_index = np.searchsorted(found_sources_flat_frequency,found_sources_mp[i][4][1])
+        # found_sources_flat = np.delete(found_sources_flat, np.arange(lower_index, higher_index+1))
+        
+
+
+    found_sources_in = [] 
+    for i in range(len(found_sources_mp_2)):
+        lower_index = np.searchsorted(found_sources_in_flat_frequency,frequencies_mp[i][0])
+        higher_index = np.searchsorted(found_sources_in_flat_frequency,frequencies_mp[i][1])
+        found_sources_in.append(found_sources_in_flat[lower_index:higher_index])
+        # found_sources_mp_2[start_index][0] = found_sources_mp[i][0]
+        found_sources_mp_2[i][3] = found_sources_in_flat[lower_index:higher_index]
+        # found_sources_mp_2[start_index][4] = found_sources_mp[i][4]
+
+    # found_sources_mp = deepcopy(found_sources_mp_2)
+    np.save(SAVEPATH+'found_sourcesSangria_1_full_opt2_even.npy', found_sources_mp_2)
 
 # target_frequencies = []
 # index_low = np.searchsorted(cat_sorted['Frequency'], search_range[0])
@@ -2337,14 +2445,14 @@ search_range = [frequencies_search[0][0],frequencies_search[-1][1]]
 # search_range = [1619472*10**-8,2689639*10**-8]
 print('search range '+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))))
 
-i = 0
-lower_frequency = frequencies_search[i][0]
-upper_frequency = frequencies_search[i][1]
-search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
-search1.plot(second_data= tdi_fs_dgb)
+# i = 0
+# lower_frequency = frequencies_search[i][0]
+# upper_frequency = frequencies_search[i][1]
+# search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
+# search1.plot(second_data= tdi_fs_dgb)
 
 
-do_subtract = False
+do_subtract = True
 if do_subtract:
     start = time.time()
     # save_name_previous = 'found_sources397769to400619LDC1-4_4mHz_half_year_even3'
@@ -2365,44 +2473,61 @@ if do_subtract:
     # save_name_previous = 'found_sourcesLDC1-4_2_years_full'
     # save_name_previous = 'found_sourcesLDC1-4_2_odd_optimized'
     # save_name_previous = 'found_sourcesLDC1-4_2_even_optimized'
-    save_name_previous = 'found_sourcesLDC1-4_2_optimized'
+    # save_name_previous = 'found_sourcesLDC1-4_2_optimized'
+    # Sangria
+    # save_name_previous = 'found_sourcesSangria_half_even3'
+    # save_name_previous = 'found_sourcesSangria_half_odd'
+    # save_name_previous = 'found_sourcesSangria_1_full'
+    # save_name_previous = 'found_signals_1_even/found_sources1630803to2001429Sangria_1_even'
+    # save_name_previous = 'found_sourcesSangria_1_even'
+    # save_name_previous = 'found_sourcesSangria_1_even_opt1'
+    save_name_previous = 'found_sources'+save_name
     found_sources_mp_subtract = np.load(SAVEPATH+save_name_previous+'.npy', allow_pickle = True)
 
     found_sources_in_flat = []
     found_sources_in_flat_frequency = []
-    number_of_found_flat = 0
     for i in range(len(found_sources_mp_subtract)):
         for j in range(len(found_sources_mp_subtract[i][3])):
             found_sources_in_flat.append(found_sources_mp_subtract[i][3][j])
             found_sources_in_flat_frequency.append(found_sources_in_flat[-1]['Frequency'])
-            number_of_found_flat += 1
     found_sources_in_flat_frequency = np.asarray(found_sources_in_flat_frequency)
     found_sources_in_flat = np.asarray(found_sources_in_flat)
     indexes_in = np.argsort(found_sources_in_flat_frequency)
     found_sources_in_flat_frequency = found_sources_in_flat_frequency[indexes_in]
     found_sources_in_flat = found_sources_in_flat[indexes_in]
     found_sources_out = [] 
-    for i in range(len(frequencies_search)-1):
-        lower_index = np.searchsorted(found_sources_in_flat_frequency,frequencies_search[i][1])
-        higher_index = np.searchsorted(found_sources_in_flat_frequency,frequencies_search[i+1][0])
+    for i in range(len(frequencies_search_full)-1):
+        lower_index = np.searchsorted(found_sources_in_flat_frequency,frequencies_search_full[i][1])
+        higher_index = np.searchsorted(found_sources_in_flat_frequency,frequencies_search_full[i+1][0])
         found_sources_out.append(found_sources_in_flat[lower_index:higher_index])
     found_sources_out_flat = []
     for i in range(len(found_sources_out)):
         for j in range(len(found_sources_out[i])):
             found_sources_out_flat.append(found_sources_out[i][j])
 
-    tdi_fs_subtracted = tdi_subtraction(tdi_fs,found_sources_out_flat, frequencies_search)
+    tdi_fs_subtracted = tdi_subtraction(tdi_fs,found_sources_out_flat, frequencies_search_full)
     print('subtraction time', time.time()-start)
-    plot_subraction = False
-    if plot_subraction:
-        i = 53
+    plot_subtraction = False
+    if plot_subtraction:
+        i = 100
         lower_frequency = frequencies_search[i][0]
         upper_frequency = frequencies_search[i][1]
         search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
-        search1.plot(second_data= tdi_fs_subtracted)
+        search1.plot(second_data= tdi_fs_subtracted, found_sources_in=found_sources_out_flat)
+        # search1.plot(second_data= tdi_fs_subtracted, found_sources_in=found_sources_mp_o[start_index][0])
+        
     tdi_fs = deepcopy(tdi_fs_subtracted)
 
+# i = 1718
+# search1 = Search(tdi_fs,Tobs, found_sources_mp_subtract[i][4][0], found_sources_mp_subtract[i][4][1])
+# search1.plot(second_data= tdi_fs_subtracted, found_sources_in=found_sources_mp_subtract[i][0])
+# search1.plot(second_data= tdi_fs_subtracted, found_sources_in=found_sources_mp_subtract[i][3])
 
+# save_name_previous = 'found_sourcesSangria_1_even'
+# found_sources_mp_subtract = np.load(SAVEPATH+save_name_previous+'.npy', allow_pickle = True)
+# print(search1.SNR(found_sources_mp_subtract[17*64+8][3]))
+# print(search1.SNR(found_sources_mp[17*64+8][3]))
+# search1.plot(second_data= tdi_fs_subtracted, found_sources_in=found_sources_in_flat)
 
 # do_subtract = True
 # if do_subtract:
@@ -2490,8 +2615,9 @@ if use_initial_guess:
     indexes = np.argsort(found_sources_sorted['Frequency'])
     found_sources_sorted = found_sources_sorted[indexes]
 
-# search1 = Search(tdi_fs,Tobs, frequencies_search[0][0], frequencies_search[0][1])
-# search1.plot(pGB_injected=pGB_injected[0][:10])
+# i = 4
+# search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
+# search1.plot(pGB_injected=pGB_injected[i][:10])
 # pGBadded['Frequency'] = frequencies_search[0][0]
 # start = time.time()
 # for i in range(10**3):
@@ -2512,14 +2638,15 @@ if use_initial_guess:
 # found_sources_mp = [found_sources_mp]
 # frequencies_search = [frequencies_search[7]]
 
-# indech1.plot(found_sources_in= np.concatenate(found_sources_mp[index:index+2])[0], pGB_injected=np.concatenate(pGB_injected[index:index+2]))
+# search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
+# search1.plot(found_sources_in= np.concatenate(found_sources_mp[index:index+2])[0], pGB_injected=np.concatenate(pGB_injected[index:index+2]))
 
 # search1.SNR(found_sources_mp[index][0])
 # search1.SNR(pGB_injected[index])
 
 do_search = False
 if do_search:
-    MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 3, found_sources_previous = found_sources_sorted, strategy = 'DE')
+    MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 10, found_sources_previous = found_sources_sorted, strategy = 'DE')
     start = time.time()
     cpu_cores = 16
     pool = mp.Pool(cpu_cores)
@@ -2537,16 +2664,38 @@ if final_optimization:
     # found_sources_mp = np.load(SAVEPATH+'found_sourcesLDC1-4_2_odd_optimized.npy', allow_pickle = True)
     # found_sources_mp = np.load(SAVEPATH+'found_sourcesLDC1-4_2_even_optimized.npy', allow_pickle = True)
     # found_sources_mp = np.load(SAVEPATH+'found_sourcesLDC1-4_2_optimized.npy', allow_pickle = True)
-    found_sources_mp = np.load(SAVEPATH+'found_signals/found_sources'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', allow_pickle = True)
+    # found_sources_mp = np.load(SAVEPATH+'found_signals/found_sources'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', allow_pickle = True)
+    found_sources_mp = np.load(SAVEPATH+'found_sources'+save_name+'.npy', allow_pickle = True)
     optimizer = Global_optimizer(tdi_fs, Tobs)
-    frequencies_mp = []
-    for i in range(len(found_sources_mp)):
-        frequencies_mp.append(found_sources_mp[i][4][0])
     input = []
+
+    # frequencies_mp = []
+    # for i in range(len(found_sources_mp)):
+    #     frequencies_mp.append(found_sources_mp[i][4][0])
+    # for i in range(len(frequencies_search)):
+    #     start_index = np.searchsorted(frequencies_mp,frequencies_search[i][0])
+    #     print(start_index)
+    #     input.append([frequencies_search[i][0],frequencies_search[i][1],found_sources_mp[start_index][0]])
+
+    found_sources_in_flat = []
+    found_sources_in_flat_frequency = []
+    for i in range(len(found_sources_mp)):
+        for j in range(len(found_sources_mp[i][3])):
+            found_sources_in_flat.append(found_sources_mp[i][3][j])
+            found_sources_in_flat_frequency.append(found_sources_in_flat[-1]['Frequency'])
+    found_sources_in_flat_frequency = np.asarray(found_sources_in_flat_frequency)
+    found_sources_in_flat = np.asarray(found_sources_in_flat)
+    indexes_in = np.argsort(found_sources_in_flat_frequency)
+    found_sources_in_flat_frequency = found_sources_in_flat_frequency[indexes_in]
+    found_sources_in_flat = found_sources_in_flat[indexes_in]
+    found_sources_in = [] 
+    ##### error
     for i in range(len(frequencies_search)):
-        start_index = np.searchsorted(frequencies_mp,frequencies_search[i][0])
-        print(start_index)
-        input.append([frequencies_search[i][0],frequencies_search[i][1],found_sources_mp[start_index][0]])
+        lower_index = np.searchsorted(found_sources_in_flat_frequency,frequencies_search[i][0])
+        higher_index = np.searchsorted(found_sources_in_flat_frequency,frequencies_search[i][1])
+        found_sources_in.append(found_sources_in_flat[lower_index:higher_index])
+        input.append([frequencies_search[i][0],frequencies_search[i][1],found_sources_in_flat[lower_index:higher_index]])
+
     start = time.time()
     cpu_cores = 16
     pool = mp.Pool(cpu_cores)
@@ -2554,7 +2703,7 @@ if final_optimization:
     pool.close()
     pool.join()
     print('time to optimize: ', len(frequencies_search), 'windows: ', time.time()-start)
-    np.save(SAVEPATH+'optimized/found_sources'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'_optimized.npy', found_sources_mp)
+    np.save(SAVEPATH+'optimized/found_sources'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'_optimized2.npy', found_sources_mp)
 
 
 
@@ -2743,19 +2892,19 @@ if do_print:
     pGB_injected = []
     for j in range(len(frequencies_search)):
         padding = (frequencies_search[j][1] - frequencies_search[j][0])/2 *0
-        index_low = np.searchsorted(cat_sorted['Frequency'], frequencies_search[j][0]-padding)
-        index_high = np.searchsorted(cat_sorted['Frequency'], frequencies_search[j][1]+padding)
+        index_low = np.searchsorted(cat['Frequency'], frequencies_search[j][0]-padding)
+        index_high = np.searchsorted(cat['Frequency'], frequencies_search[j][1]+padding)
         try:
-            if cat_sorted['Frequency'][index_high] < frequencies_search[j][1]:
+            if cat['Frequency'][index_high] < frequencies_search[j][1]:
                 index_high -= 1
         except:
             pass
-        indexesA = np.argsort(-cat_sorted[index_low:index_high]['Amplitude'])
+        indexesA = np.argsort(-cat[index_low:index_high]['Amplitude'])
         pGB_injected_window = []
         pGB_stacked = {}
         for parameter in parameters:
-            pGB_stacked[parameter] = cat_sorted[parameter][index_low:index_high][indexesA]
-        for i in range(len(cat_sorted['Amplitude'][index_low:index_high])):
+            pGB_stacked[parameter] = cat[parameter][index_low:index_high][indexesA]
+        for i in range(len(cat['Amplitude'][index_low:index_high])):
             pGBs = {}
             for parameter in parameters:
                 pGBs[parameter] = pGB_stacked[parameter][i]
@@ -3224,6 +3373,7 @@ if do_print:
 # plt.hlines(-0.01/(Tobs)**2, xmin=f_line[0], xmax=f_line[-1], linestyles='--')
 # plt.xscale('log')
 # plt.yscale('log')
+# plt.grid(True)
 # plt.xlabel('$\log $f $[$Hz$]$')
 # plt.ylabel('$\log  \dot{f} [s^{-2}]$')
 # # plt.savefig(SAVEPATH+'/found_sources_'+save_name+'f-fd.png')
