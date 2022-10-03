@@ -1745,6 +1745,7 @@ grandparent = os.path.dirname(parent)
 DATAPATH = "/home/stefan/LDC/Radler/data"
 DATAPATH = grandparent+"/LDC/Radler/data"
 SAVEPATH = grandparent+"/LDC/pictures/LDC1-4"
+SAVEPATH = grandparent+"/LDC/pictures/Sangria"
 
 # sangria_fn = DATAPATH + "/dgb-tdi.h5"
 # sangria_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
@@ -1807,7 +1808,8 @@ print('frequency derivative', frequency_derivative(f,0.1),frequency_derivative(f
 chandrasekhar_limit = 1.4
 M_chirp_upper_boundary = (chandrasekhar_limit**2)**(3/5)/(2*chandrasekhar_limit)**(1/5)
 
-save_name = 'LDC1-4_2_optimized_second'
+# save_name = 'LDC1-4_2_optimized_second'
+save_name = 'Sangia_half_odd'
 try:
     cat = np.load(SAVEPATH+'/cat_sorted.npy', allow_pickle = True)
     print('cat sorted loaded')
@@ -1911,8 +1913,8 @@ def SNR_match(pGB_injected, pGB_found):
     SNR3 = SNR2 / (np.sqrt(SNR)*np.sqrt(4.0*Xs.df* ss))
     return SNR3.values
 
-# found_sources_mp = np.load(SAVEPATH+'/found_sources' +save_name+'.npy', allow_pickle = True)
-found_sources_mp = np.load(SAVEPATH+'/found_sourcesLDC1-4_2_years_full.npy', allow_pickle = True)
+found_sources_mp = np.load(SAVEPATH+'/found_sources' +save_name+'.npy', allow_pickle = True)
+# found_sources_mp = np.load(SAVEPATH+'/found_sourcesLDC1-4_2_years_full.npy', allow_pickle = True)
 
 found_sources_mp_best = []
 found_sources_mp_all = []
@@ -2008,6 +2010,7 @@ def get_SNR(pGB_injected, lower_frequency, upper_frequency):
         if i > 30:
             break
     return intrinsic_SNR_injected
+
 
 #### parallel found sources
 # input = []
@@ -2212,6 +2215,22 @@ if do_get_anitcorrelation:
 found_sources_in = np.load(SAVEPATH+'/found_sources_not_anticorrelated' +save_name+'.npy', allow_pickle=True)
 found_sources_in_flat = np.concatenate(found_sources_in)
 
+##### save yaml file
+# import yaml
+# member = deepcopy(found_sources_in_flat)
+# for i in range(len(member)):
+#     for parameter in parameters:
+#         member[i][parameter] = str(member[i][parameter])
+#     member[i]['IntrinsicSNR'] = str(member[i]['IntrinsicSNR'])
+# data = {}
+# data["author"] = np.asarray(["Stefan Strub"])
+# data["e-mail"] = np.asarray(["stefan.strub@erdw.ethz.ch"])
+# data["date"] = np.asarray(["20.07.2022"])
+# data["challenge"] = np.asarray(["LDC1-4"])
+# data["dataset"] = np.asarray(["LDC1-4_GB_v2"])
+# data["esimates"] = member
+# with open(SAVEPATH+'/ETH_LDC1-4_4mHz.yaml', 'w') as file:
+#     documents = yaml.dump(member, file)
 
 # #### parallel
 # input = []
@@ -2443,15 +2462,15 @@ found_sources_not_matched_array = []
 for i in range(len(found_sources_not_matched)):
     found_sources_not_matched_array.append(np.asarray(found_sources_not_matched[i]))
 found_sources_not_matched_array = np.asarray(found_sources_not_matched_array)
-np.save(SAVEPATH+'/found_sources_matched_matchfix' +save_name+'.npy', found_sources_matched_array)
-np.save(SAVEPATH+'/found_sources_not_matched_matchfix' +save_name+'.npy', found_sources_not_matched_array)
-np.save(SAVEPATH+'/injected_not_matched_windows_matchfix' +save_name+'.npy', pGB_injected_not_matched)
-np.save(SAVEPATH+'/injected_matched_windows_matchfix' +save_name+'.npy', pGB_injected_matched)
+np.save(SAVEPATH+'/found_sources_matched' +save_name+'.npy', found_sources_matched_array)
+np.save(SAVEPATH+'/found_sources_not_matched' +save_name+'.npy', found_sources_not_matched_array)
+np.save(SAVEPATH+'/injected_not_matched_windows' +save_name+'.npy', pGB_injected_not_matched)
+np.save(SAVEPATH+'/injected_matched_windows' +save_name+'.npy', pGB_injected_matched)
 
-found_sources_matched = np.load(SAVEPATH+'/found_sources_matched_matchfix' +save_name+'.npy', allow_pickle=True)
-found_sources_not_matched = np.load(SAVEPATH+'/found_sources_not_matched_matchfix' +save_name+'.npy', allow_pickle=True)
-pGB_injected_not_matched = np.load(SAVEPATH+'/injected_not_matched_windows_matchfix' +save_name+'.npy', allow_pickle=True)
-pGB_injected_matched = np.load(SAVEPATH+'/injected_matched_windows_matchfix' +save_name+'.npy', allow_pickle=True)
+found_sources_matched = np.load(SAVEPATH+'/found_sources_matched' +save_name+'.npy', allow_pickle=True)
+found_sources_not_matched = np.load(SAVEPATH+'/found_sources_not_matched' +save_name+'.npy', allow_pickle=True)
+pGB_injected_not_matched = np.load(SAVEPATH+'/injected_not_matched_windows' +save_name+'.npy', allow_pickle=True)
+pGB_injected_matched = np.load(SAVEPATH+'/injected_matched_windows' +save_name+'.npy', allow_pickle=True)
 
 # for i in range(len(pGB_injected_not_matched)):
 #     # if i != 6:

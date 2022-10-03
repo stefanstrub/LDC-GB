@@ -20,10 +20,13 @@ grandparent = os.path.dirname(parent)
 # folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/found_signals_half_year_even10"
 # folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/found_signals_half_year_full"
 # folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/found_signals"
-folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/optimized_signals"
+# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/optimized_signals"
+# folderpath_parent = grandparent+"/LDC/pictures/Sangria/found_signals"
+folderpath_parent = grandparent+"/LDC/pictures/Sangria/optimized"
+folderpath_save = grandparent+"/LDC/pictures/Sangria"
 
-name = '_2_odd_second'
-save_name = 'LDC1-4' + name
+name = '_1_even_opt2_shift'
+save_name = 'Sangria' + name
 folderpath = folderpath_parent + name
 onlyfiles = [f for f in listdir(folderpath) if isfile(join(folderpath, f))]
 found_sources_mp_even_unsorted = []
@@ -47,4 +50,4 @@ found_sources_mp = []
 for i in range(len(sorted_indexes)):
     found_sources_mp.append(found_sources_mp_even_unsorted[sorted_indexes[i]])
 
-np.save(folderpath+'/found_sources' +save_name+'.npy', found_sources_mp)
+np.save(folderpath_save+'/found_sources' +save_name+'.npy', found_sources_mp)
