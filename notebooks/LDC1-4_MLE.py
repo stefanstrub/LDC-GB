@@ -2126,7 +2126,7 @@ class Global_optimizer():
             start_SNR = search_out_subtracted.SNR(found_sources_in)
             found_sources_in = search_out_subtracted.optimize([found_sources_in], boundaries= total_boundaries)
             optimized_SNR = search_out_subtracted.SNR(found_sources_in)
-            print('global optimization time', np.round(time.time()-start), 'initial SNR', np.round(start_SNR,5), 'optimized_SNR', np.round(optimized_SNR,5))
+            print('global optimization time', np.round(time.time()-start), 'initial SNR', np.round(start_SNR,5), 'optimized_SNR', np.round(optimized_SNR,5), 'difference SNR', np.round(optimized_SNR-start_SNR,5) )
 
             found_sources = found_sources_in + found_sources_out
 
@@ -2226,7 +2226,6 @@ frequencies_half_shifted = []
 for i in range(len(frequencies)-1):
     frequencies_half_shifted.append([(frequencies[i][1]-frequencies[i][0])/2 +frequencies[i][0],(frequencies[i+1][1]-frequencies[i+1][0])/2 +frequencies[i+1][0]])
 frequencies = frequencies_half_shifted
-# frequencies = frequencies[:32]
 frequencies_even = frequencies[::2]
 frequencies_odd = frequencies[1::2]
 
@@ -2275,11 +2274,10 @@ frequencies_odd = frequencies[1::2]
 
 save_name = 'Sangria_1_full_opt2_even'
 # for i in range(65):
-frequencies_search = frequencies_even
+frequencies_search = frequencies_odd
 frequencies_search_full = deepcopy(frequencies_search)
 # batch_index = int(sys.argv[1])
-
-batch_index = 3
+batch_index = 16
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00399)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00404)
@@ -2311,7 +2309,7 @@ if change_to_optimized_values:
     # found_sources_mp_o = np.load(SAVEPATH+'found_sourcesLDC1-4_2_even_optimized.npy', allow_pickle = True)
     # found_sources_mp_o = np.load(SAVEPATH+'found_sourcesLDC1-4_2_optimized.npy', allow_pickle = True)
     # found_sources_mp_o = np.load(SAVEPATH+'found_sourcesSangria_1_full.npy', allow_pickle = True)
-    found_sources_mp_o = np.load(SAVEPATH+'found_sourcesSangria_1_full_opt1.npy', allow_pickle = True)
+    found_sources_mp_o = np.load(SAVEPATH+'found_sourcesSangria_1_full_opt2_even.npy', allow_pickle = True)
     # found_sources_mp_o = np.load(SAVEPATH+'found_sourcesSangria_1_even.npy', allow_pickle = True)
     # found_sources_mp_o = np.load(SAVEPATH+'found_sources' +save_name+'optimized.npy', allow_pickle = True)
     frequencies_mp = []
@@ -2324,7 +2322,7 @@ if change_to_optimized_values:
     # found_sources_mp = np.load(SAVEPATH+'found_sources387654to408404LDC1-4_2_evenfinal_optimized.npy', allow_pickle = True) #even
     # found_sources_mp = np.load(SAVEPATH+'found_sourcesLDC1-4_2_even_optimized.npy', allow_pickle = True) #even
     # found_sources_mp = np.load(SAVEPATH+'found_sourcesLDC1-4_2_optimized_odd_second.npy', allow_pickle = True) #odd
-    found_sources_mp = np.load(SAVEPATH+'found_sourcesSangria_1_even_opt2_shift.npy', allow_pickle = True) #odd
+    found_sources_mp = np.load(SAVEPATH+'found_sourcesSangria_1_odd_opt2.npy', allow_pickle = True) #odd
     found_sources_mp_2 = deepcopy(found_sources_mp_o)
     # extra_out_signals = []
     # for i in range(len(found_sources_mp)):
@@ -2369,60 +2367,44 @@ if change_to_optimized_values:
             #     if found_sources_mp[i][0][j] < found_sources_mp_2[start_index][4][1]:
 
 
-    found_sources_in_flat = []
-    found_sources_in_flat_frequency = []
+    # found_sources_in_flat = []
+    # found_sources_in_flat_frequency = []
+    # for i in range(len(found_sources_mp)):
+    #     for j in range(len(found_sources_mp[i][3])):
+    #         found_sources_in_flat.append(found_sources_mp[i][3][j])
+    #         found_sources_in_flat_frequency.append(found_sources_in_flat[-1]['Frequency'])
+    # found_sources_in_flat_frequency = np.asarray(found_sources_in_flat_frequency)
+    # found_sources_in_flat = np.asarray(found_sources_in_flat)
+    # indexes_in = np.argsort(found_sources_in_flat_frequency)
+    # found_sources_in_flat_frequency = found_sources_in_flat_frequency[indexes_in]
+    # found_sources_in_flat = found_sources_in_flat[indexes_in]
+
+    found_sources_new_flat = []
     for i in range(len(found_sources_mp)):
         for j in range(len(found_sources_mp[i][3])):
-            found_sources_in_flat.append(found_sources_mp[i][3][j])
-            found_sources_in_flat_frequency.append(found_sources_in_flat[-1]['Frequency'])
-    found_sources_in_flat_frequency = np.asarray(found_sources_in_flat_frequency)
-    found_sources_in_flat = np.asarray(found_sources_in_flat)
-    indexes_in = np.argsort(found_sources_in_flat_frequency)
-    found_sources_in_flat_frequency = found_sources_in_flat_frequency[indexes_in]
-    found_sources_in_flat = found_sources_in_flat[indexes_in]
+            found_sources_new_flat.append(found_sources_mp[i][3][j])
+    found_sources_new_flat = np.asarray(found_sources_new_flat)
+    found_sources_new_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_new_flat]) for attribute in found_sources_new_flat[0].keys()}
+    found_sources_new_flat_df = pd.DataFrame(found_sources_new_flat_array)
+    found_sources_new_flat_df = found_sources_new_flat_df.sort_values('Frequency')
 
     found_sources_flat = []
-    found_sources_flat_frequency = []
     for i in range(len(found_sources_mp_o)):
         for j in range(len(found_sources_mp_o[i][3])):
             found_sources_flat.append(found_sources_mp_o[i][3][j])
-            found_sources_flat_frequency.append(found_sources_flat[-1]['Frequency'])
-    found_sources_flat_frequency = np.asarray(found_sources_flat_frequency)
     found_sources_flat = np.asarray(found_sources_flat)
-    indexes_in = np.argsort(found_sources_flat_frequency)
-    found_sources_flat_frequency = found_sources_flat_frequency[indexes_in]
-    found_sources_flat = found_sources_flat[indexes_in]
-    found_sources_out_flat = []
     found_sources_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_flat]) for attribute in found_sources_flat[0].keys()}
     found_sources_flat_df = pd.DataFrame(found_sources_flat_array)
-
+    found_sources_flat_df = found_sources_flat_df.sort_values('Frequency')
     for i in range(len(found_sources_mp)):
         found_sources_flat_df = found_sources_flat_df[(found_sources_flat_df['Frequency']< found_sources_mp[i][4][0]) | (found_sources_flat_df['Frequency']> found_sources_mp[i][4][1])]
-    found_sources_flat_out = found_sources_flat_df.to_dict(orient='records')
-        # indexes = found_sources_flat_frequency < found_sources_mp[i][4][0]
-        # found_sources_flat_frequency = found_sources_flat_frequency[indexes]
-        # found_sources_flat = found_sources_flat[indexes]
-        # indexes = found_sources_flat_frequency > found_sources_mp[i][4][1]
-        # found_sources_flat_frequency = found_sources_flat_frequency[indexes]
-        # found_sources_flat = found_sources_flat[indexes]
+    found_sources_combined_flat_df = found_sources_flat_df.append(found_sources_new_flat_df, ignore_index=True)
+    found_sources_combined_flat_df = found_sources_combined_flat_df.sort_values('Frequency')
 
-        # lower_index = np.searchsorted(found_sources_flat_frequency,found_sources_mp[i][4][0])
-        # higher_index = np.searchsorted(found_sources_flat_frequency,found_sources_mp[i][4][1])
-        # found_sources_flat = np.delete(found_sources_flat, np.arange(lower_index, higher_index+1))
-        
-
-
-    found_sources_in = [] 
     for i in range(len(found_sources_mp_2)):
-        lower_index = np.searchsorted(found_sources_in_flat_frequency,frequencies_mp[i][0])
-        higher_index = np.searchsorted(found_sources_in_flat_frequency,frequencies_mp[i][1])
-        found_sources_in.append(found_sources_in_flat[lower_index:higher_index])
-        # found_sources_mp_2[start_index][0] = found_sources_mp[i][0]
-        found_sources_mp_2[i][3] = found_sources_in_flat[lower_index:higher_index]
-        # found_sources_mp_2[start_index][4] = found_sources_mp[i][4]
+        found_sources_mp_2[i][3] = found_sources_combined_flat_df[(found_sources_combined_flat_df['Frequency']> frequencies_mp[i][0]) & (found_sources_combined_flat_df['Frequency']< frequencies_mp[i][1])].to_dict(orient='records')
 
-    # found_sources_mp = deepcopy(found_sources_mp_2)
-    np.save(SAVEPATH+'found_sourcesSangria_1_full_opt2_even.npy', found_sources_mp_2)
+    np.save(SAVEPATH+'found_sourcesSangria_1_full_opt2.npy', found_sources_mp_2)
 
 # target_frequencies = []
 # index_low = np.searchsorted(cat_sorted['Frequency'], search_range[0])
@@ -2484,28 +2466,20 @@ if do_subtract:
     save_name_previous = 'found_sources'+save_name
     found_sources_mp_subtract = np.load(SAVEPATH+save_name_previous+'.npy', allow_pickle = True)
 
-    found_sources_in_flat = []
-    found_sources_in_flat_frequency = []
+    found_sources_flat = []
     for i in range(len(found_sources_mp_subtract)):
         for j in range(len(found_sources_mp_subtract[i][3])):
-            found_sources_in_flat.append(found_sources_mp_subtract[i][3][j])
-            found_sources_in_flat_frequency.append(found_sources_in_flat[-1]['Frequency'])
-    found_sources_in_flat_frequency = np.asarray(found_sources_in_flat_frequency)
-    found_sources_in_flat = np.asarray(found_sources_in_flat)
-    indexes_in = np.argsort(found_sources_in_flat_frequency)
-    found_sources_in_flat_frequency = found_sources_in_flat_frequency[indexes_in]
-    found_sources_in_flat = found_sources_in_flat[indexes_in]
-    found_sources_out = [] 
-    for i in range(len(frequencies_search_full)-1):
-        lower_index = np.searchsorted(found_sources_in_flat_frequency,frequencies_search_full[i][1])
-        higher_index = np.searchsorted(found_sources_in_flat_frequency,frequencies_search_full[i+1][0])
-        found_sources_out.append(found_sources_in_flat[lower_index:higher_index])
-    found_sources_out_flat = []
-    for i in range(len(found_sources_out)):
-        for j in range(len(found_sources_out[i])):
-            found_sources_out_flat.append(found_sources_out[i][j])
-
+            found_sources_flat.append(found_sources_mp_subtract[i][3][j])
+    found_sources_flat = np.asarray(found_sources_flat)
+    found_sources_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_flat]) for attribute in found_sources_flat[0].keys()}
+    found_sources_flat_df = pd.DataFrame(found_sources_flat_array)
+    found_sources_flat_df = found_sources_flat_df.sort_values('Frequency')
+    for i in range(len(frequencies_search_full)):
+        found_sources_flat_df = found_sources_flat_df[(found_sources_flat_df['Frequency']< frequencies_search_full[i][0]) | (found_sources_flat_df['Frequency']> frequencies_search_full[i][1])]
+    found_sources_flat_df = found_sources_flat_df.sort_values('Frequency')
+    found_sources_out_flat = found_sources_flat_df.to_dict(orient='records')
     tdi_fs_subtracted = tdi_subtraction(tdi_fs,found_sources_out_flat, frequencies_search_full)
+
     print('subtraction time', time.time()-start)
     plot_subtraction = False
     if plot_subtraction:
@@ -2669,32 +2643,36 @@ if final_optimization:
     optimizer = Global_optimizer(tdi_fs, Tobs)
     input = []
 
-    # frequencies_mp = []
+    # found_sources_in_flat = []
+    # found_sources_in_flat_frequency = []
     # for i in range(len(found_sources_mp)):
-    #     frequencies_mp.append(found_sources_mp[i][4][0])
+    #     for j in range(len(found_sources_mp[i][3])):
+    #         found_sources_in_flat.append(found_sources_mp[i][3][j])
+    #         found_sources_in_flat_frequency.append(found_sources_in_flat[-1]['Frequency'])
+    # found_sources_in_flat_frequency = np.asarray(found_sources_in_flat_frequency)
+    # found_sources_in_flat = np.asarray(found_sources_in_flat)
+    # indexes_in = np.argsort(found_sources_in_flat_frequency)
+    # found_sources_in_flat_frequency = found_sources_in_flat_frequency[indexes_in]
+    # found_sources_in_flat = found_sources_in_flat[indexes_in]
+    # found_sources_in = [] 
+    # ##### error
     # for i in range(len(frequencies_search)):
-    #     start_index = np.searchsorted(frequencies_mp,frequencies_search[i][0])
-    #     print(start_index)
-    #     input.append([frequencies_search[i][0],frequencies_search[i][1],found_sources_mp[start_index][0]])
+    #     lower_index = np.searchsorted(found_sources_in_flat_frequency,frequencies_search[i][0])
+    #     higher_index = np.searchsorted(found_sources_in_flat_frequency,frequencies_search[i][1])
+    #     found_sources_in.append(found_sources_in_flat[lower_index:higher_index])
+    #     input.append([frequencies_search[i][0],frequencies_search[i][1],found_sources_in_flat[lower_index:higher_index]])
 
-    found_sources_in_flat = []
-    found_sources_in_flat_frequency = []
+    found_sources_flat = []
     for i in range(len(found_sources_mp)):
         for j in range(len(found_sources_mp[i][3])):
-            found_sources_in_flat.append(found_sources_mp[i][3][j])
-            found_sources_in_flat_frequency.append(found_sources_in_flat[-1]['Frequency'])
-    found_sources_in_flat_frequency = np.asarray(found_sources_in_flat_frequency)
-    found_sources_in_flat = np.asarray(found_sources_in_flat)
-    indexes_in = np.argsort(found_sources_in_flat_frequency)
-    found_sources_in_flat_frequency = found_sources_in_flat_frequency[indexes_in]
-    found_sources_in_flat = found_sources_in_flat[indexes_in]
-    found_sources_in = [] 
-    ##### error
+            found_sources_flat.append(found_sources_mp[i][3][j])
+    found_sources_flat = np.asarray(found_sources_flat)
+    found_sources_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_flat]) for attribute in found_sources_flat[0].keys()}
+    found_sources_flat_df = pd.DataFrame(found_sources_flat_array)
+    found_sources_flat_df = found_sources_flat_df.sort_values('Frequency')
     for i in range(len(frequencies_search)):
-        lower_index = np.searchsorted(found_sources_in_flat_frequency,frequencies_search[i][0])
-        higher_index = np.searchsorted(found_sources_in_flat_frequency,frequencies_search[i][1])
-        found_sources_in.append(found_sources_in_flat[lower_index:higher_index])
-        input.append([frequencies_search[i][0],frequencies_search[i][1],found_sources_in_flat[lower_index:higher_index]])
+        input_dict = found_sources_flat_df[(found_sources_flat_df['Frequency'] > frequencies_search[i][0]) & (found_sources_flat_df['Frequency'] < frequencies_search[i][1])].to_dict(orient='records')
+        input.append([frequencies_search[i][0],frequencies_search[i][1],input_dict])
 
     start = time.time()
     cpu_cores = 16
@@ -2703,7 +2681,7 @@ if final_optimization:
     pool.close()
     pool.join()
     print('time to optimize: ', len(frequencies_search), 'windows: ', time.time()-start)
-    np.save(SAVEPATH+'optimized/found_sources'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'_optimized2.npy', found_sources_mp)
+    np.save(SAVEPATH+'optimized/found_sources'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'_optimized1.npy', found_sources_mp)
 
 
 
@@ -3321,59 +3299,59 @@ if do_print:
 # plt.legend(loc='upper left')
 # plt.show()
 
-# f_line = np.logspace(-4,-1, num=20)
-# # f_line = f_line[10:12]
-# # f_line = [0.0003,0.0005]
-# above_indexes = np.searchsorted(cat_sorted['Frequency'],0.003977)
-# cat_reduced = cat_sorted[above_indexes:]
-# indexes_below = np.searchsorted(cat_reduced['Frequency'],0.00401)
-# cat_reduced = cat_reduced[:indexes_below]
-# negative_fd_indexes = cat_reduced['FrequencyDerivative'] < 0
-# print(cat_reduced[negative_fd_indexes][-1])
-# print(cat_reduced[negative_fd_indexes])
-# print(len(cat_reduced[negative_fd_indexes])/len(cat_reduced))
+if True:
+    f_line = np.logspace(-4,-1, num=20)
+    # f_line = f_line[10:12]
+    # f_line = [0.0003,0.0005]
+    above_indexes = np.searchsorted(cat['Frequency'],0.003977)
+    cat_reduced = cat[above_indexes:]
+    indexes_below = np.searchsorted(cat_reduced['Frequency'],0.00401)
+    cat_reduced = cat_reduced[:indexes_below]
+    negative_fd_indexes = cat_reduced['FrequencyDerivative'] < 0
+    print(cat_reduced[negative_fd_indexes])
+    print(len(cat_reduced[negative_fd_indexes])/len(cat_reduced))
 
 
-# pGB_injected = []
-# frequencies_plot = []
-# for i in range(len(f_line)-1):
-#     frequencies_plot.append([f_line[i],f_line[i+1]])
-# # frequencies_plot.append([0.00950403-0.0001,0.00950403+0.0001])
-# # frequencies_plot = [frequencies_plot[5]]
-# cat_plot = []
-# for j in range(len(frequencies_plot)):
-#     index_low = np.searchsorted(cat_reduced['Frequency'], frequencies_plot[j][0])
-#     index_high = np.searchsorted(cat_reduced['Frequency'], frequencies_plot[j][1])
-#     try:
-#         cat_plot.append(cat_reduced[index_low:index_low+50])
-#     except:
-#         cat_plot.append(cat_reduced[index_low:])
-# for j in range(len(frequencies_plot)):
-#     index_low = np.searchsorted(cat_reduced[negative_fd_indexes]['Frequency'], frequencies_plot[j][0])
-#     index_high = np.searchsorted(cat_reduced[negative_fd_indexes]['Frequency'], frequencies_plot[j][1])
-#     try:
-#         cat_plot.append(cat_reduced[negative_fd_indexes][index_low:index_low+50])
-#     except:
-#         cat_plot.append(cat_reduced[negative_fd_indexes][index_low:])
+    pGB_injected = []
+    frequencies_plot = []
+    for i in range(len(f_line)-1):
+        frequencies_plot.append([f_line[i],f_line[i+1]])
+    # frequencies_plot.append([0.00950403-0.0001,0.00950403+0.0001])
+    # frequencies_plot = [frequencies_plot[5]]
+    cat_plot = []
+    for j in range(len(frequencies_plot)):
+        index_low = np.searchsorted(cat_reduced['Frequency'], frequencies_plot[j][0])
+        index_high = np.searchsorted(cat_reduced['Frequency'], frequencies_plot[j][1])
+        try:
+            cat_plot.append(cat_reduced[index_low:index_low+50])
+        except:
+            cat_plot.append(cat_reduced[index_low:])
+    for j in range(len(frequencies_plot)):
+        index_low = np.searchsorted(cat_reduced[negative_fd_indexes]['Frequency'], frequencies_plot[j][0])
+        index_high = np.searchsorted(cat_reduced[negative_fd_indexes]['Frequency'], frequencies_plot[j][1])
+        try:
+            cat_plot.append(cat_reduced[negative_fd_indexes][index_low:index_low+50])
+        except:
+            cat_plot.append(cat_reduced[negative_fd_indexes][index_low:])
 
-# fig = plt.figure()
-# parameter_x = 'Frequency'
-# parameter_y = 'FrequencyDerivative'
-# for i in range(len(cat_plot)):
-#     for j in range(len(cat_plot[i])):
-#         plt.scatter(cat_plot[i][parameter_x][j],cat_plot[i][parameter_y][j])
-# plt.plot(f_line, frequency_derivative(f_line,0.1))
-# plt.plot(f_line, frequency_derivative(f_line,0.5))
-# plt.plot(f_line, frequency_derivative(f_line,M_chirp_upper_boundary))
-# # plt.plot(f_line, frequency_derivative(f_line,100))
-# plt.plot(f_line, frequency_derivative_tyson(f_line))
-# plt.plot(f_line, frequency_derivative_tyson_lower(f_line))
-# plt.hlines(0.01/Tobs**2, xmin=f_line[0], xmax=f_line[-1], linestyles='--')
-# # plt.hlines(0.01/(Tobs/2)**2, xmin=f_line[0], xmax=f_line[-1], linestyles='--')
-# plt.hlines(-0.01/(Tobs)**2, xmin=f_line[0], xmax=f_line[-1], linestyles='--')
-# plt.xscale('log')
-# plt.yscale('log')
-# plt.grid(True)
-# plt.xlabel('$\log $f $[$Hz$]$')
-# plt.ylabel('$\log  \dot{f} [s^{-2}]$')
-# # plt.savefig(SAVEPATH+'/found_sources_'+save_name+'f-fd.png')
+    fig = plt.figure()
+    parameter_x = 'Frequency'
+    parameter_y = 'FrequencyDerivative'
+    for i in range(len(cat_plot)):
+        for j in range(len(cat_plot[i])):
+            plt.scatter(cat_plot[i][parameter_x][j],cat_plot[i][parameter_y][j])
+    plt.plot(f_line, frequency_derivative(f_line,0.1))
+    plt.plot(f_line, frequency_derivative(f_line,0.5))
+    plt.plot(f_line, frequency_derivative(f_line,M_chirp_upper_boundary))
+    # plt.plot(f_line, frequency_derivative(f_line,100))
+    plt.plot(f_line, frequency_derivative_tyson(f_line))
+    plt.plot(f_line, frequency_derivative_tyson_lower(f_line))
+    plt.hlines(0.01/Tobs**2, xmin=f_line[0], xmax=f_line[-1], linestyles='--')
+    # plt.hlines(0.01/(Tobs/2)**2, xmin=f_line[0], xmax=f_line[-1], linestyles='--')
+    plt.hlines(-0.01/(Tobs)**2, xmin=f_line[0], xmax=f_line[-1], linestyles='--')
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.grid(True)
+    plt.xlabel('$\log $f $[$Hz$]$')
+    plt.ylabel('$\log  \dot{f} [s^{-2}]$')
+    # plt.savefig(SAVEPATH+'/found_sources_'+save_name+'f-fd.png')

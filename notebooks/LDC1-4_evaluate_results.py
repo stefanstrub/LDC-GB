@@ -2302,7 +2302,6 @@ plt.figure()
 plt.imshow(correlation_list2)
 plt.show()
 
-
 found_sources_matched_flat = np.concatenate(found_sources_matched)
 found_sources_matched_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_matched_flat]) for attribute in found_sources_matched_flat[0].keys()}
 found_sources_matched_flat_df = pd.DataFrame(found_sources_matched_flat_array)
