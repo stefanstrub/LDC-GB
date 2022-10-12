@@ -1,13 +1,13 @@
 #%%
-import matplotlib.pyplot as plt
-from matplotlib import rcParams
-from matplotlib.patches import Ellipse
+# import matplotlib.pyplot as plt
+# from matplotlib import rcParams
+# from matplotlib.patches import Ellipse
 #from getdist import plots, MCSamples
 import scipy
 from scipy.optimize import differential_evolution
 import numpy as np
 import xarray as xr
-from getdist import plots, MCSamples
+# from getdist import plots, MCSamples
 import time
 from copy import deepcopy
 import multiprocessing as mp
@@ -26,7 +26,7 @@ from fastkde import fastKDE
 from sklearn.metrics import mean_squared_error
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
-from chainconsumer import ChainConsumer
+# from chainconsumer import ChainConsumer
 
 
 # customized settings
@@ -45,18 +45,18 @@ plot_parameter = {  # 'backend': 'ps',
     "savefig.dpi": 150,
 }
 
-# tell matplotlib about your param_plots
-rcParams.update(plot_parameter)
-# set nice figure sizes
-fig_width_pt = 1.5*464.0  # Get this from LaTeX using \showthe\columnwidth
-golden_mean = (np.sqrt(5.0) - 1.0) / 2.0  # Aesthetic ratio
-ratio = golden_mean
-inches_per_pt = 1.0 / 72.27  # Convert pt to inches
-fig_width = fig_width_pt * inches_per_pt  # width in inches
-fig_height = fig_width * ratio  # height in inches
-fig_size = [fig_width, fig_height]
-fig_size_squared = [fig_width, fig_width]
-rcParams.update({"figure.figsize": fig_size})
+# # tell matplotlib about your param_plots
+# rcParams.update(plot_parameter)
+# # set nice figure sizes
+# fig_width_pt = 1.5*464.0  # Get this from LaTeX using \showthe\columnwidth
+# golden_mean = (np.sqrt(5.0) - 1.0) / 2.0  # Aesthetic ratio
+# ratio = golden_mean
+# inches_per_pt = 1.0 / 72.27  # Convert pt to inches
+# fig_width = fig_width_pt * inches_per_pt  # width in inches
+# fig_height = fig_width * ratio  # height in inches
+# fig_size = [fig_width, fig_height]
+# fig_size_squared = [fig_width, fig_width]
+# rcParams.update({"figure.figsize": fig_size})
 
 def Window(tm, offs=1000.0):
     xl = offs
@@ -590,7 +590,7 @@ class Search():
         res = 4*float(np.sum(diff / self.Sn) * self.dataX.df)
         return res
 
-    def plot(self, maxpGBs=None, pGBadded=None, second_data = None , found_sources_in= [], pGB_injected = [], pGB_injected_matched = [], added_label='Injection2', saving_label =None):
+    def plot(self, maxpGBs=None, pGBadded=None, second_data = None,  found_sources_in= [], found_sources_not_matched= [], pGB_injected = [], pGB_injected_matched = [], added_label='Injection2', saving_label =None, vertical_lines = []):
         plt.figure(figsize=fig_size)
         fig, [ax1, ax2] = plt.subplots(2, 1, sharex=True, figsize=fig_size)
         # plt.plot(dataX_training.f*1000,dataX_training.values, label='data')
@@ -622,6 +622,7 @@ class Search():
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
             ax1.plot(Af.f*10**3,Af,'k--',zorder= 1, linewidth = 2, label = 'Data subtracted')
             ax2.plot(Ef.f*10**3,np.abs(Ef),'k--',zorder= 1, linewidth = 2, label = 'Data subtracted')
+
 
         for j in range(len( pGB_injected)):
             Xs, Ys, Zs = GB.get_fd_tdixyz(template= pGB_injected[j], oversample=4, simulator="synthlisa")
@@ -665,11 +666,24 @@ class Search():
             ax1.plot(Af.f* 1000, Af.data,'--', color= colors[j%10], linewidth = 1.6)
             ax2.plot(Ef.f* 1000, np.abs(Ef.data),'--', color= colors[j%10], linewidth = 1.6)
 
+        for j in range(len(found_sources_not_matched)):
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_not_matched[j], oversample=4, simulator="synthlisa")
+            index_low = np.searchsorted(Xs.f, self.dataX.f[0])
+            Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+            Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+            Af = (Zs - Xs)/np.sqrt(2.0)
+            Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
+            ax1.plot(Af.f* 1000,Af.data,'.', color= colors[j%10], linewidth = 1.6)
+            ax2.plot(Ef.f* 1000, np.abs(Ef.data),'.', color= colors[j%10], linewidth = 1.6)
+
         # ax1.plot(Xs_added2.f * 1000, Xs_added2.values.real, label="VGB2", marker=".", zorder=5)
         ax1.axvline(self.lower_frequency* 1000, color= 'red', label='Boundaries')
         ax1.axvline(self.upper_frequency* 1000, color= 'red')
         ax2.axvline(self.lower_frequency* 1000, color= 'red')
         ax2.axvline(self.upper_frequency* 1000, color= 'red')
+        for j in range(len(vertical_lines)):
+            ax1.axvline(vertical_lines[j]* 1000, color= 'red')
+            ax2.axvline(vertical_lines[j]* 1000, color= 'red')
         # ax2.axvline(self.lower_frequency* 1000- 4*32*10**-6, color= 'green')
         # ax2.axvline(self.upper_frequency* 1000+ 4*32*10**-6, color= 'green')
         # if self.reduced_frequency_boundaries != None:
@@ -678,12 +692,14 @@ class Search():
 
         # ax1.plot(Xs.f * 1000, dataX.values.real - Xs.values.real, label="residual", alpha=0.8, color="red", marker=".")
         plt.xlabel('f (mHz)')
-        ax1.set_ylabel('A')    
+        ax1.set_ylabel('real A')    
         ax2.set_ylabel('|E|') 
         # ax1.set_yscale('log')  
         ax2.set_yscale('log')   
         ax1.set_xlim((self.lower_frequency-self.padding)*10**3, (self.upper_frequency+self.padding)*10**3)
         ax2.set_xlim((self.lower_frequency-self.padding)*10**3, (self.upper_frequency+self.padding)*10**3)
+        # ax1.set_xlim((self.lower_frequency)*10**3, (self.upper_frequency)*10**3)
+        # ax2.set_xlim((self.lower_frequency)*10**3, (self.upper_frequency)*10**3)
         ax1.xaxis.set_major_locator(plt.MaxNLocator(4))
         ax2.xaxis.set_major_locator(plt.MaxNLocator(4))
         # plt.legend()
@@ -1530,8 +1546,8 @@ class Search():
                     step_size[parameter] = 0.001/np.sqrt(inner_product[parameter][parameter])
                 # if step_size[parameter] > 1e-9:
                 #     step_size[parameter] = 1e-9
-                pGB_low = maxpGB01[parameter] #- step_size[parameter]/2
-                pGB_high = maxpGB01[parameter] + step_size[parameter]
+                pGB_low = maxpGB01[parameter] - step_size[parameter]/2
+                pGB_high = maxpGB01[parameter] + step_size[parameter]/2
                 # print(parameter, step_size[parameter],i)
                 # print(parameter, pGB_low, pGB_high)
                 if pGB_low < 0:
@@ -1580,8 +1596,8 @@ def objective(n,tdi_fs,Tobs):
     maxpGB, pGB =  search.optimize(pGBmodes)
     return maxpGB, pGB
 
-prop_cycle = plt.rcParams['axes.prop_cycle']
-colors = prop_cycle.by_key()['color']
+# prop_cycle = plt.rcParams['axes.prop_cycle']
+# colors = prop_cycle.by_key()['color']
 
 parameters = [
     "Amplitude",
@@ -1716,36 +1732,38 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search):
                 tdi_fs_subtracted2[k].data[index_low:index_high] -= source_subtracted[k].data
     return tdi_fs_subtracted2
 
-try:
-    cat = np.load(SAVEPATH+'cat_sorted.npy', allow_pickle = True)
-    print('cat sorted loaded')
-except:
-    # get the source parameters
-    # Radler
-    if Radler:
-        names = np.array(fid['H5LISA/GWSources/GalBinaries']) # radler
-        params = [fid['H5LISA/GWSources/GalBinaries'][k] for k in names]
-        reduced_names = []
-        i = 0
-        for p in params:
-            i += 1
-            if p.shape:
-                reduced_names.append(names[i-1])
-        params = [np.array(p) for p in params if p.shape]
-        names = reduced_names
-    # Sangria
-    else:
-        names_dgb = fid["sky/dgb/cat"].dtype.names # Sangria
-        params_dgb = [np.array(fid["sky/dgb/cat"][k]).squeeze() for k in names_dgb]
-        names_igb = fid["sky/igb/cat"].dtype.names # Sangria
-        params_igb = [np.array(fid["sky/igb/cat"][k]).squeeze() for k in names_igb]
-        names_vgb = fid["sky/vgb/cat"].dtype.names # Sangria
-        params_vgb = [np.array(fid["sky/vgb/cat"][k]).squeeze() for k in names_vgb]
+load_category = False
+if load_category:
+    try:
+        cat = np.load(SAVEPATH+'cat_sorted.npy', allow_pickle = True)
+        print('cat sorted loaded')
+    except:
+        # get the source parameters
+        # Radler
+        if Radler:
+            names = np.array(fid['H5LISA/GWSources/GalBinaries']) # radler
+            params = [fid['H5LISA/GWSources/GalBinaries'][k] for k in names]
+            reduced_names = []
+            i = 0
+            for p in params:
+                i += 1
+                if p.shape:
+                    reduced_names.append(names[i-1])
+            params = [np.array(p) for p in params if p.shape]
+            names = reduced_names
+        # Sangria
+        else:
+            names_dgb = fid["sky/dgb/cat"].dtype.names # Sangria
+            params_dgb = [np.array(fid["sky/dgb/cat"][k]).squeeze() for k in names_dgb]
+            names_igb = fid["sky/igb/cat"].dtype.names # Sangria
+            params_igb = [np.array(fid["sky/igb/cat"][k]).squeeze() for k in names_igb]
+            names_vgb = fid["sky/vgb/cat"].dtype.names # Sangria
+            params_vgb = [np.array(fid["sky/vgb/cat"][k]).squeeze() for k in names_vgb]
 
-    cat = np.rec.fromarrays(params_dgb, names=list(names_dgb))
-    indexes = np.argsort(cat['Frequency'])
-    cat = cat[indexes]
-    np.save(SAVEPATH+'cat_sorted.npy',cat)
+        cat = np.rec.fromarrays(params_dgb, names=list(names_dgb))
+        indexes = np.argsort(cat['Frequency'])
+        cat = cat[indexes]
+        np.save(SAVEPATH+'cat_sorted.npy',cat)
 
 # LDC1-4 #####################################
 frequencies = []
@@ -2062,14 +2080,14 @@ class Posterior_computer():
                 maxpGB01_low[parameter] = maxpGB01[parameter] - 0.001
                 maxpGB01_high[parameter] = maxpGB01[parameter] + 0.001
             if parameter in [ 'Frequency']:
-                maxpGB01_low[parameter] = maxpGB01[parameter] - scalematrix[parameters.index(parameter)]  * 2
-                maxpGB01_high[parameter] = maxpGB01[parameter] + scalematrix[parameters.index(parameter)] * 2
+                maxpGB01_low[parameter] = maxpGB01[parameter] - scalematrix[parameters.index(parameter)]  * 1
+                maxpGB01_high[parameter] = maxpGB01[parameter] + scalematrix[parameters.index(parameter)] * 1
             if parameter == 'FrequencyDerivative':
-                print('scale',scalematrix[parameters.index(parameter)])
-                if scalematrix[parameters.index(parameter)] > 0.07:
-                    print('scale', scalematrix[parameters.index(parameter)], 'fd')
-                    maxpGB01_low[parameter] = maxpGB01[parameter] - 0.1
-                    maxpGB01_high[parameter] = maxpGB01[parameter] + 0.1
+                # print('scale',scalematrix[parameters.index(parameter)])
+                # if scalematrix[parameters.index(parameter)] > 0.07:
+                print('scale', scalematrix[parameters.index(parameter)], 'fd')
+                maxpGB01_low[parameter] = maxpGB01[parameter] - 0.2
+                maxpGB01_high[parameter] = maxpGB01[parameter] + 0.2
             if maxpGB01_low[parameter] > maxpGB01_high[parameter]:
                 placeholder = deepcopy(maxpGB01_low[parameter])
                 maxpGB01_low[parameter] = deepcopy(maxpGB01_high[parameter])
@@ -2093,6 +2111,13 @@ class Posterior_computer():
         # correct Inclination and Amplitude
         split_inclination = 0.95
         if self.boundaries_reduced['Inclination'][1] > split_inclination or self.boundaries_reduced['Inclination'][0] < -split_inclination:
+            if self.boundaries_reduced['Inclination'][1] > split_inclination and self.boundaries_reduced['Inclination'][0] < -split_inclination:
+                if maxpGB01['Inclination'] > 0.5:
+                    self.boundaries_reduced['Inclination'][0] = 0.5
+                    self.boundaries_reduced['Inclination'][1] = 1
+                else:
+                    self.boundaries_reduced['Inclination'][0] = -1
+                    self.boundaries_reduced['Inclination'][1] = -0.5
             if self.boundaries_reduced['Inclination'][1] > split_inclination:
                 self.boundaries_reduced['Inclination'][0] = 0.5
                 self.boundaries_reduced['Inclination'][1] = 1
@@ -2122,6 +2147,8 @@ class Posterior_computer():
         added_trainig_size = 1000
         j = 0
         samples = np.random.rand(6000,8)
+        samples[0] = [0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5]
+        samples[test_size] = [0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5]
         while rmse > 0.6 and j < 5:
             j += 1
             train_size += added_trainig_size
@@ -2152,7 +2179,7 @@ class Posterior_computer():
             if j == 1:
                 train_y = samples_likelihood[test_size:]
                 test_y = samples_likelihood[:test_size]
-                train_x = samples_flat[test_size:]*2-1
+                train_x = samples_flat[test_size:]
                 test_x = samples_flat[:test_size]
             else:
                 train_y = np.append(train_y, samples_likelihood)
@@ -2163,7 +2190,7 @@ class Posterior_computer():
             train_y_normalized = (train_y - self.mu) / self.sigma
             kernel = RBF(length_scale=[1,2,5,1,1,1,1,1],length_scale_bounds=[(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,100),(0.1,100)])
             start = time.time()
-            self.gpr = GaussianProcessRegressor(kernel=kernel, random_state=0, normalize_y=True).fit(train_x, train_y_normalized)
+            self.gpr = GaussianProcessRegressor(kernel=kernel, random_state=0).fit(train_x, train_y_normalized)
             print('train',time.time() - start)
             start = time.time()
             observed_pred_sk = self.gpr.predict(test_x)
@@ -2172,12 +2199,14 @@ class Posterior_computer():
             rmse = np.sqrt(mean_squared_error(test_y,observed_pred_sk_scaled))
             print("RMSE ",rmse,'with training size', len(train_y))
 
-            fig = plt.figure(figsize=(15,6))
-            plt.scatter(train_x[:,0], train_x[:,5], c=train_y, cmap='gray')
-            plt.show()
-            if rmse > 0.6 and j == 5:
+            # fig = plt.figure(figsize=(15,6))
+            # plt.scatter(train_x[:,0], train_x[:,5], c=train_y, cmap='gray')
+            # plt.show()
+            if rmse > 5 and j == 5:
                 j = 0
                 samples = np.random.rand(6000,8)
+                samples[0] = [0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5]
+                samples[test_size] = [0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5]
                 train_size = 0
 
     def evaluate(self, x):
@@ -2292,7 +2321,7 @@ class Posterior_computer():
 
         return mcmc_samples
 
-    def plot_corner(self, mcmc_samples, pGB = None, save_figure = False, save_chain = False, number_of_signal = 0, parameter_titles = False, rescaled = False):
+    def plot_corner(self, mcmc_samples, pGB = {}, save_figure = False, save_chain = False, number_of_signal = 0, parameter_titles = False, rescaled = False):
         start = time.time()
         if not(rescaled):
             mcmc_samples_rescaled = np.zeros(np.shape(mcmc_samples))
@@ -2333,7 +2362,7 @@ class Posterior_computer():
             datS[:,7] = mcmc_samples_rescaled[:,7]
             lbls = [r'\lambda', r'\sin \beta', 'f$ $($mHz$)', r'\dot{f}$ $ ($Hz/s$)', r'\cos \iota', r'A', r'\phi', r'\Phi']
 
-            if not(pGB.empty):
+            if pGB:
                 tr_s = np.zeros(len(parameters))
                 i = 0
                 for parameter in ['EclipticLongitude','EclipticLatitude','Frequency','FrequencyDerivative','Inclination','Amplitude','InitialPhase','Polarization']:
@@ -2390,37 +2419,41 @@ class Posterior_computer():
             #markers vertical
             for i in range(ndim):
                 for ax in g.subplots[i:,i]:
-                    xlim = ax.get_xlim()
-                    ax.set_xlim(np.min([xlim[0], tr_s[i]]),np.max([xlim[1], tr_s[i]]))
-                    xlim = ax.get_xlim()
-                    if xlim[0] + (xlim[1]-xlim[0])*0.1 > tr_s[i]:
-                        ax.set_xlim(xlim[0] - (xlim[1]-xlim[0])*0.1, xlim[1])
-                    if xlim[1] - (xlim[1]-xlim[0])*0.1 < tr_s[i]:
-                        ax.set_xlim(xlim[0], xlim[1] + (xlim[1]-xlim[0])*0.1)
-                    if not(pGB.empty):
+                    if pGB:
+                        xlim = ax.get_xlim()
+                        ax.set_xlim(np.min([xlim[0], tr_s[i]]),np.max([xlim[1], tr_s[i]]))
+                        xlim = ax.get_xlim()
+                        if xlim[0] + (xlim[1]-xlim[0])*0.1 > tr_s[i]:
+                            ax.set_xlim(xlim[0] - (xlim[1]-xlim[0])*0.1, xlim[1])
+                        if xlim[1] - (xlim[1]-xlim[0])*0.1 < tr_s[i]:
+                            ax.set_xlim(xlim[0], xlim[1] + (xlim[1]-xlim[0])*0.1)
                         ax.axvline(tr_s[i], color='red', lw = 1)
                     ax.axvline(maxvalues[i], color='green', ls='--', lw = 1)
-                i += 1
+                # i += 1
             #markers horizontal
             for i in range(ndim):
                 for ax in g.subplots[i,:i]:
-                    ylim = ax.get_ylim()
-                    ax.set_ylim(np.min([ylim[0], tr_s[i]]),np.max([ylim[1], tr_s[i]]))
-                    ylim = ax.get_ylim()
-                    if ylim[0] + (ylim[1]-ylim[0])*0.1 > tr_s[i]:
-                        ax.set_ylim(ylim[0] - (ylim[1]-ylim[0])*0.1, ylim[1])
-                    if ylim[1] - (ylim[1]-ylim[0])*0.1 < tr_s[i]:
-                        ax.set_ylim(ylim[0], ylim[1] + (ylim[1]-ylim[0])*0.1)
-                    if not(pGB.empty):
+                    if pGB:
+                        ylim = ax.get_ylim()
+                        ax.set_ylim(np.min([ylim[0], tr_s[i]]),np.max([ylim[1], tr_s[i]]))
+                        ylim = ax.get_ylim()
+                        if ylim[0] + (ylim[1]-ylim[0])*0.1 > tr_s[i]:
+                            ax.set_ylim(ylim[0] - (ylim[1]-ylim[0])*0.1, ylim[1])
+                        if ylim[1] - (ylim[1]-ylim[0])*0.1 < tr_s[i]:
+                            ax.set_ylim(ylim[0], ylim[1] + (ylim[1]-ylim[0])*0.1)
                         ax.axhline(tr_s[i], color='red', lw = 1)
                     ax.axhline(maxvalues[i], color='green', ls='--', lw = 1)
-                i += 1
+                # i += 1
             g.export(SAVEPATH+'Posteriors/frequency'+ str(int(np.round(save_frequency*10**9)))+save_name+str(parameter_titles)+'.png')
             # plt.show()
 
-def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true = None,number_of_signal = 0):
+def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true = [], number_of_signal = 0):
     start = time.time()
     posterior1 = Posterior_computer(tdi_fs, Tobs, frequencies, maxpGB)
+    print('SNR found',posterior1.search1.SNR([maxpGB]))
+    pGB_true = pGB_true.to_dict()
+    if pGB_true:
+        print('SNR injected',posterior1.search1.SNR([pGB_true]))
     # posterior1.search1.plot(found_sources_in=[maxpGB])
     posterior1.reduce_boundaries()
     posterior1.train_model()
@@ -2429,14 +2462,14 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true = None,number_
     mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, proposal= mcmc_samples, temperature= 2)
     # posterior1.plot_corner(mcmc_samples, pGB_injected[1][0])
     mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, proposal= mcmc_samples, temperature= 1)
-    # mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, proposal= mcmc_samples, temperature= 1)
+    mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, proposal= mcmc_samples, temperature= 1)
     print('time to compute posterior: ', time.time()-start)
-    posterior1.plot_corner(mcmc_samples, pGB_true, save_figure= True, save_chain= True, number_of_signal = 0, parameter_titles = False)
+    posterior1.plot_corner(mcmc_samples, pGB_true, save_figure= False, save_chain= True, number_of_signal = 0, parameter_titles = False)
     return mcmc_samples
 
 found_sources_matched = np.load(SAVEPATH+'/found_sources_matched' +save_name+'.npy', allow_pickle=True)
 found_sources_not_matched = np.load(SAVEPATH+'/found_sources_not_matched' +save_name+'.npy', allow_pickle=True)
-pGB_injected_not_matched = np.load(SAVEPATH+'/injected_not_matched_windows' +save_name+'.npy', allow_pickle=True)
+# pGB_injected_not_matched = np.load(SAVEPATH+'/injected_not_matched_windows' +save_name+'.npy', allow_pickle=True)
 pGB_injected_matched = np.load(SAVEPATH+'/injected_matched_windows' +save_name+'.npy', allow_pickle=True)
 
 found_sources_in = found_sources_matched
@@ -2454,32 +2487,34 @@ frequencies_found = []
 # LDC1-4 ####################
 posterior_calculation_input = []
 for i in range(len(found_sources_in)):
-    if i < 4710 or i > 4800:
+    if i < 1200 or i >= 1250:
         continue
     # if i in [0,len(found_sources_in)-1]:
     #     continue
     for j in range(len(found_sources_in[i])):
-        # if j != 4:
+        # if j < 3 and i == 4777:
+        print(i)
         #     continue
         #subtract the found sources of neighbours and own window from original except the signal itself
         tdi_fs_subtracted = deepcopy(tdi_fs)
-        for m in range(3):
-            # if m == 1:
-            #     continue
-            if i-1+m < 0:
-                pass
-            elif i-1+m > len(found_sources_in)-1:
-                pass
-            else:
-                for n in range(len(found_sources_in[i-1+m])):
-                    if j != n or m != 1:
-                        print(i,j,m,n)
-                        Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_in[i-1+m][n], oversample=4, simulator="synthlisa")
-                        source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
-                        index_low = np.searchsorted(tdi_fs_subtracted["X"].f, Xs_subtracted.f[0])
-                        index_high = index_low+len(Xs_subtracted)
-                        for k in ["X", "Y", "Z"]:
-                            tdi_fs_subtracted[k].data[index_low:index_high] = tdi_fs_subtracted[k].data[index_low:index_high] - source_subtracted[k].data
+        for sources_to_subtract in [found_sources_matched, found_sources_not_matched]:
+            for m in range(3):
+                # if m == 1:
+                #     continue
+                if i-1+m < 0:
+                    pass
+                elif i-1+m > len(sources_to_subtract)-1:
+                    pass
+                else:
+                    for n in range(len(sources_to_subtract[i-1+m])):
+                        if j != n or m != 1:
+                            print(i,j,m,n)
+                            Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=sources_to_subtract[i-1+m][n], oversample=4, simulator="synthlisa")
+                            source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
+                            index_low = np.searchsorted(tdi_fs_subtracted["X"].f, Xs_subtracted.f[0])
+                            index_high = index_low+len(Xs_subtracted)
+                            for k in ["X", "Y", "Z"]:
+                                tdi_fs_subtracted[k].data[index_low:index_high] = tdi_fs_subtracted[k].data[index_low:index_high] - source_subtracted[k].data
 
         search_subtracted = Search(tdi_fs_subtracted,Tobs, frequencies_search[i][0], frequencies_search[i][1])
         # optimizer = Global_optimizer(tdi_fs=tdi_fs_subtracted, Tobs=Tobs)
@@ -2493,11 +2528,16 @@ for i in range(len(found_sources_in)):
         # found_sources_in_optimized = found_sources_mp_optimized[3]
         # print(search_subtracted.SNR(found_sources_in[i]))
         # print(search_subtracted.SNR(found_sources_in_optimized))
-
         plot_subtraction = False
         if plot_subtraction:
+            pGB_true = []
+            for k in range(len(pGB_injected[i])):
+                pGB_true.append(pGB_injected[i][k].to_dict())
+            pGB_true_not_matched = []
+            for k in range(len(pGB_injected_not_matched[i])):
+                pGB_true_not_matched.append(pGB_injected_not_matched[i].iloc[k].to_dict())
             search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
-            search1.plot(second_data= tdi_fs_subtracted, found_sources_in=found_sources_in[i])
+            search1.plot(second_data= tdi_fs_subtracted, found_sources_in=found_sources_in[i], pGB_injected_matched= pGB_true, pGB_injected= pGB_true_not_matched)
 
         # posterior_calculation_input.append((tdi_fs_subtracted, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j]))
         print('compute posterior of the signal',i,j, found_sources_in[i][j])
