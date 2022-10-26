@@ -1186,7 +1186,7 @@ class Search():
                         x.append(pGBs01[signal][parameter])
                 # print(loglikelihood(maxpGB))
                 res = scipy.optimize.minimize(self.function, x, args=boundaries_reduced, method='SLSQP', bounds=bounds, tol=1e-5)
-                # res = scipy.optimize.minimize(self.function, x, args=boundaries_reduced, method='Nelder-Mead', tol=1e-10)
+                # res = scipy.optimize.minimize(self.function, x, args=boundaries_reduced, method='Nelder-Mead', tol=1e-6)
                 # res = scipy.optimize.least_squares(self.function, x, args=boundaries_reduced, bounds=bounds)
                 for signal in range(number_of_signals_optimize):
                     maxpGB[signal] = scaletooriginal(res.x[signal*8:signal*8+8],boundaries_reduced[signal])
@@ -2225,7 +2225,7 @@ while current_frequency < search_range[1]:
 frequencies_half_shifted = []
 for i in range(len(frequencies)-1):
     frequencies_half_shifted.append([(frequencies[i][1]-frequencies[i][0])/2 +frequencies[i][0],(frequencies[i+1][1]-frequencies[i+1][0])/2 +frequencies[i+1][0]])
-frequencies = frequencies_half_shifted
+# frequencies = frequencies_half_shifted #### if shifted
 frequencies_even = frequencies[::2]
 frequencies_odd = frequencies[1::2]
 
@@ -2272,12 +2272,12 @@ frequencies_odd = frequencies[1::2]
 # plt.show()
 
 
-save_name = 'Sangria_1_full_opt2_even'
+save_name = 'Sangria_1_full_opt2'
 # for i in range(65):
-frequencies_search = frequencies_odd
+frequencies_search = frequencies_even
 frequencies_search_full = deepcopy(frequencies_search)
 # batch_index = int(sys.argv[1])
-batch_index = 16
+batch_index = 54
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00399)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00404)
@@ -2290,10 +2290,11 @@ batch_index = 16
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.01488)-1
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], cat[-1]['Frequency'])-5
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.0004)-1
-batch_size = 64*4
+batch_size = 64
 start_index = batch_size*batch_index
 print('batch',batch_index, start_index)
 frequencies_search = frequencies_search[start_index:start_index+batch_size]
+frequencies_search = frequencies_search[44:45]
 
 # print(i, frequencies_search[0])
 ### highest + padding has to be less than f Nyqist
@@ -2681,9 +2682,12 @@ if final_optimization:
     pool.close()
     pool.join()
     print('time to optimize: ', len(frequencies_search), 'windows: ', time.time()-start)
-    np.save(SAVEPATH+'optimized/found_sources'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'_optimized1.npy', found_sources_mp)
+    np.save(SAVEPATH+'optimized/found_sources'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'_optimized3.npy', found_sources_mp)
 
-
+better_pGB = {'Amplitude': 3.7080776510756e-23, 'EclipticLatitude': -0.0864329194471405, 'EclipticLongitude': -1.5608489415225566, 'Frequency': 0.011097063538503463, 'FrequencyDerivative': 3.795997584356877e-15, 'Inclination': 1.3544536642993756, 'InitialPhase': 3.802341846303522, 'Polarization': 3.0450807858161113}
+search_out_subtracted = Search(tdi_fs,Tobs, input[0][0], input[0][1])
+print(search_out_subtracted.loglikelihood(found_sources_mp[0][0]))
+print(search_out_subtracted.loglikelihood([better_pGB]))
 
 # i = 53
 # search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
@@ -3299,7 +3303,7 @@ if do_print:
 # plt.legend(loc='upper left')
 # plt.show()
 
-if True:
+if False:
     f_line = np.logspace(-4,-1, num=20)
     # f_line = f_line[10:12]
     # f_line = [0.0003,0.0005]

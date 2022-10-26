@@ -2423,6 +2423,9 @@ for i in range(len(pGB_injected)):
 number_of_found_signals = 0
 for i in range(len(found_sources_in)):
     number_of_found_signals += len(found_sources_in[i])
+number_of_found_signals_not_matched = 0
+for i in range(len(found_sources_not_matched)):
+    number_of_found_signals_not_matched += len(found_sources_not_matched[i])
 number_of_matched_signals = len(np.concatenate(found_sources_matched))
 print(number_of_matched_signals ,'matched signals out of', number_of_injected_signals , 'injected signals and',number_of_found_signals, 'found signals')
 print('sensitivity = matched signals/injected signals:', np.round(number_of_matched_signals/number_of_injected_signals,2))
@@ -2712,11 +2715,11 @@ found_sources_not_matched_flat_df = pd.DataFrame(found_sources_not_matched_flat_
 # pGB_injected_flat_df = pGB_injected_flat_df.sort_values(by= 'Frequency')
 
 
-parameter = 'EclipticLongitude'
-for i in range(len(pGB_injected)):
-    for j in range(len(pGB_injected[i])):
-        if pGB_injected[i][j][parameter] > np.pi:
-            pGB_injected[i][j][parameter] -= 2*np.pi
+# parameter = 'EclipticLongitude'
+# for i in range(len(pGB_injected)):
+#     for j in range(len(pGB_injected[i])):
+#         if pGB_injected[i].iloc[j][parameter] > np.pi:
+#             pGB_injected[i].iloc[j][parameter] -= 2*np.pi
 
 
 pGB_injected_reduced = []
@@ -2764,16 +2767,16 @@ pGB_injected_not_matched_flat_df2 = pGB_injected_not_matched_flat_df2.drop_dupli
 # index = np.searchsorted(cat_sorted['Frequency'], pGB_injected_matched_flat_df.iloc[0]['Frequency'])
 
 #### plot SNR - frequency
-markersize = 5
+markersize = 3
 alpha = 0.5
 parameter_to_plot = 'IntrinsicSNR'
 fig = plt.figure()
 # plt.plot(pGB_injected_flat_df['Frequency']*10**3,pGB_injected_flat_df['IntrinsicSNR'], '.', color= colors[0], label = 'Injected', markersize= markersize, alpha = alpha)
-# plt.plot(pGB_injected_matched_flat_df['Frequency']*10**3,pGB_injected_matched_flat_df['IntrinsicSNR'], '.', color= colors[5], label = 'Injected matched', markersize= markersize, alpha = alpha)
+plt.plot(pGB_injected_matched_flat_df['Frequency']*10**3,pGB_injected_matched_flat_df['IntrinsicSNR'], '.', color= colors[1], label = 'Injected matched', markersize= markersize, alpha = alpha)
 # plt.plot(pGB_injected_flat_df_high_SNR['Frequency']*10**3,pGB_injected_flat_df_high_SNR['IntrinsicSNR'],'.', color= colors[1], markersize= markersize, label = 'Injected SNR > 10', alpha = alpha)
-plt.plot(found_sources_matched_flat_df['Frequency']*10**3,found_sources_matched_flat_df['IntrinsicSNR'],'g.', label = 'Found matched', markersize= markersize, alpha = alpha)
+# plt.plot(found_sources_matched_flat_df['Frequency']*10**3,found_sources_matched_flat_df['IntrinsicSNR'],'g.', label = 'Found matched', markersize= markersize, alpha = alpha)
 plt.plot(pGB_injected_not_matched_flat_df2['Frequency']*10**3,pGB_injected_not_matched_flat_df2['IntrinsicSNR'], '+', color = 'r', label = 'Injected not matched', markersize= markersize, alpha = alpha)
-plt.plot(found_sources_not_matched_flat_df['Frequency']*10**3,found_sources_not_matched_flat_df['IntrinsicSNR'],'o',color= 'blue',  markerfacecolor='None', markersize= markersize, label = 'Found not matched', alpha = alpha)
+# plt.plot(found_sources_not_matched_flat_df['Frequency']*10**3,found_sources_not_matched_flat_df['IntrinsicSNR'],'o',color= 'blue',  markerfacecolor='None', markersize= markersize, label = 'Found not matched', alpha = alpha)
 plt.yscale('log')
 plt.xscale('log')
 plt.xlabel('f (mHz)')
@@ -2784,7 +2787,7 @@ if parameter_to_plot == 'IntrinsicSNR':
 else:
     plt.ylabel(parameter_to_plot)    
 plt.legend(markerscale=4, loc = 'lower right')
-plt.savefig(SAVEPATH+'/Evaluation/'+parameter_to_plot+save_name+'injected_all_found',dpi=300,bbox_inches='tight')
+plt.savefig(SAVEPATH+'/Evaluation/'+parameter_to_plot+save_name+'injected_matched_matched_top',dpi=300,bbox_inches='tight')
 plt.show()
 
 ### plot match histo gramm - frequency

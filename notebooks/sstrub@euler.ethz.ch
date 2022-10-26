@@ -45,7 +45,7 @@ plot_parameter = {  # 'backend': 'ps',
     "savefig.dpi": 150,
 }
 
-# # tell matplotlib about your param_plots
+# tell matplotlib about your param_plots
 # rcParams.update(plot_parameter)
 # # set nice figure sizes
 # fig_width_pt = 1.5*464.0  # Get this from LaTeX using \showthe\columnwidth
@@ -57,8 +57,6 @@ plot_parameter = {  # 'backend': 'ps',
 # fig_size = [fig_width, fig_height]
 # fig_size_squared = [fig_width, fig_width]
 # rcParams.update({"figure.figsize": fig_size})
-# prop_cycle = plt.rcParams['axes.prop_cycle']
-# colors = prop_cycle.by_key()['color']
 
 def Window(tm, offs=1000.0):
     xl = offs
@@ -415,7 +413,7 @@ class Search():
         # pGB = deepcopy(pGBadded)
         # self.pGB = {'Amplitude': 3.676495e-22, 'EclipticLatitude': 0.018181, 'EclipticLongitude': 1.268061, 'Frequency': 0.01158392, 'FrequencyDerivative': 8.009579e-15, 'Inclination': 0.686485, 'InitialPhase': 4.201455, 'Polarization': 2.288223}
         
-        # fd_range = [np.log10(frequency_derivative(lower_frequency,0.1)),np.log10(frequency_derivative(lower_frequency,M_chirp_upper_boundary))]
+        fd_range = [np.log10(frequency_derivative(lower_frequency,0.1)),np.log10(frequency_derivative(lower_frequency,M_chirp_upper_boundary))]
         # fd_range = [frequency_derivative(lower_frequency,0.1),frequency_derivative(lower_frequency,M_chirp_upper_boundary)]
         # fd_range = [frequency_derivative_tyson_lower(lower_frequency),frequency_derivative_tyson(lower_frequency)]
         fd_range = [frequency_derivative_tyson_lower(lower_frequency),frequency_derivative(upper_frequency,M_chirp_upper_boundary)]
@@ -1598,6 +1596,9 @@ def objective(n,tdi_fs,Tobs):
     maxpGB, pGB =  search.optimize(pGBmodes)
     return maxpGB, pGB
 
+# prop_cycle = plt.rcParams['axes.prop_cycle']
+# colors = prop_cycle.by_key()['color']
+
 parameters = [
     "Amplitude",
     "EclipticLatitude",
@@ -1973,93 +1974,6 @@ if do_print:
     # for i in range(len(found_sources_in)):
     #     number_of_found_signals += len(found_sources_in[i])
 
-def hamiltonian_monte_carlo(n_samples, negative_log_prob, grad_log_prob, initial_position, path_len=0.1, step_size=0.5):
-    """Run Hamiltonian Monte Carlo sampling.
-
-    Parameters
-    ----------
-    n_samples : int
-        Number of samples to return
-    negative_log_prob : callable
-        The negative log probability to sample from
-    initial_position : np.array
-        A place to start sampling from.
-    path_len : float
-        How long each integration path is. Smaller is faster and more correlated.
-    step_size : float
-        How long each integration step is. Smaller is slower and more accurate.
-
-    Returns
-    -------
-    np.array
-        Array of length `n_samples`.
-    """
-    # autograd magic
-    dVdq = grad_log_prob
-
-    # collect all our samples in a list
-    samples = [initial_position]
-
-    # Keep a single object for momentum resampling
-    momentum = scipy.stats.norm(0, 1)
-
-    # If initial_position is a 10d vector and n_samples is 100, we want
-    # 100 x 10 momentum draws. We can do this in one call to momentum.rvs, and
-    # iterate over rows
-    size = (n_samples,) + initial_position.shape[:1]
-    for p0 in momentum.rvs(size=size):
-        # Integrate over our path to get a new position and momentum
-        q_new, p_new = leapfrog(
-            samples[-1],
-            p0,
-            dVdq,
-            path_len=path_len,
-            step_size=step_size,
-        )
-
-        # Check Metropolis acceptance criterion
-        start_log_p = negative_log_prob(samples[-1]) - np.sum(momentum.logpdf(p0))
-        new_log_p = negative_log_prob(q_new) - np.sum(momentum.logpdf(p_new))
-        if np.log(np.random.rand()) < start_log_p - new_log_p:
-            samples.append(q_new)
-        else:
-            samples.append(np.copy(samples[-1]))
-
-    return np.array(samples[1:])
-
-def leapfrog(q, p, dVdq, path_len, step_size):
-    """Leapfrog integrator for Hamiltonian Monte Carlo.
-
-    Parameters
-    ----------
-    q : np.floatX
-        Initial position
-    p : np.floatX
-        Initial momentum
-    dVdq : callable
-        Gradient of the velocity
-    path_len : float
-        How long to integrate for
-    step_size : float
-        How long each integration step should be
-
-    Returns
-    -------
-    q, p : np.floatX, np.floatX
-        New position and momentum
-    """
-    q, p = np.copy(q), np.copy(p)
-
-    p -= step_size * dVdq(q) / 2  # half step
-    for _ in range(int(path_len / step_size) - 1):
-        q += step_size * p  # whole step
-        p -= step_size * dVdq(q)  # whole step
-    q += step_size * p  # whole step
-    p -= step_size * dVdq(q) / 2  # half step
-
-    # momentum flip at end
-    return q, -p
-
 class Posterior_computer():
     def __init__(self, tdi_fs, Tobs, frequencies, maxpGB) -> None:
         self.tdi_fs = tdi_fs
@@ -2177,7 +2091,7 @@ class Posterior_computer():
                 print('scale', scalematrix[parameters.index(parameter)], 'fd')
                 range_fd = 0.2
                 if self.search1.boundaries['FrequencyDerivative'][1] > 1e-14:
-                    range_fd = 0.01
+                    range_fd = 0.05
                 maxpGB01_low[parameter] = maxpGB01[parameter] - range_fd
                 maxpGB01_high[parameter] = maxpGB01[parameter] + range_fd
             if maxpGB01_low[parameter] > maxpGB01_high[parameter]:
@@ -2280,7 +2194,7 @@ class Posterior_computer():
             self.mu = np.mean(train_y)
             self.sigma = np.std(train_y)
             train_y_normalized = (train_y - self.mu) / self.sigma
-            kernel = RBF(length_scale=[1,2,5,1,1,1,1,1],length_scale_bounds=[(0.2,10),(0.2,10),(0.2,10),(0.2,10),(0.2,10),(0.2,10),(0.2,100),(0.2,100)])
+            kernel = RBF(length_scale=[1,2,5,1,1,1,1,1],length_scale_bounds=[(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,10),(0.1,100),(0.1,100)])
             start = time.time()
             self.gpr = GaussianProcessRegressor(kernel=kernel, random_state=0).fit(train_x, train_y_normalized)
             print('train',time.time() - start)
@@ -2290,8 +2204,6 @@ class Posterior_computer():
             observed_pred_sk_scaled = observed_pred_sk*self.sigma + self.mu
             rmse = np.sqrt(mean_squared_error(test_y,observed_pred_sk_scaled))
             print("RMSE ",rmse,'with training size', len(train_y))
-            if rmse > 30:
-                print('high RMSE')
 
             # fig = plt.figure(figsize=(15,6))
             # plt.scatter(train_x[:,0], train_x[:,5], c=train_y, cmap='gray')
@@ -2305,7 +2217,7 @@ class Posterior_computer():
 
     def evaluate(self, x):
         partial_length = 1*10**3
-        # start = time.time()
+        start = time.time()
         observed_pred_mean = np.zeros(len(x))
         observed_pred_sk = np.zeros(len(x))
         for n in range(int(len(x)/partial_length)):
@@ -2317,13 +2229,8 @@ class Posterior_computer():
         observed_pred_sk = np.asarray(observed_pred_sk)
         observed_pred_sk = observed_pred_sk.reshape(len(x))
         observed_pred_mean[:len(x)] = observed_pred_sk[:len(x)]*self.sigma + self.mu
-        # print('eval time', time.time()-start)
+        print('eval time', time.time()-start)
         return observed_pred_mean
-
-    def sampler(self, resolution=1000, path_len=0.01, step_size=0.01):
-        x0 = np.asarray([0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5])
-        samples = hamiltonian_monte_carlo(n_samples=resolution, negative_log_prob=self.logp_func, grad_log_prob=self.dlogp_func, initial_position= x0, path_len=0.1, step_size=0.01)
-        return samples
 
     def calculate_posterior(self,resolution = 1*10**6, proposal= None, temperature = 1):
         self.resolution = resolution
@@ -2420,91 +2327,6 @@ class Posterior_computer():
 
         return mcmc_samples
 
-    def predict(self,x,k=0):
-        #x of shape (m)
-        
-        #returns the gp predictions where f is the true function and
-        #df, ddf, If, IIf are its first and second derivate respectively antiderivates
-        #the outputs are the predictions f_p,df_p,ddf_p,If_p,IIf_p where
-        #f(x) = f_p(x), df(x) = df_p(x), ddf(x) = ddf_p(x), If(x) = If_p(x) + C1, 
-        #IIf(x) = IIf_p(x) + C1*x + C2 with some constants C1,C2
-        #set k = 0 for the normal prediction, K = 1,2 for the first or second derivates
-        #and k = -1,-2 for the first or second antiderivates
-    
-        # x = x.reshape(-1,1)
-    
-        X = x - self.gpr.X_train_
-        l = self.gpr.kernel_.length_scale
-        A = self.gpr.alpha_
-
-        K_trans = self.gpr.kernel_(x, self.gpr.X_train_)
-        y_mean = K_trans @ self.gpr.alpha_
-
-        f = np.prod(np.exp(-(X)**2 / (2*l**2)), axis=1)
-        df = f * (-X / l ** 2).T
-        
-        if k == 0: 
-            return f @ A
-        elif k == 1: 
-            return df @ A
-        else:
-            raise Exception('Unknown parameter k: {}'.format(k))
-
-    def gradient(self,x):
-        step_length = 0.01
-        grad = np.ones_like(x)
-        for i in range(len(x)):
-            x_predict = np.copy(x)
-            x_predict[i] = x[i]-step_length/2
-            if x_predict[i] < 0:
-                x_predict[i] = 0
-            low = self.gpr.predict([x_predict])
-            x_predict[i] = x[i]+step_length/2
-            if x_predict[i] > 1:
-                x_predict[i] = 1
-            high = self.gpr.predict([x_predict])
-            grad[i] = (high-low)/step_length
-        return grad
-
-    def predict2(self, x):
-        # gets 'l' used in denominator of expected value of gradient for RBF kernel 
-        k2_l = self.gpr.kernel_.length_scale
-
-        # not necessary to do predict, but now y_pred has correct shape
-        y_pred, sigma = self.gpr.predict(np.asanyarray(x).reshape(1,-1),  return_std=True)
-
-        # allocate array to store gradient
-        y_pred_grad = 0.0*y_pred
-
-        # set of points where gradient is to be queried
-        # x = np.atleast_2d(np.linspace(-5, 0.8, 1000)).T
-        
-        X = self.gpr.X_train_
-        x_star = x
-
-        # eval_gradient can't be true when eval site doesn't match X
-        # this gives standard RBF kernel evaluations
-        k_val= self.gpr.kernel_(X, np.atleast_2d(x_star), eval_gradient=False).ravel()
-
-        # x_i - x_star / l^2
-        x_diff_over_l_sq = ((X-x_star)/np.power(k2_l,2)).ravel()
-
-        # pair-wise multiply
-        intermediate_result = np.multiply(k_val, x_diff_over_l_sq)
-
-        # dot product intermediate_result with the alphas
-        final_result = np.dot(intermediate_result, self.gpr.alpha_)
-
-        # store gradient at this point
-        y_pred_grad[key] = final_result
-        return y_pred_grad
-
-    def logp_func(self,x):
-        return -(self.evaluate([x])[0] * self.sigma + self.mu)
-
-    def dlogp_func(self,x, loc=0, scale=1):
-        return -(self.predict(x,k=1) * self.sigma)
-
     def plot_corner(self, mcmc_samples, pGB = {}, save_figure = False, save_chain = False, number_of_signal = 0, parameter_titles = False, rescaled = False):
         start = time.time()
         if not(rescaled):
@@ -2527,7 +2349,7 @@ class Posterior_computer():
         save_frequency = self.maxpGB['Frequency']
         if save_chain:
             df = pd.DataFrame(data=mcmc_samples_rescaled, columns=parameters)
-            df.to_csv(SAVEPATH+'Chain_high_f/frequency'+str(int(np.round(save_frequency*10**9)))+'nHz'+save_name+'.csv',index=False)
+            df.to_csv(SAVEPATH+'Chain/frequency'+str(int(np.round(save_frequency*10**9)))+'nHz'+save_name+'.csv',index=False)
         # start = time.time()
         # df = pd.DataFrame(data=mcmc_samples_rescaled, columns=parameters)
         # df.to_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/Stefan_LDC14/GW'+str(int(np.round(maxpGB['Frequency']*10**8)))+'.csv',index=False)
@@ -2635,28 +2457,12 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true = [], number_o
     start = time.time()
     posterior1 = Posterior_computer(tdi_fs, Tobs, frequencies, maxpGB)
     print('SNR found',posterior1.search1.SNR([maxpGB]))
+    pGB_true = pGB_true.to_dict()
     if pGB_true:
         print('SNR injected',posterior1.search1.SNR([pGB_true]))
     # posterior1.search1.plot(found_sources_in=[maxpGB])
     posterior1.reduce_boundaries()
     posterior1.train_model()
-    x = [0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5]
-    print(posterior1.evaluate(np.asarray([x])))
-    print(posterior1.logp_func(np.asarray([x])) * posterior1.sigma + posterior1.mu)
-    print(posterior1.dlogp_func(np.asarray([x])))
-    print(posterior1.gradient(np.asarray(x)) * posterior1.sigma)
-    start = time.time()
-    for i in range(100):
-        posterior1.dlogp_func(np.asarray([x]))
-    print('time',time.time()-start)
-    start = time.time()
-    for i in range(100):
-        posterior1.gradient(np.asarray(x)) * posterior1.sigma
-    print('time',time.time()-start)
-    start = time.time()
-    samples = posterior1.sampler(1000)
-    print('time',time.time()-start)
-    print(posterior1.predict2(np.asarray(x)))
     mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, temperature= 10)
     # posterior1.plot_corner(mcmc_samples, pGB_injected[1][0])
     mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, proposal= mcmc_samples, temperature= 2)
@@ -2691,10 +2497,6 @@ pGB_injected_matched = np.load(SAVEPATH+'/injected_matched_windows' +save_name+'
 found_sources_in = found_sources_matched
 pGB_injected = pGB_injected_matched
 
-number_of_signals = 0
-for i in range(len(found_sources_in)):
-    number_of_signals += len(found_sources_in[i])
-
 parameter = 'EclipticLongitude'
 for i in range(len(pGB_injected)):
     for j in range(len(pGB_injected[i])):
@@ -2708,71 +2510,40 @@ frequencies_found = []
 # LDC1-4 ####################
 posterior_calculation_input = []
 # batch = int(sys.argv[1])
-batch = 4
-batch_size = 1000
+batch = 72
+batch_size = 100
 lower_window = batch*batch_size
 higher_window = lower_window+batch_size
-# lower_window = 7200
-
-do_subtract = True
-if do_subtract:
-    start = time.time()
-    found_sources_mp_subtract = found_sources_not_matched
-
-    found_sources_flat = []
-    for i in range(len(found_sources_mp_subtract)):
-        for j in range(len(found_sources_mp_subtract[i])):
-            found_sources_flat.append(found_sources_mp_subtract[i][j])
-    found_sources_flat = np.asarray(found_sources_flat)
-    found_sources_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_flat]) for attribute in found_sources_flat[0].keys()}
-    found_sources_flat_df = pd.DataFrame(found_sources_flat_array)
-    found_sources_flat_df = found_sources_flat_df.sort_values('Frequency')
-    # for i in range(len(frequencies_search_full)):
-    #     found_sources_flat_df = found_sources_flat_df[(found_sources_flat_df['Frequency']< frequencies_search_full[i][0]) | (found_sources_flat_df['Frequency']> frequencies_search_full[i][1])]
-    # found_sources_flat_df = found_sources_flat_df.sort_values('Frequency')
-    found_sources_out_flat = found_sources_flat_df.to_dict(orient='records')
-    tdi_fs_subtracted = tdi_subtraction(tdi_fs,found_sources_out_flat, frequencies_search_full)
-
-    print('subtraction time', time.time()-start)
-    plot_subtraction = False
-    if plot_subtraction:
-        i = 4000
-        lower_frequency = frequencies_search[i][0]
-        upper_frequency = frequencies_search[i][1]
-        search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
-        search1.plot(second_data= tdi_fs_subtracted)#, found_sources_in=found_sources_out_flat)
-        # search1.plot(second_data= tdi_fs_subtracted, found_sources_in=found_sources_mp_o[start_index][0])
-        
-    tdi_fs = deepcopy(tdi_fs_subtracted)
-
+# lower_window = 6030
 for i in range(len(found_sources_in)):
     if i < lower_window or i >= higher_window:
         continue
     # if i in [0,len(found_sources_in)-1]:
     #     continue
     for j in range(len(found_sources_in[i])):
-        # if j < 1 and i == 6030:
-        #     continue
+        if j < 1 and i == 6030:
+            continue
         print(i)
         #subtract the found sources of neighbours and own window from original except the signal itself
         tdi_fs_subtracted = deepcopy(tdi_fs)
-        for m in range(3):
-            # if m == 1:
-            #     continue
-            if i-1+m < 0:
-                pass
-            elif i-1+m > len(found_sources_in)-1:
-                pass
-            else:
-                for n in range(len(found_sources_in[i-1+m])):
-                    if j != n or m != 1:
-                        print(i,j,m,n)
-                        Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_in[i-1+m][n], oversample=4, simulator="synthlisa")
-                        source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
-                        index_low = np.searchsorted(tdi_fs_subtracted["X"].f, Xs_subtracted.f[0])
-                        index_high = index_low+len(Xs_subtracted)
-                        for k in ["X", "Y", "Z"]:
-                            tdi_fs_subtracted[k].data[index_low:index_high] = tdi_fs_subtracted[k].data[index_low:index_high] - source_subtracted[k].data
+        for sources_to_subtract in [found_sources_matched, found_sources_not_matched]:
+            for m in range(3):
+                # if m == 1:
+                #     continue
+                if i-1+m < 0:
+                    pass
+                elif i-1+m > len(sources_to_subtract)-1:
+                    pass
+                else:
+                    for n in range(len(sources_to_subtract[i-1+m])):
+                        if j != n or m != 1:
+                            print(i,j,m,n)
+                            Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=sources_to_subtract[i-1+m][n], oversample=4, simulator="synthlisa")
+                            source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
+                            index_low = np.searchsorted(tdi_fs_subtracted["X"].f, Xs_subtracted.f[0])
+                            index_high = index_low+len(Xs_subtracted)
+                            for k in ["X", "Y", "Z"]:
+                                tdi_fs_subtracted[k].data[index_low:index_high] = tdi_fs_subtracted[k].data[index_low:index_high] - source_subtracted[k].data
 
         search_subtracted = Search(tdi_fs_subtracted,Tobs, frequencies_search[i][0], frequencies_search[i][1])
         # optimizer = Global_optimizer(tdi_fs=tdi_fs_subtracted, Tobs=Tobs)
@@ -2801,7 +2572,7 @@ for i in range(len(found_sources_in)):
         print('compute posterior of the signal',i,j, found_sources_in[i][j])
         number_of_signals += 1
         frequencies_found.append(found_sources_in[i][j]['Frequency'])
-        compute_posterior(tdi_fs_subtracted, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j].to_dict())
+        compute_posterior(tdi_fs_subtracted, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j])
 print('time to search ', len(posterior_calculation_input), 'signals: ', time.time()-start)
 print('number of signals',  len(posterior_calculation_input))
 start = time.time()
