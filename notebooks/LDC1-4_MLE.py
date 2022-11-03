@@ -1,6 +1,6 @@
 #%%
-import matplotlib.pyplot as plt
-from matplotlib import rcParams
+# import matplotlib.pyplot as plt
+# from matplotlib import rcParams
 import scipy
 from scipy.optimize import differential_evolution
 import numpy as np
@@ -35,18 +35,20 @@ plot_parameter = {  # 'backend': 'ps',
     "savefig.dpi": 150,
 }
 
-# tell matplotlib about your param_plots
-rcParams.update(plot_parameter)
-# set nice figure sizes
-fig_width_pt = 1.5*464.0  # Get this from LaTeX using \showthe\columnwidth
-golden_mean = (np.sqrt(5.0) - 1.0) / 2.0  # Aesthetic ratio
-ratio = golden_mean
-inches_per_pt = 1.0 / 72.27  # Convert pt to inches
-fig_width = fig_width_pt * inches_per_pt  # width in inches
-fig_height = fig_width * ratio  # height in inches
-fig_size = [fig_width, fig_height]
-fig_size_squared = [fig_width, fig_width]
-rcParams.update({"figure.figsize": fig_size})
+# # tell matplotlib about your param_plots
+# rcParams.update(plot_parameter)
+# # set nice figure sizes
+# fig_width_pt = 1.5*464.0  # Get this from LaTeX using \showthe\columnwidth
+# golden_mean = (np.sqrt(5.0) - 1.0) / 2.0  # Aesthetic ratio
+# ratio = golden_mean
+# inches_per_pt = 1.0 / 72.27  # Convert pt to inches
+# fig_width = fig_width_pt * inches_per_pt  # width in inches
+# fig_height = fig_width * ratio  # height in inches
+# fig_size = [fig_width, fig_height]
+# fig_size_squared = [fig_width, fig_width]
+# rcParams.update({"figure.figsize": fig_size})
+# prop_cycle = plt.rcParams['axes.prop_cycle']
+# colors = prop_cycle.by_key()['color']
 
 def Window(tm, offs=1000.0):
     xl = offs
@@ -1185,7 +1187,7 @@ class Search():
                     for parameter in parameters:
                         x.append(pGBs01[signal][parameter])
                 # print(loglikelihood(maxpGB))
-                res = scipy.optimize.minimize(self.function, x, args=boundaries_reduced, method='SLSQP', bounds=bounds, tol=1e-5)
+                res = scipy.optimize.minimize(self.function, x, args=boundaries_reduced, method='SLSQP', bounds=bounds, tol=1e-5, options= {'maxiter':100})
                 # res = scipy.optimize.minimize(self.function, x, args=boundaries_reduced, method='Nelder-Mead', tol=1e-6)
                 # res = scipy.optimize.least_squares(self.function, x, args=boundaries_reduced, bounds=bounds)
                 for signal in range(number_of_signals_optimize):
@@ -1770,9 +1772,6 @@ pGBadded24['EclipticLongitude'] = 1.5
 # pGBadded13['Frequency'] -= 2*10**-6
 # pGBadded = {'Amplitude': 6.486747e-24, 'EclipticLatitude': -0.318064, 'EclipticLongitude': 4.369758, 'Frequency': 0.01620542, 'FrequencyDerivative': 8.508619e-14, 'Inclination': 0.866814, 'InitialPhase': 6.28136, 'Polarization': 5.978979}
 
-prop_cycle = plt.rcParams['axes.prop_cycle']
-colors = prop_cycle.by_key()['color']
-
 parameters = [
     "Amplitude",
     "EclipticLatitude",
@@ -2081,12 +2080,17 @@ class MLP_search():
                 print('global optimization time', time.time()-start)
 
                 #### after optimization a signal inside window could lay outside. Therefore new selection is required
-                found_sources_in = []
-                for i in range(len(found_sources_in_opt)):
-                    if found_sources_in_opt[i]['Frequency'] > lower_frequency and found_sources_in_opt[i]['Frequency'] < upper_frequency:
-                        found_sources_in.append(found_sources_in_opt[i])
-                    else:
-                        found_sources_out.append(found_sources_in_opt[i])
+                if search_out_subtracted.loglikelihood(found_sources_in_opt) > search_out_subtracted.loglikelihood(found_sources_in):
+                    found_sources_in = []
+                    for i in range(len(found_sources_in_opt)):
+                        if found_sources_in_opt[i]['Frequency'] > lower_frequency and found_sources_in_opt[i]['Frequency'] < upper_frequency:
+                            found_sources_in.append(found_sources_in_opt[i])
+                        else:
+                            found_sources_out.append(found_sources_in_opt[i])
+                else:
+                    for i in range(30):
+                        print('optimization failed: ', 'new loglikelihood', search_out_subtracted.loglikelihood(found_sources_in_opt), 'old loglikelihood', search_out_subtracted.loglikelihood(found_sources_in))
+
 
             found_sources = found_sources_in + found_sources_out
 
@@ -2123,10 +2127,12 @@ class Global_optimizer():
 
             total_boundaries = deepcopy(search_out_subtracted.boundaries)
             start = time.time()
-            start_SNR = search_out_subtracted.SNR(found_sources_in)
-            found_sources_in = search_out_subtracted.optimize([found_sources_in], boundaries= total_boundaries)
-            optimized_SNR = search_out_subtracted.SNR(found_sources_in)
-            print('global optimization time', np.round(time.time()-start), 'initial SNR', np.round(start_SNR,5), 'optimized_SNR', np.round(optimized_SNR,5), 'difference SNR', np.round(optimized_SNR-start_SNR,5) )
+            start_loglikelihood = search_out_subtracted.loglikelihood(found_sources_in)
+            found_sources_in_new = search_out_subtracted.optimize([found_sources_in], boundaries= total_boundaries)
+            optimized_loglikelihood = search_out_subtracted.loglikelihood(found_sources_in_new)
+            if optimized_loglikelihood > start_loglikelihood:
+                found_sources_in = found_sources_in_new
+            print('global optimization time', np.round(time.time()-start), 'initial loglikelihood', np.round(start_loglikelihood,5), 'optimized_loglikelihood', np.round(optimized_loglikelihood,5), 'difference loglikelihood', np.round(optimized_loglikelihood-start_loglikelihood,5), 'frequency', lower_frequency )
 
             found_sources = found_sources_in + found_sources_out
 
@@ -2272,12 +2278,12 @@ frequencies_odd = frequencies[1::2]
 # plt.show()
 
 
-save_name = 'Sangria_1_full_opt2'
+save_name = 'Sangria_even'
 # for i in range(65):
 frequencies_search = frequencies_even
 frequencies_search_full = deepcopy(frequencies_search)
-# batch_index = int(sys.argv[1])
-batch_index = 54
+batch_index = int(sys.argv[1])
+# batch_index = 40
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00399)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00404)
@@ -2294,7 +2300,7 @@ batch_size = 64
 start_index = batch_size*batch_index
 print('batch',batch_index, start_index)
 frequencies_search = frequencies_search[start_index:start_index+batch_size]
-frequencies_search = frequencies_search[44:45]
+# frequencies_search = frequencies_search[int(6757/2):]
 
 # print(i, frequencies_search[0])
 ### highest + padding has to be less than f Nyqist
@@ -2312,7 +2318,8 @@ if change_to_optimized_values:
     # found_sources_mp_o = np.load(SAVEPATH+'found_sourcesSangria_1_full.npy', allow_pickle = True)
     found_sources_mp_o = np.load(SAVEPATH+'found_sourcesSangria_1_full_opt2_even.npy', allow_pickle = True)
     # found_sources_mp_o = np.load(SAVEPATH+'found_sourcesSangria_1_even.npy', allow_pickle = True)
-    # found_sources_mp_o = np.load(SAVEPATH+'found_sources' +save_name+'optimized.npy', allow_pickle = True)
+    found_sources_mp_o = np.load(SAVEPATH+'found_sources' +save_name+'.npy', allow_pickle = True)
+
     frequencies_mp = []
     for i in range(len(found_sources_mp_o)):
         frequencies_mp.append(found_sources_mp_o[i][4])
@@ -2323,7 +2330,9 @@ if change_to_optimized_values:
     # found_sources_mp = np.load(SAVEPATH+'found_sources387654to408404LDC1-4_2_evenfinal_optimized.npy', allow_pickle = True) #even
     # found_sources_mp = np.load(SAVEPATH+'found_sourcesLDC1-4_2_even_optimized.npy', allow_pickle = True) #even
     # found_sources_mp = np.load(SAVEPATH+'found_sourcesLDC1-4_2_optimized_odd_second.npy', allow_pickle = True) #odd
-    found_sources_mp = np.load(SAVEPATH+'found_sourcesSangria_1_odd_opt2.npy', allow_pickle = True) #odd
+    # found_sources_mp = np.load(SAVEPATH+'found_sourcesSangria_1_odd_opt2.npy', allow_pickle = True) #odd
+    found_sources_mp = np.load(SAVEPATH+'found_sourcesSangria_1_full_opt2high_frequency_opt2_odd.npy', allow_pickle = True) #odd
+    
     found_sources_mp_2 = deepcopy(found_sources_mp_o)
     # extra_out_signals = []
     # for i in range(len(found_sources_mp)):
@@ -2405,7 +2414,7 @@ if change_to_optimized_values:
     for i in range(len(found_sources_mp_2)):
         found_sources_mp_2[i][3] = found_sources_combined_flat_df[(found_sources_combined_flat_df['Frequency']> frequencies_mp[i][0]) & (found_sources_combined_flat_df['Frequency']< frequencies_mp[i][1])].to_dict(orient='records')
 
-    np.save(SAVEPATH+'found_sourcesSangria_1_full_opt2.npy', found_sources_mp_2)
+    np.save(SAVEPATH+'found_sourcesSangria_1_full_opt2high_frequency_opt2.npy', found_sources_mp_2)
 
 # target_frequencies = []
 # index_low = np.searchsorted(cat_sorted['Frequency'], search_range[0])
@@ -2462,9 +2471,9 @@ if do_subtract:
     # save_name_previous = 'found_sourcesSangria_half_odd'
     # save_name_previous = 'found_sourcesSangria_1_full'
     # save_name_previous = 'found_signals_1_even/found_sources1630803to2001429Sangria_1_even'
-    # save_name_previous = 'found_sourcesSangria_1_even'
+    save_name_previous = 'found_sourcesSangria_odd'
     # save_name_previous = 'found_sourcesSangria_1_even_opt1'
-    save_name_previous = 'found_sources'+save_name
+    # save_name_previous = 'found_sources'+save_name
     found_sources_mp_subtract = np.load(SAVEPATH+save_name_previous+'.npy', allow_pickle = True)
 
     found_sources_flat = []
@@ -2484,7 +2493,7 @@ if do_subtract:
     print('subtraction time', time.time()-start)
     plot_subtraction = False
     if plot_subtraction:
-        i = 100
+        i = 1
         lower_frequency = frequencies_search[i][0]
         upper_frequency = frequencies_search[i][1]
         search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
@@ -2619,7 +2628,7 @@ if use_initial_guess:
 # search1.SNR(found_sources_mp[index][0])
 # search1.SNR(pGB_injected[index])
 
-do_search = False
+do_search = True
 if do_search:
     MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 10, found_sources_previous = found_sources_sorted, strategy = 'DE')
     start = time.time()
@@ -2631,7 +2640,7 @@ if do_search:
     print('time to search ', len(frequencies_search), 'windows: ', time.time()-start)
     np.save(SAVEPATH+'found_signals/found_sources'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', found_sources_mp)
 
-final_optimization = True
+final_optimization = False
 if final_optimization:
     # found_sources_mp = np.load(SAVEPATH+'found_sources'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'noise_matrix.npy', allow_pickle = True)
     # found_sources_mp = np.load(SAVEPATH+'found_sourcesLDC1-4_2_years_full.npy', allow_pickle = True)
@@ -2681,13 +2690,13 @@ if final_optimization:
     found_sources_mp = pool.starmap(optimizer.optimize, input)
     pool.close()
     pool.join()
-    print('time to optimize: ', len(frequencies_search), 'windows: ', time.time()-start)
-    np.save(SAVEPATH+'optimized/found_sources'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'_optimized3.npy', found_sources_mp)
+    print('time to optimize', len(frequencies_search), 'windows: ', time.time()-start)
+    np.save(SAVEPATH+'optimized/found_sources'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'_opt1_even.npy', found_sources_mp)
 
-better_pGB = {'Amplitude': 3.7080776510756e-23, 'EclipticLatitude': -0.0864329194471405, 'EclipticLongitude': -1.5608489415225566, 'Frequency': 0.011097063538503463, 'FrequencyDerivative': 3.795997584356877e-15, 'Inclination': 1.3544536642993756, 'InitialPhase': 3.802341846303522, 'Polarization': 3.0450807858161113}
-search_out_subtracted = Search(tdi_fs,Tobs, input[0][0], input[0][1])
-print(search_out_subtracted.loglikelihood(found_sources_mp[0][0]))
-print(search_out_subtracted.loglikelihood([better_pGB]))
+# better_pGB = {'Amplitude': 3.7080776510756e-23, 'EclipticLatitude': -0.0864329194471405, 'EclipticLongitude': -1.5608489415225566, 'Frequency': 0.011097063538503463, 'FrequencyDerivative': 3.795997584356877e-15, 'Inclination': 1.3544536642993756, 'InitialPhase': 3.802341846303522, 'Polarization': 3.0450807858161113}
+# search_out_subtracted = Search(tdi_fs,Tobs, input[0][0], input[0][1])
+# print(search_out_subtracted.loglikelihood(found_sources_mp[0][0]))
+# print(search_out_subtracted.loglikelihood([better_pGB]))
 
 # i = 53
 # search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
