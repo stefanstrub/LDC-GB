@@ -1195,7 +1195,7 @@ class Search():
                 # print('optimized loglikelihood', loglikelihood(maxpGB),maxpGB)
                 # print('boundaries reduced', boundaries_reduced)
 
-            best_value = self.loglikelihood(maxpGB)
+            best_value = self.loglikelihood(maxpGB) 
             if i == 0:
                 current_best_value = best_value
                 current_maxpGB = maxpGB

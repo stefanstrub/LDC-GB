@@ -25,7 +25,7 @@ folderpath_parent = grandparent+"/LDC/pictures/Sangria/found_signals"
 # folderpath_parent = grandparent+"/LDC/pictures/Sangria/optimized"
 folderpath_save = grandparent+"/LDC/pictures/Sangria"
 
-name = '_odd'
+name = '_even_odd'
 save_name = 'Sangria' + name
 folderpath = folderpath_parent + name
 onlyfiles = [f for f in listdir(folderpath) if isfile(join(folderpath, f))]

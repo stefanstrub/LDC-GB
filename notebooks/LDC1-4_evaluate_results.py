@@ -2262,45 +2262,9 @@ for i in range(len(frequencies_search)):
         # search1.plot(found_sources_in=found_sources_mp_best[i], pGB_injected=pGB_injected[i][:10], pGB_injected_matched= matched_extended, saving_label =SAVEPATH+'/strain added'+ str(int(np.round(frequencies_search[i][0]*10**8))) +save_name+'in.png') 
 
 
-for parameter in parameters:
-    print(parameter, best_match[parameter] - found_extended[2][parameter])
+# for parameter in parameters:
+#     print(parameter, best_match[parameter] - found_extended[2][parameter])
 
-
-correlation_list2 = []
-for i in range(len(frequencies_search)):
-    if i != index_of_interest_to_plot:
-        continue        
-    for j in range(len(found_sources_in[i])):
-            found_match = False
-            # if j != 2:
-            #     continue
-            # print('i', i, 'j',j)
-            correlation_list_of_one_signal = []
-            for k in range(len(pGB_injected[i])):
-                # if k != 0:
-                #     continue
-                pGB_injected_dict = {}
-                found_dict = {}
-                for parameter in parameters:
-                    pGB_injected_dict[parameter] = pGB_injected[i][k][parameter]
-                    found_dict[parameter] = found_sources_in[i][j][parameter]
-                    # if parameter in ['InitialPhase','Polarization']:
-                    #     found_dict[parameter] = pGB_injected[i][k][parameter]
-                # print('SNR', SNR_match(pGB_injected_not_matched[i][k],found_sources_in[i][j]),'parameter comparison:',pGB_injected_not_matched[i][k]['EclipticLatitude'],found_sources_in[i][j]['EclipticLatitude'],eclipticlongitude, found_sources_in[i][j]['EclipticLongitude'])
-                correlation = SNR_match(pGB_injected_dict,found_dict)[0]
-                print(search1.SNR([pGB_injected_dict]))
-                # search1.plot(pGB_injected_matched=[pGB_injected_dict], found_sources_in=[found_dict])
-                print('found',search1.SNR([found_dict]))
-                print(pGB_injected_dict,found_dict)
-                print('correlation',correlation)
-                correlation_list_of_one_signal.append(correlation)
-                if k > 19:
-                    break
-            correlation_list2.append(correlation_list_of_one_signal)
-
-plt.figure()
-plt.imshow(correlation_list2)
-plt.show()
 
 found_sources_matched_flat = np.concatenate(found_sources_matched)
 found_sources_matched_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_matched_flat]) for attribute in found_sources_matched_flat[0].keys()}
