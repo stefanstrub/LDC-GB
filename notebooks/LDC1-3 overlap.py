@@ -1790,7 +1790,7 @@ upper_frequency2 = 0.0039975
 
 padding = 0.5e-6
 
-save_name = 'LDC1-3overlap'
+save_name = 'LDC1-3overlap2'
 # LDC1-3 ##########################################
 target_frequencies = p.get('Frequency')
 frequencies = []
@@ -2508,10 +2508,10 @@ class Posterior_computer():
         save_frequency = self.frequencies[0]
         save_frequency = pGB['Frequency']
         if save_bool:
-            g.export('/home/stefan/LDC/LDC/pictures/corner_frequency'+ str(int(np.round(save_frequency*10**8)))+'number of singal'+str(number_of_signal)+save_name+str(parameter_titles)+'.png')
+            g.export('/home/stefan/LDC/LDC/pictures/corner_frequency'+ str(int(np.round(save_frequency*10**8)))+'number of singal'+str(number_of_signal)+save_name+str(parameter_titles)+'bias.png')
         if save_chain:
             df = pd.DataFrame(data=mcmc_samples_rescaled, columns=parameters)
-            df.to_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/ETH_2/GW'+str(int(np.round(save_frequency*10**8)))+'number of singal'+str(number_of_signal)+save_name+'.csv',index=False)
+            df.to_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/ETH_2/GW'+str(int(np.round(save_frequency*10**8)))+'number of singal'+str(number_of_signal)+save_name+'bias.csv',index=False)
         plt.show()
 
 def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true,number_of_signal = 0):
@@ -2530,15 +2530,16 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true,number_of_sign
     return mcmc_samples
 
 
-tdi_fs_subtracted = tdi_subtraction(tdi_fs, [[found_sources_in[0][1]]], frequencies)
+# tdi_fs_subtracted = tdi_subtraction(tdi_fs, [[found_sources_in[0][1]]], frequencies)
+tdi_fs_subtracted = tdi_subtraction(tdi_fs, [[found_sources_in[0][1]]], frequencies) # bias
 # LDC1-3 ######################
-# start = time.time()
-# number_of_total_signals = 0
-# for i in range(len(found_sources_in)):
-#     for j in range(len(found_sources_in[i])):
-#         mcmc_samples = compute_posterior(tdi_fs_subtracted, Tobs, frequencies[i], found_sources_in[i][j], pGB_injected[i][j], number_of_signal = j)
-#         number_of_total_signals += 1
-# print('time to calculate posterior for ', number_of_total_signals, 'signals: ', time.time()-start)
+start = time.time()
+number_of_total_signals = 0
+for i in range(len(found_sources_in)):
+    for j in range(len(found_sources_in[i])):
+        mcmc_samples = compute_posterior(tdi_fs_subtracted, Tobs, frequencies[i], found_sources_in[i][j], pGB_injected[i][j], number_of_signal = j)
+        number_of_total_signals += 1
+print('time to calculate posterior for ', number_of_total_signals, 'signals: ', time.time()-start)
 
 # number_of_signal = 0
 # for i in range(len(found_sources_in)):
@@ -2733,7 +2734,11 @@ samples = []
 # for file_name in ['GW201457number of singal0LDC1-3overlap single signal', 'GW201457number of singal0LDC1-3overlap']:
 #         df = pd.read_csv('/home/stefan/Repositories/ldc1_evaluation_data/submission/ETH_2/'+file_name+'.csv')
 # for file_name in ['frequency1252567nHzLDC1-3', 'frequency1252567nHzLDC1-3fastGB']:
-for file_name in ['frequency1666286nHzLDC1-3', 'frequency1666286nHzLDC1-3fastGB']:
+# for file_name in ['frequency1666286nHzLDC1-3', 'frequency1666286nHzLDC1-3fastGB']:
+# for file_name in ['frequency1666286nHzLDC1-3', 'frequency1666286nHzLDC1-3fastGB']:
+# for file_name in ['frequency2014570nHzLDC1-3_overlap_single', 'frequency2014570nHzonly1foundLDC1-3_overlap_both2']:
+# for file_name in ['frequency2014570nHzLDC1-3_overlap_single', 'frequency2014570nHzbiasLDC1-3_overlap_both2']:
+for file_name in ['frequency2014570nHzLDC1-3_overlap_single', 'frequency2014570nHzglobaloptLDC1-3_overlap_both2']:
         df = pd.read_csv('/home/stefan/LDC/pictures/LDC1-3_v2/Chain/'+file_name+'.csv')
         df['Inclination'] = np.cos(df['Inclination'].values)
         df['EclipticLatitude'] = np.sin(df['EclipticLatitude'].values)
@@ -2752,7 +2757,7 @@ g.triangle_plot(samples, shaded=True, legend_labels=[])
 tr_s = np.zeros(len(parameters))
 maxvalues = np.zeros(len(parameters))
 i = 0
-pGB = pGB_injected[2][0]
+pGB = pGB_injected[0][0]
 for parameter in names:
     if parameter in ['Amplitude','FrequencyDerivative']:
         tr_s[i] = np.log10(pGB[parameter])
@@ -2778,7 +2783,7 @@ for i in range(ndim):
     for ax in g.subplots[i,:i]:
         ax.axhline(tr_s[i], color='black', lw = 1)
     i += 1
-g.export('/home/stefan/LDC/LDC/pictures/corner overlap '+save_name+'fastGB2.png')
+g.export('/home/stefan/LDC/pictures/LDC1-3_v2/overlap/corner overlap '+save_name+'globalopt.png')
 
 stock = lambda A, amp, angle, phase: A * angle + amp * np.sin(angle + phase)
 theta = np.linspace(0., 2 * np.pi, 250) # x-axis

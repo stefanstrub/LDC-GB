@@ -27,6 +27,7 @@ from sklearn.metrics import mean_squared_error
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
 
+
 # customized settings
 plot_parameter = {  # 'backend': 'ps',
     "font.family": "serif",
@@ -582,6 +583,10 @@ class Search():
     def plot(self, maxpGBs=None, pGBadded=None, found_sources_in= [], pGB_injected = [], added_label='Injection2', saving_label =None):
         plt.figure(figsize=fig_size)
         fig, [ax1, ax2] = plt.subplots(2, 1, sharex=True, figsize=fig_size)
+
+
+        prop_cycle = plt.rcParams['axes.prop_cycle']
+        colors = prop_cycle.by_key()['color']
         # plt.plot(dataX_training.f*1000,dataX_training.values, label='data')
         # ax1.plot(self.dataX.f * 1000, self.dataX.values.real, label="data", marker="o", zorder=5)
 
@@ -611,8 +616,8 @@ class Search():
             a,Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)
             Af = (Zs - Xs)/np.sqrt(2.0)
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
-            ax1.semilogy(Af.f*10**3,np.abs(Af.data), color='grey', linewidth = 4)
-            ax2.semilogy(Ef.f*10**3,np.abs(Ef.data), color='grey', linewidth = 4)
+            ax1.semilogy(Af.f*10**3,np.abs(Af.data), color=colors[j%10], linewidth = 4, alpha = 0.5)
+            ax2.semilogy(Ef.f*10**3,np.abs(Ef.data), color=colors[j%10], linewidth = 4, alpha = 0.5)
 
 
         if pGBadded != None:

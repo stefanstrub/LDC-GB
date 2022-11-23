@@ -593,8 +593,8 @@ class Search():
             a,Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)
             Af = (Zs - Xs)/np.sqrt(2.0)
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
-            ax1.semilogy(Af.f*10**3,np.abs(Af.data), color='grey', linewidth = 4)
-            ax2.semilogy(Ef.f*10**3,np.abs(Ef.data), color='grey', linewidth = 4)
+            ax1.semilogy(Af.f*10**3,np.abs(Af.data), color=colors[j%10], linewidth = 4, alpha= 0.5)
+            ax2.semilogy(Ef.f*10**3,np.abs(Ef.data), color=colors[j%10], linewidth = 4, alpha= 0.5)
 
 
         if pGBadded != None:
@@ -1388,8 +1388,8 @@ GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
 add_signal = True
 if add_signal:
     # for pGBadding in [pGBadded20]: # faint
-    # for pGBadding in [pGBadded11]:              # overlap single signal
-    for pGBadding in [pGBadded11, pGBadded12]:              # overlap
+    for pGBadding in [pGBadded11]:              # overlap single signal
+    # for pGBadding in [pGBadded11, pGBadded12]:              # overlap
         cat = np.hstack((cat,cat[0]))
         for parameter in parameters:
             cat[-1][parameter] = pGBadding[parameter]
@@ -1427,7 +1427,7 @@ while current_frequency < end_frequency:
 
 padding = 0.5e-6
 
-save_name = 'LDC1-3_overlap_both'
+save_name = 'LDC1-3_overlap_single'
 indexes = np.argsort(cat['Frequency'])
 cat_sorted = cat[indexes]
 cat = cat_sorted
@@ -1445,7 +1445,7 @@ for i in range(len(target_frequencies)):
 
 frequencies = [frequencies[6]]
 number_of_windows = len(frequencies)
-MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 2, number_of_searches_per_signal=1, strategy = 'DE')
+MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1, number_of_searches_per_signal=3, strategy = 'DE')
 found_sources_mp = [MLP.search(frequencies[0][0], frequencies[0][1])]
 # MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1, strategy = 'CD')
 # found_sources_mp = [MLP.search(frequencies[0][0], frequencies[0][1])]
@@ -1459,6 +1459,7 @@ found_sources_mp = [MLP.search(frequencies[0][0], frequencies[0][1])]
 # pool.join()
 # print('time to search ', number_of_windows, 'windows: ', time.time()-start)
 # print(found_sources_mp)
+
 np.save(SAVEPATH+'/found_sources'+save_name+'.npy', found_sources_mp)
 
 found_sources_mp = np.load(SAVEPATH+'/found_sources'+save_name+'.npy', allow_pickle= True)
@@ -1518,7 +1519,7 @@ for i in range(len(pGB_injected)):
     print(pGB_injected[i])
     print(frequencies[i])
 
-index = 1
+index = 0
 print(found_sources_in[index][0]['Amplitude'], pGB_injected[index][0]['Amplitude'])
 
 #check loglikelihood
@@ -1565,9 +1566,11 @@ for i in range(len(frequencies)):
     lower_frequency = frequencies[i][0]
     upper_frequency = frequencies[i][1]
     search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
-    found_sources_plot = [found_sources_unoptimized[1]]
+    # found_sources_plot = [found_sources_unoptimized[1]]  
+    # found_sources_plot = [found_sources_unoptimized[3],found_sources_unoptimized[2]]  # best unptoimized searches are 0 2 and 1 0 therefore 2 and 3
     found_sources_plot = found_sources_in[0]
-    found_sources_plot = []
+    found_sources_plot.reverse()
+    # found_sources_plot = []
     second_data = None
     if len(pGB_injected[i]) > 0:
         search1.plot(second_data=second_data, found_sources_in=found_sources_plot, pGB_injected=pGB_injected[i], saving_label =SAVEPATH+'/strain added'+ str(int(np.round(lower_frequency*10**8))) +save_name+'.png') 

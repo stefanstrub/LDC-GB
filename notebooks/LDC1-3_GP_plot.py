@@ -193,7 +193,7 @@ while current_frequency < end_frequency:
 
 padding = 0.5e-6
 
-save_name = 'LDC1-3_overlap_single'
+save_name = 'LDC1-3_overlap2'
 indexes = np.argsort(cat['Frequency'])
 cat_sorted = cat[indexes]
 
@@ -210,7 +210,7 @@ do_subtract = False
 
 do_search = False
 if do_search:
-    MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 2, strategy = 'DE')
+    MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1, strategy = 'DE')
     start = time.time()
     pool = mp.Pool(mp.cpu_count())
     found_sources_mp = pool.starmap(MLP.search, frequencies_search)
@@ -272,38 +272,6 @@ if do_print:
         print(pGB_injected[i])
         print(frequencies[i])
 
-
-# tdi_fs_subtracted = tdi_subtraction(tdi_fs, [[found_sources_in[0][:]]], frequencies, GB) # bias
-
-# found_sources_unoptimized = []
-# for i in range(len( found_sources_mp[0][1] )):
-#     found_sources_unoptimized.append(found_sources_mp[0][1][i][0][0])
-
-# found_sources_unoptimized = [[found_sources_unoptimized[2],found_sources_unoptimized[1]]]  # best unptoimized searches are 0 2 and 1 0 therefore 2 and 3
-
-# found_sources_in = found_sources_unoptimized
-
-tdi_fs_subtracted = deepcopy(tdi_fs)
-
-# j = 1
-# i = 0
-# for n in range(len(found_sources_in[i])):
-#     if j != n:
-#         print(j,n)
-#         Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_in[i][n], oversample=4, simulator="synthlisa")
-#         source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
-#         index_low = np.searchsorted(tdi_fs_subtracted["X"].f, Xs_subtracted.f[0])
-#         index_high = index_low+len(Xs_subtracted)
-#         for k in ["X", "Y", "Z"]:
-#             tdi_fs_subtracted[k].data[index_low:index_high] = tdi_fs_subtracted[k].data[index_low:index_high] - source_subtracted[k].data
-
-# search_subtracted = Search(tdi_fs_subtracted,Tobs, frequencies_search[i][0], frequencies_search[i][1], dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters)
-# search_subtracted.plot(found_sources_in=found_sources_in[0], pGB_injected= [pGB_injected[0][i] for i in [1,0]])
-
-# search1 = Search(tdi_fs,Tobs, frequencies[i][0], frequencies[i][1], dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters)
-# search1.plot(found_sources_in=found_sources_in[0], pGB_injected= [pGB_injected[0][i] for i in [1,0]])
-
-# tdi_fs = tdi_fs_subtracted
 # LDC1-3 ####################
 start_training_size = 1000
 evalutation_times = []
@@ -311,14 +279,14 @@ training_times = []
 posterior_calculation_input = []
 for i in range(len(found_sources_in)):
     for j in range(len(found_sources_in[i])):
-        chain_save_name = SAVEPATH+'/Chain/frequency'+str(int(np.round(found_sources_in[i][j]['Frequency']*10**9)))+'nHzonly1found'+save_name
-        # posterior_calculation_input.append((tdi_fs_subtracted, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j]),start_training_size, dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters, 
+        chain_save_name = SAVEPATH+'/Chain/frequency'+str(int(np.round(found_sources_in[i][j]['Frequency']*10**9)))+'nHz'+save_name
+        # posterior_calculation_input.append((tdi_fs, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j]),start_training_size, dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters, 
                                                 # chain_save_name, save_chain= True)
         calculate_posterior_sequentially = True
         if calculate_posterior_sequentially:
-            mcmc_samples, evalutation_time, training_time = compute_posterior(tdi_fs_subtracted, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j],
+            mcmc_samples, evalutation_time, training_time = compute_posterior(tdi_fs, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j],
                                                 start_training_size, dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters, 
-                                                chain_save_name, save_chain= True, save_figure=True)
+                                                chain_save_name, save_chain= False, save_figure=False)
             evalutation_times.append(evalutation_time)
             training_times.append(training_time)
 
