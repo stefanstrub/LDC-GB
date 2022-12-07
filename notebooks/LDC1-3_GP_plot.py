@@ -182,6 +182,15 @@ if add_signal:
             tdi_fs[k].data[index_low:index_high] = tdi_fs[k].data[index_low:index_high] + source_added[k].data
     tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft(dt=dt)) for k, n in [["X", 1], ["Y", 2], ["Z", 3]]]))
 
+Xs_added.ts.ifft(dt=dt)
+
+fig = plt.figure(figsize=fig_size)
+plt.plot(tdi_ts['X'].t,tdi_ts['X'], 'k')
+plt.plot(tdi_ts['X'].t,Xs_added.ts.ifft(dt=dt))
+plt.xlabel('Time (s)')
+plt.ylabel('TDI A')
+plt.savefig(SAVEPATH+'/single signal time domain noisy.png')
+plt.show()
 
 start_frequency = 0.0005
 end_frequency = 0.02

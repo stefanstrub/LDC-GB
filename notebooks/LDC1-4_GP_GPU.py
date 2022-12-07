@@ -18,11 +18,8 @@ import sys
 sys.path.append('/cluster/home/sstrub/Repositories/LDC/lib/lib64/python3.8/site-packages/ldc-0.1-py3.8-linux-x86_64.egg')
 
 from ldc.lisa.noise import get_noise_model
-from ldc.common.series import TimeSeries
-from ldc.common.tools import window
-from ldc.waveform.fastGB import fastGB
-# import ldc.waveform.fastGB as fastGB
-
+from ldc.common.series import TimeSeries, window
+import ldc.waveform.fastGB as fastGB
 # from ldc.common.tools import compute_tdi_snr
 
 from fastkde import fastKDE
@@ -1851,7 +1848,7 @@ save_name = 'Sangria_1_full_cut'
 frequencies_search = frequencies
 frequencies_search_full = deepcopy(frequencies_search)
 # batch_index = int(sys.argv[1])
-batch_index = 3000
+batch_index = 30
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00399)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00404)
@@ -1864,7 +1861,7 @@ batch_index = 3000
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.01488)-1
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], cat[-1]['Frequency'])-5
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.0004)-1
-batch_size = 1
+batch_size = 64
 start_index = batch_size*batch_index
 print('batch',batch_index, start_index)
 # frequencies_search = frequencies_search[start_index:start_index+batch_size]
@@ -2699,8 +2696,8 @@ number_of_signals = 0
 frequencies_found = []
 # LDC1-4 ####################
 posterior_calculation_input = []
-# batch = int(sys.argv[1])
-batch = 0
+batch = int(sys.argv[1])
+# batch = 0
 batch_size = 100
 lower_window = batch*batch_size
 higher_window = lower_window+batch_size
