@@ -42,6 +42,7 @@ ldc/lisa/orbits/lib/c_wrapper.cc
 ldc/lisa/orbits/lib/common.cc
 ldc/lisa/orbits/lib/orbits.cc
 ldc/lisa/orbits/lib/pyorbits.pyx
+ldc/lisa/orbits/test/demo copy.py
 ldc/lisa/orbits/test/demo.py
 ldc/lisa/orbits/test/graph.py
 ldc/lisa/orbits/test/run_lisacode.py
