@@ -1,4 +1,8 @@
 name = 'constants'
-from .PdbParam import PdbParam
-Nature = PdbParam.Nature()
+
+from lisaconstants import *
+
+from .nature import Nature
+Nature = Nature()
+
 from .cosmology import *

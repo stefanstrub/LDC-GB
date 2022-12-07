@@ -2,12 +2,12 @@
 #define LISA_h
 
 
-#include "pdbParam.h"
+#include "lisaconstants.h"
 
-#define PI Nature_PI_CONSTANT
+#define PI 3.1415926535897932384626433832795029L
 
 /* Astronomical unit (meters) */
-#define AU Nature_ASTRONOMICALUNIT_METER
+#define AU LISA_ASTRONOMICAL_UNIT
 #define SQ3   1.73205080757
 
 /* Photon shot noise power */
@@ -31,8 +31,9 @@
  /* LISA modulation frequency */
 #define fm 3.168753575e-8
 
+
 /* transfer frequency (Hz) */
-#define fstar 0.01908538063694777
+//#define fstar 0.01908538063694777
 
 /* MLDC sampling rate */
 //#define dt 15.000000

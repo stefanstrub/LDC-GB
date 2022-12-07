@@ -1,25 +1,82 @@
-import numpy as np
+""" Tools to compute SNR from tdi data and noise PSD
+"""
 
-def compute_tdi_snr(source, noise, data=None, fmin=-1, fmax=-1, full_output=False):
-    """ Compute SNR from TDI X,Y,Z. 
+import numpy as np
+from ldc.lisa.noise import Noise
+
+def compute_tdi_snr(source, noise, AET=False, data=None, fmin=-1, fmax=-1, **kwargs):
+    """Compute SNR from TDI
     
-    noise is a Noise object, return by ldc.lisa.noise.get_noise_model
-    source ans data are FrequencySeries
+    noise can be a Noise object returned by
+    ldc.lisa.noise.get_noise_model or a dataset of PSD FrequencySeries
+
+    source and data are datasets of TDI FrequencySeries
     """
     if data is None:
         data = source
 
-    # freq indices selection
-    df = source["X"].attrs["df"]
-    if fmin == -1:
-        fmin = source["X"].f[0] if source["X"].f[0]>0 else source["X"].f[1] 
-    if fmax == -1:
-        fmax = source["X"].f[-1]
+    k1 = "X" if not AET else "A"
     
+    if fmin == -1:
+        fmin = source[k1].f[0] if source[k1].f[0]>0 else source[k1].f[1] 
+    if fmax == -1:
+        fmax = source[k1].f[-1]
+        
+    if AET:
+        return compute_tdi_snr_aet(source, noise, data,
+                                   fmin, fmax, **kwargs)
+    return compute_tdi_snr_xyz(source, noise, data,
+                               fmin, fmax,**kwargs)
+
+def compute_tdi_snr_aet(source, noise, data, fmin, fmax, tdi2=False, full_output=False):
+    """ Compute SNR from TDI A,E,T. 
+    """
+    # inverse covariance matrix
+    freq = np.array(source["A"].sel(f=slice(fmin, fmax)).f)
+    df = source["A"].attrs["df"]
+    if isinstance(noise, Noise):
+        SA = noise.psd(freq=freq, option='A', tdi2=tdi2)
+        ST = noise.psd(freq=freq, option='T', tdi2=tdi2)
+    else:
+        SA = noise["A"].sel(f=freq, method="nearest").values
+        ST = noise["T"].sel(f=freq, method="nearest").values
+    
+    dsnr = dict()
+    snr_tot = 0  # total SNR
+    cumsum = np.zeros((len(freq)))
+
+    for k, SN in zip(["A", "E", "T"], [SA, SA, ST]): 
+        d = data[k].sel(f=freq, method="nearest").values
+        s = source[k].sel(f=freq, method="nearest").values
+
+        snr = np.nansum(np.real(d*np.conj(s)/SN))
+        snr *= 4.0*df
+        dsnr[k+"2"] = snr
+
+        snr_tot += snr
+        if full_output:
+            cumsum+= np.nancumsum(np.real(d * np.conj(s))/SN)
+
+    dsnr["tot2"] = snr_tot
+    if full_output:
+        dsnr["cumsum"] = cumsum* 4.*df
+        dsnr["freq"] = freq
+    return dsnr
+
+
+def compute_tdi_snr_xyz(source, noise, data, fmin, fmax, tdi2=False, full_output=False):
+    """ Compute SNR from TDI X,Y,Z. 
+    """
+
     # inverse covariance matrix
     freq = np.array(source["X"].sel(f=slice(fmin, fmax)).f)
-    SXX = noise.psd(freq=freq, option='X')
-    SXY = noise.psd(freq=freq, option='XY')
+    df = source["X"].attrs["df"]
+    if isinstance(noise, Noise):
+        SXX = noise.psd(freq=freq, option='X', tdi2=tdi2)
+        SXY = noise.psd(freq=freq, option='XY', tdi2=tdi2)
+    else:
+        SXX = noise["X"].sel(f=freq, method="nearest").values
+        SXY = noise["XY"].sel(f=freq, method="nearest").values
     Efact = (SXX*SXX+SXX*SXY-2*SXY*SXY)
     Efact[Efact==0] = np.inf
     Efact = 1/Efact
@@ -34,14 +91,14 @@ def compute_tdi_snr(source, noise, data=None, fmin=-1, fmax=-1, full_output=Fals
         d = data[k].sel(f=freq, method="nearest").values
         s = source[k].sel(f=freq, method="nearest").values
 
-        snr = np.sum(np.real(d*np.conj(s)/SXX))
+        snr = np.nansum(np.real(d*np.conj(s)/SXX))
         snr *= 4.0*df
         dsnr[k+"2"] = snr
 
         snr = np.sum(np.real(d*np.conj(s)*EXX))
         snr_tot += snr
         if full_output:
-            cumsum+= np.cumsum(np.real(d * np.conj(s)*EXX))
+            cumsum+= np.nancumsum(np.real(d * np.conj(s)*EXX))
     for k1,k2 in [("X", "Y"), ("X", "Z"), ("Y", "Z")]:
         d1 = data[k1].sel(f=freq, method="nearest").values
         s1 = source[k1].sel(f=freq, method="nearest").values

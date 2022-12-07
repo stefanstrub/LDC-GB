@@ -1,9 +1,9 @@
-dt: 5.0 s
+dt: 3.0 s
 initial_position:  0.0 rad
 initial_rotation:  0.0 rad
 nominal_arm_length:  2500000000.0 m
 orbit_type:  analytic
-t_max:  86400 s #1 day
+t_max:  1 yr #86400 s #1 day
 t_min:  0.0 s
 travel_time_order: 1
 interp_order: 3
@@ -12,8 +12,8 @@ readoutnoise: 6.35e-12 #
 accnoise: 2.4e-15 # m/s^2/sqrt(Hz)
 
 sources:
-   mbhb: param_mbhb.yml
-   vgb: param_vgb.yml
+  - mbhb
+  - vgb
 
 nbatch: 1
 dirname: run1

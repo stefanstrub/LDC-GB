@@ -7,7 +7,7 @@ from ldc.waveform.waveform import HpHc
 from ldc.waveform.waveform import get_fd_tdixyz
 from ldc.lisa.projection import ProjectedStrain
 from ldc.common.series import TimeSeries
-from lc import run_lisacode
+#from lc import run_lisacode
 import ldc.io.hdf5 as hdf5io
 from ldc.lisa.noise import get_noise_model
 from psd import psd as PSD
@@ -126,10 +126,10 @@ if __name__ == '__main__':
 
         
     
-    if 0: # mbhb time domain
-        key = "big-mbhb-13" #or big-mbhb-9 or big-mbhb-13
+    if 1: # mbhb time domain
+        key = "big-mbhb-0" #or big-mbhb-9 or big-mbhb-13
         cat = get_cat(key)
-        lisacode = get_lisacode(cat, key, config, from_file=False)
+        #lisacode = get_lisacode(cat, key, config, from_file=False)
         simple = get_simple_tdi(cat, key, config)#, from_file=False)
         dirname = "/home/maude/data/LDC/sangria/1.7"
         lisanode = get_lisanode(os.path.join(dirname, "mbhb-tdi.h5"), config)
@@ -141,23 +141,33 @@ if __name__ == '__main__':
         tmin = int((cat["CoalescenceTime"]-600)/dt)
         tmax = int((cat["CoalescenceTime"]+400)/dt)
         plt.plot(trange[tmin:tmax], simple[tmin:tmax], label="simple", color='k')
-        plt.plot(trange[tmin:tmax], lisacode[tmin:tmax], label="lisacode", color='b')
+        #plt.plot(trange[tmin:tmax], lisacode[tmin:tmax], label="lisacode", color='b')
         plt.plot(trange[tmin:tmax], lisanode[tmin:tmax], label="lisanode", color='orange')
         plt.plot(trange[tmin:tmax], background[tmin:tmax], label="background",
                  color='grey', alpha=0.5)
         plt.legend(loc="upper right")
 
-        plt.figure(figsize=(8,6))
-        plt.subplot(111)
-        plt.plot(trange[tmin:tmax], lisacode[tmin:tmax]-simple[tmin:tmax],
-                 label="lisacode-simple", color='b')
+        plt.figure(figsize=(16,6))
+        plt.subplot(121)
+        #plt.plot(trange[tmin:tmax], lisacode[tmin:tmax]-simple[tmin:tmax],
+        #         label="lisacode-simple", color='b')
         plt.plot(trange[tmin:tmax], lisanode[tmin:tmax]-simple[tmin:tmax],
                  label="lisanode-simple", color='orange')
         plt.plot(trange[tmin:tmax], background[tmin:tmax], label="background",
                  color='grey', alpha=0.5)
         plt.legend(loc="upper right")
+        
+        plt.subplot(122)
+        #plt.plot(trange[tmin:tmax], lisacode[tmin:tmax]-simple[tmin:tmax],
+        #         label="lisacode-simple", color='b')
+        plt.plot(trange[tmin:tmax], lisanode[tmin:tmax]-simple[tmin:tmax],
+                 label="lisanode-simple", color='orange')
+        plt.plot(trange[tmin:tmax], background[tmin:tmax], label="background",
+                 color='grey', alpha=0.5)
+        plt.legend(loc="upper right")
+        plt.axis([None, None, -1e-21, 1e-21])
 
-    if 1: # gb freq domain
+    if 0: # gb freq domain
         key = "big-gb"
         cat = get_cat(key)
         lisacode = get_lisacode(cat, key, config)#, from_file=False)

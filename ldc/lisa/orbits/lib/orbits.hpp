@@ -25,7 +25,7 @@ public:
 
   double eccentricity;
   double init_time;
-  
+
   AnalyticOrbits();
   AnalyticOrbits(double arm_length, double init_position, double init_rotation);
   double alpha(double time);
@@ -40,7 +40,10 @@ public:
   array<double, 3> velocity(int sci, double time);
 
   void get_travel_time(int sci, int scj, double* rec_time, double* tt, int nt, int order);
-  
+  void get_travel_time(int sci, int scj, double* rec_time,
+		       double* x_emitter, double* y_emitter, double* z_emitter,
+		       double* x_receiver, double* y_receiver, double* z_receiver,
+		       double* tt, int nt, int order);
 };
 
 #endif

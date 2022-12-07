@@ -144,18 +144,18 @@ cdef class pyIMRPhenomD:
                         f_min, f_max, distance, inclination):
         """ Return h+, hx in freq. domain.
 
-        Arguments:
-        phi0                  # Orbital phase at fRef (rad)
-        fRef_in               # Reference frequency (Hz)
-        deltaF                # Sampling frequency (Hz)
-        m1_SI                 # Mass of companion 1 (kg)
-        m2_SI                 # Mass of companion 2 (kg)
-        chi1                  # Aligned-spin parameter of companion 1
-        chi2                  # Aligned-spin parameter of companion 2
-        f_min                 # Starting GW frequency (Hz)
-        f_max                 # End frequency; 0 defaults to Mf = \ref f_CUT
-        distance              # Distance of source (m)
-        inclination           # Inclination of source (rad)
+        Args:
+            phi0: Orbital phase at fRef (rad)
+            fRef_in: Reference frequency (Hz)
+            deltaF: Sampling frequency (Hz)
+            m1_SI: Mass of companion 1 (kg)
+            m2_SI: Mass of companion 2 (kg)
+            chi1: Aligned-spin parameter of companion 1
+            chi2: Aligned-spin parameter of companion 2
+            f_min: Starting GW frequency (Hz)
+            f_max: End frequency; 0 defaults to Mf = ref f_CUT
+            distance: Distance of source (m)
+            inclination: Inclination of source (rad)
         """
         ret = IMRPhenomDGenerateFD( &self.htilde, phi0, fRef, deltaF,
                                     m1_SI, m2_SI, chi1, chi2,
@@ -224,14 +224,14 @@ cdef class pyIMRPhenomDh22AmpPhase:
         """
         Return amplitude and phase in freq. domain.
         
-        Arguments:
-        phi0                  # Orbital phase at fRef (rad)
-        fRef_in               # Reference frequency (Hz)
-        m1_SI                 # Mass of companion 1 (kg)
-        m2_SI                 # Mass of companion 2 (kg)
-        chi1                  # Aligned-spin parameter of companion 1
-        chi2                  # Aligned-spin parameter of companion 2
-        distance              # Distance of source (m)
+        Args:
+            phi0: Orbital phase at fRef (rad)
+            fRef_in: Reference frequency (Hz)
+            m1_SI: Mass of companion 1 (kg)
+            m2_SI: Mass of companion 2 (kg)
+            chi1: Aligned-spin parameter of companion 1
+            chi2: Aligned-spin parameter of companion 2
+            distance: Distance of source (m)
         """
         f_min = self.freq[0]
         f_max = self.freq[-1]

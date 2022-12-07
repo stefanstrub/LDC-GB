@@ -1,11 +1,12 @@
 """ Project waveforms h+ and hx on LISA arms. """
 
+import h5py
 import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline as spline
-from ldc.common import constants
+import lisaconstants
 import ldc.io.hdf5 as hdfio
 
-clight = constants.Nature.VELOCITYOFLIGHT_CONSTANT_VACUUM
+clight = lisaconstants.SPEED_OF_LIGHT
 LIST_SEP = " , "
 
 def from_file(hdf5_filename, nodata=False, ilink=None):
@@ -25,18 +26,21 @@ def from_file(hdf5_filename, nodata=False, ilink=None):
     t_min =  attrs['t_min']
     t_max = attrs["t_max"]
     dt = attrs["dt"]
+    if ilink is not None:
+        yArm = yArm[:,ilink]
     return yArm, source_names, links, t_min, t_max, dt
 
 def to_file(hdf5_filename, yArm, source_names, links, t_min, t_max, dt, ilink=None):
-    """Save projected strain into hdf5 file. 
-    
-    Meta data are: 
-    - list of source names summed in the strain
-    - list of link name like (0-1), (0-2) etc. 
-    - time vector description : t_min, t_max, dt
+    """Save projected strain into hdf5 file.
+
+    Meta data are:
+
+        - list of source names summed in the strain
+        - list of link name like (1-2), (2-3) etc. for (receiver-emitter)
+        - time vector description : t_min, t_max, dt
 
     ilink can be used to write a single link at a time. Meta data are
-    written for ilink=0. 
+    written for ilink=0.
 
     """
     if ilink is None or ilink==0:
@@ -45,51 +49,60 @@ def to_file(hdf5_filename, yArm, source_names, links, t_min, t_max, dt, ilink=No
         else:
             str_name = LIST_SEP.join(source_names)
         str_link = LIST_SEP.join(links)
-        hdfio.save_array(hdf5_filename, yArm, name='strain', mode='w', links=str_link,
+        chunks = True if ilink==0 else False
+        hdfio.save_array(hdf5_filename, yArm, name='strain', mode='w', chunks=chunks, links=str_link,
                         source_names=str_name, t_min=t_min, t_max=t_max, dt=dt)
     else:
-        hdfio.append_array(hdf5_filename, yArm, ilink, name='strain', links=str_link,
-                           source_names=str_name,
-                           t_min=t_min, t_max=t_max, dt=dt)
-        
-        
+        hdfio.append_array(hdf5_filename, yArm, ilink, name='strain')
+
+
 class ProjectedStrain(object):
     """ Project GW strain on LISA arms """
-    
+
     def __init__(self, orbits):
         self.orbits = orbits
         self.set_link()
-        
+
     def init_links(self, receiver_time, order=0):
-        """ Compute and save sc positions and travel time. 
-        
+        """ Compute and save sc positions and travel time.
+
         """
-        self.tt = np.zeros((len(receiver_time), self.orbits.number_of_arms))
-        for i in range(self.orbits.number_of_arms):
-            emitter, receiver = self.orbits.get_pairs()[i]
-            self.tt[:,i] = self.orbits.compute_travel_time(emitter, receiver,
-                                                           receiver_time, order=order)
-            
+
         self.pos = np.zeros((self.orbits.number_of_spacecraft, 3, len(receiver_time)))
         #alphas = self.orbits.compute_alpha(receiver_time)
         for i in range(1,self.orbits.number_of_spacecraft+1):
             self.pos[i-1,:,:] = self.orbits.compute_position(i, receiver_time)/clight
 
+        self.tt = np.zeros((len(receiver_time), self.orbits.number_of_arms))
+        for i in range(self.orbits.number_of_arms):
+            receiver, emitter = self.orbits.get_pairs()[i]
+            pe = self.pos[emitter-1,:]*clight
+            pr = self.pos[receiver-1,:]*clight
+            self.tt[:,i] = self.orbits.compute_travel_time(emitter, receiver,
+                                                           receiver_time, order=order,
+                                                           position_emitter=pe,
+                                                           position_receiver=pr)
+
 
     def arm_response(self, t_min, t_max, dt, GWs, tt_order=0, #extended_t=1e3,
-                     interp_type=['EMRI', 'MBHB'], ilink=None, **kwargs):
+                     interp_type=['EMRI', 'MBHB', 'Numeric'], ilink=None, **kwargs):
         """Return projected strain y_t
 
         For source in interp_type, hphc is computed only once, then
         stored and used for interpolation. Beware of the memory
-        consumption of such sources. 
-        
+        consumption of such sources.
+
+        Args:
+            t_min, t_max, dt: scalar defining time range
+            GWs: list of HpHc object
+            ilink: specify the link number (0 to 5) on which to project the signal. 
+                   If None, all links are computed. 
+
         >>> proj = ProjectedStrain(orbits)
         >>> yArm = proj.arm_response(0, 1e4, 10, [GB])
         >>> print(yArm[0,:])
-        [-5.83693542e-24  4.67357629e-24 -5.83708114e-24 -1.03579292e-25
-          4.67226745e-24 -1.03547699e-25]
-
+        [-5.83708114e-24  4.67226745e-24 -5.83693542e-24 -1.03547699e-25
+          4.67357629e-24 -1.03579292e-25]
         """
         receiver_time = np.arange(t_min, t_max, dt)
         #extended_time = np.arange(max(t_min-dt*(extended_t//dt), 0),
@@ -102,13 +115,13 @@ class ProjectedStrain(object):
 
         if GWs[0].source_type in interp_type:
             hphc_call = 'interp_hphc'
-            if 'precomputed' in kwargs and kwargs['precomputed']:
+            if ('precomputed' in kwargs and kwargs['precomputed']) or GWs[0].source_type == 'Numeric':
                 pass
             else:
                 jk = [GW.compute_hphc_td(receiver_time, **kwargs) for GW in GWs]
         else:
             hphc_call = 'compute_hphc_td'
-            
+
 
         ### Compute GW effect on links
         self.t_min = t_min
@@ -120,21 +133,21 @@ class ProjectedStrain(object):
         links = range(nArms) if ilink is None else [ilink]
         self.yArm = np.zeros([len(receiver_time), nArms])
         for link in links:
-            emitter, receiver = self.orbits.get_pairs()[link]
             for i, GW in enumerate(GWs):
                 self.yArm[:,link] += self._arm_response(receiver_time, link,
                                                         GW, hphc_call)
         return self.yArm
-                
+
     def _arm_response(self, receiver_time, link, GW, call_hphc="compute_hphc", **kwargs):
-        """Compute GW signal at receiver time for a single source and link. 
-        
+        """Compute GW signal at receiver time for a single source and link.
+
         call_hphc can be switched to interpolation instead of actual
         hphc computation.
-        
+
         """
         k,v,u = GW.basis
-        emitter, receiver = self.orbits.get_pairs()[link]
+        receiver, emitter = self.orbits.get_pairs()[link]
+        #emitter, receiver = self.orbits.get_pairs()[link]
         # Arm geometry
         rem, rrec = self.pos[emitter-1,:,:], self.pos[receiver-1,:,:]
         tem = receiver_time - self.tt[:,link]
@@ -142,26 +155,28 @@ class ProjectedStrain(object):
         n = r_ij/np.linalg.norm(r_ij, axis=0) # unit vector between receiver and emitter
 
         un, vn, kn = np.dot(u, n), np.dot(v, n), np.dot(k, n)
-        xi_p = 0.5*(un*un - vn*vn) 
-        xi_c = un*vn 
-        
+        xi_p = 0.5*(un*un - vn*vn)
+        xi_c = un*vn
+
         # Dot products of GW wave propagation vector and emitter, receiver postiional vectors
         kep = np.dot(k, rem)
         krp = np.dot(k, rrec)
 
         te = tem - kep
         tr = receiver_time - krp
-        hpe, hce = eval("GW.%s(te, **kwargs)"%call_hphc)
-        hpr, hcr = eval("GW.%s(tr, **kwargs)"%call_hphc)
+        func = getattr(GW, call_hphc, None)
+        if func is not None:
+            hpe, hce = func(te, **kwargs)
+            hpr, hcr = func(tr, **kwargs)
 
         # Projected strain
         y = ((hpe - hpr)*xi_p + (hce - hcr)*xi_c )
         y/= (1.0-kn)
-        
+
         return y
 
     def from_file(self, hdf5_filename):
-        """ Load projected strain from file. 
+        """ Load projected strain from file.
         """
         yArm, source_names, links, tmin, tmax, dt = from_file(hdf5_filename)
         self.yArm = yArm
@@ -171,39 +186,59 @@ class ProjectedStrain(object):
         self.source_names = source_names
         expected_links = ["%d-%d"%(a,b) for a,b in self.orbits.get_pairs()]
         #assert links == expected_links
-        
+
     def set_link(self):
         self.links = ["%d-%d"%(a,b) for a,b in self.orbits.get_pairs()]
         self.dlink = dict(zip(self.links, range(len(self.links))))
-        
-    def to_file(self, hdf5_filename):
-        """ Save projected strain on disk in hdf5 file. 
-        
+
+    def to_file(self, hdf5_filename, fmt='ldc'):
+        """Save projected strain on disk in hdf5 file.
+
+         Args:
+             fmt: string defining file format, either 'ldc' (default)
+             or 'sim' to comply with LISA simulation tools.
+ 
         >>> proj = ProjectedStrain(orbits)
         >>> yArm = proj.arm_response(0, 1e4, 10, [GB])
         >>> proj.to_file("/tmp/test.hdf5")
-        """
-        to_file(hdf5_filename, self.yArm, self.source_names, self.links,
-                self.t_min, self.t_max, self.dt)
 
-    def slr2ilink(self, slr):
-        """Convert slr string (like 1-2) into link index between 0 and 6.
+        """
+        if fmt == 'ldc':
+            to_file(hdf5_filename, self.yArm, self.source_names, self.links,
+                    self.t_min, self.t_max, self.dt)
+        elif fmt == 'sim':
+            with  h5py.File(hdf5_filename, 'w') as hdf5:
+                t = np.arange(self.t_min, self.t_max, self.dt)
+                hdf5.create_dataset('t', data=t)
+                hdf5.attrs['gw_count'] = len(self.source_names)
+                for j, link in enumerate(self.links):
+                    dname = f'l_{link[0]}{link[-1]}'
+                    hdf5.create_dataset(dname, data=self.yArm[:,j])
+        else:
+            print(f"Unkown format {fmt}")
         
+    def slr2ilink(self, slr, perm=0):
+        """Convert slr string (like 1-2) into link index between 0 and 6.
+
         >>> proj = ProjectedStrain(orbits)
         >>> proj.slr2ilink("132")
-        0
+        2
         """
-        key = "%d-%d"%(int(slr[0]), int(slr[-1]))
+        fr = int(slr[0]) + perm
+        to = int(slr[-1])+ perm
+        fr = fr if fr<4 else fr%3
+        to = to if to<4 else to%3
+        key = "%d-%d"%(to, fr)
         return self.dlink[key]
 
     def interp(self, ilink):
         return spline(np.arange(self.t_min, self.t_max, self.dt),
                       self.yArm[:,ilink])
 
-    def y_slr(self, t, slr, d=[], interp=None):
-        """ Return TDI terms, following MLDC conventions (see MLDC user manual). 
-        
-        y_{slr,d}(t) = y_slr (t - L_d) = y_slr (t - L_a - L_b ...) 
+    def y_slr(self, t, slr, d=[], perm=0, interp=None):
+        """ Return TDI terms, following MLDC conventions (see MLDC user manual).
+
+        y_{slr,d}(t) = y_slr (t - L_d) = y_slr (t - L_a - L_b ...)
         """
         # sum delay if any
         #delay = np.array([self.orbits.compute_travel_time(int(link[0]),
@@ -214,33 +249,112 @@ class ProjectedStrain(object):
 
         # apply slr interpolator on delayed time range.
         if interp is None:
-            ilink = self.slr2ilink(slr)
+            ilink = self.slr2ilink(slr, perm=perm)
             interp = self.interp(ilink)
         res = interp(t_delayed)
         #res = self.sply[self.slr2ilink(slr)](t_delayed)
         return res
-    
-    def compute_tdi_x(self, t):
-        """ Return X in time domain. 
+
+    def __permute(self, n):
+        """ Return permuted indice n=0,1,2
+        """
+
+    def compute_tdi_x(self, t, tdi2=False, tt_order=0):
+        """ Compute TDI X. 
+        """
+        if tdi2:
+            return self._compute_tdi_2(t, perm=0, tt_order=tt_order)
+        return self._compute_tdi(t, perm=0, tt_order=tt_order)
+    def compute_tdi_y(self, t, tdi2=False, tt_order=0):
+        """ Compute TDI Y. 
+        """
+        if tdi2:
+            return self._compute_tdi_2(t, perm=1, tt_order=tt_order)
+        return self._compute_tdi(t, perm=1, tt_order=tt_order)
+    def compute_tdi_z(self, t, tdi2=False, tt_order=0):
+        """ Compute TDI Z. 
+        """
+        if tdi2:
+            return self._compute_tdi_2(t, perm=2, tt_order=tt_order)
+        return self._compute_tdi(t, perm=2, tt_order=tt_order)
+
+    def _compute_tdi(self, t, perm=0, tt_order=0):
+        """ Return X in time domain.
+
+        We follow slr convention here.
         """
         delays = dict()
         for d in ["2-1", "1-3", "3-1", "1-2"]:
-            delays[d] = self.orbits.compute_travel_time(int(d[0]), int(d[-1]), t)
+            fr = int(d[0]) + perm
+            to = int(d[-1])+ perm
+            fr = fr if fr<4 else fr%3
+            to = to if to<4 else to%3
+            delays[d] = self.orbits.compute_travel_time(fr, to, t, order=tt_order)
 
-        spl = self.interp(self.slr2ilink("132"))
-        X = self.y_slr(t, "132", [delays["2-1"], delays["1-3"], delays["3-1"]], interp=spl)
-        X-= self.y_slr(t, "132", [delays["2-1"]], interp=spl)
-        spl = self.interp(self.slr2ilink("231"))
-        X+= self.y_slr(t, "231", [delays["1-3"], delays["3-1"]], interp=spl)
-        X-= self.y_slr(t, "231", interp=spl)
-        spl = self.interp(self.slr2ilink("123"))
-        X+= self.y_slr(t, "123", [delays["3-1"]], interp=spl)
-        X-= self.y_slr(t, "123", [delays["3-1"], delays["1-2"], delays["2-1"]], interp=spl)
-        spl = self.interp(self.slr2ilink("321"))
-        X+= self.y_slr(t, "321", interp=spl)
-        X-= self.y_slr(t, "321", [delays["1-2"], delays["2-1"]], interp=spl)
+        spl = self.interp(self.slr2ilink("132", perm=perm))
+        X = self.y_slr(t, "132", [delays["2-1"], delays["1-3"], delays["3-1"]], perm=perm, interp=spl)
+        X-= self.y_slr(t, "132", [delays["2-1"]], perm=perm, interp=spl)
+        spl = self.interp(self.slr2ilink("231", perm=perm))
+        X+= self.y_slr(t, "231", [delays["1-3"], delays["3-1"]], perm=perm, interp=spl)
+        X-= self.y_slr(t, "231", perm=perm, interp=spl)
+        spl = self.interp(self.slr2ilink("123", perm=perm))
+        X+= self.y_slr(t, "123", [delays["3-1"]], perm=perm, interp=spl)
+        X-= self.y_slr(t, "123", [delays["3-1"], delays["1-2"], delays["2-1"]], perm=perm, interp=spl)
+        spl = self.interp(self.slr2ilink("321", perm=perm))
+        X+= self.y_slr(t, "321", perm=perm, interp=spl)
+        X-= self.y_slr(t, "321", [delays["1-2"], delays["2-1"]], perm=perm, interp=spl)
         return X
-        
+
+
+    def _compute_tdi_2(self, t, perm=0, tt_order=0):
+        delays = dict()
+        for d in ["2-1", "1-3", "3-1", "1-2"]:
+            fr = int(d[0]) + perm
+            to = int(d[-1])+ perm
+            fr = fr if fr<4 else fr%3
+            to = to if to<4 else to%3
+            delays[d] = self.orbits.compute_travel_time(fr, to, t, order=tt_order)
+
+        spl = self.interp(self.slr2ilink("132", perm=perm))
+        X = self.y_slr(t, "132", [delays["2-1"], delays["1-3"], delays["3-1"]],
+                       perm=perm, interp=spl)
+        X-= self.y_slr(t, "132", [delays["2-1"]], perm=perm, interp=spl)
+        X+= self.y_slr(t, "132", [delays["3-1"], delays["1-3"], delays["2-1"],
+                                  delays["1-2"], delays["2-1"]], perm=perm, interp=spl)
+        X-= self.y_slr(t, "132", [delays["2-1"], delays["1-2"], delays["3-1"],
+                                  delays["1-3"], delays["3-1"], delays["1-3"],
+                                  delays["2-1"]], perm=perm, interp=spl)
+
+        spl = self.interp(self.slr2ilink("231", perm=perm))
+        X+= self.y_slr(t, "231", [delays["1-3"], delays["3-1"]], perm=perm, interp=spl)
+        X-= self.y_slr(t, "231", perm=perm, interp=spl)
+        X+= self.y_slr(t, "231", [delays["3-1"], delays["1-3"],
+                                  delays["2-1"], delays["1-2"]], perm=perm, interp=spl)
+        X-= self.y_slr(t, "231", [delays["2-1"], delays["1-2"], delays["3-1"],
+                                  delays["1-3"], delays["3-1"], delays["1-3"]],
+                       perm=perm, interp=spl)
+
+        spl = self.interp(self.slr2ilink("123", perm=perm))
+        X+= self.y_slr(t, "123", [delays["3-1"]], perm=perm, interp=spl)
+        X-= self.y_slr(t, "123", [delays["3-1"], delays["1-2"], delays["2-1"]],
+                       perm=perm, interp=spl)
+        X+= self.y_slr(t, "123", [delays["3-1"], delays["1-3"], delays["2-1"],
+                                  delays["1-2"], delays["2-1"], delays["1-2"],
+                                  delays["3-1"]], perm=perm, interp=spl)
+        X-= self.y_slr(t, "123", [delays["2-1"], delays["1-2"], delays["3-1"],
+                                  delays["1-3"], delays["3-1"]], perm=perm, interp=spl)
+
+        spl = self.interp(self.slr2ilink("321", perm=perm))
+        X+= self.y_slr(t, "321", perm=perm, interp=spl)
+        X-= self.y_slr(t, "321", [delays["1-2"], delays["2-1"]], perm=perm, interp=spl)
+        X+= self.y_slr(t, "321", [delays["3-1"], delays["1-3"], delays["2-1"],
+                                  delays["1-2"], delays["2-1"], delays["1-2"]],
+                       perm=perm, interp=spl)
+        X-= self.y_slr(t, "321", [delays["2-1"], delays["1-2"], delays["3-1"],
+                                  delays["1-3"]], perm=perm, interp=spl)
+        return X
+
+
 if __name__ == "__main__":
 
     import numpy as np
@@ -248,7 +362,7 @@ if __name__ == "__main__":
     import doctest
     from ldc.waveform.waveform import HpHc
     from ldc.lisa.orbits import Orbits
-    
+
     config = dict({"nominal_arm_length":2.5e9*un.m,
                    "initial_rotation":0*un.rad,
                    "initial_position":0*un.rad,
@@ -266,5 +380,5 @@ if __name__ == "__main__":
     GB = HpHc.type("my-galactic-binary", "GB", "TD_fdot")
     GB.set_param(pGB)
     orbits = Orbits.type(config)
-    
+
     doctest.testmod()

@@ -1,0 +1,8 @@
+approximant: IMRPhenomD
+t_max: 2 yr
+t_min: 0 s
+nsource: 1
+indices: 0
+seed: 1234
+source_type: SBBH
+dt: 5 # s

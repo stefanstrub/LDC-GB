@@ -17,14 +17,14 @@ pGB = dict({'Amplitude': 1.07345e-22,# "strain"
             'Polarization': 3.5621656}) #"radian"
 
 #@profile
-def loop(prm, Tobs, del_t):
-    GB = FB.FastGB(delta_t=15, T=365*24*60*60) # in seconds
+# def loop(prm, Tobs, del_t):
+#     GB = FB.FastGB(delta_t=15, T=365*24*60*60) # in seconds
 
-    for i in range(10000):
-        freqT, X, Y, Z = GB.get_fd_tdixyz(template=pGB,
-                                          oversample=4,
-                                          simulator='synthlisa')
-    return 0
+#     for i in range(10000):
+#         freqT, X, Y, Z = GB.get_fd_tdixyz(template=pGB,
+#                                           oversample=4,
+#                                           simulator='synthlisa')
+#     return 0
 
 #loop(prm, Tobs, del_t)
 
@@ -40,10 +40,11 @@ GB = FB.FastGB(delta_t=del_t, T=Tobs, orbits=lisa_orbits) # in seconds
 pGB['EclipticLatitude'] *= (180/np.pi) # to deg
 pGB['EclipticLatitude'] *= un.deg
 
-X, Y, Z = GB.get_td_tdixyz(template=pGB,
-                           oversample=4,
-                           simulator='synthlisa')
+X, Y, Z = GB.get_td_tdixyz(template=pGB, oversample=4, radler=True)
 trange = np.arange(0, Tobs, del_t)
+
+Xf, Yf, Zf = GB.get_fd_tdixyz(template=pGB, oversample=4)
+
 
 GB = FB_MLDC.FastGB("Test", dt=del_t, Tobs=Tobs, orbit="analytic")
 bet = pGB["EclipticLatitude"]
@@ -70,3 +71,14 @@ for j,(T1,T2) in enumerate([(X, X1t), (Y,Y1t), (Z,Z1t)]):
     plt.legend(loc="lower right")
     plt.subplot(3, 2, 2*j+2)
     plt.plot(trange, np.array(T1)-T2, label="difference")
+
+
+
+        # print("\t myFastGB before : Xf.df = ",Xf.df)
+        # print("\t myFastGB before : Xf.kmin = ",Xf.kmin)
+        # print("Xf[0] before= ",Xf[0])
+        # mydf = Xf.df
+        # Xf = Xf*mydf;Yf = Yf*mydf;Zf = Zf*mydf;
+        # print("Xf[0] After= ",Xf[0])
+        # print("\t myFastGB : Xf.df = ",Xf.df)
+        # print("\t myFastGB : Xf.kmin = ",Xf.kmin)

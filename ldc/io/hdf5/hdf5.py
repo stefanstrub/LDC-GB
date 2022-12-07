@@ -27,29 +27,36 @@ def str_decode(value):
         return value.decode()
     return value
 
-def quantity_encode(value):
-    """ Encode astropy quantity to save units
+def atomic(cfg):
+    """Flatten lists and split quantities into data (for values) and
+    attributes (for units).
 
-    >>> quantity_encode(10*units.m)
-    "{'value': 10.0, 'units': 'm'}"
+    >>> cfg = {"deltat":[1*units.Unit('s'), 2*units.Unit("s")]}
+    >>> data, units = atomic(cfg)
+    >>> print(data)
+    {'deltat_0': 1.0, 'deltat_1': 2.0}
+    >>> print(units)
+    {'deltat_0': 's', 'deltat_1': 's'}
     """
-    if isinstance(value, units.Quantity):
-        value = str(dict({"value":value.value, "units":str(value.unit)}))
-    return value
-
-def quantity_decode(value):
-    """ Decode astropy quantity
-
-    >>> quantity_decode("{'value': 10.0, 'units': 'm'}")
-    <Quantity 10. m>
-    """
-    try:
-        value = ast.literal_eval(value)
-        if isinstance(value, dict) and 'units' in value.keys():
-            value = value["value"]*units.Unit(value["units"])
-    except:
-        pass
-    return value
+    flat = {}
+    for k,v in cfg.items():
+        if isinstance(v, list) or isinstance(v, tuple):
+            for i in range(len(v)):
+                flat[k+f"_{i}"] = v[i]
+        elif isinstance(v, dict):
+            for ki,vi in v.items():
+                flat[k+"_"+ki] = vi
+        else:
+            flat[k] = v
+    data = {}
+    attr = {}
+    for k,v in flat.items():
+        if isinstance(v, units.Quantity):
+            data[k] = v.value
+            attr[k] = str(v.unit)
+        else:
+            data[k] = v
+    return data, attr
 
 
 def encode_utype(array):
@@ -97,6 +104,7 @@ def save_array(filename, arr, name="data", mode="a", chunks=False, **kwargs):
     """
     arr = encode_utype(arr)
     with h5py.File(filename, mode) as fid:
+        # TODO PB: check here for Yorsh cat
         if len(arr.shape) == 1:
             arr = arr.reshape(len(arr), 1)
         if chunks:
@@ -126,22 +134,26 @@ def append_array(filename, arr, column_index, name="data"):
         fid[name][:, -1] = arr
 
 
-def load_array(filename, name="", full_output=True):
-    """ Return array and its attributes from hdf5 file.
+def load_array(filename, name="", full_output=True, sl=None):
+    """Return array and its attributes from hdf5 file.
 
     if full_output is True, return array and meta data as dict.
     Otherwise, return array only.
 
+    one can select a subset of data by giving a slice object as sl
+    argument.
+
     """
     with h5py.File(filename, "r") as fid:
         names = [name] if name else list(fid.keys())
-        
         attr = {}
         arrs = []
         for name in names:
             dset = fid.get(name)
             for k, v in dset.attrs.items():
                 attr[k] = str_decode(v)
+            if sl is not None:
+                dset = dset[sl]
             arrs.append(decode_utype(np.array(dset)).squeeze())
         if len(names)>1:
             try: # make a rec array if all arrays share same size
@@ -171,29 +183,61 @@ def save_config(filename, cfg, name="config", mode='a'):
     >>> print(load_config("test.h5"))
     {'author': 'me', 'date': 'today'}
     """
+    data, units = atomic(cfg)
     with h5py.File(filename, mode) as fid:
         fid.create_group(name)
-        for k, v in cfg.items():
-            fid[name].attrs.create(k, quantity_encode(str_encode(v)))
+        for k, v in data.items():
+            ds = fid[name].create_dataset(k, data=str_encode(v))
+            if k in units.keys():
+                ds.attrs.create('units', units[k])
 
 
-def load_config(filename, name="config"):
+def load_config(filename, name="config", deprecated=False):
+    """ Load configuration from dedicated group.
+    """
+    if deprecated:
+        return load_config_deprecated(filename, name=name)
+    with h5py.File(filename, "r") as fid:
+        grp = fid.get(name)
+        data = {}
+        attr = {}
+        for name in grp.keys():
+            data[name] = str_decode(grp.get(name)[()])
+            if 'units' in grp[name].attrs.keys():
+                attr[name] = grp[name].attrs["units"]
+    for k,v in attr.items():
+        data[k] *= units.Unit(str(v))
+    return data
+
+def quantity_decode_deprecated(value):
+    """ Decode astropy quantity
+    """
+    try:
+        value = ast.literal_eval(value)
+        if isinstance(value, dict) and 'units' in value.keys():
+            value = value["value"]*units.Unit(value["units"])
+    except:
+        pass
+    return value
+
+def load_config_deprecated(filename, name="config"):
     """ Load configuration from dedicated group.
     """
     with h5py.File(filename, "r") as fid:
         grp = fid.get(name)
         attr = dict()
         for k, v in grp.attrs.items():
-            attr[k] = quantity_decode(str_decode(v))
+            attr[k] = quantity_decode_deprecated(str_decode(v))
     return attr
+
+
 
 def display(filename):
     """ Display file content
 
-    >>> save_array("test.h5", np.ones((5)), mode="w", author='me')
+    >>> save_array("test.h5", np.ones((5)), mode="w")
     >>> display("test.h5")
     data <HDF5 dataset "data": shape (5, 1), type "<f8">
-        author: b'me'
     """
     def print_attrs(name, obj):
         print(name, obj)

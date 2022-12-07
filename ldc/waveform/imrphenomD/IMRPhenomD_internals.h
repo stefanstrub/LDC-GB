@@ -99,10 +99,11 @@ of this waveform.
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_spline.h>
 
-#include "pdbParam.h" // LISA constants
-#define GMSUN Nature_SUN_GM
-#define CLIGHT Nature_VELOCITYOFLIGHT_CONSTANT_VACUUM
-#define G Nature_NEWTON_CONSTANT
+#include "lisaconstants.h" // LISA constants
+#define GMSUN LISA_GM_SUN
+#define CLIGHT LISA_SPEED_OF_LIGHT
+#define G LISA_NEWTON_CONSTANT
+#define SUN_MASS LISA_SUN_MASS
 
 // From std/LALConstants.h
 
@@ -116,7 +117,7 @@ of this waveform.
  * MSUN_SI = LAL_GMSUN_SI / LAL_G_SI
  */
 //#define MSUN_SI 1.988546954961461467461011951140572744e30
-#define MSUN_SI (double)Nature_SUN_MASS //GMSUN/G
+#define MSUN_SI LISA_SUN_MASS //(GMSUN)/(G)
 
 /**
  * @brief Geometrized solar mass, s
@@ -135,7 +136,7 @@ of this waveform.
 //#define MRSUN_SI 1.476625061404649406193430731479084713e3
 #define MRSUN_SI GMSUN/(CLIGHT*CLIGHT)
 
-#define PC_SI Nature_PARSEC_METER //3.085677581491367278913937957796471611e16 /**< Parsec, m */
+#define PC_SI LISA_PARSEC_METER //3.085677581491367278913937957796471611e16 /**< Parsec, m */
 
 /* CONSTANTS */
 

@@ -1,0 +1,31 @@
+# FROM gitlab-registry.in2p3.fr/lisa/ldc:latest
+FROM gitlab-registry.in2p3.fr/lisa/ldc:develop
+USER root
+RUN apt-get -y update \
+&& apt-get -y --no-install-recommends install wget liblapacke-dev
+RUN pip3 install --no-cache-dir snakemake tqdm
+
+COPY LISANode /codes/LISANode
+COPY orbits /codes/orbits
+COPY glitch /codes/glitch
+COPY instrument /codes/instrument
+COPY pytdi /codes/pytdi
+
+WORKDIR /codes/LISANode
+RUN pip3 install -e .
+
+WORKDIR /codes/orbits
+RUN python3 setup.py install clean --all
+
+WORKDIR /codes/glitch
+#RUN pip3 install -r requirements.txt
+RUN pip3 install torch
+RUN python3 setup.py install clean --all
+
+WORKDIR /codes/instrument
+RUN python3 setup.py install clean --all
+
+WORKDIR /codes/pytdi
+RUN python3 setup.py install clean --all
+
+USER lisauser

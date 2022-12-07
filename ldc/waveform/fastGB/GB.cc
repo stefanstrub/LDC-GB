@@ -34,6 +34,7 @@ void Fast_GB_with_orbits(double *params, long N, double Tobs, double dt,
 	struct AnalyticOrbits* lisa = newAnalyticOrbits(orbit_params[0], orbit_params[1],
 							orbit_params[2]);
         double Larm = AnalyticOrbits_get_armlength(lisa);
+	double fstar = (C/Larm)/(2*PI); //0.01908538063694777;
 
 	// waveform struct to hold pieces for calculation
 	struct Waveform *wfm = (struct Waveform*) malloc(sizeof(struct Waveform));
@@ -49,22 +50,20 @@ void Fast_GB_with_orbits(double *params, long N, double Tobs, double dt,
 
 	for(n=0; n<N; n++)
 	{
-		t = wfm->T*(double)(n)/(double)N; // First time sample must be at t=0 for phasing
-
-		calc_xi_f(wfm, lisa, t);  // calc frequency and time variables
-		calc_sep_vecs(wfm, Larm);       // calculate the S/C separation vectors
-		calc_d_matrices(wfm);     // calculate pieces of waveform
-		calc_kdotr(wfm);		  // calculate dot product
-		get_transfer(wfm, t);     // Calculating Transfer function
-
-		fill_time_series(wfm, n); // Fill  time series data arrays with slowly evolving signal.
+	  t = wfm->T*(double)(n)/(double)N; // First time sample must be at t=0 for phasing
+	  calc_xi_f(wfm, lisa, fstar, t);  // calc frequency and time variables
+	  calc_sep_vecs(wfm, Larm);       // calculate the S/C separation vectors
+	  calc_d_matrices(wfm);     // calculate pieces of waveform
+	  calc_kdotr(wfm);		  // calculate dot product
+	  get_transfer(wfm, t);     // Calculating Transfer function
+	  fill_time_series(wfm, n); // Fill  time series data arrays with slowly evolving signal.
 	}
 
 	fft_data(wfm);     // Numerical Fourier transform of slowly evolving signal
 	unpack_data(wfm);  // Unpack arrays from FFT and normalize
 
 
-	XYZ(wfm->d, wfm->params[0]/wfm->T, wfm->q, N, dt, Tobs, Larm, XLS, YLS, ZLS, XSL, YSL, ZSL);
+	XYZ(wfm->d, wfm->params[0]/wfm->T, wfm->q, N, dt, Tobs, Larm, fstar, XLS, YLS, ZLS, XSL, YSL, ZSL);
 
 	free_waveform(wfm);  // Deallocate memory
 	free(wfm);
@@ -75,7 +74,7 @@ void Fast_GB_with_orbits(double *params, long N, double Tobs, double dt,
 
 
 
-void calc_xi_f(struct Waveform *wfm, struct AnalyticOrbits* lisa, double t)
+void calc_xi_f(struct Waveform *wfm, struct AnalyticOrbits* lisa, double fstar, double t)
 {
 	long i;
 
@@ -609,6 +608,8 @@ void get_transfer(struct Waveform *wfm, double t)
 
 				//Transfer function
 				sinc = 0.25*sin(arg1)/arg1;
+				if(arg1==0)  sinc = 0.25;
+				  
 
 				//Evolution of amplitude
 				aevol = 1.0;
@@ -632,7 +633,8 @@ void get_transfer(struct Waveform *wfm, double t)
 	return;
 }
 
-void XYZ(double ***d, double f0, long q, long M, double dt, double Tobs, double Larm, double *XLS, double *YLS, double *ZLS,
+void XYZ(double ***d, double f0, long q, long M, double dt, double Tobs, double Larm, double fstar,
+	 double *XLS, double *YLS, double *ZLS,
 	 double* XSL, double* YSL, double* ZSL)
 {
 	int i;
@@ -749,7 +751,7 @@ void XYZ(double ***d, double f0, long q, long M, double dt, double Tobs, double 
 	return;
 }
 
-long get_N(double *params, double Tobs)
+long get_N(double *params, double Tobs, double fstar)
 {
 	// This determines the number of samples to take of the slowly evolving bit
 	// of the GB waveform. Right now only instrument noise is used in the estimate

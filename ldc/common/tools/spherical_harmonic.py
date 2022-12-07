@@ -1,12 +1,12 @@
-from ldc.common import constants
+import lisaconstants
 import numpy as np
 from numpy import pi, sqrt, cos, sin, exp
-N = constants.Nature
-MTSUN_SI = N.SUN_GM/N.VELOCITYOFLIGHT_CONSTANT_VACUUM**3
-YRSID_SI = N.SIDEREALYEAR_J2000DAY*24*60*60
+
+MTSUN_SI = lisaconstants.GM_SUN/lisaconstants.SPEED_OF_LIGHT**3
+YRSID_SI = lisaconstants.SIDEREALYEAR_J2000DAY*24*60*60
 
 def mchirpofm1m2(m1, m2):
-    """ Compute chirp mass from m1 and m2 - same units as input m1,m2
+    """ Compute chirp mass from m1 and m2. 
     """
     return pow(m1*m2, 3./5) / pow(m1+m2, 1./5)
 
@@ -15,9 +15,11 @@ def newtonianfoft(Mchirp, t):
     freq). 
 
     Gives the starting geometric frequency for a given time to merger
-    and chirp mass in Hz 
-    - chirp mass (solar masses),
-    - time in years
+    and chirp mass in Hz
+
+    Args:
+        Mchirp: chirp mass in solar masses
+        t: time in years
     """
     if(t<=0.):
         return 0.
@@ -26,17 +28,24 @@ def newtonianfoft(Mchirp, t):
 def newtoniantoffchirp(Mchirp, f):
     """ Newtonian estimate of the relation deltat(f) (for the 22 mode
     freq)
+
     Gives the time to merger from a starting frequency for a given
     chirp mass in years 
-    - input chirp mass (solar masses),
-    - frequency in Hz
+    
+    Args:
+        Mchirp: input chirp mass in solar masses
+        f: frequency in Hz
     """
     return 5./256 * pow(Mchirp*MTSUN_SI, -5./3) * pow(pi*f, -8./3) / YRSID_SI
 
 def deltaMfPowerLaw(eta, Mf, acc):
+    """
+    """
     return 3.8 * np.power(eta * acc, 1./4.) * Mf * np.power(np.pi*Mf, 5./12.)
 
 def deltaMfLog(Mfmin, Mfmax, npt, Mf):
+    """
+    """
     return Mf * (np.power(Mfmax/Mfmin, 1/(npt - 1)) - 1)
 
 

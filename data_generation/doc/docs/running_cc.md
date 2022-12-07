@@ -42,7 +42,7 @@ To download the singularity image:
 
 ```
 > ccenv singularity 3.5.2
-> singularity pull --docker-username gitlab-deploy-token --docker-password ... ldcpipe.sif oras://gitlab-registry.in2p3.fr/lisa/ldc/ldc:latest
+> singularity pull --docker-username gitlab-deploy-token --docker-password ... ldcpipe.sif oras://gitlab-registry.in2p3.fr/lisa/ldc/ldc:prod-master
 ```
 
 ### Configuring the bash profile
@@ -121,5 +121,4 @@ option:
 then 2/5, 3/5, 4/5 and 5/5.
 
 
-### Other sources and TDI output
 

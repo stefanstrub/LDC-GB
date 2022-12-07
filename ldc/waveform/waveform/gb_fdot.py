@@ -29,10 +29,6 @@ class GB_fdot(HpHc):
         """ Display the source and precomputed parameters. """
         super().display()
         print("Internal parameters:")
-        print('- phi0 = ', self.phi0, 'rad')
-        print('- f    = ', self.f, 'Hz')
-        print('- dfdt = ', self.dfdt, 'Hz/s')
-        print('- amplitude = ', self.phi0)
         print('- cos(inc)  =', self.cos_inc, 'rad')
 
     def info(self):

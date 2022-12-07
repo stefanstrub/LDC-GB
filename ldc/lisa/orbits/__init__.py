@@ -1,4 +1,5 @@
 __all__ = ["orbits"]
 
 name = 'orbits'
-from .orbits import Orbits, AnalyticOrbits
+from .orbits import Orbits, AnalyticOrbits, OrbitsFromFile
+from .orbits import OrbitsFromFileDeprecated

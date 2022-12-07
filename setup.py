@@ -3,29 +3,16 @@ from distutils.core import Extension
 from Cython.Distutils import build_ext
 import os
 import subprocess
+import distutils
+import sys
 
 try:
     from setuptools import find_namespace_packages
 except ImportError:
     raise("setuptools>=41.0.0 is required")
 
-
-class build_liborbits(Command):
-    description = 'compile c++ orbits library'
-    user_options = []
-    def initialize_options(self):
-        pass
-    def finalize_options(self):
-        pass
-    def sub_commands(self):
-        pass
-    def run(self):
-        os.system("make -C ldc/lisa/orbits/lib")
-        #os.system("make install")
-
 GSL_CFLAGS = subprocess.check_output("gsl-config --cflags", shell=True)
 
-        
 try:
     import cython
     USE_CYTHON = True
@@ -71,26 +58,58 @@ imr_phenomd_ext = Extension("pyimrphenomD",
                             #library_dirs=[lib_gsl_dir])
                             )
 
+fast_ak_ext = Extension("fastAK",
+                        sources=["ldc/waveform/fastAK/fastAK"+ext_cc,
+                                 "ldc/waveform/fastAK/EMRItemplate.cc",
+                                 "ldc/waveform/fastAK/FreqAK_RAv2.cc",
+                                 "ldc/lisa/orbits/lib/orbits.cc"],
+                        include_dirs=[numpy.get_include(),
+                                      'ldc/common/constants',
+                                      'ldc/lisa/orbits/lib'],
+                        library_dirs=['ldc/lisa/orbits/lib'],
+                        language="c++",
+                        extra_compile_args=["-std=gnu++11"],
+                        libraries=["gsl", "gslcblas", 'orbits'])
+
+
+default = [fastGB_ext, imr_phenomd_ext, fast_ak_ext]
+ext_modules = [orbits_ext]
+for iopt, opt in enumerate(['--with-fastGB', '--with-imrphenomD', '--with-fastAK']):
+    if opt in sys.argv:
+        ext_modules.append(default[iopt])
+        sys.argv.remove(opt)
+
+if orbits_ext in ext_modules:
+    os.system("make -s -C ldc/lisa/orbits/lib")
+    ext_modules.append(orbits_ext)
+
 setup(
     name='ldc',
-    version='0.1',
+    version='1.1',
     description='LISA Data Challenge software',
-    long_description='TBD',
+    long_description='LDC provides a set of tools to generate and analyse the LDC datasets',
     author='ldc-dev',
     author_email='ldc-dev@lisamission.org',
-    cmdclass={'build_ext': build_ext, "build_liborbits": build_liborbits}, 
+    python_requires='>=3.7',
+    cmdclass={'build_ext': build_ext},
     packages=find_namespace_packages(include=['ldc.lisa.*','ldc.common.*',
                                               'ldc.waveform.*', 'ldc.io.*',
                                               'ldc.utils.*']),
     zip_safe=False,
     install_requires=['numpy'],
-    ext_modules=[orbits_ext, fastGB_ext, imr_phenomd_ext],
+    ext_modules=ext_modules,
     scripts=[os.path.join("data_generation/scripts", s) for s in ['arm_projection',
                                                                   "strain_combination",
                                                                   "strain_interpolation",
-                                                                  'run_lisanode',
                                                                   'prep_lisanode',
                                                                   'source_selection',
-                                                                  'data_release']],
-)
+                                                                  'data_release',
+                                                                  'fake_strain',
+                                                                  'lisa_instrument',
+                                                                  'build_orbits',
+                                                                  'make_glitch',
+                                                                  'tdi_downsampling',
+                                                                  'upsampleorbits',
+                                                                  'make_gaps', 'run_pytdi',
+                                                                  'merge_tdi']],)
 

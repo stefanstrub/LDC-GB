@@ -2,7 +2,7 @@
 
 
 using namespace std;
-using namespace PdbParam;
+
 
 AnalyticOrbits::AnalyticOrbits(){}
 AnalyticOrbits::AnalyticOrbits(double arm_length, double init_position, double init_rotation){
@@ -111,5 +111,30 @@ void AnalyticOrbits::get_travel_time(int emitter, int receiver, double* rec_time
   }
 }
 
+void AnalyticOrbits::get_travel_time(int emitter, int receiver, double* rec_time,
+				     double* x_emitter, double* y_emitter,
+				     double* z_emitter,
+				     double* x_receiver, double* y_receiver,
+				     double* z_receiver,
+				     double* tt, int nt, int order){
+
+  array<double, 3> v_j;
+  array<double, 3> r_j;
+  array<double, 3> r_i;
+  
+  for (int t = 0; t < nt; t += 1) {
+
+    r_i[0] = x_emitter[t];
+    r_i[1] = y_emitter[t];
+    r_i[2] = z_emitter[t];
+    r_j[0] = x_receiver[t];
+    r_j[1] = y_receiver[t];
+    r_j[2] = z_receiver[t];
+    v_j = velocity(receiver, rec_time[t]);
+
+    tt[t] = travel_time(r_i, r_j, v_j, order);
+    
+  }
+}
 
 

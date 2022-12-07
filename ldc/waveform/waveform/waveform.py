@@ -3,7 +3,11 @@
 import numpy as np
 
 # the second form does not work in Python 3.6
-from ldc.waveform import fastGB as FB
+try:
+    from ldc.waveform import fastGB as FB
+except ImportError:
+    FB = None
+
 # import ldc.waveform.fastGB as FB
 
 from ldc.common.series import TimeSeries
@@ -32,10 +36,12 @@ def get_fd_tdixyz(delta_t, duration, source_type, approximant, **kwargs):
     duplication of if/raise statements
     """
 
-    if source_type=="GB":
+    if source_type=="GB" and FB is not None:
         GB = FB.FastGB(delta_t=delta_t, T=duration) # in seconds
         X, Y, Z = GB.get_fd_tdixyz(template=kwargs)
         return X, Y, Z
     else:
+        if source_type=="GB":
+            print("FastGB not found, please install with --with-fastGB")
         raise NotImplementedError
     

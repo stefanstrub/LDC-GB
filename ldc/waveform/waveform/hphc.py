@@ -31,6 +31,7 @@ class HpHc(ABC):
     """Compute waveforms h+ and hx for all types of sources.
 
     An HpHc is identified by a:
+
     - source type in [MBHB, EMRI, GB, SOBBH, SGWB]
     - approximant in [IMRPhenomD, AK, PhenomD, None]
     - set of parameters.
@@ -61,19 +62,29 @@ class HpHc(ABC):
     def type(cls, source_name, source_type, approximant):
         """ Return instance corresponding to source type. """
         if source_type == "MBHB" or (source_type is None and approximant == "IMRPhenomD"):
-            module = importlib.import_module("ldc.waveform.waveform.bbh_imrphenomD")
-            return getattr(module, "BBH_IMRPhenomD")(source_name, source_type, approximant)
+            module = importlib.import_module("ldc.waveform.waveform.bhb_imrphenomD")
+            return getattr(module, "BHB_IMRPhenomD")(source_name, source_type, approximant)
+        if source_type == "SBBH" and approximant == "IMRPhenomD":
+            module = importlib.import_module("ldc.waveform.waveform.bhb_imrphenomD")
+            return getattr(module, "BHB_IMRPhenomD")(source_name, source_type, approximant)
         if source_type == "GB":
             module = importlib.import_module("ldc.waveform.waveform.gb_fdot")
             return getattr(module, "GB_fdot")(source_name, source_type, approximant)
-        if source_type == "EMRI":
+        
+        # SOBHB models
+        if source_type == "SOBHB" and approximant == "IMRPhenomD":
+            module = importlib.import_module("ldc.waveform.waveform.bhb_imrphenomD")
+            # return getattr(module, "SOBHB_IMRPhenomD")(source_name, source_type, approximant)
+            return getattr(module, "BHB_IMRPhenomD")(source_name, source_type, approximant)
+        
+        # EMRI models
+        if source_type == "EMRI" and approximant == "AK":
             module = importlib.import_module("ldc.waveform.waveform.emri_ak")
             return getattr(module, "EMRI_AK")(source_name, source_type, approximant)
-        if source_type == "SOBBH":
-            module = importlib.import_module("ldc.waveform.waveform.sobbh_phenomD")
-            return getattr(module, "SOBBH_phenomD")(source_name, source_type, approximant)
+        if source_type == "EMRI" and approximant == "FSEF":
+            module = importlib.import_module("ldc.waveform.waveform.emri_fsef")
+            return getattr(module, "EMRI_FastSchwarschildEccentricFlux")(source_name, source_type, approximant)
         raise ValueError("Invalid source_type %s (approximant=%s)"%(source_type, approximant))
-
 
     @property
     def pnames(self):
@@ -126,10 +137,6 @@ class HpHc(ABC):
         InitialPhase : 3.0581565  [ rad ]
         Polarization : 3.5621656  [ rad ]
         Internal parameters:
-        - phi0 =  3.0581565 rad
-        - f    =  [0.00135962] Hz
-        - dfdt =  [8.94581279e-19] Hz/s
-        - amplitude =  3.0581565
         - cos(inc)  = 0.8660252915835662 rad
 
         """
@@ -207,8 +214,6 @@ class HpHc(ABC):
         self.hc[i_st:i_en+1], self.i_hc = _interp(tm, hc, t[i_st:i_en+1], **kwargs)
         self.t = t
 
-
-
     def precomputation(self):
         """ Precompute projectors
         """
@@ -249,7 +254,42 @@ class HpHc(ABC):
             else:
                 print(k, ":", self.source_parameters[k])
 
+class NumericHpHc(HpHc):
+    """ h+ and hx from arrays. 
+    
+    """
+    
+    def __init__(self, t, hp, hc, lon, lat, name="num-hphc"):
+        """ Set original values and interpolant
+        """
+        self.t = t
+        self.hp = hp
+        self.hc = hc
+        self.i_hp = spline(t, hp)
+        self.i_hc = spline(t, hc)
+        self.source_type = "Numeric"
+        self.source_name = name
+        self.set_param(dict({"EclipticLatitude":lat,
+                             "EclipticLongitude":lon}))
 
+    def compute_hphc_td(self, t):
+        return interp_hphc(t)
+
+    def check_param(self):
+        """ Check parameters and their units
+        """
+        for k in list(self.info().keys()):
+            assert k in self.pnames
+        assert self.units["EclipticLatitude"].lower() in ["radian", "rad", "r"]
+        assert self.units["EclipticLongitude"].lower() in ["radian", "rad", "r"]
+
+    def info(self):
+        """ Return GB parameter names and units
+        """
+        units = {'EclipticLatitude':         'rad',
+                 'EclipticLongitude':        'rad'}
+        return units
+    
 if __name__ == "__main__":
     import doctest
 

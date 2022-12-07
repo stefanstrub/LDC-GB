@@ -1,4 +1,4 @@
-__all__ = ["timeseries", "windows"]
+__all__ = ["timeseries", "tdi"]
 
 from .timeseries import TimeSeries, FrequencySeries
-from .windows import *
+from .tdi import TDI, XYZ2AET

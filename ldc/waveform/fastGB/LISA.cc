@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "LISA.h"
+#include "GB.h"
 #include <math.h>
 
 void instrument_noise(double f, double *SAE, double *SXYZ)
@@ -9,6 +10,7 @@ void instrument_noise(double f, double *SAE, double *SXYZ)
     double red, Sloc;
     double trans;
     double Larm = LARM;
+    double fstar =  (C/Larm)/(2*PI); //0.01908538063694777;
 
     red  = 16.0*(pow((2.0e-5/f), 10.0)+ (1.0e-4/f)*(1.0e-4/f));
     Sloc = 2.89e-24;
@@ -64,7 +66,6 @@ void spacecraft(double t, double *x, double *y, double *z)
 	x[2] = AU*ca + AU*ec*(sa*ca*sb - (1. + sa*sa)*cb);
 	y[2] = AU*sa + AU*ec*(sa*ca*cb - (1. + ca*ca)*sb);
 	z[2] = -SQ3*AU*ec*(ca*cb + sa*sb);
-
 
 	return;
 }

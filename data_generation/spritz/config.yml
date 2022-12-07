@@ -1,0 +1,115 @@
+dt: 2.5 s
+t_max:  1 yr #60 d #1 yr #86400 s #1 day
+t_min:  0.0 s
+dt_tdi: 5 s
+
+orbit_type:  keplerian #equal_armlength # equal_armlength or keplerian
+initial_position:  0.0 rad
+initial_rotation:  0.0 rad
+nominal_arm_length:  2500000000.0 m
+kepler_order: 2 # only used if orbit_type=keplerian
+dt_orbits: 86400 s
+travel_time_order: 1
+
+dt_instrument: 0.25 s # LISA baseline 4/16Hz
+physic_upsampling: 1
+interp_order: 9
+sim_kaiser_passband: 1.1
+sim_kaiser_stopband: 2.9
+sim_kaiser_attenuation: 240
+sim_kaiser_delay: 4.5
+tdi_kaiser_passband: 0.05
+tdi_kaiser_stopband: 0.1
+tdi_kaiser_attenuation: 240
+tdi_kaiser_delay: 161.75
+tdi_kaiser_cutoff: 0.05
+
+backlinknoise: 3.00e-12 #m/sqrt(Hz)
+readoutnoise: 6.35e-12 #m/sqrt(Hz)
+accnoise: 2.4e-15 # m/s^2/sqrt(Hz)
+galaxy: /data/reduced_1_yr.h5
+
+gaps_delta_t:
+  - 10 d
+  - 15 d
+gaps_duration: 7 hr
+
+sources:
+  - mbhb1
+  - mbhb2
+  - vgb
+
+nbatch: 1
+dirname: v2
+laser_seed_12: 1
+laser_seed_13: 2
+laser_seed_21: 3
+laser_seed_23: 4
+laser_seed_32: 5
+laser_seed_31: 6
+backlink_tm_seed_f_12: 11
+backlink_tm_seed_f_13: 12
+backlink_tm_seed_f_21: 13
+backlink_tm_seed_f_23: 14
+backlink_tm_seed_f_31: 15
+backlink_tm_seed_f_32: 16
+backlink_ref_seed_f_12: 21
+backlink_ref_seed_f_13: 22
+backlink_ref_seed_f_21: 23
+backlink_ref_seed_f_23: 24
+backlink_ref_seed_f_31: 25
+backlink_ref_seed_f_32: 26
+backlink_tm_seed1_over_f_12: 31
+backlink_tm_seed1_over_f_13: 32
+backlink_tm_seed1_over_f_21: 33
+backlink_tm_seed1_over_f_23: 34
+backlink_tm_seed1_over_f_31: 35
+backlink_tm_seed1_over_f_32: 36
+backlink_ref_seed1_over_f_12: 41
+backlink_ref_seed1_over_f_13: 42
+backlink_ref_seed1_over_f_21: 43
+backlink_ref_seed1_over_f_23: 44
+backlink_ref_seed1_over_f_31: 45
+backlink_ref_seed1_over_f_32: 46
+readout_isc_c_seed_12: 51
+readout_isc_c_seed_13: 151
+readout_isc_c_seed_21: 251
+readout_isc_c_seed_23: 351
+readout_isc_c_seed_31: 451
+readout_isc_c_seed_32: 551
+readout_isc_sb_seed_12: 52
+readout_isc_sb_seed_13: 152
+readout_isc_sb_seed_21: 252
+readout_isc_sb_seed_23: 352
+readout_isc_sb_seed_31: 452
+readout_isc_sb_seed_32: 552
+readout_tm_c_seed_12: 53
+readout_tm_c_seed_13: 153
+readout_tm_c_seed_21: 253
+readout_tm_c_seed_23: 353
+readout_tm_c_seed_31: 453
+readout_tm_c_seed_32: 453
+readout_ref_c_seed_12: 54
+readout_ref_c_seed_13: 154
+readout_ref_c_seed_21: 254
+readout_ref_c_seed_23: 354
+readout_ref_c_seed_31: 454
+readout_ref_c_seed_32: 554
+readout_ref_sb_seed_12: 55
+readout_ref_sb_seed_13: 155
+readout_ref_sb_seed_21: 255
+readout_ref_sb_seed_23: 355
+readout_ref_sb_seed_31: 455
+readout_ref_sb_seed_32: 555
+accnoise_seed_1_over_f_12: 61
+accnoise_seed_1_over_f_13: 62
+accnoise_seed_1_over_f_21: 63
+accnoise_seed_1_over_f_23: 64
+accnoise_seed_1_over_f_32: 65
+accnoise_seed_1_over_f_31: 66
+accnoise_seed_1_over_f2_12: 71
+accnoise_seed_1_over_f2_13: 72
+accnoise_seed_1_over_f2_21: 73
+accnoise_seed_1_over_f2_23: 74
+accnoise_seed_1_over_f2_32: 75
+accnoise_seed_1_over_f2_31: 76

@@ -1,5 +1,5 @@
 import numpy as np
-from ldc.common import constants
+import lisaconstants
 from ldc.common import tools
 import ldc.waveform.imrphenomD as imrphenomD
 
@@ -25,11 +25,11 @@ d = dict({'AzimuthalAngleOfSpin1': 4.9, #"radian"),
 
 phi0 = 0.           # Orbital phase at fRef (rad)
 fRef = 0.           # Reference frequency (Hz)
-m1_SI = d["Mass1"]*constants.Nature.SUN_MASS #  code needs masses in kg
-m2_SI = d["Mass2"]*constants.Nature.SUN_MASS # Mass of companion 2 (kg)
+m1_SI = d["Mass1"]*lisaconstants.SUN_MASS #  code needs masses in kg
+m2_SI = d["Mass2"]*lisaconstants.SUN_MASS # Mass of companion 2 (kg)
 a1 = np.cos(d["PolarAngleOfSpin1"])*d["Spin1"] # For PhenomD we will use projections
 a2 = np.cos(d["PolarAngleOfSpin2"])*d["Spin2"] # Aligned-spin parameter of companion 2
-distance = d['Distance']*1e3*1e6*constants.Nature.PARSEC_METER             # Distance of source (m)
+distance = d['Distance']*1e3*1e6*lisaconstants.PARSEC_METER             # Distance of source (m)
 pol, incl = tools.aziPolAngleL2PsiIncl(d['EclipticLatitude'],
                                        d["EclipticLongitude"],
                                        d['InitialPolarAngleL'],

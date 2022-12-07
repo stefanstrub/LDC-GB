@@ -32,50 +32,10 @@ export SINGULARITY_BINDPATH="/work/SC/lisa/LDC/ancillary_data:/data"
 
 ## Running the pipeline
 
-Here is an example of a snakemake command line to run the pipeline on
-HAL, using singularity container: 
-
-`snakemake --use-singularity --cores 250 --default-resources "mem_mb=10000" --cluster "qsub -l select=1:ncpus=1:mem={resources.mem_mb}mb,walltime=24:00:00" --batch batch_merge=2/3`
+A template script `job_hal.sh` is provided.
 
 You can use `screen` to keep the main process alive as long as the
 jobs are running.
-
-## Looking at the results with a jupyter notebook
-
-At this stage, we suppose that you have install the ldc package into
-your virtual environement.
-
-Add a symbolic link from the lisa space to your home: `ln -s
-/work/LC/lisa lisa`.
-
-Set a dedicated kernel: `ipython kernel install --user --name ldc_kernel`
-
-Tune the kernel configuration file
-`.local/share/jupyter/kernels/ldc_kernel/kernel.json` to use a starter
-script:
-```
-{
-  "display_name": "ldc_kernel",
-  "language":     "python",
-  "argv": [
-      "/home/u/username/jupyter-helper.sh",
-      "-f",
-      "{connection_file}"
-  ]
-}
-```
-
-Set this starter script `jupyter-helper.sh`: 
-```
-#!/bin/bash
-module load python
-module load fftw
-source /home/u/username/venv/bin/activate
-exec /home/u/username/venv/bin/python -m ipykernel_launcher "$@"
-```
-
-Go to https://jupyterhub.cnes.fr/ to connect and choose the ldc
-kernel.
 
 
 

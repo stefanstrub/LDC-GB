@@ -1,6 +1,6 @@
 import numpy as np
 from ldc.lisa.orbits import Orbits
-from LDCPipeline.hphc import HpHcGB
+from ldc.waveform.waveform import HpHc
 from ldc.lisa.projection import ProjectedStrain
 import matplotlib.pyplot as plt
 
@@ -23,7 +23,7 @@ pGB = dict({'Amplitude': 1.07345e-22,#, "strain"),
             'InitialPhase': 3.0581565,# "radian"), 
             'Polarization': 3.5621656})#,# "radian")})
 
-GB = HpHcGB("my-galactic-binary", "GB", "TD_fdot")
+GB = HpHc.type("my-galactic-binary", "GB", "TD_fdot")
 GB.set_param(pGB)
 
 
@@ -35,14 +35,20 @@ tdi_X = P.compute_tdi_x(trange)
 #compare to fastGB
 import ldc.waveform.fastGB as FB
 GB = FB.FastGB(delta_t=dt, T=t_max) # in seconds
-T, X, Y, Z = GB.get_td_tdixyz(template=pGB,
-                              oversample=4,
-                              simulator='synthlisa')
-
-tshift = 20 # see issue https://gitlab.in2p3.fr/maudelejeune/LDCPipeline/-/blob/master/notebooks/debug-fastGB.ipynb
+X, Y, Z = GB.get_td_tdixyz(template=pGB, oversample=4)
 
 plt.figure()
 plt.plot(trange, tdi_X, label='projected strain to TDI')
-plt.plot(T-tshift, X, label="fastGB")
+plt.plot(X.t, X, label="fastGB")
 plt.legend()
 plt.axis([674000, 676500, None, None])
+
+
+from lisainstrument import Instrument
+gwfile = 'gb-strain.h5'
+P.to_file(gwfile, fmt="sim")
+instrument = Instrument(aafilter=None, dt=dt, size=1000, gws=gwfile)
+instrument.disable_all_noises()
+instrument.disable_dopplers()
+instrument.simulate()
+

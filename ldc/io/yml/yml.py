@@ -7,7 +7,8 @@ from astropy import units
 import re
 #from astropy.io.misc import yaml
 
-q_pattern = re.compile(r'([-+]?\d*\.\d+|\d+)\s(\D+$)') # astropy quantity
+#q_pattern = re.compile(r'([-+]?\d*\.\d+|\d+)\s(\D+$)') # astropy quantity
+q_pattern = re.compile(r'([-+]?\d*\.\d+e[+-]?\d+|\d+|[-+]?\d*\.\d+)\s(\D+$)') # include scientific notation
 
 def quantity_constructor(loader, node):
     value = loader.construct_scalar(node)
@@ -37,7 +38,7 @@ def save_config(filename, cfg, name="config", mode="a"):
 def load_config(filename, name="config"):
     """ Load config from yml file
     """
-    cfg = yaml.load(open(filename, "r"))#, Loader=yaml.BaseLoader))
+    cfg = yaml.load(open(filename, "r"), Loader=yaml.UnsafeLoader)
     if name in cfg.keys():
         cfg = cfg[name]
     #for k, v in cfg.items():
@@ -48,4 +49,3 @@ def load_config(filename, name="config"):
 if __name__ == "__main__":
     import doctest
     doctest.testmod()
-

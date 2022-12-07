@@ -2,36 +2,31 @@
 
 ## Getting source files
 
-Cloning the repository: `git clone git@gitlab.in2p3.fr:maudelejeune/LDCPipeline.git`
+Cloning the repository: `git clone git@gitlab.in2p3.fr:lisa/LDC.git`
 
 ## Dependencies
 
-The LDCPipeline relies on:
+The LDC pipeline relies on:
 
-- the [LDC library](https://gitlab.in2p3.fr/LISA/LDC) (`master` branch)
-- the [LISANode software](https://gitlab.in2p3.fr/j2b.bayle/LISANode) (`ldc-pipeline` branch)
+- the [LDC library](https://gitlab.in2p3.fr/LISA/LDC) (`develop` branch) and dependencies
+- the [LISANode software](https://gitlab.in2p3.fr/j2b.bayle/LISANode) (v1.3)
+- the [lisa simulation tools](https://gitlab.in2p3.fr/lisa-simulation)
 - [snakemake](https://snakemake.readthedocs.io/en/stable/) (python >=3.6, snakemake > 5.7.4)
-
-Some test scripts perform comparisons to previous implementations:
-
-- the [MLDC software](https://gitlab.in2p3.fr/stas/MLDC.git) (`development` branch)
-- the [LISACode software](https://gitlab.in2p3.fr/elisadpc/LISACode) (`master` branch) 
 
 ## Content of the repository
 
-The LDCPipeline toolbox provides: 
+The toolbox provides: 
 
 - workflow python scripts to run composite pipelines, based on the
-  `snakemake` workflow management tool (in `pipeline` directory).
-- jupyter notebook tutorials (in `notebook` directory).
+  `snakemake` workflow management tool 
+- jupyter notebook tutorials 
 - standalone python scripts which can be used to run a specific box
   (in `script` directory)
 
-To install those tools: 
-
-- `pip install -r requirements.txt`
-- `python setup.py install` 
-
 ## Using the docker image
 
-TBD
+The LDC CI provides a docker image which contains all the
+dependencies, tagged with the prefix `prod`:
+`docker://gitlab-registry.in2p3.fr/lisa/ldc:prod-master`
+
+

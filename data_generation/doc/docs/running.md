@@ -1,8 +1,8 @@
-# Running
+# Running 
 
 ## Running the test pipeline
 
-- `cd test/runtest `
+- `cd test `
 - `snakemake -j 1`
 
 ## Setting a working directory
@@ -10,7 +10,7 @@
 Choose a location for your pipeline, where all the data products, log
 and configuration files will be saved.
 
-- `cd pipeline ` 
+- `cd sangria ` 
 - ` runsim --init path/to/your/working/directory`
 - ` cd path/to/your/working/directory `
 - ` runsim --info` 
@@ -22,23 +22,15 @@ The `runsim --info` command gives a summary of the pipeline settings.
 GW sources are taken from ancillary catalogs, which need to be downloaded
 beforehand.
 
-There are for now 3 catalogs corresponding to the 3 source types
+There are for now 4 catalogs corresponding to the 4 source types
 included in the pipeline:
 
-- `../data/VGB.npy` for the 10 verification binaries;
-- `../data/Q3d_complete` for the 692 MBHB;
-- `Catalog_NoID.npy` for the 30 millions galactic binaries.
+- `VGB.h5` for the 17 verification binaries;
+- `Q3d_complete` for the 692 MBHB;
+- `007_SeBa_r105_ag_wdwd_pop_highres_P025g70_8col.npy` for the 26 millions detached galactic binaries;
+- `AMCVn_GWR_MLDC_bulgefix_opt.npy` for the 3 millions interacting galactic binaries.
 
-The first two can be retrieved from `git-lfs`.  The last one is large
-(1.8Gb) and has to be found by other means. The README file of the
-`data` subdirectory gives more details about this. 
-
-### Data already on disk
-
-- ` runsim --data /path/to/your/data/directory` will update all source
-  configuration files with the provided data path.
-
-### Data already on disk, but running with singularity
+They can be retrieved by request to LDC working group. 
 
 In the case where the pipeline is to be run with singularity, one
 needs to bind the data location to the singularity container.
@@ -46,18 +38,12 @@ needs to bind the data location to the singularity container.
 - `export SINGULARITY_BINDPATH="/path/to/your/data/directory:/data"`
 - `runsim --data /data`
 
-### Data not already on disk
-
-Look at the `data/README.md` file to find instructions to download the
-data. 
-
 ## Instrumental configuration
 
 The instrumental configuration is given by the `config.yml` file. 
 
-Advanced user can also change the `lisanode` graph and configuration
-by editing the `lisanode_config.py` and `LDC_graph` files
-respectively.
+Advanced user can also change the `lisanode` configuration
+by editing the `lisanode_config.py` file.
 
 ## GW source configuration
 
@@ -68,13 +54,13 @@ they give the location of the input source catalog and the number of
 sources to be included.
 
 The galactic binary sources follow a special handling due to their
-very high number. They are built by a dedicated subworkflow, located
-in the `gb-pipeline` subdirectory, and therefore are configured
-through a dedicated `config.yml` file. In particular, the sampling can
-be adjusted to a lower value to increase the computing speed (`dt`
-parameter), and the number of batch can be set to get a high level of
-parallelization (`nbatch` parameter). This subworkflow is
-automatically run by the main one.
+very high number. They are built by a dedicated subworkflows, located
+in the `dgb-pipeline` and `igb-pipeline` subdirectories, and therefore
+are configured through a dedicated `config.yml` file. In particular,
+the sampling can be adjusted to a lower value to increase the
+computing speed (`dt` parameter), and the number of batch can be set
+to get a high level of parallelization (`nbatch` parameter). This
+subworkflow is automatically run by the main one.
 
 ## Pipeline configuration
 
@@ -88,18 +74,10 @@ files:
 - `dirname`: gives the name of the subdirectory in which the data
   product will be saved.
   
-The pipeline also uses some extra parameters, one of which sets the
-path to external libraries used by LISANode (`ldc_liborbits`). The
-default path is the one that should be used when running the pipeline
-with singularity.
-
 ## Running
 
-We provide a `runsim` script which controls the execution of the
-pipeline, on top of `snakemake`: `runsim --help`
-
-Advanced user may want to directly use the `snakemake` commands, which
-are numerous: `snakemake --help`
+The pipeline execution is controlled by `snakemake` commands, see:
+`snakemake --help`
 
 For more documentation, see
 [The SnakeMake officiel documentation](https://snakemake.readthedocs.io/en/stable).

@@ -1,0 +1,14 @@
+approximant: IMRPhenomD
+catalogs: /data/Q3d_complete
+nsource: 1
+indices: [267]
+source_type: MBHB
+t_max: 102 d
+t_min: 71 d # coalescence time is 8746488.468599081
+dt: 2.5 s
+glitch_type: long
+glitch_lib: /data/lpf-glitch-library.h5
+glitch_class: 09/06
+glitch_t_inj: 100.75 d
+glitch_inj_point: tm_12
+gaps_seed: 23

@@ -3,17 +3,17 @@
 #include <cmath>
 #include <iostream>
 #include <string>
-#include "PdbParam.hpp"
+#include "lisaconstants.hpp"
 
 using namespace std;
-using namespace PdbParam;
+using namespace LisaConstants;
 
-#define AU_IN_M Nature::ASTRONOMICALUNIT_METER
-#define ASTRONOMICAL_YEAR Nature::SIDEREALYEAR_J2000DAY*24*60*60 //31558149.7635456
-#define CLIGHT Nature::VELOCITYOFLIGHT_CONSTEXPRANT_VACUUM
-#define HALF_SCHWARZSCHILD_RADIUS 1.47664E3
+#define AU_IN_M Constants::ASTRONOMICAL_UNIT
+#define ASTRONOMICAL_YEAR Constants::SIDEREALYEAR_J2000DAY*24*60*60 //31558149.7635456
+#define CLIGHT Constants::SPEED_OF_LIGHT
+#define HALF_SCHWARZSCHILD_RADIUS Constants::SUN_SCHWARZSCHILD_RADIUS/2 //1.47664E3
 #define POST_NEWTONIAN_CONSTANT 1.0
-#define BARYCENTER_ANGULAR_VELOCITY (2.0*M_PI)/(Nature::SIDEREALYEAR_J2000DAY*24*60*60)
+#define BARYCENTER_ANGULAR_VELOCITY (2.0*M_PI)/(Constants::SIDEREALYEAR_J2000DAY*24*60*60)
 
 double norm(array<double, 3> v);
 double dot_product(array<double, 3> v1, array<double, 3> v2);

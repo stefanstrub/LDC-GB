@@ -1,13 +1,13 @@
 import os
 import numpy as np
-from ldc.common import constants
+import lisaconstants
+from scipy.interpolate import InterpolatedUnivariateSpline as spline
 
-C = constants.Nature
-CLIGHT = C.VELOCITYOFLIGHT_CONSTANT_VACUUM
-YEAR = C.SIDEREALYEAR_J2000DAY*24*60*60
+CLIGHT = lisaconstants.SPEED_OF_LIGHT
+YEAR = lisaconstants.SIDEREALYEAR_J2000DAY*24*60*60
 
-known_noise_config = ["Proposal", "SciRDv1", "MRDv1", "mldc",
-                      "SciRDdeg1", "SciRDdeg2", "newdrs"]
+known_noise_config = ["Proposal", "SciRDv1", "MRDv1", "MRD_MFR", "mldc",
+                      "SciRDdeg1", "SciRDdeg2", "newdrs", "sangria", "spritz"]
 
 
 def simple_snr(freq, h, incl=None, years=1.0, noise_model='SciRDv1'):
@@ -15,9 +15,9 @@ def simple_snr(freq, h, incl=None, years=1.0, noise_model='SciRDv1'):
     sensitivity.
 
     >>> simple_snr(1e-4, 1e-22)
-    0.015476753564693699
+    0.015406747646313257
     """
-    if not incl:
+    if incl is None:
         h0 = h * np.sqrt(16.0/5.0)    # rms average over inclinations
     else:
         h0 = h * np.sqrt((1 + np.cos(incl)**2)**2 + (2.*np.cos(incl))**2)
@@ -29,12 +29,12 @@ def simple_snr(freq, h, incl=None, years=1.0, noise_model='SciRDv1'):
 def get_noise_model(model, frq=None, **kwargs):
     """Return the noise instance corresponding to model.
 
-    model can be: "Proposal", "SciRDv1", "SciRDdeg1", "MRDv1",
+    model can be: "Proposal", "SciRDv1", "SciRDdeg1", "MRDv1","MRD_MFR",
     "mldc", "newdrs", "LCESAcall"
 
     >>> N = get_noise_model("SciRDv1", np.logspace(-5, 0, 10000))
     """
-    if model in ["Proposal", "SciRDv1", "MRDv1"]:
+    if model in ["Proposal", "SciRDv1", "MRDv1", "MRD_MFR", "sangria", "spritz"]:
         NoiseClass = globals()["AnalyticNoise"]
         return NoiseClass(frq, model, **kwargs)
     elif model=="mldc":
@@ -95,7 +95,7 @@ class Noise():
     def arm_length(self, value):
         self._arm_length = value
     
-    def wd_confusion(self, freq=None, option="X"):
+    def wd_confusion(self, freq=None, option="X", tdi2=False):
         """ Compute the white dwarf confusion noise for PSD.
 
         option can be X, XY, A or E
@@ -110,6 +110,9 @@ class Noise():
         t = 4.0 * x**2 * np.sin(x)**2
         Sg_sens = GalNoise(freq, duration*YEAR).galshape()
         SgX = t*Sg_sens
+        if tdi2:
+            factor_tdi2 = 4 * np.sin(2 * x)**2
+            SgX *= factor_tdi2
         if option in ["A", "E"]:
             return 1.5*SgX
         elif option=="XY":
@@ -117,7 +120,7 @@ class Noise():
         else:
             return SgX
 
-    def to_file(self, filename):
+    def to_file(self, filename, **kwargs):
         """Save noise PSD to file
 
         PSD are saved as numpy record array, and can be used later on
@@ -130,8 +133,8 @@ class Noise():
         >>> assert isinstance(Nnum, NumericNoise)
         """
         TDIn = np.rec.fromarrays([self.freq,
-                                  self.psd(option="X"),
-                                  self.psd(option="XY")], names=["freq", "X","XY"])
+                                  self.psd(option="X", **kwargs),
+                                  self.psd(option="XY", **kwargs)], names=["freq", "X","XY"])
         np.save(filename, TDIn)
 
 
@@ -144,8 +147,18 @@ class NumericNoise(Noise):
         """
         self._psd = np.empty_like(psdarray)
         self.freq = psdarray["freq"]
+        Noise.__init__(self, psdarray["freq"])
+
+        nindx = np.zeros((len(self.freq)), dtype=bool)
         for k in ["X", "XY"]:
+            nindx |= np.isnan(psdarray[k])
             self._psd[k] = psdarray[k]
+
+        self._psd = self._psd[~nindx]
+        self.freq = self.freq[~nindx]
+        self._spl = {}
+        for k in ["X", "XY"]:
+            self._spl[k] = spline(self.freq, self._psd[k])
         self.wd = 0
 
     @staticmethod
@@ -159,7 +172,7 @@ class NumericNoise(Noise):
         N = NumericNoise(psd)
         return N
 
-    def psd(self, freq=None, option='X'):
+    def psd(self, freq=None, option='X', **kwargs):
         """Return noise PSD at given freq. or freq. range.
 
         Option can be X, XY, A, E, T.
@@ -167,16 +180,18 @@ class NumericNoise(Noise):
         freq.
         """
         if option in ['A', 'E', 'T']:
-            XX = self.psd(freq, option="X")
-            XY = self.psd(freq, option="XY")
+            XX = self.psd(freq, option="X", **kwargs)
+            XY = self.psd(freq, option="XY", **kwargs)
             return _XY2AET(XX, XY, option)
 
         if freq is not None:
             if np.isscalar(freq):
                 freq = np.array([freq])
-            S = np.interp(freq, self.freq, self._psd[option])
+        else:
+            freq = self.freq
+        S = self._spl[option](freq)
         if self.wd:
-            S += self.wd_confusion(freq=freq, option=option)
+            S += self.wd_confusion(freq=freq, option=option, **kwargs)
         return S
 
 class AnalyticNoise(Noise):
@@ -184,30 +199,42 @@ class AnalyticNoise(Noise):
     acceleration noise and optical metrology system (OMS) noise
     """
 
-    def __init__(self, frq, model="SciRDv1", wd=0):
+    DSoms_d = {'Proposal':(10.e-12)**2, 'SciRDv1':(15.e-12)**2,
+               'MRDv1':(10.e-12)**2, 'MRD_MFR':(13.5e-12)**2,
+               'sangria':(7.9e-12)**2, 'spritz':(7.9e-12)**2}  # m^2/Hz
+    DSa_a = {'Proposal':(3.e-15)**2, 'SciRDv1':(3.e-15)**2,
+             'MRDv1':(2.4e-15)**2,'MRD_MFR':(2.7e-15)**2,
+             'sangria':(2.4e-15)**2, 'spritz':(2.4e-15)**2} # m^2/sec^4/Hz
+    
+    def __init__(self, frq, model="SciRDv1", wd=0, oms=None, acc=None):
         """Set two components noise contributions wrt given model.
         """
         Noise.__init__(self, frq, wd=wd)
 
-        self.DSoms_d = {'Proposal':(10.e-12)**2, 'SciRDv1':(15.e-12)**2,
-                        'MRDv1':(10.e-12)**2}  # m^2/Hz
-        self.DSa_a = {'Proposal':(3.e-15)**2, 'SciRDv1':(3.e-15)**2,
-                      'MRDv1':(2.4e-15)**2} # m^2/sec^4/Hz
+        # Use custom values
+        if model not in self.DSoms_d and oms is not None:
+            AnalyticNoise.DSoms_d[model] = oms
+        if model not in self.DSa_a and acc is not None:
+            AnalyticNoise.DSa_a[model] = acc
+        self.model = model
+        self.set_freq(frq)
+            
+    def set_freq(self, frq):
 
+        self.freq = frq
+        
         # Acceleration noise
-        Sa_a = self.DSa_a[model] * (1.0 +(0.4e-3/frq)**2) *\
+        Sa_a = AnalyticNoise.DSa_a[self.model] * (1.0 +(0.4e-3/frq)**2) *\
                (1.0+(frq/8e-3)**4) # in acceleration
         self.Sa_d = Sa_a*(2.*np.pi*frq)**(-4.) # in displacement
         Sa_nu = self.Sa_d*(2.0*np.pi*frq/CLIGHT)**2 # in rel freq unit
         self.Spm =  Sa_nu
 
         # Optical Metrology System
-        self.Soms_d = self.DSoms_d[model] * (1. + (2.e-3/frq)**4) # in displacement
+        self.Soms_d = AnalyticNoise.DSoms_d[self.model] * (1. + (2.e-3/frq)**4) # in displacement
         Soms_nu = self.Soms_d*(2.0*np.pi*frq/CLIGHT)**2 # in rel freq unit
         self.Sop =  Soms_nu
 
-        self.freq = frq
-        self.model = model
 
     def relative_freq(self):
         """ Return acceleration and OMS noise in relative freq unit
@@ -224,10 +251,10 @@ class AnalyticNoise(Noise):
 
         >>> N = get_noise_model("SciRDv1", np.logspace(-5, 0, 5))
         >>> N.sensitivity()
-        array([3.94460167e-27, 1.49307530e-34, 2.60680558e-40, 3.75087069e-41,
-               9.95967435e-39])
+        array([3.94498567e-27, 1.53147971e-34, 5.43687367e-40, 1.53337371e-39,
+               4.07338302e-37])
         """
-        all_m = np.sqrt(4.0*self.Sa_d + self.Sop)
+        all_m = np.sqrt(4.0*self.Sa_d + self.Soms_d)
         av_resp = np.sqrt(5) # average the antenna response
         proj = 2./np.sqrt(3) # projection effect
 
@@ -241,10 +268,10 @@ class AnalyticNoise(Noise):
             sens += GalNoise(self.freq, self.wd*YEAR).galshape()
         return sens
 
-    def psd(self, freq=None, option="X"):#, includewd=0):
+    def psd(self, freq=None, option="X", tdi2=False):#, includewd=0):
         """ Return noise PSD at given freq. or freq. range.
 
-        Option can be X, X2, XY, A, E, T.
+        Option can be X, XY, A, E, T.
 
         >>> N = get_noise_model("SciRDv1", np.logspace(-5, 0, 5))
         >>> N.psd()
@@ -252,11 +279,11 @@ class AnalyticNoise(Noise):
                1.15359813e-36])
         """
         if option in ['A', 'E', 'T']:
-            XX = self.psd(freq, option="X")
-            XY = self.psd(freq, option="XY")
+            XX = self.psd(freq, option="X", tdi2=tdi2)
+            XY = self.psd(freq, option="XY", tdi2=tdi2)
             return _XY2AET(XX, XY, option)
 
-        if self.wd and option in ["X2", "T"]:
+        if (self.wd and option in ["T"]):
             raise NotImplementedError
 
         if freq is not None:
@@ -266,10 +293,6 @@ class AnalyticNoise(Noise):
         x = 2.0 * np.pi * lisaLT * self.freq
         if option=="X":
             S = 16.0 * np.sin(x)**2 * (2.0 * (1.0 + np.cos(x)**2) * self.Spm + self.Sop)
-        elif option=="X2":
-            S = 64.0 * np.sin(x)**2 * np.sin(2*x)**2 * self.Sop
-            S += 256.0 * (3 + np.cos(2*x)) * np.cos(x)**2 * np.sin(x)**4 * self.Spm
-            # TODO Check the acc. noise term #pylint: disable=W0511
         elif option=="XY":
             S = -4.0 * np.sin(2*x) * np.sin(x) * (self.Sop + 4.0*self.Spm)
         elif option in ["A", "E"]:
@@ -280,12 +303,14 @@ class AnalyticNoise(Noise):
             S = 16.0 * self.Sop * (1.0 - np.cos(x)) * np.sin(x)**2 +\
                 128.0 * self.Spm * np.sin(x)**2 * np.sin(0.5*x)**4
         else:
-            print("PSD option should be in [X, X2, XY, A, E, T] (%s)"%option)
+            print("PSD option should be in [X, XY, A, E, T] (%s)"%option)
             return None
+        if tdi2:
+            factor_tdi2 = 4 * np.sin(2 * x)**2
+            S *= factor_tdi2
         if self.wd:
-            S += self.wd_confusion(freq=freq, option=option)
+            S += self.wd_confusion(freq=freq, option=option, tdi2=tdi2)
         return S
-
 
 
 class SciRDdeg1Noise(AnalyticNoise):
@@ -427,6 +452,7 @@ class GalNoise():
         """
         res = self.Ampl*np.exp(-(self.freq/self.fr1)**self.alpha) *\
               (self.freq**(-7./3.))*0.5*(1.0 + np.tanh(-(self.freq-self.fknee)/self.fr2))
+        
         return res
 
 

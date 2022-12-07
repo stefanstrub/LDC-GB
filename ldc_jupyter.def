@@ -1,0 +1,13 @@
+Bootstrap: docker
+From: ${DOCKER_IMAGE}
+
+%labels
+AUTHOR petiteau@cea.fr
+version 1.0
+
+%environment
+LD_LIBRARY_PATH=/usr/local/lib/
+export LD_LIBRARY_PATH
+
+# After bootstraping the OS, we install compilation and development tools
+%post

@@ -1,10 +1,10 @@
 import logging
 import sys
 
-def init_logger(filename=None, level=logging.DEBUG):
+def init_logger(filename=None, level=logging.DEBUG, name='lisa'):
     """ Initialize a logger.
     """
-    logger = logging.getLogger()
+    logger = logging.getLogger(name)
     logger.setLevel(level)
     if (len(logger.handlers) < 2):
         formatter = logging.Formatter("%(asctime)s - %(name)s - "

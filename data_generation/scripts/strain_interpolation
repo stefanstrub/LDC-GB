@@ -21,13 +21,17 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--config', required=True, help= "Path to configuration file")
     parser.add_argument('-o', '--out', default="./strain.hdf5", help= "Output upsampled  strain")
     parser.add_argument('-l', '--log', type=str, default="", help="Log file")
-
+    parser.add_argument('--gw-dt', type=float, default=-1, 
+                        help= "GW dt, by default deduced from lisanode sampling (ie upsampling is done out of lisanode")
     args = parser.parse_args()
     logger = init_logger(args.log)		
 
     cfg = ymlio.load_config(args.config)
     order = cfg["interp_order"]
-    dt_target = cfg["dt"]
+    if args.gw_dt<0:
+        dt_target = cfg["dt_instrument"].to('s').value/cfg["physic_upsampling"] #cfg["dt"]
+    else:
+        dt_target = cfg["dt"].to('s').value
     
     for ilink in range(6):
         logger.info("doing link %d"%ilink)
