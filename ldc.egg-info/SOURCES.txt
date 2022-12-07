@@ -1,4 +1,6 @@
+LICENSE
 README.md
+pyproject.toml
 setup.cfg
 setup.py
 data_generation/scripts/arm_projection

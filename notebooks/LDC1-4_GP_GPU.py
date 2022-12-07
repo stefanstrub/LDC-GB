@@ -18,7 +18,8 @@ import sys
 sys.path.append('/cluster/home/sstrub/Repositories/LDC/lib/lib64/python3.8/site-packages/ldc-0.1-py3.8-linux-x86_64.egg')
 
 from ldc.lisa.noise import get_noise_model
-from ldc.common.series import TimeSeries, window
+from ldc.common.series import TimeSeries, TDI
+from ldc.common.tools import window
 import ldc.waveform.fastGB as fastGB
 # from ldc.common.tools import compute_tdi_snr
 
@@ -1645,47 +1646,14 @@ if Radler:
     dt = float(np.array(fid['H5LISA/GWSources/GalBinaries']['Cadence']))
     Tobs = float(int(np.array(fid['H5LISA/GWSources/GalBinaries']['ObservationDuration']))/reduction)
 else:
-    td = fid["obs/tdi"][()]
-    td = np.rec.fromarrays(list(td.T), names=["t", "X", "Y", "Z"])
-    td = td['t']
-    dt = td["t"][1]-td["t"][0]
-    
-    td_mbhb = fid["sky/mbhb/tdi"][()]
-    # cat_mbhb = fid["sky/mbhb/cat"]
-    td_mbhb  = np.rec.fromarrays(list(td_mbhb .T), names=["t", "X", "Y", "Z"])
-    td_mbhb  = td_mbhb ['t']
-    # tdi_ts_mbhb = dict([(k, TimeSeries(td_mbhb[k][:int(len(td_mbhb[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
-    # tdi_fs_mbhb = xr.Dataset(dict([(k, tdi_ts_mbhb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
-
-    # td_dgb = fid["sky/dgb/tdi"][()]
-    # cat_dgb = fid["sky/dgb/cat"]
-    # td_dgb  = np.rec.fromarrays(list(td_dgb .T), names=["t", "X", "Y", "Z"])
-    # td_dgb  = td_dgb ['t']
-    # tdi_ts_dgb = dict([(k, TimeSeries(td_dgb[k][:int(len(td_dgb[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
-    # tdi_fs_dgb = xr.Dataset(dict([(k, tdi_ts_dgb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
-
-    # td_igb = fid["sky/igb/tdi"][()]
-    # cat_igb = fid["sky/igb/cat"]
-    # td_igb  = np.rec.fromarrays(list(td_igb .T), names=["t", "X", "Y", "Z"])
-    # td_igb  = td_igb ['t']
-    # tdi_ts_igb = dict([(k, TimeSeries(td_igb[k][:int(len(td_igb[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
-    # tdi_fs_igb = xr.Dataset(dict([(k, tdi_ts_igb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
-
-    # td_vgb = fid["sky/vgb/tdi"][()]
-    # cat_vgb = fid["sky/vgb/cat"]
-    # td_vgb  = np.rec.fromarrays(list(td_vgb .T), names=["t", "X", "Y", "Z"])
-    # td_vgb  = td_vgb ['t']
-    # tdi_ts_vgb = dict([(k, TimeSeries(td_vgb[k][:int(len(td_vgb[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
-    # tdi_fs_vgb = xr.Dataset(dict([(k, tdi_ts_vgb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
-
-    Tobs = float(int(np.array(fid['obs/config/t_max']))/reduction)
+    tdi_ts = TDI.load(sangria_fn, name="obs/tdi")
+    dt = tdi_ts["X"].attrs["dt"]
+    tdi_ts_mbhb = TDI.load(sangria_fn, name="sky/mbhb/tdi")
     for k in ["X", "Y", "Z"]:
-        td[k] = td[k] - td_mbhb[k]
+        tdi_ts[k] = tdi_ts[k] - tdi_ts_mbhb[k]
+    Tobs = float(int(np.array(fid['obs/config/t_max']))/reduction)
 
-
-# Build timeseries and frequencyseries object for X,Y,Z
-tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
-tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+tdi_fs = TDI(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
 
 noise_model = "SciRDv1"
