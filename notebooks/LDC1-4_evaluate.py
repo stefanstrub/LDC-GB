@@ -656,6 +656,7 @@ class Search():
             Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_in[j], oversample=4, simulator="synthlisa")
             index_low = np.searchsorted(Xs.f, self.dataX.f[0])
             Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+            Ys = xr.align(self.dataX, Ys, join='left',fill_value=0)[1]
             Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
             Af = (Zs - Xs)/np.sqrt(2.0)
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
@@ -755,9 +756,15 @@ class Search():
 
         for j in range(len(pGB_injected_matched)):
             Xs, Ys, Zs = GB.get_fd_tdixyz(template= pGB_injected_matched[j], oversample=4, simulator="synthlisa")
-            a,Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)
-            a,Ys = xr.align(self.dataY, Ys, join='left',fill_value=0)
-            a,Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)
+            index_low = np.searchsorted(Xs.f, self.dataX.f[0])
+            try:
+                if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
+                    index_low = index_low-1
+            except:
+                pass
+            Xs = Xs[index_low : index_low + len(self.dataX)]
+            Ys = Ys[index_low : index_low + len(self.dataY)]
+            Zs = Zs[index_low : index_low + len(self.dataZ)]
             Af = (Zs - Xs)/np.sqrt(2.0)
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
             ax1.plot(Af.f*10**3,np.abs(Af.data), color=colors[j%10], linewidth = 5, alpha = 0.5)
@@ -787,25 +794,43 @@ class Search():
         #     ax2.plot(found_sources_in[j][parameter_x]*10**3,found_sources_in[j][parameter_y],'.', color=colors[j%10], markersize=7)
         #     # ax2.plot(Ef.f* 1000, np.abs(Ef.data),'--', color= colors[j%10], linewidth = 1.6)
 
+        # for j in range(len(found_sources_in)):
+        #     Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_in[j], oversample=4, simulator="synthlisa")
+        #     index_low = np.searchsorted(Xs.f, self.dataX.f[0])
+        #     if j == 0:
+        #         Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+        #         Ys = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
+        #         Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+        #     # ax2.plot(found_sources_in[j][parameter_x]*10**3,found_sources_in[j][parameter_y],'o', color='grey', markersize=7)
+        #     Af = (Zs - Xs)/np.sqrt(2.0)
+        #     Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
+        #     ax1.plot(Af.f* 1000, np.abs(Af.data),linewidth = 5, alpha = 0.5, color= 'grey')
+        #     # ax2.plot(Ef.f* 1000, np.abs(Ef.data),'--', color= colors[j%10], linewidth = 1.6)
+
         for j in range(len(found_sources_in)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_in[j], oversample=4, simulator="synthlisa")
+            Xs, Ys, Zs = GB.get_fd_tdixyz(template=found_sources_in[j], oversample=4, simulator="synthlisa")
             index_low = np.searchsorted(Xs.f, self.dataX.f[0])
-            if j == 0:
-                Xs_new = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
-                Zs_new = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
-            else:
-                Xs_new += xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
-                Zs_new += xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
-        # ax2.plot(found_sources_in[j][parameter_x]*10**3,found_sources_in[j][parameter_y],'o', color='grey', markersize=7)
-        Af = (Zs_new - Xs_new)/np.sqrt(2.0)
-        Ef = (Zs_new - 2.0*Ys + Xs_new)/np.sqrt(6.0)
-        ax1.plot(Af.f* 1000, np.abs(Af.data),linewidth = 5, alpha = 0.5, color= 'grey')
-        # ax2.plot(Ef.f* 1000, np.abs(Ef.data),'--', color= colors[j%10], linewidth = 1.6)
+            try:
+                if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
+                    index_low = index_low-1
+            except:
+                pass
+            Xs = Xs[index_low : index_low + len(self.dataX)]
+            Ys = Ys[index_low : index_low + len(self.dataY)]
+            Zs = Zs[index_low : index_low + len(self.dataZ)]
+            # Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+            # Ys = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
+            # Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+            Af = (Zs - Xs)/np.sqrt(2.0)
+            Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
+            ax1.plot(Af.f* 1000, np.abs(Af.data),'--', color= colors[j%10], linewidth = 1.6)
+            ax2.plot(found_sources_in[j][parameter_x]*10**3,found_sources_in[j][parameter_y],'+', color=colors[j%10], markersize=7)
 
         for j in range(len(found_sources_not_matched)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_not_matched[j], oversample=4, simulator="synthlisa")
+            Xs, Ys, Zs = GB.get_fd_tdixyz(template=found_sources_not_matched[j], oversample=4, simulator="synthlisa")
             index_low = np.searchsorted(Xs.f, self.dataX.f[0])
             Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+            Ys = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
             Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
             Af = (Zs - Xs)/np.sqrt(2.0)
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
@@ -840,7 +865,7 @@ class Search():
         ax2.set_yscale('log')   
         ax1.set_xlim((self.lower_frequency-self.padding)*10**3, (self.upper_frequency+self.padding)*10**3)
         ax2.set_xlim((self.lower_frequency-self.padding)*10**3, (self.upper_frequency+self.padding)*10**3)
-        ax2.set_ylim(10**-23,4*10**-23)
+        # ax2.set_ylim(10**-23,4*10**-23)
         # ax1.set_xlim((self.lower_frequency)*10**3, (self.upper_frequency)*10**3)
         # ax2.set_xlim((self.lower_frequency)*10**3, (self.upper_frequency)*10**3)
         ax1.xaxis.set_major_locator(plt.MaxNLocator(4))
@@ -882,14 +907,24 @@ class Search():
     def SNR(self, pGBs):
         for i in range(len(pGBs)):
             Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs[i], oversample=4, simulator="synthlisa")
-            if i == 0:
-                Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
-                Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
-                Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
-            else:
-                Xs_total += xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
-                Ys_total += xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
-                Zs_total += xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+            index_low = np.searchsorted(Xs.f, self.dataX.f[0])
+            try:
+                if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
+                    index_low = index_low-1
+            except:
+                pass
+            Xs_total = Xs[index_low : index_low + len(self.dataX)]
+            Ys_total = Ys[index_low : index_low + len(self.dataY)]
+            Zs_total = Zs[index_low : index_low + len(self.dataZ)]
+
+            # if i == 0:
+            #     Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+            #     Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
+            #     Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+            # else:
+            #     Xs_total += xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+            #     Ys_total += xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
+            #     Zs_total += xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
             
         Af = (Zs_total - Xs_total)/np.sqrt(2.0)
         Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
@@ -1763,22 +1798,25 @@ path = os.getcwd()
 parent = os.path.dirname(path)
 # grandparent directory
 grandparent = os.path.dirname(parent)
-Radler = True
+Radler = False
 if Radler:
-    DATAPATH = grandparent+"/LDC/Radler/data"
+    DATAPATH = grandparent+"/LDC/Radler/data/"
     SAVEPATH = grandparent+"/LDC/pictures/LDC1-4/"
+    SAVEPATH = grandparent+"/LDC/Radler/LDC1-4_evaluation/"
 else:
-    DATAPATH = grandparent+"/LDC/Sangria/data"
+    DATAPATH = grandparent+"/LDC/Sangria/data/"
     SAVEPATH = grandparent+"/LDC/pictures/Sangria/"
 
 if Radler:
-    sangria_fn = DATAPATH + "/LDC1-4_GB_v2.hdf5"
+    # sangria_fn = DATAPATH + "/LDC1-4_GB_v2.hdf5"
+    sangria_fn = DATAPATH + "/LDC1-4_GB_v"+version+".hdf5"
     # sangria_fn = DATAPATH + "/LDC1-3_VGB_v2_FD_noiseless.hdf5"
     # sangria_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
 else:
     sangria_fn = DATAPATH + "/LDC2_sangria_training_v2.h5"
 fid = h5py.File(sangria_fn)
 
+version = '2'
 reduction = 1
 
 # get TDI 
@@ -1875,7 +1913,8 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search):
     return tdi_fs_subtracted2
 
 try:
-    cat = np.load(SAVEPATH+'cat_sorted_all.npy', allow_pickle = True)
+    # cat = np.load(DATAPATH+'cat_sorted_all.npy', allow_pickle = True)
+    cat = np.load(SAVEPATH+'/cat_sorted_v'+version+'.npy', allow_pickle = True)
     print('cat sorted loaded')
 except:
     # get the source parameters
@@ -1931,11 +1970,11 @@ DTf = (tdi_fs.Z + tdi_fs.Y + tdi_fs.X)/np.sqrt(3.0)
 # plt.ylabel('|A|')
 # plt.show()
 
-fig = plt.figure(figsize=fig_size)
-plt.plot(tdi_ts['X'].t,DAt, 'k')
-plt.xlabel('Time (s)')
-plt.ylabel('TDI A')
-plt.show()
+# fig = plt.figure(figsize=fig_size)
+# plt.plot(tdi_ts['X'].t,DAt, 'k')
+# plt.xlabel('Time (s)')
+# plt.ylabel('TDI A')
+# plt.show()
 
 
 # LDC1-4 #####################################
@@ -1947,7 +1986,7 @@ frequencies_odd = []
 # search_range = [0.0039935, 0.0039965]
 f_Nyquist = 1/dt/2
 search_range = [0.0003, f_Nyquist]
-# search_range = [0.0003, 0.03]
+# search_range = [0.0002, 0.0003]
 # search_range = [0.0019935, 0.0020135]
 # search_range = [0.0029935, 0.0030135]
 # window_length = 1*10**-7 # Hz
@@ -1973,8 +2012,15 @@ frequencies_odd = frequencies[1::2]
 
 start_index = np.searchsorted(np.asarray(frequencies_odd)[:,0], 0.0040489)-1
 
-# save_name = 'Sangria_1_full_cut'
-save_name = 'LDC1-4_2_optimized_second'
+save_name = 'Sangria_1_full_cut'
+# save_name = 'LDC1-4_2_optimized_second'
+# save_name = 'LDC1-4_half_year'
+
+# duration = '3932160'
+# duration = '7864320'
+# duration = '15728640'
+duration = '31457280'
+# save_name = 'Montana2022_'+duration
 frequencies_search = frequencies
 # batch_index = int(sys.argv[1])
 batch_index = 28
@@ -2001,6 +2047,34 @@ print('search range '+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(n
 # i = 44
 # search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
 # search1.plot()
+
+def l2_norm_match(pGB_injected, pGB_found):
+    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4, simulator="synthlisa")
+    Xs_injected, Ys_injected, Zs_injected = GB.get_fd_tdixyz(template=pGB_injected, oversample=4, simulator="synthlisa")
+    Xs_aligned = xr.align(Xs_injected, Xs, join='left',fill_value=0)[1]
+    Ys_aligned = xr.align(Ys_injected, Ys, join='left',fill_value=0)[1]
+    Zs_aligned = xr.align(Zs_injected, Zs, join='left',fill_value=0)[1]
+        
+    fmin, fmax = float(Xs_injected.f[0]), float(Xs_injected.f[-1] + Xs_injected.attrs["df"])
+    freq = np.array(Xs_injected.sel(f=slice(fmin, fmax)).f)
+    Nmodel = get_noise_model(noise_model, freq)
+
+    Af = (Zs_aligned - Xs_aligned)/np.sqrt(2.0)
+    Ef = (Zs_aligned - 2.0*Ys_aligned + Xs_aligned)/np.sqrt(6.0)
+    Af_injected = (Zs_injected - Xs_injected)/np.sqrt(2.0)
+    Ef_injected = (Zs_injected - 2.0*Ys_injected + Xs_injected)/np.sqrt(6.0)
+    frequency_T_threshold = 19.1*10**-3/2
+    if Af.f[-1] > frequency_T_threshold:
+        Tf = (Zs_aligned + Ys_aligned + Xs_aligned)/np.sqrt(3.0)
+        Tf_injected = (Zs_injected + Ys_injected + Xs_injected)/np.sqrt(3.0)
+        norm = np.sqrt(np.linalg.norm(Af_injected - Af.data)**2 + np.linalg.norm(Ef_injected - Ef.data)**2 + np.linalg.norm(Tf_injected - Tf.data)**2)
+        norm_s = np.sqrt(np.linalg.norm(Af.data)**2 + np.linalg.norm(Ef.data)**2 + np.linalg.norm(Tf.data)**2)
+        norm_relative = norm/norm_s
+    else:
+        norm = np.sqrt(np.linalg.norm(Af_injected - Af.data)**2 + np.linalg.norm(Ef_injected - Ef.data)**2)
+        norm_s = np.sqrt(np.linalg.norm(Af.data)**2 + np.linalg.norm(Ef.data)**2)
+        norm_relative = norm/norm_s
+    return norm_relative
 
 def SNR_match(pGB_injected, pGB_found):
     Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4, simulator="synthlisa")
@@ -2035,26 +2109,69 @@ def SNR_match(pGB_injected, pGB_found):
     SNR3 = SNR2 / (np.sqrt(SNR)*np.sqrt(4.0*Xs.df* ss))
     return SNR3.values
 
-found_sources_mp = np.load(SAVEPATH+'/found_sources' +save_name+'.npy', allow_pickle = True)
-# found_sources_mp = np.load(SAVEPATH+'/found_sourcesSangria.npy', allow_pickle = True)
+def SNR_match_amplitude_condsiered(pGB_injected, pGB_found):
+    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4, simulator="synthlisa")
+    Xs_injected, Ys_injected, Zs_injected = GB.get_fd_tdixyz(template=pGB_injected, oversample=4, simulator="synthlisa")
+    Xs_aligned = xr.align(Xs_injected, Xs, join='left',fill_value=0)[1]
+    Ys_aligned = xr.align(Ys_injected, Ys, join='left',fill_value=0)[1]
+    Zs_aligned = xr.align(Zs_injected, Zs, join='left',fill_value=0)[1]
+        
+    fmin, fmax = float(Xs_injected.f[0]), float(Xs_injected.f[-1] + Xs_injected.attrs["df"])
+    freq = np.array(Xs_injected.sel(f=slice(fmin, fmax)).f)
+    Nmodel = get_noise_model(noise_model, freq)
+    SA = Nmodel.psd(freq=freq, option="A")
+    ST = Nmodel.psd(freq=freq, option="T")
 
-found_sources_mp_best = []
-found_sources_mp_all = []
-for i in range(len(found_sources_mp)):
-    found_sources_mp_best.append(found_sources_mp[i][0])
-    found_sources_in_window = []
-    for j in range(len(found_sources_mp[i][1])):
-        found_sources_in_window.append(found_sources_mp[i][1][j][0][0])
-    found_sources_mp_all.append(found_sources_in_window)
+    Af = (Zs_aligned - Xs_aligned)/np.sqrt(2.0)
+    Ef = (Zs_aligned - 2.0*Ys_aligned + Xs_aligned)/np.sqrt(6.0)
+    Af_injected = (Zs_injected - Xs_injected)/np.sqrt(2.0)
+    Ef_injected = (Zs_injected - 2.0*Ys_injected + Xs_injected)/np.sqrt(6.0)
+    frequency_T_threshold = 19.1*10**-3/2
+    if Af.f[-1] > frequency_T_threshold:
+        Tf = (Zs_aligned + Ys_aligned + Xs_aligned)/np.sqrt(3.0)
+        Tf_injected = (Zs_injected + Ys_injected + Xs_injected)/np.sqrt(3.0)
+        SNR2 = np.sum( np.real(Af_injected * np.conjugate(Af.data) + Ef_injected * np.conjugate(Ef.data))/SA + np.real(Tf_injected * np.conjugate(Tf.data))/ST)
+        hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2)/SA + np.absolute(Tf.data)**2 /ST)
+        ss = np.sum((np.absolute(Af_injected.data)**2 + np.absolute(Ef_injected.data)**2)/SA + np.absolute(Tf_injected.data)**2 /ST)
+    else:
+        SNR2 = np.sum( np.real(Af_injected * np.conjugate(Af.data) + Ef_injected * np.conjugate(Ef.data))/SA)
+        hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2) /SA)
+        ss = np.sum((np.absolute(Af_injected.data)**2 + np.absolute(Ef_injected.data)**2) /SA)
+    SNR = 4.0*Xs.df* hh
+    scalar_ss = 4.0*Xs.df* ss
+    SNR2 = 4.0*Xs.df* SNR2
+    amplitude_factor = np.abs(np.log10(scalar_ss/SNR))/2+1
+    SNR3 = SNR2 / (np.sqrt(SNR)*np.sqrt(scalar_ss))/amplitude_factor
+    return SNR3.values, amplitude_factor, SNR2 / (np.sqrt(SNR)*np.sqrt(scalar_ss))
 
-found_sources_in_flat = []
+try:
+    found_sources_in_flat = np.load(SAVEPATH+'found_sources' +save_name+'_flat.npy', allow_pickle = True)
+except:
+    found_sources_in_flat = np.load(SAVEPATH+'found_sources' +save_name+'.npy', allow_pickle = True)
+# found_sources_mp = np.load(SAVEPATH+'found_sources' +save_name+'.npy', allow_pickle = True)
+
+# found_sources_mp_best = []
+# found_sources_mp_all = []
+# for i in range(len(found_sources_mp)):
+#     found_sources_mp_best.append(found_sources_mp[i][0])
+#     found_sources_in_window = []
+#     for j in range(len(found_sources_mp[i][1])):
+#         found_sources_in_window.append(found_sources_mp[i][1][j][0][0])
+#     found_sources_mp_all.append(found_sources_in_window)
+
+# found_sources_in_flat = []
+# number_of_found_flat = 0
+# for i in range(len(found_sources_mp)):
+#     for j in range(len(found_sources_mp[i][3])):
+#         found_sources_in_flat.append(found_sources_mp[i][3][j])
+#         number_of_found_flat += 1
+# found_sources_in_flat = np.asarray(found_sources_in_flat)
+
+# np.save(SAVEPATH+'found_sources' +save_name+'_flat.npy', np.asarray(found_sources_in_flat))
+
 found_sources_in_flat_frequency = []
-number_of_found_flat = 0
-for i in range(len(found_sources_mp)):
-    for j in range(len(found_sources_mp[i][3])):
-        found_sources_in_flat.append(found_sources_mp[i][3][j])
-        found_sources_in_flat_frequency.append(found_sources_in_flat[-1]['Frequency'])
-        number_of_found_flat += 1
+for i in range(len(found_sources_in_flat)):
+    found_sources_in_flat_frequency.append(found_sources_in_flat[i]['Frequency'])
 found_sources_in_flat_frequency = np.asarray(found_sources_in_flat_frequency)
 found_sources_in_flat = np.asarray(found_sources_in_flat)
 indexes_in = np.argsort(found_sources_in_flat_frequency)
@@ -2067,9 +2184,16 @@ found_sources_in = []
 for i in range(len(frequencies_search)):
     lower_index = np.searchsorted(found_sources_in_flat_frequency,frequencies_search[i][0])
     higher_index = np.searchsorted(found_sources_in_flat_frequency,frequencies_search[i][1])
-    if i == 102:
-        print(lower_index, higher_index)
     found_sources_in.append(found_sources_in_flat[lower_index:higher_index])
+
+frequencies_search_with_found_only = []
+found_sources_in_with_found_only = []
+for i in range(len(frequencies_search)):
+    if len(found_sources_in[i]) > 0:
+        frequencies_search_with_found_only.append(frequencies_search[i])
+        found_sources_in_with_found_only.append(found_sources_in[i])
+# frequencies_search = frequencies_search_with_found_only
+# found_sources_in = found_sources_in_with_found_only
 
 new_dt = np.dtype(cat_sorted.dtype.descr + [('IntrinsicSNR','<f8')])
 cat_sorted_SNR = np.zeros(cat_sorted.shape, dtype=new_dt)
@@ -2099,8 +2223,6 @@ cat_sorted = cat_sorted_SNR
 #     pGB_injected[i] = np.asarray(pGB_injected[i])
 # pGB_injected_flat = np.concatenate(np.asarray(pGB_injected))
 
-
-
 def get_SNR(pGB_injected, lower_frequency, upper_frequency):
     search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
     intrinsic_SNR_injected = []
@@ -2108,62 +2230,73 @@ def get_SNR(pGB_injected, lower_frequency, upper_frequency):
     for i in range(len(pGB_injected)):
         pGB_injected_dict = {}
         for parameter in parameters:
-            pGB_injected_dict[parameter] = pGB_injected[i][parameter]
+            try:
+                pGB_injected_dict[parameter] = pGB_injected[i][parameter]
+            except:
+                pGB_injected_dict[parameter] = pGB_injected.iloc[i][parameter]
         intrinsic_SNR_injected.append(search1.intrinsic_SNR([pGB_injected_dict]))
         if i > 30:
             break
     return intrinsic_SNR_injected
 
+try:
+    found_sources_in = np.load(SAVEPATH+'/found_sources_in_SNR'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', allow_pickle= True)
 
-# #### parallel found sources
-# input = []
-# index = []
-# for i in range(len(found_sources_in)):
-# # for i in range(16):
-#     if len(found_sources_in[i]) > 0:
-#         index.append(i)
-#         input.append((found_sources_in[i],frequencies_search[i][0], frequencies_search[i][1]))
-# start = time.time()
-# pool = mp.Pool(16)
-# SNR_intrinsic = pool.starmap(get_SNR, input)
-# pool.close()
-# pool.join()
-# print('time to calculate SNR for', len(frequencies_search), 'windows: ', time.time()-start)
-# for i in range(len(SNR_intrinsic)):
-#     for j in range(len(SNR_intrinsic[i])):
-#         if len(found_sources_in[index[i]]) > 0:
-#             found_sources_in[index[i]][j]['IntrinsicSNR'] = SNR_intrinsic[i][j]
+# delete 7400 element from montana solution
+# found_sources_in[5218] = np.delete(found_sources_in[5218],2)
 # np.save(SAVEPATH+'/found_sources_in_SNR'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', np.asarray(found_sources_in))
-found_sources_in = np.load(SAVEPATH+'/found_sources_in_SNR'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', allow_pickle= True)
 
+except:
+    #### parallel found sources
+    input = []
+    index = []
+    for i in range(len(found_sources_in)):
+    # for i in range(16):
+        if len(found_sources_in[i]) > 0:
+            index.append(i)
+            input.append((found_sources_in[i],frequencies_search[i][0], frequencies_search[i][1]))
+    start = time.time()
+    pool = mp.Pool(16)
+    SNR_intrinsic = pool.starmap(get_SNR, input)
+    pool.close()
+    pool.join()
+    print('time to calculate SNR for', len(frequencies_search), 'windows: ', time.time()-start)
+    for i in range(len(SNR_intrinsic)):
+        for j in range(len(SNR_intrinsic[i])):
+            if len(found_sources_in[index[i]]) > 0:
+                found_sources_in[index[i]][j]['IntrinsicSNR'] = SNR_intrinsic[i][j]
+    np.save(SAVEPATH+'/found_sources_in_SNR'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', np.asarray(found_sources_in))
+# found_sources_in = np.load(SAVEPATH+'/found_sources_in_SNR30000to3312283Montana2022_31457280.npy', allow_pickle= True)
 
-get_pGB_injected = False
-if get_pGB_injected:
-    get_injected_sources = pd.DataFrame(cat_sorted)
-    pGB_injected = []
-    for j in range(len(frequencies_search)):
-        if j%10 == 0:
-            print(j)
-        # padding = (frequencies_search[j][1] - frequencies_search[j][0])/2*0
-        # index_low = np.searchsorted(get_injected_sources['Frequency'], frequencies_search[j][0])
-        # index_high = np.searchsorted(get_injected_sources['Frequency'], frequencies_search[j][1])
-        # try:
-        #     if get_injected_sources['Frequency'][index_high] < frequencies_search[j][1]:
-        #         index_high -= 1
-        # except:
-        #     pass
-        # pGB_injected.append(get_injected_sources[index_low:index_high].sort_values(by='Amplitude', ascending=False))
+# try:
+#     pGB_injected = np.load(SAVEPATH+'/found_sources_pGB_injected_no_SNR'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', allow_pickle = True)
+# except:
+#     get_injected_sources = pd.DataFrame(cat_sorted)
+#     pGB_injected = []
+#     for j in range(len(frequencies_search)):
+#         if j%10 == 0:
+#             print(j)
+#         # padding = (frequencies_search[j][1] - frequencies_search[j][0])/2*0
+#         # index_low = np.searchsorted(get_injected_sources['Frequency'], frequencies_search[j][0])
+#         # index_high = np.searchsorted(get_injected_sources['Frequency'], frequencies_search[j][1])
+#         # try:
+#         #     if get_injected_sources['Frequency'][index_high] < frequencies_search[j][1]:
+#         #         index_high -= 1
+#         # except:
+#         #     pass
+#         # pGB_injected.append(get_injected_sources[index_low:index_high].sort_values(by='Amplitude', ascending=False))
 
-        pGB_injected.append(get_injected_sources[(get_injected_sources['Frequency']> frequencies_search[j][0]) & (get_injected_sources['Frequency']< frequencies_search[j][1])].sort_values(by='Amplitude', ascending=False))
+#         pGB_injected.append(get_injected_sources[(get_injected_sources['Frequency']> frequencies_search[j][0]) & (get_injected_sources['Frequency']< frequencies_search[j][1])].sort_values(by='Amplitude', ascending=False))
 
-    np.save(SAVEPATH+'/found_sources_pGB_injected_no_SNR'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', np.asarray(pGB_injected))
-# pGB_injected = np.load(SAVEPATH+'/found_sources_pGB_injected_no_SNR'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', allow_pickle = True)
+#     np.save(SAVEPATH+'/found_sources_pGB_injected_no_SNR'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', np.asarray(pGB_injected))
 
 # number_of_injected_signals= 0
 # for i in range(len(pGB_injected)):
 #     number_of_injected_signals += len(pGB_injected[i])
 
 # pGB_injected_flat = np.concatenate(pGB_injected)
+
+
 
 #### parallel
 # input = []
@@ -2185,6 +2318,14 @@ if get_pGB_injected:
 #     for j in range(len(SNR_intrinsic[i])):
 #         if len(pGB_injected[index[i]]) > 0:
 #             pGB_injected[index[i]]['IntrinsicSNR'].iloc[j] = SNR_intrinsic[i][j]
+### outside of normal range
+# for i in range(len(pGB_injected)):
+#     pGB_injected[i] = pGB_injected[i][:50]
+
+# for i in range(len(pGB_injected)):
+#     pGB_injected[i] = pGB_injected[i].to_records()
+
+
 
 #### sequential
 # for i in range(len(pGB_injected)):
@@ -2196,8 +2337,8 @@ if get_pGB_injected:
 #     for j in range(len(pGB_injected[i])):
 #         pGB_injected_dict = {}
 #         for parameter in parameters:
-#             pGB_injected_dict[parameter] = pGB_injected[i][j][parameter]
-#         pGB_injected[i][j]['IntrinsicSNR'] = search1.intrinsic_SNR([pGB_injected_dict])
+#             pGB_injected_dict[parameter] = pGB_injected[i].iloc[j][parameter]
+#         pGB_injected[i].iloc[j]['IntrinsicSNR'] = search1.intrinsic_SNR([pGB_injected_dict])
 #         if j > 300:
 #             break
         # print('SNR for noise model', noise_model, intrinsic_SNR_injected[-1], 'loglikelihood ratio',search1.loglikelihood([pGB_injected[i][j]]), 'SNR data',search1.loglikelihood_SNR([pGB_injected[i][j]]))
@@ -2209,23 +2350,50 @@ if get_pGB_injected:
 # pGB_injected = pGB_injected_SNR_sorted
 
 
+
+
 # np.save(SAVEPATH+'/found_sources_pGB_injectedSNR'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', np.asarray(pGB_injected))
 # np.save(SAVEPATH+'/found_sources_pGB_injected_in_out_intrinsic_SNR_sortedthird'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', np.asarray(pGB_injected_SNR_sorted))
 # pGB_injected = np.load(SAVEPATH+'/found_sources_pGB_injected'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', allow_pickle = True)
 # pGB_injected_even = np.load(SAVEPATH+'/found_sources_pGB_injected_array2_half_year30000to3305084LDC1-4_half_even_T'+'.npy', allow_pickle = True)
 # pGB_injected_odd = np.load(SAVEPATH+'/found_sources_pGB_injected_in_out_intrinsic_SNR_sorted30035to3316929LDC1-4_half_odd_T'+'.npy', allow_pickle = True)
 if Radler:
-    pGB_injected = np.load(SAVEPATH+'/found_sources_pGB_injectedthird30000to3293090LDC1-4_2_years_full.npy', allow_pickle = True)
+    pGB_injected = np.load(DATAPATH+'/pGB_injectedthird30000to3293090LDC1-4_2_years_full.npy', allow_pickle = True)
 else:
-    pGB_injected = np.load(SAVEPATH+'found_sources_pGB_injectedSNR30000to9261573Sangria_1_full_opt2.npy', allow_pickle = True)
-# pGB_injected = np.load(SAVEPATH+'/found_sources_pGB_injectedSNR'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', allow_pickle = True)
+    pGB_injected = np.load(DATAPATH+'found_sources_pGB_injectedSNR30000to9261573Sangria_1_full_opt2.npy', allow_pickle = True)
+    for i in range(len(pGB_injected)):
+        pGB_injected[i] = pGB_injected[i].to_records()
+# pGB_injected = np.load(SAVEPATH+'/found_sources_pGB_injected_no_SNR'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', allow_pickle = True)
 
+
+
+### get injected on desired windows
+pGB_injected_flat = np.concatenate(pGB_injected)
+indexes_in = np.argsort(pGB_injected_flat['Frequency'])
+pGB_injected_flat = pGB_injected_flat[indexes_in]
+
+pGB_injected = []
+for j in range(len(frequencies_search)):
+    # padding = (frequencies_search[j][1] - frequencies_search[j][0])/2*0
+    index_low = np.searchsorted(pGB_injected_flat['Frequency'], frequencies_search[j][0])
+    index_high = np.searchsorted(pGB_injected_flat['Frequency'], frequencies_search[j][1])
+    try:
+        if pGB_injected_flat['Frequency'][index_high] < frequencies_search[j][1]:
+            index_high -= 1
+    except:
+        pass
+    pGB_injected.append(pGB_injected_flat[index_low:index_high])
+pGB_injected = np.array(pGB_injected)
+for i in range(len(pGB_injected)):
+    # pGB_injected_amplitude = pGB_injected[i]['IntrinsicSNR']
+    pGB_injected[i] = pGB_injected[i][np.argsort(-pGB_injected[i]['IntrinsicSNR'])]
 
 pGB_injected_no_overlap = []
 for i in range(len(frequencies_search)):
     pGB_injected_no_overlap.append(pGB_injected[i][(pGB_injected[i]['Frequency']> frequencies_search[i][0]) & (pGB_injected[i]['Frequency']< frequencies_search[i][1])])
 
-# # pGB_injected = np.concatenate((pGB_injected_even, pGB_injected_odd))
+### get injected windows with overlaps
+# pGB_injected = np.concatenate((pGB_injected_even, pGB_injected_odd))
 pGB_injected_flat = np.concatenate(pGB_injected)
 indexesfrequency = np.argsort(pGB_injected_flat['Frequency'])
 pGB_injected_flat = pGB_injected_flat[indexesfrequency]
@@ -2248,17 +2416,23 @@ if get_pGB_injected:
 pGB_injected_flat_overlap = np.concatenate(pGB_injected_overlap)
 pGB_injected_SNR_sorted_overlap = []
 for i in range(len(pGB_injected_overlap)):
-    indexesSNR = np.argsort(-pGB_injected_overlap[i]['IntrinsicSNR'])
+    # indexesSNR = np.argsort(-pGB_injected_overlap[i]['IntrinsicSNR'])
+    indexesSNR = np.argsort(-pGB_injected_overlap[i]['Amplitude'])
     pGB_injected_SNR_sorted_overlap.append(pGB_injected_overlap[i][indexesSNR])
+
+### Reduce the number of signals per window
+for i in range(len(pGB_injected_overlap)):
+    pGB_injected_SNR_sorted_overlap[i] = pGB_injected_SNR_sorted_overlap[i][:50]
 # pGB_injected_overlap = pGB_injected_SNR_sorted_overlap
 # pGB_injected_overlap_flat = np.concatenate(pGB_injected_overlap)
 
-do_get_anitcorrelation = False
-found_sources_anitcorrelate = []
-found_sources_not_anitcorrelated = deepcopy(found_sources_in)
-number_of_matched_signals = 0
-correlation_list = []
-if do_get_anitcorrelation:
+try:
+    found_sources_in = np.load(SAVEPATH+'/found_sources_not_anticorrelated'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', allow_pickle=True)
+except:
+    found_sources_anitcorrelate = []
+    found_sources_not_anitcorrelated = deepcopy(found_sources_in)
+    number_of_matched_signals = 0
+    correlation_list = []
     start = time.time()
     percentage = 0
     for i in range(len(found_sources_in)):
@@ -2353,12 +2527,12 @@ if do_get_anitcorrelation:
     found_sources_not_anitcorrelated2_array = []
     for i in range(len(found_sources_not_anitcorrelated2)):
         found_sources_not_anitcorrelated2_array.append(np.asarray(found_sources_not_anitcorrelated2[i]))
-    np.save(SAVEPATH+'/found_sources_not_anticorrelated' +save_name+'.npy', found_sources_not_anitcorrelated2)
+    np.save(SAVEPATH+'/found_sources_not_anticorrelated'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', found_sources_not_anitcorrelated2)
 
-
-
-found_sources_in = np.load(SAVEPATH+'/found_sources_not_anticorrelated' +save_name+'.npy', allow_pickle=True)
 found_sources_in_flat = np.concatenate(found_sources_in)
+
+found_sources_in_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_in_flat]) for attribute in found_sources_in_flat[0].keys()}
+found_sources_in_flat_df = pd.DataFrame(found_sources_in_flat_array)
 
 ##### save yaml file
 # import yaml
@@ -2397,6 +2571,13 @@ found_sources_in_flat = np.concatenate(found_sources_in)
 #             found_sources_in[index[i]][j]['IntrinsicSNR'] = SNR_intrinsic[i][j]
 # np.save(SAVEPATH+'/found_sources_not_anitcorrelatedsecond' +save_name+'.npy', found_sources_in)
 
+if version == '1':
+    for i in range(len(found_sources_in)):
+        for j in range(len(found_sources_in[i])):
+            found_sources_in[i][j]['InitialPhase'] = -(found_sources_in[i][j]['InitialPhase'])
+    for i in range(len(pGB_injected_SNR_sorted_overlap)):
+        for j in range(len(pGB_injected_SNR_sorted_overlap[i])):
+            pGB_injected_SNR_sorted_overlap[i][j]['InitialPhase'] = -(pGB_injected_SNR_sorted_overlap[i][j]['InitialPhase'])
 
 ############## match
 def match_function(found_sources_in, pGB_injected_not_matched, found_sources_not_matched):
@@ -2406,13 +2587,16 @@ def match_function(found_sources_in, pGB_injected_not_matched, found_sources_not
     for j in range(len(found_sources_in)):
         found_match = False
         correlation_list_of_one_signal = []
+        found_dict = {}
+        for parameter in parameters:
+            found_dict[parameter] = found_sources_in[j][parameter]
         for k in range(len(pGB_injected_not_matched)):
             pGB_injected_dict = {}
-            found_dict = {}
             for parameter in parameters:
-                pGB_injected_dict[parameter] = pGB_injected_not_matched.iloc[k][parameter]
-                found_dict[parameter] = found_sources_in[j][parameter]
-            correlation = SNR_match(pGB_injected_dict,found_dict)
+                pGB_injected_dict[parameter] = pGB_injected_not_matched[k][parameter]
+            # correlation = l2_norm_match(pGB_injected_dict,found_dict)
+            # correlation = SNR_match(pGB_injected_dict,found_dict)
+            correlation, amplitude_factor, cross_correlation = SNR_match_amplitude_condsiered(pGB_injected_dict,found_dict)
             correlation_list_of_one_signal.append(correlation)
             if k > 39:
                 break
@@ -2422,11 +2606,11 @@ def match_function(found_sources_in, pGB_injected_not_matched, found_sources_not
         if correlation_list_of_one_signal[max_index] > 0.5:
             found_match = True
         if found_match:
-            pGB_injected_matched.append(pGB_injected_not_matched.iloc[max_index])
+            pGB_injected_matched.append(pGB_injected_not_matched[max_index])
             found_sources_matched.append(found_sources_in[j])
             # pGB_injected_not_matched = np.delete(pGB_injected_not_matched, max_index)
-            correlation_list.append(correlation_list_of_one_signal[max_index])
             found_sources_not_matched[j] = None
+        correlation_list.append(correlation_list_of_one_signal[max_index])
     return found_sources_in, pGB_injected_not_matched, correlation_list, found_sources_not_matched, pGB_injected_matched, found_sources_matched
 
 do_match_parallelized = False
@@ -2434,6 +2618,7 @@ if do_match_parallelized:
     pGB_injected_matched = []
     found_sources_matched = []
     correlation_list = []
+    amplitude_factor = []
     pGB_injected_not_matched = deepcopy(pGB_injected_SNR_sorted_overlap)
     found_sources_not_matched = deepcopy(found_sources_in)
     number_of_matched_signals = 0
@@ -2451,11 +2636,15 @@ if do_match_parallelized:
         pGB_injected_matched.append([])
         found_sources_matched.append([])
         correlation_list.append([])
-        found_sources_in[i], pGB_injected_not_matched[i], correlation_list[i], found_sources_not_matched[i], pGB_injected_matched[i], found_sources_matched[i]  = matches[i]
+        amplitude_factor.append([])
+        found_sources_in[i], pGB_injected_not_matched[i], correlation_list[i], found_sources_not_matched[i], pGB_injected_matched[i], found_sources_matched[i] = matches[i]
 
     found_sources_matched_flat = np.concatenate(found_sources_matched)
     for i in range(len(found_sources_not_matched)):
-        found_sources_not_matched[i] = list(filter(None, found_sources_not_matched[i]))
+        try:
+            found_sources_not_matched[i] = list(filter(None, found_sources_not_matched[i]))
+        except:
+            pass
 
 do_match_sequential = False
 if do_match_sequential:
@@ -2468,10 +2657,13 @@ if do_match_sequential:
     start = time.time()
     percentage = 0
     for i in range(len(found_sources_in)):
-        if i != index_of_interest_to_plot:
-            continue
+    # for i in range(3300, 3400):
+        # if i != index_of_interest_to_plot:
+        #     continue
         pGB_injected_matched.append([])
         found_sources_matched.append([])
+        # if i < 3310 or i > 3350:
+        #     continue
         try:
             if i%int(len(found_sources_in)/100) == 0:
                 percentage += 1
@@ -2481,14 +2673,20 @@ if do_match_sequential:
         for j in range(len(found_sources_in[i])):
             found_match = False
             correlation_list_of_one_signal = []
+            correlation_list_of_one_signal_original = []
+            correlation_list_of_one_signal_amplitude = []
+            found_dict = {}
+            for parameter in parameters:
+                found_dict[parameter] = found_sources_in[i][j][parameter]
             for k in range(len(pGB_injected_not_matched[i])):
                 pGB_injected_dict = {}
-                found_dict = {}
                 for parameter in parameters:
                     pGB_injected_dict[parameter] = pGB_injected_not_matched[i][k][parameter]
-                    found_dict[parameter] = found_sources_in[i][j][parameter]
-                correlation = SNR_match(pGB_injected_dict,found_dict)
-                correlation_list_of_one_signal.append(correlation)
+                l2_norm = l2_norm_match(pGB_injected_dict,found_dict)
+                correlation_apmlitude, amplitude_factor, cross_correlation = SNR_match_amplitude_condsiered(pGB_injected_dict,found_dict)
+                correlation_list_of_one_signal.append(l2_norm)
+                correlation_list_of_one_signal_original.append(np.array(cross_correlation))
+                correlation_list_of_one_signal_amplitude.append(np.array(correlation_apmlitude))
                 if k > 39:
                     break
             if 0 == len(correlation_list_of_one_signal):
@@ -2580,6 +2778,10 @@ if do_match_sequential:
 #             pGB_dict[parameter] = found_sources_not_matched[i][j][parameter]
 #         found_sources_not_matched[i][j]['IntrinsicSNR'] = search1.intrinsic_SNR([pGB_dict])     
 
+
+end_string = 'amplitude_considered_sqrt'
+# end_string = ''
+
 # found_sources_matched_array = []
 # for i in range(len(found_sources_matched)):
 #     found_sources_matched_array.append(np.asarray(found_sources_matched[i]))
@@ -2588,18 +2790,16 @@ if do_match_sequential:
 # for i in range(len(found_sources_not_matched)):
 #     found_sources_not_matched_array.append(np.asarray(found_sources_not_matched[i]))
 # found_sources_not_matched_array = np.asarray(found_sources_not_matched_array)
-# np.save(SAVEPATH+'/found_sources_matched' +save_name+'.npy', found_sources_matched_array)
-# np.save(SAVEPATH+'/found_sources_not_matched' +save_name+'.npy', found_sources_not_matched_array)
-# np.save(SAVEPATH+'/injected_not_matched_windows' +save_name+'.npy', pGB_injected_not_matched)
-# np.save(SAVEPATH+'/injected_matched_windows' +save_name+'.npy', pGB_injected_matched)
+# np.save(SAVEPATH+'/found_sources_matched' +save_name+end_string+'.npy', found_sources_matched_array)
+# np.save(SAVEPATH+'/found_sources_not_matched' +save_name+end_string+'.npy', found_sources_not_matched_array)
+# np.save(SAVEPATH+'/injected_not_matched_windows' +save_name+end_string+'.npy', pGB_injected_not_matched)
+# np.save(SAVEPATH+'/injected_matched_windows' +save_name+end_string+'.npy', pGB_injected_matched)
+# np.save(SAVEPATH+'/correlation_list' +save_name+end_string+'.npy', correlation_list)
 
-# save_name ='Sangria_1_full_opt2_high_f_cut'
-# found_sources_matched_old = np.load(SAVEPATH+'/found_sources_matchedSangria_1_full_opt2.npy', allow_pickle=True)
-# found_sources_not_matched_old = np.load(SAVEPATH+'/found_sources_not_matchedSangria_1_full_opt2.npy', allow_pickle=True)
-found_sources_matched = np.load(SAVEPATH+'/found_sources_matched' +save_name+'.npy', allow_pickle=True)
-found_sources_not_matched = np.load(SAVEPATH+'/found_sources_not_matched' +save_name+'.npy', allow_pickle=True)
-pGB_injected_not_matched = np.load(SAVEPATH+'/injected_not_matched_windows' +save_name+'.npy', allow_pickle=True)
-pGB_injected_matched = np.load(SAVEPATH+'/injected_matched_windows' +save_name+'.npy', allow_pickle=True)
+found_sources_matched = np.load(SAVEPATH+'/found_sources_matched' +save_name+end_string+'.npy', allow_pickle=True)
+found_sources_not_matched = np.load(SAVEPATH+'/found_sources_not_matched' +save_name+end_string+'.npy', allow_pickle=True)
+pGB_injected_not_matched = np.load(SAVEPATH+'/injected_not_matched_windows' +save_name+end_string+'.npy', allow_pickle=True)
+pGB_injected_matched = np.load(SAVEPATH+'/injected_matched_windows' +save_name+end_string+'.npy', allow_pickle=True)
 
 # found_sources_not_matched_high_f_old = np.concatenate(found_sources_not_matched_old)
 # found_sources_not_matched_high_f = np.concatenate(found_sources_not_matched)
@@ -2628,6 +2828,7 @@ for i in range(len(pGB_injected)):
 number_of_found_signals = 0
 for i in range(len(found_sources_in)):
     number_of_found_signals += len(found_sources_in[i])
+
 number_of_found_signals_not_matched = 0
 for i in range(len(found_sources_not_matched)):
     number_of_found_signals_not_matched += len(found_sources_not_matched[i])
@@ -2636,6 +2837,23 @@ print(number_of_matched_signals ,'matched signals out of', number_of_injected_si
 print('sensitivity = matched signals/injected signals:', np.round(number_of_matched_signals/number_of_injected_signals,2))
 print('number_of_injected_signals_SNR_high:', np.round(number_of_injected_signals_SNR_high,2))
 print('matched signals/found signals:', np.round(number_of_matched_signals/number_of_found_signals,2))
+
+### match frequency histogram
+# found_sources_matched2 = np.load(SAVEPATH+'/found_sources_matched' +save_name+'.npy', allow_pickle=True)
+
+# number_of_found_signals = []
+# for i in range(len(frequencies_search)):
+#     number_of_found_signals.append(len(found_sources_matched[i]))
+# number_of_matched_signals_array2 = []
+# for i in range(len(frequencies_search)):
+#     number_of_matched_signals_array2.append(len(found_sources_matched2[i]))
+# number_of_matched_signals_2 = 0
+# for i in range(len(found_sources_in)):
+#     number_of_matched_signals_2 += len(found_sources_matched2[i])
+# figure = plt.figure()
+# plt.semilogx(frequencies_search,number_of_matched_signals_array2, 'r.')
+# plt.semilogx(frequencies_search,number_of_found_signals, '.', alpha=0.5)
+# plt.show()
 
 
 found_sources_matched_flat = np.concatenate(found_sources_matched)
@@ -2666,8 +2884,42 @@ pGB_injected_matched_flat_df = pGB_injected_matched_flat_df.sort_values(by= 'Fre
 
 pGB_injected_not_matched_flat_df = pGB_injected_flat_reduced_df.append(pGB_injected_matched_flat_df)
 pGB_injected_not_matched_flat_df = pGB_injected_not_matched_flat_df.drop_duplicates(keep=False)
+# amplitude_considered_
+found_sources_matched_flat_df.to_pickle(SAVEPATH+'/found_sources_matched' +save_name+end_string+'_df')
+found_sources_not_matched_flat_df.to_pickle(SAVEPATH+'/found_sources_not_matched' +save_name+end_string+'_df')
+pGB_injected_matched_flat_df.to_pickle(SAVEPATH+'/injected_matched_windows' +save_name+end_string+'_df')
+pGB_injected_not_matched_flat_df.to_pickle(SAVEPATH+'/injected_not_matched_windows' +save_name+end_string+'_df')
+
+# found_sources_matched_flat_df = pd.read_pickle(SAVEPATH+'/found_sources_matched' +save_name+'df')
+# found_sources_not_matched_flat_df = pd.read_pickle(SAVEPATH+'/found_sources_not_matched' +save_name+'df')
+# pGB_injected_matched_flat_df = pd.read_pickle(SAVEPATH+'/injected_matched_windows' +save_name+'df')
+# pGB_injected_not_matched_flat_df = pd.read_pickle(SAVEPATH+'/injected_not_matched_windows' +save_name+'df')
 
 
+found_sources_matched2_flat = np.concatenate(found_sources_matched2)
+found_sources_matched2_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_matched2_flat]) for attribute in found_sources_matched2_flat[0].keys()}
+found_sources_matched2_flat_df = pd.DataFrame(found_sources_matched2_flat_array)
+
+figure = plt.figure()
+# histogram on linear scale
+plt.subplot(211)
+
+hist, bins, _ = plt.hist(found_sources_matched_flat_df['IntrinsicSNR'], bins=16)
+hist, bins2, _ = plt.hist(found_sources_matched2_flat_df['IntrinsicSNR'], bins=16)
+
+# histogram on log scale. 
+# Use non-equal bin sizes, such that they look equal on log scale.
+logbins = np.logspace(np.log10(bins[0]),np.log10(bins[-1]),len(bins))
+logbins2 = np.logspace(np.log10(bins2[0]),np.log10(bins2[-1]),len(bins2))
+plt.subplot(212)
+plt.hist(found_sources_matched_flat_df['IntrinsicSNR'], bins=logbins, alpha=0.5, color='blue')
+plt.hist(found_sources_matched2_flat_df['IntrinsicSNR'], bins=logbins2, alpha=0.5, color='red')
+plt.xscale('log')
+# plt.yscale('log')
+plt.show()
+
+plt.hist(found_sources_matched_flat_df['IntrinsicSNR'])
+plt.show()
 
 # for i in range(len(pGB_injected_not_matched)):
 #     # if i != 6:
@@ -2721,6 +2973,8 @@ found_sources_in = deepcopy(found_sources_in_SNR_sorted)
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.002084612)
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.003988)+1
 index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.005208333333333333)
+index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.004)
+index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.0037305)
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.0018776)-1
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.001851)-1
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.002825)-1
@@ -2749,8 +3003,9 @@ index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  pGB_injected_not_matched_flat_df.iloc[-1]['Frequency'])-1
 # index_of_interest_to_plot = 4710
 # + shift 4671
+# index_of_interest_to_plot = 60
 #plot strains
-number_of_windows = 3
+number_of_windows = 1
 for i in range(len(frequencies_search)):
     if i != index_of_interest_to_plot:
         continue
@@ -2758,8 +3013,8 @@ for i in range(len(frequencies_search)):
     vertical_lines = []
     for j in range(number_of_windows):
         vertical_lines.append(frequencies_search[i+j][0])
-    found_extended = np.concatenate(found_sources_matched[i-1:i+number_of_windows+1])
-    found_not_matched_extended = np.concatenate(found_sources_not_matched[i-1:i+number_of_windows+1])
+    found_extended = np.concatenate(found_sources_matched[i:i+number_of_windows])
+    found_not_matched_extended = np.concatenate(found_sources_not_matched[i:i+number_of_windows])
     # matched_extended = np.concatenate(pGB_injected_matched[i:i+number_of_windows])
     # if len(pGB_injected_SNR[i]) > 0:
     pGB_injected_dict_list = []
@@ -2778,18 +3033,21 @@ for i in range(len(frequencies_search)):
             for parameter in parameters:
                 matched_extended[-1][parameter] = pGB_injected_matched[i+j-1][k][parameter]
     
-    padding = (frequencies_search[i+number_of_windows-1][1] - frequencies_search[i][0])/2
-    pGB_injected_not_matched_flat_df_red = pGB_injected_not_matched_flat_df[pGB_injected_not_matched_flat_df['Frequency'] > frequencies_search[i][0]-padding]
-    pGB_injected_not_matched_flat_df_red = pGB_injected_not_matched_flat_df_red[pGB_injected_not_matched_flat_df_red['Frequency'] < frequencies_search[i+number_of_windows-1][1]+padding]
-    for k in range(len(pGB_injected_not_matched_flat_df_red)):
-        not_matched_extended.append({})
-        for parameter in parameters:
-            not_matched_extended[-1][parameter] = pGB_injected_not_matched_flat_df_red.iloc[k][parameter]
+    # padding = (frequencies_search[i+number_of_windows-1][1] - frequencies_search[i][0])/2
+    # pGB_injected_not_matched_flat_df_red = pGB_injected_not_matched_flat_df[pGB_injected_not_matched_flat_df['Frequency'] > frequencies_search[i][0]-padding]
+    # pGB_injected_not_matched_flat_df_red = pGB_injected_not_matched_flat_df_red[pGB_injected_not_matched_flat_df_red['Frequency'] < frequencies_search[i+number_of_windows-1][1]+padding]
+    # for k in range(len(pGB_injected_not_matched_flat_df_red)):
+    #     not_matched_extended.append({})
+    #     for parameter in parameters:
+    #         not_matched_extended[-1][parameter] = pGB_injected_not_matched_flat_df_red.iloc[k][parameter]
 
-    found_not_matched_extended = [found_extended[3],found_extended[4]]
-    not_matched_extended = []
-    found_extended = deepcopy(matched_extended)
-    matched_extended = [matched_extended[3],matched_extended[4]]
+    # found_not_matched_extended = []
+    # found_not_matched_extended = found_not_matched_extended[:1]
+    # not_matched_extended = []
+    # found_extended = deepcopy(matched_extended)
+
+    # found_extended = []
+    # matched_extended = [matched_extended[3],matched_extended[4]]
     # matched_extended = []
     save_name_path = SAVEPATH+'/strain added Amplitude'+ str(int(np.round(frequencies_search[i][0]*10**8))) +save_name+str(int(len(matched_extended)))+'kristen.png'
     if len(pGB_injected_SNR_sorted_overlap[i]) > 20:
@@ -2984,8 +3242,8 @@ fig = plt.figure()
 # plt.plot(pGB_injected_matched_flat_df['Frequency']*10**3,pGB_injected_matched_flat_df['IntrinsicSNR'], '.', color= colors[1], label = 'Injected matched', markersize= markersize, alpha = alpha)
 # plt.plot(pGB_injected_flat_df_high_SNR['Frequency']*10**3,pGB_injected_flat_df_high_SNR['IntrinsicSNR'],'.', color= colors[1], markersize= markersize, label = 'Injected SNR > 10', alpha = alpha)
 plt.plot(found_sources_matched_flat_df['Frequency']*10**3,found_sources_matched_flat_df['IntrinsicSNR'],'g.', label = 'Found matched', markersize= markersize, alpha = alpha)
-plt.plot(pGB_injected_not_matched_flat_df['Frequency']*10**3,pGB_injected_not_matched_flat_df['IntrinsicSNR'], '+', color = 'r', label = 'Injected not matched', markersize= markersize, alpha = alpha)
-plt.plot(found_sources_not_matched_flat_df['Frequency']*10**3,found_sources_not_matched_flat_df['IntrinsicSNR'],'o',color= 'blue',  markerfacecolor='None', markersize= markersize, label = 'Found not matched', alpha = alpha)
+# plt.plot(pGB_injected_not_matched_flat_df['Frequency']*10**3,pGB_injected_not_matched_flat_df['IntrinsicSNR'], '+', color = 'r', label = 'Injected not matched', markersize= markersize, alpha = alpha)
+plt.plot(found_sources_not_matched_flat_df['Frequency']*10**3,found_sources_not_matched_flat_df['IntrinsicSNR'],'+',color= 'blue',  markerfacecolor='None', markersize= markersize, label = 'Found not matched', alpha = alpha)
 plt.yscale('log')
 plt.xscale('log')
 plt.xlabel('f (mHz)')
@@ -3017,27 +3275,50 @@ plt.savefig(SAVEPATH+'/Evaluation/_SNR_histo'+save_name,dpi=300,bbox_inches='tig
 plt.show()
 
 
-######### get errors
-error = []
-for i in range(len(pGB_injected_matched)):
-    error.append([])
-    for j in range(len(pGB_injected_matched[i])):
-        error[i].append({})
-        for parameter in parameters:
-            if parameter == 'EclipticLongitude':
-                if pGB_injected_matched[i][j][parameter] > np.pi:
-                    pGB_injected_matched[i][j][parameter] -= 2*np.pi
-            error[i][j][parameter] = pGB_injected_matched[i][j][parameter] - found_sources_matched[i][j][parameter]
-            if parameter in ['EclipticLongitude', 'EclipticLatitude', 'Inclination', 'InitialPhase', 'Polarization']:
-                error[i][j][parameter] = np.abs(np.arcsin(np.sin(pGB_injected_matched[i][j][parameter] - found_sources_matched[i][j][parameter])))
-            if parameter == 'Amplitude':
-                # error[i][j][parameter] = np.log10(pGB_injected_matched[i][j][parameter]) - np.log10(found_sources_matched[i][j][parameter])
-                error[i][j][parameter] = np.abs(pGB_injected_matched[i][j][parameter] - found_sources_matched[i][j][parameter])/pGB_injected_matched[i][j][parameter]
-            found_sources_matched[i][j][parameter+'Error'] = error[i][j][parameter]
-found_sources_matched_flat = np.concatenate(found_sources_matched)
-found_sources_matched_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_matched_flat]) for attribute in found_sources_matched_flat[0].keys()}
-found_sources_matched_flat_df = pd.DataFrame(found_sources_matched_flat_array)
+# ######### get errors
+# error = []
+# for i in range(len(pGB_injected_matched)):
+#     error.append([])
+#     for j in range(len(pGB_injected_matched[i])):
+#         error[i].append({})
+#         for parameter in parameters:
+#             if parameter == 'EclipticLongitude':
+#                 if pGB_injected_matched[i][j][parameter] > np.pi:
+#                     pGB_injected_matched[i][j][parameter] -= 2*np.pi
+#             error[i][j][parameter] = pGB_injected_matched[i][j][parameter] - found_sources_matched[i][j][parameter]
+#             if parameter in ['EclipticLongitude', 'EclipticLatitude', 'Inclination', 'InitialPhase', 'Polarization']:
+#                 error[i][j][parameter] = np.abs(np.arcsin(np.sin(pGB_injected_matched[i][j][parameter] - found_sources_matched[i][j][parameter])))
+#             if parameter == 'Amplitude':
+#                 # error[i][j][parameter] = np.log10(pGB_injected_matched[i][j][parameter]) - np.log10(found_sources_matched[i][j][parameter])
+#                 error[i][j][parameter] = np.abs(pGB_injected_matched[i][j][parameter] - found_sources_matched[i][j][parameter])/pGB_injected_matched[i][j][parameter]
+#             found_sources_matched[i][j][parameter+'Error'] = error[i][j][parameter]
+# found_sources_matched_flat = np.concatenate(found_sources_matched)
+# found_sources_matched_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_matched_flat]) for attribute in found_sources_matched_flat[0].keys()}
+# found_sources_matched_flat_df = pd.DataFrame(found_sources_matched_flat_array)
 
+
+######### get errors
+def get_errors(pGB_injected_matched_flat_df, found_sources_matched_flat_df):
+    error = {}
+    for parameter in parameters:
+        error[parameter] = []
+        # found_sources_matched_flat_df[parameter+'Error'] = []
+        for i in range(len(pGB_injected_matched_flat_df)):
+            if parameter == 'EclipticLongitude':
+                if pGB_injected_matched_flat_df[parameter][i] > np.pi:
+                    pGB_injected_matched_flat_df[parameter][i] -= 2*np.pi
+            if parameter in ['EclipticLongitude', 'EclipticLatitude', 'Inclination', 'InitialPhase', 'Polarization']:
+                error[parameter].append(np.abs(np.arcsin(np.sin(pGB_injected_matched_flat_df[parameter][i] - found_sources_matched_flat_df[parameter][i]))))
+            elif parameter == 'Amplitude':
+                # error[parameter].append(np.log10(pGB_injected_matched_flat_df[parameter][i]) - np.log10(found_sources_matched_flat_df[parameter][i]))
+                error[parameter].append(np.abs(pGB_injected_matched_flat_df[parameter][i] - found_sources_matched_flat_df[parameter][i])/pGB_injected_matched_flat_df[parameter][i])
+            # found_sources_matched_flat_df[parameter+'Error'].append(error[parameter][i])
+            else:
+                error[parameter].append(pGB_injected_matched_flat_df[parameter][i] - found_sources_matched_flat_df[parameter][i])
+        found_sources_matched_flat_df[parameter+'Error'] = error[parameter]
+    return found_sources_matched_flat_df
+
+found_sources_matched_flat_df = get_errors(pGB_injected_matched_flat_df, found_sources_matched_flat_df)
 
 #### get galactic coordinates
 coordinates_found = coord.SkyCoord(found_sources_matched_flat_df['EclipticLongitude'], found_sources_matched_flat_df['EclipticLatitude'], unit='rad', frame='barycentricmeanecliptic')
@@ -3126,23 +3407,27 @@ plt.show()
 
 ### histogram
 # for parameter in parameters + ['Skylocation']:
-for parameter in  ['Skylocation']:
+for parameter in  ['Frequency']:
     fig = plt.figure()
-
     if parameter == 'Skylocation':
         plt.hist(np.abs(error_flat[parameter]), bins= np.logspace(-2,2, 100))
     elif parameter == 'Frequency':
         # plt.hist(np.abs(error_flat[parameter]), bins= np.logspace(-14,-7, 100))
-        plt.hist(error_flat[parameter], bins= np.linspace(-10**-7,10**-7, 100), log=True)
+        
+        plt.hist(np.abs(found_sources_matched_flat_df[parameter+'Error']/pGB_injected_matched_flat_df[parameter]), bins= np.logspace(-9,-4, 100), log=True)
+        # plt.hist(error_flat[parameter], bins= np.linspace(-10**-7,10**-7, 100), log=True, density=True)
     else:
-        plt.hist(error_flat[parameter], bins=100)
+        plt.hist(found_sources_matched_flat_df[parameter+'Error'], bins=100, density=True)
     plt.xlabel('Error of '+parameter)
     plt.ylabel('count')
     if parameter == 'Skylocation':
         plt.xlabel('Error of '+parameter+' (deg)')
         plt.xscale('log')
-    # if parameter == 'Frequency':
-    #     plt.xscale('log')
+    if parameter == 'Frequency':
+        plt.xscale('log')
+        plt.ylim(0,10**3)
+        plt.xlabel('Relative error of '+parameter)
+    # plt.yscale('log')
     plt.savefig(SAVEPATH+'/Evaluation/'+parameter+'_error_histogram'+save_name,dpi=300,bbox_inches='tight')
     plt.show()
 
@@ -3335,7 +3620,7 @@ boundaries['IntrinsicSNR'] = [np.min(found_sources_matched_flat_df['IntrinsicSNR
 x_scale = 'log'
 parameter_x = 'Frequency'
 parameter_y = 'IntrinsicSNR'
-n_bins = 100
+n_bins = 50
 x_coordinates = []
 y_coordinates = []
 for i in range(n_bins+1):
@@ -3353,9 +3638,9 @@ found_sources_matched_flat_df_parameter_x_sorted = found_sources_matched_flat_df
 # bin_boundaries_x = np.linspace(boundaries[parameter_x][0], boundaries[parameter_x][1],n_bins+1)
 # bin_boundaries_x = np.log10(bin_boundaries_x)
 bin_boundaries_y = np.linspace(boundaries[parameter_y][0], boundaries[parameter_y][1],n_bins+1)
-bin_boundaries_y = np.log10(bin_boundaries_y)
+# bin_boundaries_y = np.log10(bin_boundaries_y)
 bin_boundaries_x = np.logspace(np.log10(boundaries[parameter_x][0]), np.log10(boundaries[parameter_x][1]),n_bins+1)
-# bin_boundaries_y = np.logspace(np.log10(boundaries[parameter_y][0]), np.log10(boundaries[parameter_y][1]),n_bins+1)
+bin_boundaries_y = np.logspace(np.log10(boundaries[parameter_y][0]), np.log10(boundaries[parameter_y][1]),n_bins+1)
 for i in range(n_bins):
     error.append([])
     std.append([])
@@ -3366,7 +3651,7 @@ for i in range(n_bins):
     section = found_sources_matched_flat_df_parameter_x_sorted[start_index:end_index]
     for j in range(n_bins):
         section_parameter_y_sorted = section.sort_values(by=parameter_y)
-        length = (boundaries[parameter_y][1] - boundaries[parameter_y][0])/n_bins
+        # length = (boundaries[parameter_y][1] - boundaries[parameter_y][0])/n_bins
         start_index = np.searchsorted(section_parameter_y_sorted[parameter_y],bin_boundaries_y[j], side='left')
         end_index = np.searchsorted(section_parameter_y_sorted[parameter_y],bin_boundaries_y[j+1], side='left')
         field = section[start_index:end_index]
@@ -3397,9 +3682,12 @@ ax1.set_title('standard deviation')
 im2 = ax2.pcolormesh(bin_boundaries_x,bin_boundaries_y, np.array(count).T)
 fig.colorbar(im2, ax=ax2)
 ax2.set_title('number of signals')
-# ax0.set_xscale('log')
-# ax1.set_xscale('log')
-# ax2.set_xscale('log')
+ax0.set_yscale('log')
+ax1.set_yscale('log')
+ax2.set_yscale('log')
+ax0.set_xscale('log')
+ax1.set_xscale('log')
+ax2.set_xscale('log')
 ax2.set_xlabel(parameter_x)
 ax0.set_ylabel(parameter_y)
 ax1.set_ylabel(parameter_y)
@@ -3487,6 +3775,8 @@ fig = plt.figure()
 plt.hist(correlation_list_flat,50)
 plt.xlabel('Correlation')
 plt.ylabel('Count')
-plt.yscale('log')
-plt.savefig(SAVEPATH+'/Evaluation/correlation'+save_name,dpi=300,bbox_inches='tight')
+# plt.yscale('log')
+plt.ylim(0,2000)
+plt.xlim(0,1)
+plt.savefig(SAVEPATH+'/Evaluation/correlation'+save_name+end_string,dpi=300,bbox_inches='tight')
 plt.show()

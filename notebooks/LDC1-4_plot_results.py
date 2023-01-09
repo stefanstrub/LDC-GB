@@ -99,7 +99,7 @@ plt.xlabel('f (mHz)')
 # plt.xlim(0.3,30)
 # plt.ylim(0.1,2000)
 if parameter_to_plot == 'IntrinsicSNR':
-    plt.ylabel('Intrinsic SNR')
+    plt.ylabel(r'$\mathrm{SNR}_{\mathrm{opt}}$')
 else:
     plt.ylabel(parameter_to_plot)    
 plt.legend(markerscale=3, loc = 'upper right')
@@ -126,7 +126,7 @@ plt.xlabel('f (mHz)')
 # plt.xlim(0.3,30)
 plt.ylim(1,1000)
 if parameter_to_plot == 'IntrinsicSNR':
-    plt.ylabel('Intrinsic SNR')
+    plt.ylabel(r'$\mathrm{SNR}_{\mathrm{opt}}$')
 else:
     plt.ylabel(parameter_to_plot)  
 legend_elements = [mlines.Line2D([], [], color='grey', marker='.', linestyle='None',

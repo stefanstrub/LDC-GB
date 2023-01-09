@@ -1738,6 +1738,10 @@ chandrasekhar_limit = 1.4
 M_chirp_upper_boundary = (chandrasekhar_limit**2)**(3/5)/(2*chandrasekhar_limit)**(1/5)
 
 data_file_name = 'Montana'
+# data_file_name = 'Montana2022_3932160'
+# data_file_name = 'Montana2022_7864320'
+# data_file_name = 'Montana2022_15728640'
+# data_file_name = 'Montana2022_31457280'
 # data_file_name = 'APC'
 # data_file_name = 'ETH'
 save_name = 'LDC1-4_4mHz'+data_file_name
@@ -1757,7 +1761,7 @@ frequencies_odd = []
 # search_range = [0.0039885, 0.0040205]
 # search_range = [0.0039935, 0.0039965]
 f_Nyquist = 1/dt/2
-search_range = [0.0003, f_Nyquist]
+search_range = [0.00024, f_Nyquist]
 # search_range = [0.0003, 0.03]
 # search_range = [0.0019935, 0.0020135]
 # search_range = [0.0029935, 0.0030135]
@@ -1800,7 +1804,8 @@ frequencies_min_montana = 0.00398148268199693
 # frequencies_max_montana = 0.004003419101309928
 # frequencies_min_APC = 0.003999281
 frequencies_max_APC = 0.00410031292
-if data_file_name == 'ETH':
+# if data_file_name == 'ETH':
+if True:
     start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], frequencies_min_montana)-1
     end_index = np.searchsorted(np.asarray(frequencies_search)[:,0], frequencies_max_APC)
 
@@ -1820,7 +1825,7 @@ while frequencies_search[-1][1] + (frequencies_search[-1][1] - frequencies_searc
 
 search_range = [frequencies_search[0][0],frequencies_search[-1][1]]
 # search_range = [1619472*10**-8,2689639*10**-8]
-print('search range '+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))))
+print('search range '+ str(int(np.round(search_range[0]*10**9)))+'nHz to '+ str(int(np.round(search_range[1]*10**9)))+'nHz')
 
 def SNR_match(pGB_injected, pGB_found):
     Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4, simulator="synthlisa")
@@ -1964,6 +1969,7 @@ found_sources_in= found_sources_in_sorted
 
 ##### v1 to v2 shift
 if version == '1':
+# if True:
     for i in range(len(found_sources_in)):
         for j in range(len(found_sources_in[i])):
             found_sources_in[i][j]['InitialPhase'] = -(found_sources_in[i][j]['InitialPhase'])

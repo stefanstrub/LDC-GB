@@ -36,6 +36,29 @@ if False:
         found_signals.append(data[name])
     np.save(SAVEPATH+'Montana.npy', found_signals)
 
+##### Montana 2022
+if True:
+    additional_path = DATAPATH + '/MarshallMontana/LDC1-4_2022/'
+    # duration = '3932160'
+    # duration = '7864320'
+    # duration = '15728640'
+    duration = '31457280'
+    file_name = 'catalog_'+duration+'.txt'
+    file_path = additional_path + file_name
+    data = np.loadtxt(file_path)
+    parameters = ['Frequency', 'FrequencyDerivative', 'Amplitude', 'EclipticLongitude', 'EclipticLatitude', 'Inclination', 'Polarization', 'InitialPhase']
+    found_signals = []
+    for i in range(len(data)):
+        found_signals.append({})
+        for parameter in parameters:
+            if parameter in [ 'Inclination']:
+                found_signals[i][parameter] = np.arccos(data[i][parameters.index(parameter)])
+            elif parameter in ['EclipticLatitude']:
+                found_signals[i][parameter] = np.arcsin(data[i][parameters.index(parameter)])
+            else:
+                found_signals[i][parameter] = data[i][parameters.index(parameter)]
+    np.save(SAVEPATH+'found_sourcesMontana2022_'+duration+'.npy', found_signals)
+
 ### ETH
 if False:
     file_name = DATAPATH + '/ETH_LDC1-4_4mHz/LDC1-4_evaluationETH_LDC1-4_4mHz.yaml'
@@ -51,7 +74,7 @@ if False:
 
 
 ##### APC
-if True:
+if False:
     file_name = DATAPATH + '/PlagnolAPC/myYamFile.yaml'
     with open(file_name) as f:
         data = yaml.load(f, Loader=SafeLoader)
