@@ -1675,7 +1675,7 @@ DATAPATH = "/home/stefan/LDC/Radler/data"
 DATAPATH = grandparent+"/LDC/Radler/data"
 SAVEPATH = grandparent+"/LDC/Radler/LDC1-4_evaluation"
 
-version = '1'
+version = '2'
 # sangria_fn = DATAPATH + "/dgb-tdi.h5"
 # sangria_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
 sangria_fn = DATAPATH + "/LDC1-4_GB_v"+version+".hdf5"
@@ -1737,13 +1737,13 @@ print('frequency derivative', frequency_derivative(f,0.1),frequency_derivative(f
 chandrasekhar_limit = 1.4
 M_chirp_upper_boundary = (chandrasekhar_limit**2)**(3/5)/(2*chandrasekhar_limit)**(1/5)
 
-data_file_name = 'Montana'
+# data_file_name = 'Montana'
 # data_file_name = 'Montana2022_3932160'
 # data_file_name = 'Montana2022_7864320'
 # data_file_name = 'Montana2022_15728640'
 # data_file_name = 'Montana2022_31457280'
 # data_file_name = 'APC'
-# data_file_name = 'ETH'
+data_file_name = 'ETH'
 save_name = 'LDC1-4_4mHz'+data_file_name
 try:
     cat = np.load(SAVEPATH+'/cat_sorted_v'+version+'.npy', allow_pickle = True)
@@ -1785,6 +1785,7 @@ while current_frequency < search_range[1]:
 # found_sources = np.load(SAVEPATH+'/found_sources_not_anticorrelatedLDC1-4_2_optimized_second.npy', allow_pickle = True)
 # found_sources = np.concatenate(found_sources)
 found_sources = np.load(SAVEPATH+'/'+data_file_name+'.npy', allow_pickle = True)
+np.load(SAVEPATH+'found_sources' +save_name+'.npy', allow_pickle = True)
 
 found_sources_in_flat_frequency = []
 for i in range(len(found_sources)):
@@ -1802,7 +1803,7 @@ end_index = np.searchsorted(np.asarray(frequencies_search)[:,0], found_sources_i
 # Montana
 frequencies_min_montana = 0.00398148268199693
 # frequencies_max_montana = 0.004003419101309928
-# frequencies_min_APC = 0.003999281
+frequencies_min_APC = 0.003999281
 frequencies_max_APC = 0.00410031292
 # if data_file_name == 'ETH':
 if True:
@@ -1859,6 +1860,41 @@ def SNR_match(pGB_injected, pGB_found):
     SNR2 = 4.0*Xs.df* SNR2
     SNR3 = SNR2 / (np.sqrt(SNR)*np.sqrt(4.0*Xs.df* ss))
     return SNR3.values
+
+def SNR_match_amplitude_condsiered(pGB_injected, pGB_found):
+    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4, simulator="synthlisa")
+    Xs_injected, Ys_injected, Zs_injected = GB.get_fd_tdixyz(template=pGB_injected, oversample=4, simulator="synthlisa")
+    Xs_aligned = xr.align(Xs_injected, Xs, join='left',fill_value=0)[1]
+    Ys_aligned = xr.align(Ys_injected, Ys, join='left',fill_value=0)[1]
+    Zs_aligned = xr.align(Zs_injected, Zs, join='left',fill_value=0)[1]
+        
+    fmin, fmax = float(Xs_injected.f[0]), float(Xs_injected.f[-1] + Xs_injected.attrs["df"])
+    freq = np.array(Xs_injected.sel(f=slice(fmin, fmax)).f)
+    Nmodel = get_noise_model(noise_model, freq)
+    SA = Nmodel.psd(freq=freq, option="A")
+    ST = Nmodel.psd(freq=freq, option="T")
+
+    Af = (Zs_aligned - Xs_aligned)/np.sqrt(2.0)
+    Ef = (Zs_aligned - 2.0*Ys_aligned + Xs_aligned)/np.sqrt(6.0)
+    Af_injected = (Zs_injected - Xs_injected)/np.sqrt(2.0)
+    Ef_injected = (Zs_injected - 2.0*Ys_injected + Xs_injected)/np.sqrt(6.0)
+    frequency_T_threshold = 19.1*10**-3/2
+    if Af.f[-1] > frequency_T_threshold:
+        Tf = (Zs_aligned + Ys_aligned + Xs_aligned)/np.sqrt(3.0)
+        Tf_injected = (Zs_injected + Ys_injected + Xs_injected)/np.sqrt(3.0)
+        SNR2 = np.sum( np.real(Af_injected * np.conjugate(Af.data) + Ef_injected * np.conjugate(Ef.data))/SA + np.real(Tf_injected * np.conjugate(Tf.data))/ST)
+        hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2)/SA + np.absolute(Tf.data)**2 /ST)
+        ss = np.sum((np.absolute(Af_injected.data)**2 + np.absolute(Ef_injected.data)**2)/SA + np.absolute(Tf_injected.data)**2 /ST)
+    else:
+        SNR2 = np.sum( np.real(Af_injected * np.conjugate(Af.data) + Ef_injected * np.conjugate(Ef.data))/SA)
+        hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2) /SA)
+        ss = np.sum((np.absolute(Af_injected.data)**2 + np.absolute(Ef_injected.data)**2) /SA)
+    SNR = 4.0*Xs.df* hh
+    scalar_ss = 4.0*Xs.df* ss
+    SNR2 = 4.0*Xs.df* SNR2
+    amplitude_factor = np.abs(np.log10(scalar_ss/SNR))/2+1
+    SNR3 = SNR2 / (np.sqrt(SNR)*np.sqrt(scalar_ss))/amplitude_factor
+    return SNR3.values, amplitude_factor, SNR2 / (np.sqrt(SNR)*np.sqrt(scalar_ss))
 
 found_sources_in = []
 for i in range(len(frequencies_search)):
@@ -1987,13 +2023,16 @@ def match_function(found_sources_in, pGB_injected_not_matched, found_sources_not
     for j in range(len(found_sources_in)):
         found_match = False
         correlation_list_of_one_signal = []
+        found_dict = {}
+        for parameter in parameters:
+            found_dict[parameter] = found_sources_in[j][parameter]
         for k in range(len(pGB_injected_not_matched)):
             pGB_injected_dict = {}
-            found_dict = {}
             for parameter in parameters:
                 pGB_injected_dict[parameter] = pGB_injected_not_matched[k][parameter]
-                found_dict[parameter] = found_sources_in[j][parameter]
-            correlation = SNR_match(pGB_injected_dict,found_dict)
+            # correlation = l2_norm_match(pGB_injected_dict,found_dict)
+            # correlation = SNR_match(pGB_injected_dict,found_dict)
+            correlation, amplitude_factor, cross_correlation = SNR_match_amplitude_condsiered(pGB_injected_dict,found_dict)
             correlation_list_of_one_signal.append(correlation)
             if k > 39:
                 break
@@ -2006,8 +2045,8 @@ def match_function(found_sources_in, pGB_injected_not_matched, found_sources_not
             pGB_injected_matched.append(pGB_injected_not_matched[max_index])
             found_sources_matched.append(found_sources_in[j])
             # pGB_injected_not_matched = np.delete(pGB_injected_not_matched, max_index)
-            correlation_list.append(correlation_list_of_one_signal[max_index])
             found_sources_not_matched[j] = None
+        correlation_list.append(correlation_list_of_one_signal[max_index])
     return found_sources_in, pGB_injected_not_matched, correlation_list, found_sources_not_matched, pGB_injected_matched, found_sources_matched
 
 do_match_parallelized = True

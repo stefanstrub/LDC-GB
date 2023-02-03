@@ -1794,7 +1794,7 @@ path = os.getcwd()
 parent = os.path.dirname(path)
 # grandparent directory
 grandparent = os.path.dirname(parent)
-Radler = False
+Radler = True
 if Radler:
     DATAPATH = grandparent+"/LDC/Radler/data"
     SAVEPATH = grandparent+"/LDC/pictures/LDC1-4/"
@@ -1810,7 +1810,7 @@ else:
     sangria_fn = DATAPATH + "/LDC2_sangria_training_v2.h5"
 fid = h5py.File(sangria_fn)
 
-reduction = 1
+reduction = 2
 
 # get TDI 
 if Radler:
@@ -2278,7 +2278,7 @@ frequencies_odd = frequencies[1::2]
 # plt.show()
 
 
-save_name = 'Sangria_even'
+save_name = 'Radler_1_even10'
 # for i in range(65):
 frequencies_search = frequencies_even
 frequencies_search_full = deepcopy(frequencies_search)
@@ -2471,7 +2471,9 @@ if do_subtract:
     # save_name_previous = 'found_sourcesSangria_half_odd'
     # save_name_previous = 'found_sourcesSangria_1_full'
     # save_name_previous = 'found_signals_1_even/found_sources1630803to2001429Sangria_1_even'
-    save_name_previous = 'found_sourcesSangria_odd'
+    # save_name_previous = 'found_sourcesSangria_odd'
+    # save_name_previous = 'found_sourcesRadler_1_even3'
+    save_name_previous = 'found_sourcesRadler_1_odd'
     # save_name_previous = 'found_sourcesSangria_1_even_opt1'
     # save_name_previous = 'found_sources'+save_name
     found_sources_mp_subtract = np.load(SAVEPATH+save_name_previous+'.npy', allow_pickle = True)
@@ -2572,16 +2574,27 @@ if do_subtract:
 # frequencies_search = frequencies_even[-100:]
 
 found_sources_sorted = []
-use_initial_guess = False
+use_initial_guess = True
 if use_initial_guess:
-    found_sources_loaded = []
     # save_name_found_sources_previous = 'found_sources397769to400619LDC1-4_4mHz_half_year_even10'
     # save_name_found_sources_previous = 'found_sources397919to400770LDC1-4_4mHz_half_year_odd'
     # save_name_found_sources_previous = 'found_sources2537595to3305084LDC1-4_4mHz_half_year_even'
     save_name_found_sources_previous = 'found_sourcesLDC1-4_half_even10'
     # save_name_found_sources_previous = 'found_sourcesLDC1-4_half_odd'
-    found_sources_loaded.append(np.load(SAVEPATH+'/'+save_name_found_sources_previous+'.npy', allow_pickle = True))
+    found_sources_mp_subtract = np.load(SAVEPATH+save_name_found_sources_previous+'.npy', allow_pickle = True)
 
+    found_sources_flat = []
+    for i in range(len(found_sources_mp_subtract)):
+        for j in range(len(found_sources_mp_subtract[i][0])):
+            found_sources_flat.append(found_sources_mp_subtract[i][0][j])
+    found_sources_flat = np.asarray(found_sources_flat)
+    found_sources_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_flat]) for attribute in found_sources_flat[0].keys()}
+    found_sources_flat_df = pd.DataFrame(found_sources_flat_array)
+    found_sources_flat_df = found_sources_flat_df.sort_values('Frequency')
+    found_sources_sorted = found_sources_flat_df.to_dict(orient='records')
+
+    found_sources_loaded = []
+    found_sources_loaded.append(np.load(SAVEPATH+save_name_found_sources_previous+'.npy', allow_pickle = True))
     found_sources_previous = []
     for i in range(len(found_sources_loaded)):
         for j in range(len(found_sources_loaded[i])):

@@ -103,7 +103,7 @@ if parameter_to_plot == 'IntrinsicSNR':
 else:
     plt.ylabel(parameter_to_plot)    
 plt.legend(markerscale=3, loc = 'upper right')
-plt.savefig(SAVEPATH+'/Evaluation/'+parameter_to_plot+save_name+'injected_all_found',dpi=300,bbox_inches='tight')
+# plt.savefig(SAVEPATH+'/Evaluation/'+parameter_to_plot+save_name+'injected_all_found',dpi=300,bbox_inches='tight')
 plt.show()
 
 

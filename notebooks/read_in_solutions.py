@@ -37,7 +37,7 @@ if False:
     np.save(SAVEPATH+'Montana.npy', found_signals)
 
 ##### Montana 2022
-if True:
+if False:
     additional_path = DATAPATH + '/MarshallMontana/LDC1-4_2022/'
     # duration = '3932160'
     # duration = '7864320'
@@ -60,8 +60,8 @@ if True:
     np.save(SAVEPATH+'found_sourcesMontana2022_'+duration+'.npy', found_signals)
 
 ### ETH
-if False:
-    file_name = DATAPATH + '/ETH_LDC1-4_4mHz/LDC1-4_evaluationETH_LDC1-4_4mHz.yaml'
+if True:
+    file_name = DATAPATH + '/ETH_LDC1-4_4mHz/ETH_LDC1-4_4mHz_full2.yaml'
     with open(file_name) as f:
         data = yaml.load(f, Loader=SafeLoader)
     data = data['estimates']
