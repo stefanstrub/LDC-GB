@@ -1,4 +1,4 @@
-#!/home/stefan/anaconda3/envs/ldc_gpu7/bin/python
+#!/home/stefan/anaconda3/bin/python
 import os
 import logging
 import shutil

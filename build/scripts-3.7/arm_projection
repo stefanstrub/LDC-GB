@@ -1,4 +1,4 @@
-#!/home/stefan/anaconda3/envs/ldc_gpu7/bin/python
+#!/home/stefan/anaconda3/bin/python
 import numpy as np
 import numpy.lib.recfunctions as recf
 import re

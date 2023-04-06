@@ -34,7 +34,7 @@ def get_noise_model(model, frq=None, **kwargs):
 
     >>> N = get_noise_model("SciRDv1", np.logspace(-5, 0, 10000))
     """
-    if model in ["Proposal", "SciRDv1", "MRDv1"]:
+    if model in ["Proposal", "SciRDv1", "MRDv1", "sangria"]:
         NoiseClass = globals()["AnalyticNoise"]
         return NoiseClass(frq, model, **kwargs)
     elif model=="mldc":

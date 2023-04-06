@@ -1,8 +1,8 @@
 #%%
-# import matplotlib.pyplot as plt
-# from matplotlib import rcParams
-# from matplotlib.patches import Ellipse
-# from getdist import plots, MCSamples
+import matplotlib.pyplot as plt
+from matplotlib import rcParams
+from matplotlib.patches import Ellipse
+from getdist import plots, MCSamples
 import scipy
 from scipy.optimize import differential_evolution
 import numpy as np
@@ -18,9 +18,9 @@ import sys
 sys.path.append('/cluster/home/sstrub/Repositories/LDC/lib/lib64/python3.8/site-packages/ldc-0.1-py3.8-linux-x86_64.egg')
 
 from ldc.lisa.noise import get_noise_model
-from ldc.common.series import TimeSeries
-from ldc.common.tools import window
-from ldc.waveform.fastGB import fastGB
+from ldc.common.series import TimeSeries, window
+import ldc.waveform.fastGB as fastGB
+# from ldc.waveform.fastGB import fastGB
 # import ldc.waveform.fastGB as fastGB
 
 # from ldc.common.tools import compute_tdi_snr
@@ -49,28 +49,28 @@ plot_parameter = {  # 'backend': 'ps',
 }
 
 # tell matplotlib about your param_plots
-# rcParams.update(plot_parameter)
-# # set nice figure sizes
-# fig_width_pt = 1.5*464.0  # Get this from LaTeX using \showthe\columnwidth
-# golden_mean = (np.sqrt(5.0) - 1.0) / 2.0  # Aesthetic ratio
-# ratio = golden_mean
-# inches_per_pt = 1.0 / 72.27  # Convert pt to inches
-# fig_width = fig_width_pt * inches_per_pt  # width in inches
-# fig_height = fig_width * ratio  # height in inches
-# fig_size = [fig_width, fig_height]
-# fig_size_squared = [fig_width, fig_width]
-# rcParams.update({"figure.figsize": fig_size})
-# prop_cycle = plt.rcParams['axes.prop_cycle']
-# colors = prop_cycle.by_key()['color']
+rcParams.update(plot_parameter)
+# set nice figure sizes
+fig_width_pt = 1.5*464.0  # Get this from LaTeX using \showthe\columnwidth
+golden_mean = (np.sqrt(5.0) - 1.0) / 2.0  # Aesthetic ratio
+ratio = golden_mean
+inches_per_pt = 1.0 / 72.27  # Convert pt to inches
+fig_width = fig_width_pt * inches_per_pt  # width in inches
+fig_height = fig_width * ratio  # height in inches
+fig_size = [fig_width, fig_height]
+fig_size_squared = [fig_width, fig_width]
+rcParams.update({"figure.figsize": fig_size})
+prop_cycle = plt.rcParams['axes.prop_cycle']
+colors = prop_cycle.by_key()['color']
 
-def Window(tm, offs=1000.0):
-    xl = offs
-    ind_r = np.argwhere(tm[-1] - tm <= offs)[0][0]
-    xr = tm[ind_r]
-    kap = 0.005
-    winl = 0.5 * (1.0 + np.tanh(kap * (tm - xl)))
-    winr = 0.5 * (1.0 - np.tanh(kap * (tm - xr)))
-    return winl * winr
+# def window(tm, offs=1000.0):
+#     xl = offs
+#     ind_r = np.argwhere(tm[-1] - tm <= offs)[0][0]
+#     xr = tm[ind_r]
+#     kap = 0.005
+#     winl = 0.5 * (1.0 + np.tanh(kap * (tm - xl)))
+#     winr = 0.5 * (1.0 - np.tanh(kap * (tm - xr)))
+#     return winl * winr
 
 def objective(trial,changeableparameters, maxpGB2, signal):
     for parameter in changeableparameters:
@@ -357,13 +357,16 @@ class Search():
         self.lower_frequency = lower_frequency
         self.upper_frequency = upper_frequency
         self.padding = (upper_frequency - lower_frequency)/2
-        tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
-        # f, psdX =  scipy.signal.welch(tdi_ts["X"], fs=1.0/dt, window='hanning', nperseg=len(tdi_ts["X"])/1)
-        # f, psdY =  scipy.signal.welch(tdi_ts["Y"], fs=1.0/dt, window='hanning', nperseg=len(tdi_ts["X"])/1)
-        # f, psdZ =  scipy.signal.welch(tdi_ts["Z"], fs=1.0/dt, window='hanning', nperseg=len(tdi_ts["X"])/1)
+        self.tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
+        f, self.psdX =  scipy.signal.welch(self.tdi_ts["X"], fs=1.0/dt, window='hanning', nperseg=len(self.tdi_ts["X"])/1)
+        f, self.psdY =  scipy.signal.welch(self.tdi_ts["Y"], fs=1.0/dt, window='hanning', nperseg=len(self.tdi_ts["X"])/1)
+        f, self.psdZ =  scipy.signal.welch(self.tdi_ts["Z"], fs=1.0/dt, window='hanning', nperseg=len(self.tdi_ts["X"])/1)
         # psd = psdX + psdY + psdZ
-        # indexes = np.logical_and(f>lower_frequency-self.padding, f<upper_frequency+self.padding)
+        indexes = np.logical_and(f>lower_frequency-self.padding, f<upper_frequency+self.padding)
         # psd = psd[indexes]
+        self.psdX = self.psdX[indexes]
+        self.psdY = self.psdY[indexes]
+        self.psdZ = self.psdZ[indexes]
         self.frequency_T_threshold = 19.1*10**-3/2
         
         self.use_T_component = False
@@ -374,7 +377,7 @@ class Search():
         # plt.plot(f[indexes], psd)
         # plt.show()
 
-        frequencyrange =  [lower_frequency-self.padding, upper_frequency+self.padding]
+        frequencyrange =  [self.lower_frequency-self.padding, self.upper_frequency+self.padding]
         indexes = np.logical_and(tdi_fs['X'].f > frequencyrange[0], tdi_fs['X'].f < frequencyrange[1]) 
         self.dataX = tdi_fs["X"][indexes]
         self.dataY = tdi_fs["Y"][indexes]
@@ -383,6 +386,29 @@ class Search():
         self.DAf = (self.dataZ - self.dataX)/np.sqrt(2.0)
         self.DEf = (self.dataZ - 2.0*self.dataY + self.dataX)/np.sqrt(6.0)
         self.DTf = (self.dataZ + self.dataY + self.dataX)/np.sqrt(3.0)
+        self.df = self.DAf.f[1].values-self.DAf.f[0].values
+
+        self.tdi_ts["E"] = deepcopy(self.tdi_ts["X"])
+        self.tdi_ts["A"] = (self.tdi_ts["Z"] - self.tdi_ts["X"])/np.sqrt(2.0)
+        self.tdi_ts["E"].values = (self.tdi_ts["Z"] - 2.0*self.tdi_ts["Y"] + self.tdi_ts["X"])/np.sqrt(6.0)
+        self.tdi_ts["T"] = (self.tdi_ts["Z"] + self.tdi_ts["Y"] + self.tdi_ts["X"])/np.sqrt(3.0)
+        f, self.psdA =  scipy.signal.welch(self.tdi_ts["A"], fs=1.0/dt, window='hanning', nperseg=len(self.tdi_ts["X"]))
+        f, self.psdE =  scipy.signal.welch(self.tdi_ts["E"], fs=1.0/dt, window='hanning', nperseg=len(self.tdi_ts["X"]))
+        f2, self.psdE2 =  scipy.signal.welch(self.tdi_ts["E"], fs=1.0/dt, window='hanning', nperseg=len(self.tdi_ts["X"]), scaling='spectrum')
+        f, self.psdT =  scipy.signal.welch(self.tdi_ts["T"], fs=1.0/dt, window='hanning', nperseg=len(self.tdi_ts["X"]))
+        indexes = np.logical_and(f > frequencyrange[0], f < frequencyrange[1]) 
+        indexes2 = np.logical_and(f2 > frequencyrange[0], f2 < frequencyrange[1]) 
+        self.f_noise = f[indexes]
+        self.f_noise2 = f2[indexes2]
+        self.psdA = self.psdA[indexes]
+        self.psdE = self.psdE[indexes]
+        self.psdE2 = self.psdE2[indexes2]
+        self.psdT = self.psdT[indexes]
+        self.tdifE = self.tdi_ts["E"].ts.fft(win=window)
+        # self.tdifE =  scipy.fft.fft(self.tdi_ts["E"].values)
+        # f =  scipy.fft.fftshift(scipy.fft.fftfreq(self.tdi_ts["E"].t.values.shape[-1], d=1/self.tdi_ts["X"].t[1].values))
+        indexes = np.logical_and(self.tdifE.f > frequencyrange[0], self.tdifE.f < frequencyrange[1]) 
+        self.tdifE = self.tdifE[indexes]
 
         # plt.figure()
         # plt.plot(f[indexes], np.abs(self.DAf))
@@ -492,6 +518,23 @@ class Search():
         # null_pGBs = deepcopy(self.pGBs)
         # null_pGBs['Amplitude'] = 4*10**-25
         # print('pGB', self.pGB, self.loglikelihood([self.pGB]))
+
+    def update_noise(self, pGB=None):
+        if pGB != None:
+            Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB, oversample=4, simulator="synthlisa")
+            Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+            Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
+            Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+
+            Af = (Zs_total - Xs_total)/np.sqrt(2.0)
+            Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
+            Tf = (Zs_total + Ys_total + Xs_total)/np.sqrt(3.0)
+        else:
+            Af = 0
+            Tf = 0
+        self.SA = np.ones_like(self.SA)*(np.mean(np.abs(self.DAf-Af)).data)**2/(dt*len(self.tdi_fs['X']))*2
+        # self.SE = Nmodel.psd(freq=freq, option="E")
+        self.ST = np.ones_like(self.ST)*(np.mean(np.abs(self.DTf-Tf)).data)**2
 
     def f_statistic(self, N_frequency, N_sky):
         # We construct a global proposal density using the single
@@ -617,7 +660,13 @@ class Search():
         # Af = (Zs - Xs)/np.sqrt(2.0)
         ax1.plot(self.DAf.f*10**3,self.DAf,'k',zorder= 1, linewidth = 2, label = 'Data')
         ax2.plot(self.DEf.f*10**3,np.abs(self.DEf),'k',zorder= 1, linewidth = 2, label = 'Data')
+        ax2.plot(self.f_noise*10**3,np.sqrt(np.abs(self.SA)),'r',zorder= 1, linewidth = 2, label = 'Noise')
+        ax2.plot(self.f_noise*10**3,np.sqrt(self.psdE),'g',zorder= 1, linewidth = 2, label = 'Noise')
+        ax2.plot(self.f_noise*10**3,np.sqrt(self.psdE*self.df),'r.',zorder= 1, linewidth = 2, label = 'Noise')
+        ax2.plot(self.f_noise2*10**3,np.sqrt(self.psdE2),'g.',zorder= 1, linewidth = 2, label = 'Noise')
+        # ax2.plot(self.tdifE.f*10**3,np.abs(self.tdifE),'b',zorder= 1, linewidth = 2, label = 'Noise')
         # ax1.plot(tdi_fs_long_subtracted.f[range_index],np.abs(tdi_fs_long_subtracted['X'][range_index])**2,'b',zorder= 5)
+
 
         if second_data != None:
             a,Xs = xr.align(self.dataX, second_data['X'], join='left',fill_value=0)
@@ -627,7 +676,6 @@ class Search():
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
             ax1.plot(Af.f*10**3,Af,'k--',zorder= 1, linewidth = 2, label = 'Data subtracted')
             ax2.plot(Ef.f*10**3,np.abs(Ef),'k--',zorder= 1, linewidth = 2, label = 'Data subtracted')
-
 
         for j in range(len( pGB_injected)):
             Xs, Ys, Zs = GB.get_fd_tdixyz(template= pGB_injected[j], oversample=4, simulator="synthlisa")
@@ -670,6 +718,11 @@ class Search():
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
             ax1.plot(Af.f* 1000, Af.data,'--', color= colors[j%10], linewidth = 1.6)
             ax2.plot(Ef.f* 1000, np.abs(Ef.data),'--', color= colors[j%10], linewidth = 1.6)
+            # tdi_fs = {'X': Xs, 'Y': Ys, 'Z': Zs}
+            # tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
+            # f, psdX =  scipy.signal.welch(tdi_ts["X"], fs=1.0/dt, window='hanning', nperseg=len(tdi_ts["X"]))
+            # ax2.plot(f* 1000, np.sqrt(psdX),'-.', color= 'b', linewidth = 1.6)
+            
 
         for j in range(len(found_sources_not_matched)):
             Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_not_matched[j], oversample=4, simulator="synthlisa")
@@ -965,6 +1018,42 @@ class Search():
             ax[1].plot(Af.f, np.abs(Ef.data))
             plt.show()
         logliks = 4.0*Xs.df*( SNR2 - 0.5 * hh )
+        return logliks.values
+
+    def loglikelihood_dd(self, pGBs):
+        for i in range(len(pGBs)):
+            Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGBs[i], oversample=4, simulator="synthlisa")
+            if i == 0:
+                Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+                Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
+                Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+            else:
+                Xs_total += xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+                Ys_total += xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
+                Zs_total += xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+            
+        Af = (Zs_total - Xs_total)/np.sqrt(2.0)
+        Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
+        Tf = (Zs_total + Ys_total + Xs_total)/np.sqrt(3.0)
+        if self.use_T_component:
+            Tf = (Zs_total + Ys_total + Xs_total)/np.sqrt(3.0)
+            hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2)/self.SA + np.absolute(Tf.data)**2 /self.ST)
+            SNR2 = np.sum( np.real(self.DAf * np.conjugate(Af.data) + self.DEf * np.conjugate(Ef.data))/self.SA + np.real(self.DTf * np.conjugate(Tf.data))/self.ST )
+            dd = np.sum((np.absolute(self.DAf.data)**2 + np.absolute(self.DEf.data)**2) /self.SA + np.absolute(self.DTf.data)**2 /self.ST)
+        else:
+            SNR2 = np.sum( np.real(self.DAf * np.conjugate(Af.data) + self.DEf * np.conjugate(Ef.data))/self.SA )
+            hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2) /self.SA)
+            dd = np.sum((np.absolute(self.DAf.data)**2 + np.absolute(self.DEf.data)**2) /self.SA)
+        plotIt = False
+        if plotIt:
+            fig, ax = plt.subplots(nrows=2, sharex=True) 
+            ax[0].plot(Af.f, np.abs(self.DAf))
+            ax[0].plot(Af.f, np.abs(Af.data))
+            
+            ax[1].plot(Af.f, np.abs(self.DEf))
+            ax[1].plot(Af.f, np.abs(Ef.data))
+            plt.show()
+        logliks = 4.0*Xs.df*( SNR2 - 0.5 * hh - 0.5 * dd)
         return logliks.values
 
     def loglikelihood_noise_matrix(self, pGBs):
@@ -1866,7 +1955,7 @@ batch_index = 3000
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.0004)-1
 batch_size = 1
 start_index = batch_size*batch_index
-print('batch',batch_index, start_index)
+# print('batch',batch_index, start_index)
 # frequencies_search = frequencies_search[start_index:start_index+batch_size]
 
 # print(i, frequencies_search[0])
@@ -2533,7 +2622,7 @@ class Posterior_computer():
             df = pd.DataFrame(data=mcmc_samples_rescaled, columns=parameters)
             for parameter in ['Amplitude','FrequencyDerivative','EclipticLatitude','EclipticLongitude','Inclination','InitialPhase','Polarization']:
                 df[parameter] = df[parameter].astype('float32')
-            df.to_csv(SAVEPATH+'Chain/frequency'+str(int(np.round(save_frequency*10**9)))+'nHz'+save_name+'.csv',index=False)
+            df.to_csv(SAVEPATH+'Chains2/frequency'+str(int(np.round(save_frequency*10**9)))+'nHz'+save_name+'.csv',index=False)
         mcmc_samples_rescaled[:,parameters.index('Frequency')] /= 10**3 
         # start = time.time()
         # df = pd.DataFrame(data=mcmc_samples_rescaled, columns=parameters)
@@ -2642,6 +2731,8 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true = [], number_o
     start = time.time()
     posterior1 = Posterior_computer(tdi_fs, Tobs, frequencies, maxpGB)
     print('SNR found',posterior1.search1.SNR([maxpGB]))
+    posterior1.search1.update_noise(pGB=maxpGB)
+    print('SNR found full noise',posterior1.search1.SNR([maxpGB]))
     if pGB_true:
         print('SNR injected',posterior1.search1.SNR([pGB_true]))
     # posterior1.search1.plot(found_sources_in=[maxpGB])
@@ -2652,9 +2743,9 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true = [], number_o
     mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, proposal= mcmc_samples, temperature= 2)
     # posterior1.plot_corner(mcmc_samples, pGB_injected[1][0])
     mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, proposal= mcmc_samples, temperature= 1)
-    mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**4, proposal= mcmc_samples, temperature= 1)
+    mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**6, proposal= mcmc_samples, temperature= 1)
     print('time to compute posterior: ', time.time()-start)
-    posterior1.plot_corner(mcmc_samples, pGB_true, save_figure= False, save_chain= True, number_of_signal = 0, parameter_titles = False)
+    posterior1.plot_corner(mcmc_samples, pGB_true, save_figure= True, save_chain= True, number_of_signal = 0, parameter_titles = False)
     return mcmc_samples
 
 # found_sources_matched = np.load(SAVEPATH+'/found_sources' +save_name+'.npy', allow_pickle=True)
@@ -2700,7 +2791,7 @@ frequencies_found = []
 # LDC1-4 ####################
 posterior_calculation_input = []
 # batch = int(sys.argv[1])
-batch = 0
+batch = 50
 batch_size = 100
 lower_window = batch*batch_size
 higher_window = lower_window+batch_size
@@ -2778,17 +2869,40 @@ for i in range(len(found_sources_in)):
         # found_sources_in_optimized = found_sources_mp_optimized[3]
         # print(search_subtracted.SNR(found_sources_in[i]))
         # print(search_subtracted.SNR(found_sources_in_optimized))
-        plot_subtraction = False
+        plot_subtraction = True
         if plot_subtraction:
-            pGB_true = []
-            for k in range(len(pGB_injected[i])):
-                pGB_true.append(pGB_injected[i][k].to_dict())
-            pGB_true_not_matched = []
+            # pGB_true = []
+            # for k in range(len(pGB_injected[i])):
+            #     pGB_true.append(pGB_injected[i][k].to_dict())
+            # pGB_true_not_matched = []
             # for k in range(len(pGB_injected_not_matched[i])):
             #     pGB_true_not_matched.append(pGB_injected_not_matched[i].iloc[k].to_dict())
             search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
             search1.plot(second_data= tdi_fs_subtracted, found_sources_in=found_sources_in[i])
+            print(search1.loglikelihood([found_sources_in[i][j]]))
+            search1.update_noise(pGB=found_sources_in[i][j])
+            print(search1.loglikelihood([found_sources_in[i][j]]))
+            search1.plot(second_data= tdi_fs_subtracted, found_sources_in=found_sources_in[i])
 
+        print(search_subtracted.loglikelihood([found_sources_in[i][j]]),search_subtracted.loglikelihood_dd([found_sources_in[i][j]]))
+        print(search_subtracted.SNR([found_sources_in[i][j]]))
+        print(search_subtracted.intrinsic_SNR([found_sources_in[i][j]]))
+        j =1
+        print(search_subtracted.loglikelihood([found_sources_in[i][j]]),search_subtracted.loglikelihood_dd([found_sources_in[i][j]]))
+        print(search_subtracted.SNR([found_sources_in[i][j]]))
+        print(search_subtracted.intrinsic_SNR([found_sources_in[i][j]]))
+        search_subtracted.plot(found_sources_in=found_sources_in[i])
+        j=0
+        search_subtracted.update_noise(pGB=found_sources_in[i][j])
+        search_subtracted.plot(found_sources_in=found_sources_in[i])
+        print(search_subtracted.loglikelihood([found_sources_in[i][j]]),search_subtracted.loglikelihood_dd([found_sources_in[i][j]]))
+        print(search_subtracted.SNR([found_sources_in[i][j]]))
+        print(search_subtracted.intrinsic_SNR([found_sources_in[i][j]]))
+        j =1
+        print(search_subtracted.loglikelihood([found_sources_in[i][j]]),search_subtracted.loglikelihood_dd([found_sources_in[i][j]]))
+        print(search_subtracted.SNR([found_sources_in[i][j]]))
+        print(search_subtracted.intrinsic_SNR([found_sources_in[i][j]]))
+        search_subtracted.plot(second_data= tdi_fs_subtracted, found_sources_in=found_sources_in[i])
         # posterior_calculation_input.append((tdi_fs_subtracted, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j]))
         print('compute posterior of the signal',i,j, found_sources_in[i][j])
         number_of_signals += 1

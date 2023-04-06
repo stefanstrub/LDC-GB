@@ -1,6 +1,6 @@
 #%%
-# import matplotlib.pyplot as plt
-# from matplotlib import rcParams
+import matplotlib.pyplot as plt
+from matplotlib import rcParams
 import scipy
 from scipy.optimize import differential_evolution
 import numpy as np
@@ -35,20 +35,20 @@ plot_parameter = {  # 'backend': 'ps',
     "savefig.dpi": 150,
 }
 
-# # tell matplotlib about your param_plots
-# rcParams.update(plot_parameter)
-# # set nice figure sizes
-# fig_width_pt = 1.5*464.0  # Get this from LaTeX using \showthe\columnwidth
-# golden_mean = (np.sqrt(5.0) - 1.0) / 2.0  # Aesthetic ratio
-# ratio = golden_mean
-# inches_per_pt = 1.0 / 72.27  # Convert pt to inches
-# fig_width = fig_width_pt * inches_per_pt  # width in inches
-# fig_height = fig_width * ratio  # height in inches
-# fig_size = [fig_width, fig_height]
-# fig_size_squared = [fig_width, fig_width]
-# rcParams.update({"figure.figsize": fig_size})
-# prop_cycle = plt.rcParams['axes.prop_cycle']
-# colors = prop_cycle.by_key()['color']
+# tell matplotlib about your param_plots
+rcParams.update(plot_parameter)
+# set nice figure sizes
+fig_width_pt = 1.5*464.0  # Get this from LaTeX using \showthe\columnwidth
+golden_mean = (np.sqrt(5.0) - 1.0) / 2.0  # Aesthetic ratio
+ratio = golden_mean
+inches_per_pt = 1.0 / 72.27  # Convert pt to inches
+fig_width = fig_width_pt * inches_per_pt  # width in inches
+fig_height = fig_width * ratio  # height in inches
+fig_size = [fig_width, fig_height]
+fig_size_squared = [fig_width, fig_width]
+rcParams.update({"figure.figsize": fig_size})
+prop_cycle = plt.rcParams['axes.prop_cycle']
+colors = prop_cycle.by_key()['color']
 
 def Window(tm, offs=1000.0):
     xl = offs
@@ -1856,7 +1856,6 @@ else:
     for k in ["X", "Y", "Z"]:
         td[k] = td[k] - td_mbhb[k]
 
-
 # Build timeseries and frequencyseries object for X,Y,Z
 tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
 tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
@@ -2208,7 +2207,7 @@ frequencies_odd = []
 # search_range = [0.0039935, 0.0039965]
 f_Nyquist = 1/dt/2
 search_range = [0.0003, f_Nyquist]
-# search_range = [0.0003, 0.03]
+search_range = [0.0001, 0.11]
 # search_range = [0.0019935, 0.0020135]
 # search_range = [0.0029935, 0.0030135]
 # window_length = 1*10**-7 # Hz
@@ -2260,30 +2259,33 @@ frequencies_odd = frequencies[1::2]
 # for i in range(len(pGB_injected)):
 #     counts[i] = len(pGB_injected[i])
 
-# frequencies_search = np.asarray(frequencies_search)
+frequencies_search = np.asarray(frequencies)
 # figure = plt.figure()
 # plt.loglog(frequencies_search[:,1],counts, '.')
 # plt.xlabel('Frequency [Hz]')
 # plt.ylabel('Number of signals')
 # plt.show()
-# figure = plt.figure()
-# plt.loglog(frequencies_search[:,1],frequencies_search[:,1]-frequencies_search[:,0],  linewidth= 4, label= 'Frequency window width')
-# plt.loglog(frequencies_search[:,1],np.ones(len(frequencies_search[:,1]))*4*32*10**-9*2, label= 'LISA rotation')
-# plt.loglog(frequencies_search[:,1],frequencies_search[:,1]*3* 10**-4, label= 'Doppler modulation')
-# plt.loglog(frequencies_search[:,1],frequency_derivative(frequencies_search[:,1],2)*Tobs, label= '$\dot{f}_{max} \cdot T_{obs}$')
-# plt.xlabel('Frequency [Hz]')
-# plt.ylabel('Frequency window witdh [Hz]')
-# plt.ylim(bottom=(frequencies_search[0,1]-frequencies_search[0,0])/10**1)
-# plt.legend()
-# plt.show()
+
+figure = plt.figure()
+plt.loglog(frequencies_search[:,0],frequencies_search[:,1]-frequencies_search[:,0],  linewidth= 4, label= '$B$')
+plt.loglog(frequencies_search[:,0],frequency_derivative(frequencies_search[:,0],2)*Tobs, label= '$B_{F}$')
+plt.loglog(frequencies_search[:,0],frequencies_search[:,0]*3* 10**-4, label= '$3 \cdot B_{O}$')
+plt.loglog(frequencies_search[:,0],np.ones(len(frequencies_search[:,0]))*4*32*10**-9*2, label= '$2 \cdot B_{C}$')
+plt.xlabel('Frequency [Hz]')
+plt.ylabel('Frequency window witdh [Hz]')
+plt.xlim(search_range[0],0.1)
+plt.ylim(bottom=(frequencies_search[0,1]-frequencies_search[0,0])/10**1)
+plt.legend()
+plt.show()
+plt.savefig(SAVEPATH+'bandwidth.png')
 
 
 save_name = 'Radler_1_even10'
 # for i in range(65):
 frequencies_search = frequencies_even
 frequencies_search_full = deepcopy(frequencies_search)
-batch_index = int(sys.argv[1])
-# batch_index = 40
+# batch_index = int(sys.argv[1])
+batch_index = 0
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00399)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00404)
@@ -2493,13 +2495,15 @@ if do_subtract:
     tdi_fs_subtracted = tdi_subtraction(tdi_fs,found_sources_out_flat, frequencies_search_full)
 
     print('subtraction time', time.time()-start)
-    plot_subtraction = False
+    plot_subtraction = True
     if plot_subtraction:
         i = 1
         lower_frequency = frequencies_search[i][0]
         upper_frequency = frequencies_search[i][1]
         search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
-        search1.plot(second_data= tdi_fs_subtracted, found_sources_in=found_sources_out_flat)
+        source = [{'Amplitude': 4.500916389929765e-20, 'EclipticLatitude': 0.8528320149942861, 'EclipticLongitude': -0.9418744765040503, 'Frequency': frequencies_search[i][0]+(frequencies_search[i][1]-frequencies_search[i][0])/2, 'FrequencyDerivative': 2.1688352300259018e-22, 'Inclination': 1.343872907043714, 'InitialPhase': 3.583816929574315, 'Polarization': 2.69557290704741}]
+        # search1.plot(second_data= tdi_fs_subtracted, found_sources_in=found_sources_out_flat)
+        search1.plot(found_sources_in=source)
         # search1.plot(second_data= tdi_fs_subtracted, found_sources_in=found_sources_mp_o[start_index][0])
         
     tdi_fs = deepcopy(tdi_fs_subtracted)

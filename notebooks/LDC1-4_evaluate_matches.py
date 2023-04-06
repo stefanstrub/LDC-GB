@@ -1,4 +1,3 @@
-#%%
 from re import A
 # from matplotlib.lines import _LineStyle
 import matplotlib.pyplot as plt
@@ -84,7 +83,7 @@ else:
 SAVEPATH_sangria = grandparent+"/LDC/pictures/Sangria/"
 save_name3 = 'Sangria_1_full_cut'
 save_name4 = 'LDC1-4_2_optimized_second'
-save_name2 = 'Radler_1_full'
+save_name3 = 'Radler_1_full'
 # save_name2 = 'Rxadler_1_full'
 save_name1 = 'LDC1-4_half_year'
 # save_name = 'LDC1-4_half_year'
@@ -94,12 +93,12 @@ save_name1 = 'LDC1-4_half_year'
 # duration = '7864320'
 duration = '15728640'
 # duration = '31457280'
-# save_name4 = 'Montana2022_'+duration
+save_name4 = 'Montana2022_'+duration
 duration = '31457280'
-# save_name2 = 'Montana2022_'+duration
+save_name2 = 'Montana2022_'+duration
 
 save_names = [save_name1, save_name2, save_name3, save_name4]
-SAVEPATHS = [SAVEPATH,SAVEPATH,SAVEPATH_sangria,SAVEPATH]
+SAVEPATHS = [SAVEPATH,SAVEPATH,SAVEPATH,SAVEPATH]
 
 Tobs = int(duration)
 
@@ -170,15 +169,15 @@ for i, save_name in enumerate([save_name1, save_name2, save_name3, save_name4]):
 #### plot SNR - frequency
 markersize = 3
 alpha = 0.5
-i = 0
+i = 3
 parameter_to_plot = 'IntrinsicSNR'
 fig = plt.figure()
-# plt.plot(pGB_injected_flat_df['Frequency']*10**3,pGB_injected_flat_df['IntrinsicSNR'], '.', color= colors[0], label = 'Injected', markersize= markersize, alpha = alpha)
+# plt.plot(pGB_injectced_flat_df['Frequency']*10**3,pGB_injected_flat_df['IntrinsicSNR'], '.', color= colors[0], label = 'Injected', markersize= markersize, alpha = alpha)
 # plt.plot(pGB_injected_matched_flat_df['Frequency']*10**3,pGB_injected_matched_flat_df['IntrinsicSNR'], '.', color= colors[1], label = 'Injected matched', markersize= markersize, alpha = alpha)
 # plt.plot(pGB_injected_flat_df_high_SNR['Frequency']*10**3,pGB_injected_flat_df_high_SNR['IntrinsicSNR'],'.', color= colors[1], markersize= markersize, label = 'Injected SNR > 10', alpha = alpha)
-plt.plot(found_sources_matched_list[i]['Frequency']*10**3,found_sources_matched_list[i]['IntrinsicSNR'],'g.', label = 'Found matched', markersize= markersize, alpha = alpha)
-# plt.plot(pGB_injected_not_matched_list[i]['Frequency']*10**3,pGB_injected_not_matched_list[i]['IntrinsicSNR'], '+', color = 'r', label = 'Injected not matched', markersize= markersize, alpha = alpha)
-# plt.plot(found_sources_not_matched_list[i]['Frequency']*10**3,found_sources_not_matched_list[i]['IntrinsicSNR'],'o',color= 'blue',  markerfacecolor='None', markersize= markersize, label = 'Found not matched', alpha = alpha)
+plt.plot(found_sources_matched_list[i]['Frequency']*10**3,found_sources_matched_list[i]['IntrinsicSNR'],'g.', label = 'Found matched', markersize= markersize, alpha = alpha, zorder = 5)
+plt.plot(pGB_injected_not_matched_list[i]['Frequency']*10**3,pGB_injected_not_matched_list[i]['IntrinsicSNR'], '+', color = 'r', label = 'Injected not matched', markersize= markersize, alpha = alpha)
+plt.plot(found_sources_not_matched_list[i]['Frequency']*10**3,found_sources_not_matched_list[i]['IntrinsicSNR'],'o',color= 'blue',  markerfacecolor='None', markersize= markersize, label = 'Found not matched', alpha = alpha)
 plt.yscale('log')
 plt.xscale('log')
 plt.xlabel('f (mHz)')
@@ -384,11 +383,11 @@ for parameter in  ['Frequency']:
 
 prop_cycle = plt.rcParams['axes.prop_cycle']
 colors = prop_cycle.by_key()['color']
-# colors[2] = '#00008B' 
-# colors[3] = '#BB5500' 
+colors[2] = '#00008B' 
+colors[3] = '#BB5500' 
 
 linestyle = ['solid', 'solid', 'dashed', 'solid']
-labels_plot = ['ETH 1 yr', 'MM 1 yr', 'ETH 0.5 yr', 'MM 0.5 yr']
+# labels_plot = ['ETH 1 yr', 'MM 1 yr', 'ETH 0.5 yr', 'MM 0.5 yr']
 labels_plot = ['LDC1 0.5 yr', 'LDC1 1 yr', 'LDC2 1 yr', 'LDC1 2 yr']
 custom_lines = [plt.Line2D([0], [0], color=colors[0], lw=2, linestyle=linestyle[0]),
                 plt.Line2D([0], [0], color=colors[1], lw=2, linestyle=linestyle[1]),
@@ -655,48 +654,60 @@ ax4.legend(loc='lower right')
 plt.savefig(SAVEPATH+'/Evaluation/frequency_hist_all_found_comparison4'+save_names[0]+save_names[1]+save_names[2]+save_names[3]+end_string,dpi=300,bbox_inches='tight')
 plt.show()
 
-fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True, constrained_layout=True, figsize=[9,9])
-counts, bins, bars = ax1.hist(pGB_injected_high_SNR_flat_df['Frequency']*1000, bins= np.logspace(np.log10(0.3),np.log10(30),n_bins), histtype='step', linestyle=linestyle[i], linewidth=3, log=False, color=colors[0])
-counts2, bins, bars = ax1.hist(pGB_injected_high_SNR_flat_df2['Frequency']*1000, bins= np.logspace(np.log10(0.3),np.log10(30),n_bins), histtype='step', linestyle=linestyle[i], linewidth=2.5, log=False, color=colors[1])
-counts3, bins, bars = ax1.hist(pGB_injected_high_SNR_flat_df3['Frequency']*1000, bins= np.logspace(np.log10(0.3),np.log10(30),n_bins), histtype='step', linewidth=2, log=False, color=colors[2])
-counts4, bins, bars = ax1.hist(pGB_injected_high_SNR_flat_df4['Frequency']*1000, bins= np.logspace(np.log10(0.3),np.log10(30),n_bins), histtype='step', linewidth=2, log=False, color=colors[3])
-# fig = plt.figure(figsize=fig_size, constrained_layout=True)
-# counts, bins, bars = plt.hist(found_sources_df['Frequency'], bins= np.linspace(0,0.03,n_bins), histtype='step', linestyle=linestyle[i], linewidth=2.5, log=False)
-# counts2, bins, bars = plt.hist(found_sources_df2['Frequency'], bins= np.linspace(0,0.03,n_bins), histtype='step', linewidth=2, log=False)
-counts_matched, bins, bars = ax2.hist(found_sources_matched_flat_df['Frequency']*1000, bins= np.logspace(np.log10(0.3),np.log10(30),n_bins), histtype='step', linestyle=linestyle[i], linewidth=3, log=False, color=colors[0])
-counts_matched2, bins, bars = ax2.hist(found_sources_matched_flat_df2['Frequency']*1000, bins= np.logspace(np.log10(0.3),np.log10(30),n_bins), histtype='step', linestyle=linestyle[i], linewidth=2.5, log=False, color=colors[1])
-counts_matched3, bins, bars = ax2.hist(found_sources_matched_flat_df3['Frequency']*1000, bins= np.logspace(np.log10(0.3),np.log10(30),n_bins), histtype='step', linewidth=2, log=False, color=colors[2])
-counts_matched4, bins, bars = ax2.hist(found_sources_matched_flat_df4['Frequency']*1000, bins= np.logspace(np.log10(0.3),np.log10(30),n_bins), histtype='step', linewidth=2, log=False, color=colors[3])
-match_rate = counts_matched / counts
-match_rate2 = counts_matched2 / counts2
-match_rate3 = counts_matched3 / counts3
-match_rate4 = counts_matched4 / counts4
-# match_rate = np.nan_to_num(match_rate, nan=0.0)
-# match_rate2 = np.nan_to_num(match_rate2, nan=0.0)
-bins = np.logspace(np.log10(0.3),np.log10(30),n_bins)
-center_bins = np.logspace(np.log10((bins[1]+bins[0])/2),np.log10((bins[-2]+bins[-1])/2),n_bins-1)
-ax2.set_xlabel('Frequency (mHz)')
-ax1.set_ylabel('Found Signals')
-ax2.set_ylabel('Matched Signals')
-ax1.legend(custom_lines,  [label3, label4, label1, label2], loc='upper right')
-ax2.legend(custom_lines,  [label3, label4, label1, label2], loc='upper right')
-ax1.set_ylim(0,1500)
-ax2.set_ylim(0,1500)
-# ax3.set_ylim(0,1500)
-# ax1.set_xlim(0,30)
-ax1.set_xscale('log')
-ax2.set_xscale('log')
-ax3.set_xscale('log')
-ax1.grid(True)
-ax2.grid(True)
-ax3.plot(center_bins,match_rate3, '.', markersize=20, label=label3, color=colors[2])
-ax3.plot(center_bins,match_rate4, 'P', markersize=7, label=label4, color=colors[3])
-ax3.plot(center_bins,match_rate, 'o', markersize=8, label=label1 ,markerfacecolor='None', color=colors[0])
-ax3.plot(center_bins,match_rate2, 'P', markersize=7, label=label2, markerfacecolor='None', color=colors[1])
-ax3.set_ylabel('Match Rate')
-ax3.grid(True)
-ax3.legend(loc='lower right')
-plt.savefig(SAVEPATH+'/Evaluation/frequency_hist_all_found_comparison4'+save_name+save_name2+end_string,dpi=300,bbox_inches='tight')
+
+def get_distance(amplitude, frequency, frequency_derivative):
+    c = 3*10**8
+    distance = 2/(96/5*np.pi**(8/3)*frequency**(11/3)/frequency_derivative)*np.pi*(2/3)*frequency**(2/3)/amplitude*c /3.086e+19 #to kpc
+    return distance
+
+def get_distance_for_dataframe(dataframe):
+    dataframe['Distance'] = np.empty(len(dataframe['Amplitude']))
+    postitive_fd_mask = dataframe['FrequencyDerivative'] >= 0
+    distance = get_distance(dataframe['Amplitude'][postitive_fd_mask], dataframe['Frequency'][postitive_fd_mask],  dataframe['FrequencyDerivative'][postitive_fd_mask])
+    dataframe['Distance'][postitive_fd_mask] = distance
+    return dataframe
+
+def get_galactic_coordinates(dataframe):
+    coordinates_found = coord.SkyCoord(dataframe['EclipticLongitude'], dataframe['EclipticLatitude'], dataframe['Distance'], unit='rad', frame='barycentricmeanecliptic')
+    dataframe['GalacticLongitude'] = coordinates_found.galactic.l.value
+    dataframe['GalacticLatitude'] = coordinates_found.galactic.b.value
+    dataframe['GalacticDistance'] = coordinates_found.galactic.distance.value
+    return dataframe
+
+# found_sources_matched_flat_df['Amplitude'] = pGB_injected_matched_flat_df['Amplitude']
+# found_sources_matched_flat_df['FrequencyDerivative'] = pGB_injected_matched_flat_df['FrequencyDerivative']
+for i in range(4):
+    found_sources_matched_list[i] = get_distance_for_dataframe(found_sources_matched_list[i])
+    found_sources_not_matched_list[i] = get_distance_for_dataframe(found_sources_not_matched_list[i])
+    pGB_injected_matched_list[i] = get_distance_for_dataframe(pGB_injected_matched_list[i])
+    # pGB_injected_not_matched_list[i] = get_distance_for_dataframe(pGB_injected_not_matched_list[i])
+
+    found_sources_matched_list[i] = get_galactic_coordinates(found_sources_matched_list[i])
+    found_sources_not_matched_list[i] = get_galactic_coordinates(found_sources_not_matched_list[i])
+    pGB_injected_matched_list[i] = get_galactic_coordinates(pGB_injected_matched_list[i])
+    # pGB_injected_not_matched_list[i] = get_galactic_coordinates(pGB_injected_not_matched_list[i])
+
+i = 0
+##### plot distance
+markersize = 5
+alpha = 0.5
+fig = plt.figure()
+postitive_fd_mask = found_sources_matched_list[i]['FrequencyDerivative'] >= 0
+plt.plot(found_sources_matched_list[i]['GalacticLatitude'][postitive_fd_mask],found_sources_matched_list[i]['Distance'][postitive_fd_mask],'.', label = 'found', markersize=1)
+# postitive_fd_mask = found_sources_not_matched_list[i]['FrequencyDerivative'] >= 0
+# plt.plot(found_sources_not_matched_list[i]['GalacticLatitude'][postitive_fd_mask],found_sources_not_matched_list[i]['Distance'][postitive_fd_mask],'r.', label = 'Injected', markersize= 1, zorder=1)
+postitive_fd_mask = pGB_injected_matched_list[i]['FrequencyDerivative'] >= 0
+plt.plot(pGB_injected_matched_list[i]['GalacticLatitude'][postitive_fd_mask],pGB_injected_matched_list[i]['Distance'][postitive_fd_mask],'g.', label = 'Injected', markersize= 1, zorder=1)
+# postitive_fd_mask = pGB_injected_not_matched_list[i]['FrequencyDerivative'] >= 0
+# plt.plot(pGB_injected_not_matched_list[i]['GalacticLatitude'][postitive_fd_mask],pGB_injected_not_matched_list[i]['Distance'][postitive_fd_mask],'+', label = 'not matched', color = 'r', markersize=2, zorder= 1)
+# postitive_fd_mask = pGB_injected_flat_highSNR_df['FrequencyDerivative'] >= 0
+# plt.plot(pGB_injected_flat_highSNR_df['GalacticLatitude'][postitive_fd_mask],pGB_injected_flat_highSNR_df['Distance'][postitive_fd_mask],'+', label = 'injected SNR>10', color = 'r', markersize=2, zorder= 4)
+plt.xlabel('GalacticLatitude')
+plt.ylabel('Distance [kpc]')
+plt.legend(markerscale=4, loc = 'upper right')
+plt.savefig(SAVEPATH+'/galacticLatitudeDistance'+save_names[i])
 plt.show()
+
+
 
 print('end')

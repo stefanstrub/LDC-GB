@@ -3703,27 +3703,29 @@ alpha = 0.5
 fig = plt.figure()
 postitive_fd_mask = found_sources_matched_flat_df['FrequencyDerivative'] >= 0
 plt.plot(found_sources_matched_flat_df['GalacticLatitude'][postitive_fd_mask],found_sources_matched_flat_df['Distance'][postitive_fd_mask],'.', label = 'found', markersize=1)
-# postitive_fd_mask = pGB_injected_flat_df['FrequencyDerivative'] >= 0
-# plt.plot(pGB_injected_flat_df['GalacticLatitude'][postitive_fd_mask],pGB_injected_flat_df['Distance'][postitive_fd_mask],'g.', label = 'Injected', markersize= 1, zorder=1)
-# postitive_fd_mask = pGB_injected_not_matched_flat_df['FrequencyDerivative'] >= 0
-# plt.plot(pGB_injected_not_matched_flat_df['GalacticLatitude'][postitive_fd_mask],pGB_injected_not_matched_flat_df['Distance'][postitive_fd_mask],'+', label = 'not matched', color = 'r', markersize=2, zorder= 1)
-postitive_fd_mask = pGB_injected_flat_highSNR_df['FrequencyDerivative'] >= 0
-plt.plot(pGB_injected_flat_highSNR_df['GalacticLatitude'][postitive_fd_mask],pGB_injected_flat_highSNR_df['Distance'][postitive_fd_mask],'+', label = 'injected SNR>10', color = 'r', markersize=2, zorder= 4)
+postitive_fd_mask = pGB_injected_matched_flat_df['FrequencyDerivative'] >= 0
+plt.plot(pGB_injected_matched_flat_df['GalacticLatitude'][postitive_fd_mask],pGB_injected_matched_flat_df['Distance'][postitive_fd_mask],'g.', label = 'Injected', markersize= 1, zorder=1)
+postitive_fd_mask = pGB_injected_not_matched_flat_df['FrequencyDerivative'] >= 0
+plt.plot(pGB_injected_not_matched_flat_df['GalacticLatitude'][postitive_fd_mask],pGB_injected_not_matched_flat_df['Distance'][postitive_fd_mask],'g.', label = 'Injected', markersize= 1, zorder=1)
+postitive_fd_mask = pGB_injected_not_matched_flat_df['FrequencyDerivative'] >= 0
+plt.plot(pGB_injected_not_matched_flat_df['GalacticLatitude'][postitive_fd_mask],pGB_injected_not_matched_flat_df['Distance'][postitive_fd_mask],'+', label = 'not matched', color = 'r', markersize=2, zorder= 1)
+# postitive_fd_mask = pGB_injected_flat_highSNR_df['FrequencyDerivative'] >= 0
+# plt.plot(pGB_injected_flat_highSNR_df['GalacticLatitude'][postitive_fd_mask],pGB_injected_flat_highSNR_df['Distance'][postitive_fd_mask],'+', label = 'injected SNR>10', color = 'r', markersize=2, zorder= 4)
 plt.xlabel('GalacticLatitude')
 plt.ylabel('Distance [kpc]')
 plt.legend(markerscale=4, loc = 'upper right')
-plt.savefig(SAVEPATH+'/galacticLatitudeDistancehighSNR'+save_name)
+plt.savefig(SAVEPATH+'/galacticLatitudeDistance'+save_name)
 plt.show()
 
 fig = plt.figure()
 postitive_fd_mask = found_sources_matched_flat_df['FrequencyDerivative'] >= 0
 plt.plot(found_sources_matched_flat_df['GalacticLongitude'][postitive_fd_mask],found_sources_matched_flat_df['Distance'][postitive_fd_mask],'.', label = 'found', markersize=1)
-# postitive_fd_mask = pGB_injected_flat_df['FrequencyDerivative'] >= 0
-# plt.plot(pGB_injected_flat_df['GalacticLongitude'][postitive_fd_mask],pGB_injected_flat_df['Distance'][postitive_fd_mask],'g.', label = 'Injected', markersize= 1, zorder= 1)
+postitive_fd_mask = pGB_injected_flat_df['FrequencyDerivative'] >= 0
+plt.plot(pGB_injected_flat_df['GalacticLongitude'][postitive_fd_mask],pGB_injected_flat_df['Distance'][postitive_fd_mask],'g.', label = 'Injected', markersize= 1, zorder= 1)
 postitive_fd_mask = pGB_injected_not_matched_flat_df['FrequencyDerivative'] >= 0
 plt.plot(pGB_injected_not_matched_flat_df['GalacticLongitude'][postitive_fd_mask],pGB_injected_not_matched_flat_df['Distance'][postitive_fd_mask],'+', color = 'r', label = 'not matched', markersize=2, zorder= 1)
-postitive_fd_mask = pGB_injected_flat_highSNR_df['FrequencyDerivative'] >= 0
-plt.plot(pGB_injected_flat_highSNR_df['GalacticLongitude'][postitive_fd_mask],pGB_injected_flat_highSNR_df['Distance'][postitive_fd_mask],'+', label = 'injected SNR>10', color = 'r', markersize=2, zorder= 4)
+# postitive_fd_mask = pGB_injected_flat_highSNR_df['FrequencyDerivative'] >= 0
+# plt.plot(pGB_injected_flat_highSNR_df['GalacticLongitude'][postitive_fd_mask],pGB_injected_flat_highSNR_df['Distance'][postitive_fd_mask],'+', label = 'injected SNR>10', color = 'r', markersize=2, zorder= 4)
 plt.xlabel('GalacticLongitude')
 plt.ylabel('Distance [kpc]')
 plt.legend(markerscale=4, loc = 'upper right')
