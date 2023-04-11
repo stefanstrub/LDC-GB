@@ -424,12 +424,12 @@ for parameter_x in parameters:
 for parameter in parameters:
     in_contour[parameter] = []
 
-confidence_threshold = 0.9
+confidence_threshold = 0.95
 
 index = 6
 for index in range(len(onlyfiles)):
-    if index > 46:
-        continue
+    # if index > 46:
+    #     continue
     index_of_signal = np.searchsorted(found_sources_matched_list[2]['Frequency'], frequencies_in_folder[index])
     if abs(found_sources_matched_list[2]['Frequency'][index_of_signal]-frequencies_in_folder[index]) > abs(found_sources_matched_list[2]['Frequency'][index_of_signal+1]-frequencies_in_folder[index]):
         index_of_signal = index_of_signal+1
