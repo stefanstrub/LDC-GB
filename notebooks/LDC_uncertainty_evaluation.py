@@ -77,11 +77,9 @@ path = os.getcwd()
 parent = os.path.dirname(path)
 # grandparent directory
 grandparent = os.path.dirname(parent)
-DATAPATH = grandparent+"/LDC/Radler/data/"
 SAVEPATH = grandparent+"/LDC/pictures/LDC1-4/"
 SAVEPATH = grandparent+"/LDC/Radler/LDC1-4_evaluation/"
-chain_path = grandparent+"/LDC/pictures/Sangria/Chains_gpu/"
-SAVEPATH_sangria = grandparent+"/LDC/pictures/Sangria/"
+SAVEPATH_sangria = grandparent+"/LDC/Sangria/evaluation/"
 
 save_name3 = 'Sangria_1_full_cut'
 save_name4 = 'LDC1-4_2_optimized_second'
@@ -101,6 +99,8 @@ duration = '31457280'
 
 save_names = [save_name1, save_name2, save_name3, save_name4]
 SAVEPATHS = [SAVEPATH,SAVEPATH,SAVEPATH_sangria,SAVEPATH]
+
+chain_path = SAVEPATH_sangria + 'Chains_gpu_residual_full_fd/'
 
 Tobs = int(duration)
 
@@ -128,7 +128,7 @@ end_string = '_SNR_scaled_03_injected_snr5'
 # end_string = 'correlation'
 def load_files(save_path, save_name):
     found_sources_matched_flat_df = pd.read_pickle(save_path+'/found_sources_matched' +save_name+end_string+'_df')
-    found_sources_not_matched_flat_df = pd.read_pickle(save_path+'/found_sources_not_matched' +save_name+end_string+'_df')
+    found_sources_not_matched_flat_df = pd.read_pickle(save_path+'found_sources_not_matched' +save_name+end_string+'_df')
     pGB_injected_matched_flat_df = pd.read_pickle(save_path+'/injected_matched_windows' +save_name+end_string+'_df')
     pGB_injected_not_matched_flat_df = pd.read_pickle(save_path+'/injected_not_matched_windows' +save_name+end_string+'_df')
     match_list = np.load(save_path+'match_list' +save_name+end_string+'.npy', allow_pickle=True)
