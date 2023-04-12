@@ -9,6 +9,7 @@ from ldc.waveform.source import SourceMaker
 import ldc.io.yml as ymlio
 import ldc.io.hdf5 as h5io
 from ldc.utils.logging import init_logger, close_logger
+from ldc.waveform.waveform.hphc import HpHc
 
 if __name__ == "__main__":
     import argparse
@@ -45,6 +46,23 @@ if __name__ == "__main__":
     else:
         cat, units = source_maker.choose_from_catalog(**cfg)
     #np.save(args.output, cat)
+    try:
+        i = np.where(cat["Name"]=='CD–30o11223')[0][0]
+        cat[i]["Name"] = 'CD-30o11223'
+    except:
+        pass
+
+    if cfg["source_type"] == "MBHB":
+        isort = np.argsort(cat["CoalescenceTime"])
+        cat = cat[isort]
+
+    # remove unused parameters
+    GW = HpHc.type('test', cfg["source_type"], cfg["approximant"])
+    default_units = GW.info()
+    for k in cat.dtype.names:
+        if k not in default_units.keys():
+            units.pop(k)
+        
     h5io.save_array(args.output, cat, **units)
     
     close_logger(logger)

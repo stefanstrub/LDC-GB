@@ -1,0 +1,2 @@
+Bootstrap: docker
+From: gitlab-registry.in2p3.fr/lisa/ldc:develop

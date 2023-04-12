@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+import ldc.io.yml as ymlio
+from ldc.utils.logging import init_logger, close_logger
+import lisaorbits
+import lisaconstants
+import numpy as np
+
+ASTRONOMICAL_YEAR = lisaconstants.ASTRONOMICAL_YEAR
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-o', '--output', default="./",
+                        help= "Output path")
+    parser.add_argument('-c', '--config', default="",
+                        help= "Pipeline config file")
+    parser.add_argument('-l', '--log', type=str, default="", help="Log file")
+    parser.add_argument('-dt', '--delta-t', default=86400,
+                        help= "Orbits sampling")
+    args = parser.parse_args()
+    logger = init_logger(args.log) 
+
+    d = ymlio.load_config(args.config)
+    
+    dt = int(d["dt_orbits"].to('s').value)
+    N = int(d["t_max"].to("s").value/dt)+2
+    L = d["nominal_arm_length"].to("m").value
+    otype = d["orbit_type"]
+    tinit = d["initial_position"].to('rad').value /(2 * np.pi / ASTRONOMICAL_YEAR)
+    m_init = -d['initial_rotation'].to('rad').value
+
+    logger.info(f"Synthetize orbits with dt={dt} for N={N} samples")
+
+    if otype=='equal_armlength':
+        o = lisaorbits.EqualArmlengthOrbits(L=L, dt=dt, size=N, tt_order=d['travel_time_order'],
+                                            lambda1=-m_init, m_init1=m_init, 
+                                            tinit=-tinit)
+    elif otype=='keplerian':
+        o = lisaorbits.KeplerianOrbits(L=L, dt=dt, size=N, tt_order=d['travel_time_order'],
+                                       lambda1=-m_init, m_init1=m_init,
+                                       tinit=-tinit, kepler_order=d["kepler_order"])
+        
+    o.write(args.output)

@@ -1,0 +1,224 @@
+
+myconfig = "config.yml"
+configfile: myconfig
+
+singularity: "ldcpipe.sif" 
+
+
+subworkflow dgbworkflow:
+    workdir:
+        "./dgb-pipeline"
+    snakefile:
+        "./dgb-pipeline/Snakefile"
+    configfile:
+        "./dgb-pipeline/config.yml"
+
+subworkflow igbworkflow:
+    workdir:
+        "./igb-pipeline"
+    snakefile:
+        "./igb-pipeline/Snakefile"
+    configfile:
+        "./igb-pipeline/config.yml"
+
+
+rundir = config["dirname"]
+
+rule all:
+    input:
+        rundir+"/blind.h5",  rundir+"/training.h5", rundir+"/mbhb-deblinded.h5"
+
+
+rule full:
+    input:
+        expand(rundir+"/{source}-lisanode/{source}-tdi.h5",
+               source=list(config["sources"].keys())+["sum", "igb", "dgb"]),
+        
+
+rule source_selection:
+    input:
+        cfg = "param_{source}.yml",
+    output:
+        rundir+"/{source}.h5"
+    shell:
+        """
+        source_selection -c {input.cfg} -o {output}
+        """
+        
+rule orbits:
+    input: myconfig
+    output: rundir+"/orbits.h5"
+    shell:
+       """
+       build_orbits -o {output} -c {input}
+       """
+
+rule orbits_upsampling:
+    input:
+        orbits = rules.orbits.output,
+        cfg = myconfig,
+    output: rundir+"/orbits-upsampled.h5"
+    log:
+        "log/orbits-upsampling.log"
+    shell:
+        """
+        upsampleorbits -i {input.orbits} -c {input.cfg} -o {output} -l {log}
+        """
+        
+rule arm_projection:
+    input:
+        cfg = "config.yml", 
+        src = rundir+"/{source}.h5",
+        orbits = rules.orbits.output,
+    output:
+        temp(rundir+"/{source}--{batch}-y.h5")
+    log:
+        "log/{source}--{batch}-y.log"
+    params:
+        cfg = "param_{source}.yml"
+    shell:
+        """
+        arm_projection -i {input.src} -c {input.cfg} -o {output} --log {log} --select {wildcards.batch} --source-config {params.cfg} --orbits {input.orbits}
+        """
+
+rule batch_merge:
+    input:
+        src = lambda wildcards: [rundir+"/{source}--%d:%d-y.h5"%(i,config["nbatch"]) for i in range(config["nbatch"])],
+        cfg = "config.yml"
+    output: rundir+"/{source}-y.h5"
+    log: "log/{source}-y.log"
+    shell:
+        """
+        strain_combination -i {input.src} -c {input.cfg} -o {output} --log {log}
+        """
+
+rule interp_gb: # used for tdi / source type
+    input:
+        src1 = dgbworkflow('run2'+"/dgb-y.h5"),
+        src2 = igbworkflow('run1'+"/igb-y.h5"),
+        cfg = "config.yml"
+    output:
+        out1 = rundir+"/dgb-y.h5",
+        out2 = rundir+"/igb-y.h5"
+    log:
+        "log/interp_gb.log"
+    shell:
+        """
+        strain_combination -i {input.src1} -c {input.cfg} -o {output.out1} --log {log} --fft-upsampling
+        strain_combination -i {input.src2} -c {input.cfg} -o {output.out2} --log {log} --fft-upsampling
+        """
+        
+rule source_merge:
+    input:
+        cfg = "config.yml", 
+        src = expand(rundir+"/{source}-y.h5",
+                     source=list(config["sources"].keys())+["dgb", "igb"])
+    output:
+        out = rundir+"/sum-y.h5", 
+    log:
+        "log/source_merged.log"
+    shell:
+        """
+        strain_combination -i {input.src} -c {input.cfg} -o {output.out} --log {log}
+        """
+
+rule lisanode_build:
+    input:
+        graph = "lisanode_graph.py",
+        cfg = myconfig,
+        cfgln = "lisanode_config.py",
+    output:
+        s = rundir+"/lisanode/LISAWithGWAndTDI",
+	d = directory(rundir+"/lisanode")
+    log:
+        "log/lisanode-compile.log"
+    params:
+        graph = "my_graph.py",
+        optim = 3,
+	cfg = myconfig
+    resources:
+        mem_mb = 60000
+    shell:
+        """
+       	export DT=`python3 -c "import ldc.io.yml as ymlio; cfg = ymlio.load_config('{params.cfg}');print(cfg['dt'].to('s').value)"`
+        prep_lisanode -l {log} -o {output.d}/{params.graph} -c {input.cfgln} -g {input.graph} --pipe-config {input.cfg} --gw-dt $DT
+        cd {output.d}
+        lisanode run --build -O {params.optim} --enable X Y Z -- {params.graph}:LISAWithGWAndTDI
+        """
+        
+rule L0L1:
+    input:
+        data = rundir+"/{source}-y.h5",
+        exe = rundir+"/lisanode/LISAWithGWAndTDI",
+	orbits = rules.orbits_upsampling.output
+    output:
+        s = rundir+"/{source}-tdi-raw.h5"
+    log:
+        "log/{source}-tdi.log"
+    params:
+        pipe_cfg = myconfig
+    resources:
+        mem_mb = 60000
+    shell:
+        """
+        export DURATION=`python3 -c "import ldc.io.yml as ymlio; cfg = ymlio.load_config('{params.pipe_cfg}');print(300+cfg['t_max'].to('s').value-cfg['t_min'].to('s').value)"`
+        export READOUT_GAIN=`python3 -c "import ldc.io.yml as ymlio;from lisaconstants import SPEED_OF_LIGHT;cfg = ymlio.load_config('{params.pipe_cfg}');print(cfg['readoutnoise']/SPEED_OF_LIGHT);"`
+        export N=`python3 -c "n=1 if '{wildcards.source}'=='sum' else 0;print(n)"`
+        chmod u+x {input.exe}
+        {input.exe} --gw-path {input.data} -o {output} --lasernoise-on-off 0 --backlinknoise-on-off $N --telescopenoise-on-off 0 --accelnoise-on-off $N --readoutnoise-on-off $N --obpathlengthnoise-on-off 0 --usonoise-on-off 0 --modulationnoise-on-off 0 --rangingnoise-on-off 0 --sc-jitter-phi-on-off 0 --sc-jitter-eta-on-off 0 --sc-jitter-theta-on-off 0 --mosa-jitter-phi-on-off 0 --dwsnoise-on-off 0 --orbit-path {input.orbits} -d $DURATION --progress-bar=0 &> {log}
+        """
+
+rule interp_tdi:
+    input: rundir+"/{source}-tdi-raw.h5"
+    output: rundir+"/{source}-tdi.h5"
+    log:
+        "log/{source}-tdi-interpolation.log"
+    params:
+        cfg = myconfig,
+    shell:
+        """
+	export DT=`python3 -c "import ldc.io.yml as ymlio; cfg = ymlio.load_config('{params.cfg}');print(cfg['dt_tdi'].to('s').value)"`
+        tdi_downsampling --in {input} --out {output} --config {params.cfg} --log {log} --dt $DT
+        """
+
+rule blind_release:
+    input:
+        tdi = rundir+"/sum-tdi.h5"
+    output: rundir+"/blind.h5"
+    log:
+        "log/blind.log"
+    shell:
+        """
+        data_release --data-files {input.tdi} --dset-names obs/tdi -o {output} -l {log}
+        """
+
+rule release:
+    input:
+        tdi = expand(rundir+"/{source}-tdi.h5", source=["sum", "vgb", "mbhb", "dgb", "igb"]),
+        cfg = [myconfig, "lisanode_config.py"] +\
+              expand("param_{source}.yml", source=["vgb", "mbhb"]) +\
+              [dgbworkflow("param_dgb.yml"), igbworkflow("param_igb.yml")],
+        cat = expand(rundir+"/{source}.h5", source=["vgb", "mbhb"]) +\
+              [dgbworkflow('run2'+"/dgb.h5"), igbworkflow('run1'+"/igb.h5")]
+    output: rundir+"/training.h5"
+    log:
+        "log/release.log"
+    shell:
+        """
+        data_release --data-files {input.tdi} {input.cat} --dset-names obs/tdi sky/vgb/tdi sky/mbhb/tdi sky/dgb/tdi sky/igb/tdi sky/vgb/cat sky/mbhb/cat sky/dgb/cat sky/igb/cat --config-files {input.cfg} --config-names obs/config instru/config sky/vgb/config sky/mbhb/config sky/dgb/config sky/igb/config -o {output} -l {log}
+        """
+    
+rule release_mbhb:
+    input:
+        tdi = expand(rundir+"/{source}-tdi.h5", source=["sum", "vgb", "mbhb"]),
+        cfg = [myconfig, "lisanode_config.py"] +\
+              expand("param_{source}.yml", source=["vgb", "mbhb"]) ,
+        cat = expand(rundir+"/{source}.h5", source=["vgb", "mbhb"]) 
+    output: rundir+"/mbhb-deblinded.h5"
+    log:
+        "log/release_mbhb.log"
+    shell:
+        """
+        data_release --data-files {input.tdi} {input.cat} --dset-names obs/tdi sky/vgb/tdi sky/mbhb/tdi sky/vgb/cat sky/mbhb/cat --config-files {input.cfg} --config-names obs/config instru/config sky/vgb/config sky/mbhb/config -o {output} -l {log}
+        """
+

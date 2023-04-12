@@ -1,0 +1,21 @@
+approximant: IMRPhenomD
+catalogs: /data/Q3d_complete
+coalescence_time:
+- 0.1
+- 0.95
+mass_ratio:
+- 1
+- 10
+mass_total:
+- -1
+- 5000
+nsource: 15
+indices: [185, 469, 640, 547, 671, 340, 267, 58, 301, 488, 134, 383, 117, 258, 204]
+seed: 1234
+source_type: MBHB
+spin1:
+- 0.5
+- 0.99
+spin2:
+- 0.5
+- 0.99

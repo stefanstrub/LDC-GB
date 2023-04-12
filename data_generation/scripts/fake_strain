@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+import numpy as np
+import numpy.lib.recfunctions as recf
+import logging
+from ldc.utils.logging import init_logger, close_logger
+import ldc.io.yml as ymlio
+from ldc.lisa.orbits import Orbits
+from ldc.lisa.projection import ProjectedStrain
+from astropy import units as u
+
+def get_trange(cfg):
+    for k in ['t_min', 't_max', 'dt']:
+        if isinstance(cfg[k], u.Quantity):
+            cfg[k] = cfg[k].to(u.s).value
+    return cfg["t_min"], cfg["t_max"], cfg["dt"]
+
+if __name__ == "__main__":
+
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--config', required=True,
+                        help= "Path to configuration file")
+    parser.add_argument('-o', '--out', default="./strain.hdf5", help= "Output strain")
+    parser.add_argument('-l', '--log', type=str, default="", 
+                        help="Log file")
+    args = parser.parse_args()
+    logger = init_logger(args.log)
+
+    cfg = ymlio.load_config(args.config)
+    t_min, t_max, dt = get_trange(cfg)
+    orbits = Orbits.type(cfg)
+    nArms = orbits.number_of_arms
+    nt = int((t_max-t_min)//dt)
+    
+    Proj = ProjectedStrain(orbits)
+    Proj.yArm = np.zeros((nt, nArms))
+    Proj.source_names = []
+    Proj.t_min = t_min
+    Proj.t_max = t_max
+    Proj.dt = dt
+    Proj.to_file(args.out)
+    
+    logger.info("Saved to disk")
+    
+    close_logger(logger)

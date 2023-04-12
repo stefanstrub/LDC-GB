@@ -9,6 +9,7 @@ from astropy import units as u
 import ldc.io.yml as ymlio
 from ldc.lisa.projection import ProjectedStrain, from_file, to_file
 from ldc.utils.logging import init_logger, close_logger
+from ldc.common.series import TimeSeries, FrequencySeries
 
 def get_trange(cfg):
     for k in ['t_min', 't_max', 'dt']:
@@ -25,7 +26,8 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--config', required=True, help= "Path to configuration file")
     parser.add_argument('-o', '--out', default="./strain.hdf5", help= "Output strain")
     parser.add_argument('-l', '--log', type=str, default="", help="Log file")
-
+    parser.add_argument('--fft-upsampling', action='store_true',
+                        help="Upsampling in Fourier domain using 0-padding")
     
     args = parser.parse_args()
     logger = init_logger(args.log)		
@@ -33,6 +35,8 @@ if __name__ == "__main__":
     ### load instrument config : TODO use a better format
     cfg = ymlio.load_config(args.config)
     t_min, t_max, dt = get_trange(cfg)
+    # add some margin to t_max
+    t_max += 500
     t1 = np.arange(t_min, t_max, dt)
     order = cfg['interp_order']
 
@@ -42,6 +46,7 @@ if __name__ == "__main__":
     lst = []
     links = []
     for hdf5file in args.hdf5:
+        logger.info(f"processing {hdf5file}")
         if os.path.getsize(hdf5file)==0:
             continue
 
@@ -49,11 +54,21 @@ if __name__ == "__main__":
         if dt==dt_:
             merged = merged + yArm
         else:
-            logger.info("Interpolating from %s: original dt=%d, target dt=%d"%(hdf5file, dt_, dt))
+            logger.info(f"Interpolating from {hdf5file}: original dt={dt_}, target dt={dt}")
             t2 = np.arange(t_min_, t_max_, dt_)
-            for ilink in range(yArm.shape[1]):
-                bs = make_interp_spline(t2, yArm[:,ilink], k=order)
-                merged[:,ilink] += bs(t1)
+            if args.fft_upsampling:
+                logger.info(f"Padding FFT with 0")
+                for ilink in range(yArm.shape[1]):
+                    y = TimeSeries(yArm[:,ilink], dt=dt_, t0=t_min)
+                    yfd = y.ts.fft()
+                    n = int(np.rint(len(t1)/2))
+                    yfd2 = FrequencySeries(np.zeros((n), dtype=yfd.data.dtype), df=yfd.df)
+                    yfd2.data[0:len(yfd)] = yfd.data
+                    merged[:,ilink] += yfd2.ts.ifft(dt=dt).data[0:len(t1)]
+            else:
+                for ilink in range(yArm.shape[1]):
+                    bs = make_interp_spline(t2, yArm[:,ilink], k=order)
+                    merged[:,ilink] += bs(t1)
                 
         lst += source_names
 

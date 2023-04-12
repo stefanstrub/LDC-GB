@@ -1,0 +1,13 @@
+# FROM gitlab-registry.in2p3.fr/lisa/ldc:latest
+FROM gitlab-registry.in2p3.fr/lisa/ldc:develop
+USER root
+RUN apt-get -y update \
+&& apt-get -y --no-install-recommends install wget liblapacke-dev
+RUN pip3 install --no-cache-dir snakemake tqdm
+RUN pip3 install lisaglitch lisainstrument pytdi 
+
+COPY LISANode /codes/LISANode
+WORKDIR /codes/LISANode
+RUN pip3 install -e .
+
+USER lisauser

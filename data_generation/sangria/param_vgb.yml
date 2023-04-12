@@ -1,0 +1,5 @@
+approximant: TD_fdot
+catalogs: /data/Params_VGBind_210910.hdf5
+nsource: 36
+seed: 1234
+source_type: GB

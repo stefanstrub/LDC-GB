@@ -1,0 +1,21 @@
+dt: 15.0 #s
+t_max:  31536000 #s 1 year
+t_min:  0.0 #s
+
+orbit_type:  equal_armlength # equal_armlength or keplerian
+initial_position:  0.0 rad
+initial_rotation:  0.0 rad
+nominal_arm_length:  2500000000.0 m
+dt_orbits: 86400 s
+travel_time_order: 1
+
+interp_order: 3
+
+sources:
+   igb: param_igb.yml
+
+nbatch: 250 
+checkpoint: 4000
+
+dirname: run1
+

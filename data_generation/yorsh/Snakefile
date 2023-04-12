@@ -1,0 +1,127 @@
+"""
+yorsh dataset production pipeline
+"""
+myconfig = "config.yml"
+configfile: myconfig
+singularity: "ldcpipe.sif"
+
+rundir = config["dirname"]
+
+rule orbits_upsampling:
+    # input: orbits = rundir+"/orbits.h5", cfg = myconfig
+    input: orbits = rundir+"/orbits_T_2yrs.h5", cfg = myconfig
+    output: rundir+"/orbits-upsampled.h5"
+    log:
+        "log/orbits-upsampling.log"
+    shell:
+        """
+        upsampleorbits -i {input.orbits} -c {input.cfg} -o {output} -l {log}
+        """
+
+rule interp_strain:
+    # input: rundir+"/sbbh-y.h5",
+    input: rundir+"/strain_sbbh_snr_11p82_T_2yrs.h5"
+    # input: rundir+"/strain_sbbh_snr_24p72_T_2yrs.h5"
+    # input: rundir+"/strain_emri_snr_49p41_T_2yrs.h5"
+    output: rundir+"/sbbh-y-interpolated.h5",
+    log: "log/sbbh-strain-interpolation.log"
+    params:  cfg = myconfig,
+    shell:
+        """
+        strain_interpolation --in {input} --out {output} --config {params.cfg} --log {log}
+        """
+
+rule lisanode_build:
+    input:
+        graph = "lisanode_graph.py",
+        cfg = myconfig,
+        cfgln = "lisanode_config.py",
+    output:
+        s = rundir+"/sbbh-lisanode/LISAWithGWAndTDI",
+        d = directory(rundir+"/sbbh-lisanode")
+    log:
+        "log/lisanode-sbbh-compile.log"
+    params:
+        graph = "my_graph.py",
+        optim = 2,
+    resources:
+        mem_mb = 60000
+    shell:
+        """
+        prep_lisanode -l {log} -o {output.d}/{params.graph} -c {input.cfgln} -g {input.graph} --pipe-config {input.cfg}
+        cd {output.d}
+        lisanode run --build -O {params.optim} --enable X Y Z -- {params.graph}:LISAWithGWAndTDI
+        """
+
+rule L0L1:
+    input:
+        data = rundir+"/sbbh-y-interpolated.h5",
+        exe = rundir+"/sbbh-lisanode/LISAWithGWAndTDI",
+        orbits = rundir+"/orbits-upsampled.h5"
+    output: rundir+"/sbbh-lisanode-withnoise-tdi-raw.h5"
+    log:
+        "log/sbbh-tdi.log"
+    params:
+        cfg = "sbbh-cfg.yml",
+        pipe_cfg = myconfig
+    resources:
+        mem_mb = 60000
+    shell:
+        """
+        export DURATION=`python3 -c "import ldc.io.yml as ymlio; cfg = ymlio.load_config('{params.cfg}');print(cfg['t_max'].to('s').value-cfg['t_min'].to('s').value)"`
+        export T0=`python3 -c "import ldc.io.yml as ymlio; cfg = ymlio.load_config('{params.cfg}');print(cfg['t_min'].to('s').value)"`
+        export READOUT_GAIN=`python3 -c "import ldc.io.yml as ymlio;from lisaconstants import SPEED_OF_LIGHT;cfg = ymlio.load_config('{params.pipe_cfg}');print(cfg['readoutnoise']/SPEED_OF_LIGHT);"`
+        chmod u+x {input.exe}
+        {input.exe} --gw-path {input.data} -o {output} --lasernoise-on-off 0 --backlinknoise-on-off 1 --telescopenoise-on-off 0 --accelnoise-on-off 1 --readoutnoise-on-off 1 --obpathlengthnoise-on-off 0 --usonoise-on-off 0 --modul\
+ationnoise-on-off 0 --rangingnoise-on-off 0 --orbit-path {input.orbits} -d $DURATION --time-origin $T0 --readoutnoise-isc-c-gain=$READOUT_GAIN > {log}
+        """
+        
+rule L0L1_noisefree:
+    input:
+        data = rundir+"/sbbh-y-interpolated.h5",
+        exe = rundir+"/sbbh-lisanode/LISAWithGWAndTDI",
+        orbits = rules.orbits_upsampling.output
+    output: rundir+"/sbbh-lisanode-noisefree-tdi-raw.h5"
+    log:
+        "log/sbbh-noisefree-tdi.log"
+    resources:
+        mem_mb = 60000
+    params: "sbbh-cfg.yml"
+    shell:
+        """
+        export DURATION=`python3 -c "import ldc.io.yml as ymlio; cfg = ymlio.load_config('{params}');print(cfg['t_max'].to('s').value-cfg['t_min'].to('s').value)"`
+        export T0=`python3 -c "import ldc.io.yml as ymlio; cfg = ymlio.load_config('{params}');print(cfg['t_min'].to('s').value)"`
+        chmod u+x {input.exe}
+        {input.exe} --gw-path {input.data} -o {output} --lasernoise-on-off 1 --backlinknoise-on-off 0 --telescopenoise-on-off 0 --accelnoise-on-off 0 --readoutnoise-on-off 0 --obpathlengthnoise-on-off 0 --usonoise-on-off 0 --modul\
+ationnoise-on-off 0 --rangingnoise-on-off 0 --orbit-path {input.orbits} -d $DURATION --time-origin $T0 > {log}
+        """
+        
+rule interp_tdi:
+    input: rundir+"/sbbh-lisanode-withnoise-tdi-raw.h5"
+    output: rundir+"/sbbh-lisanode-withnoise-tdi.h5"
+    log:
+        "log/sbbh-lisanode-withnoise-tdi-interpolation.log"
+    params:
+        cfg1 = myconfig,
+        cfg2 = "sbbh-cfg.yml"
+        # cfg2 = "emri-cfg.yml"
+    shell:
+        """
+        export T0=`python3 -c "import ldc.io.yml as ymlio; cfg = ymlio.load_config('{params.cfg2}');print(cfg['t_min'].to('s').value)"`
+        tdi_downsampling --in {input} --out {output} --config {params.cfg1} --log {log} --noisefree --lasernoise --time-origin $T0
+        """
+
+rule interp_tdi_noisefree:
+    input: rundir+"/sbbh-lisanode-noisefree-tdi-raw.h5"
+    output: rundir+"/sbbh-lisanode-noisefree-tdi.h5"
+    log:
+        "log/sbbh-lisanode-withnoise-tdi-interpolation.log"
+    params:
+        cfg1 = myconfig,
+        cfg2 = "sbbh-cfg.yml"
+        # cfg2 = "emri-cfg.yml"
+    shell:
+        """
+        export T0=`python3 -c "import ldc.io.yml as ymlio; cfg = ymlio.load_config('{params.cfg2}');print(cfg['t_min'].to('s').value)"`
+        tdi_downsampling --in {input} --out {output} --config {params.cfg1} --log {log} --noisefree --lasernoise --time-origin $T0
+        """

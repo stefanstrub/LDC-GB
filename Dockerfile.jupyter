@@ -1,0 +1,16 @@
+## for now, ldc install is more complicated than juŷter install
+## so we extract the corresponding lines from CDE/jupyter image
+## and inherit from the LDC one
+## see https://gitlab.in2p3.fr/LISA/lisa-cde
+FROM gitlab-registry.in2p3.fr/lisa/ldc:develop 
+USER root
+
+ARG CI_PROJECT_DIR=${CI_PROJECT_DIR}
+
+WORKDIR /codes/LDC
+RUN pip3 install --no-cache-dir -r requirements.jupyter.txt
+
+USER lisauser
+
+ENTRYPOINT jupyter-lab --allow-root --ip=0.0.0.0
+EXPOSE 8888

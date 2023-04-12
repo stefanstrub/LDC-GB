@@ -1,6 +1,10 @@
 Waveform
 ========
 
+.. automodule:: ldc.waveform.waveform.waveform
+   :members:
+
+
 HpHc
 ----
 
@@ -13,8 +17,58 @@ GB_fdot
 .. automodule:: ldc.waveform.waveform.gb_fdot
    :members:
 
-BBH_IMRPhenomD
+BHB_IMRPhenomD
 --------------
 
-.. automodule:: ldc.waveform.waveform.bbh_imrphenomD
+.. automodule:: ldc.waveform.waveform.bhb_imrphenomD
+   :members:
+
+EMRI_FSEF
+---------
+
+.. automodule:: ldc.waveform.waveform.emri_fsef
+   :members:
+
+
+Fast waveform
+=============
+
+FastGB
+------
+
+.. automodule:: fastGB.pyGB
+   :members:
+
+IMRPhenomD
+----------
+
+.. automodule:: pyimrphenomD
+   :members:
+
+FastAK
+------
+
+.. automodule:: fastAK.pyFreqAK_RA
+   :members:
+
+lisabeta
+--------
+
+.. automodule:: ldc.waveform.lisabeta.FastBHB
+   :members:
+
+
+Source
+======
+
+SourceMaker
+~~~~~~~~~~~
+
+.. automodule:: ldc.waveform.source.sourcemaker
+   :members:
+
+Catalog IO facilities
+~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: ldc.waveform.source.catio
    :members:

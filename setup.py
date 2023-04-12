@@ -1,31 +1,14 @@
-from setuptools import setup, Command
-from distutils.core import Extension
+from setuptools import setup, Command, find_namespace_packages
+#from distutils.core import Extension
+from setuptools import Extension
 from Cython.Distutils import build_ext
 import os
 import subprocess
-
-try:
-    from setuptools import find_namespace_packages
-except ImportError:
-    raise("setuptools>=41.0.0 is required")
-
-
-class build_liborbits(Command):
-    description = 'compile c++ orbits library'
-    user_options = []
-    def initialize_options(self):
-        pass
-    def finalize_options(self):
-        pass
-    def sub_commands(self):
-        pass
-    def run(self):
-        os.system("make -C ldc/lisa/orbits/lib")
-        #os.system("make install")
+import distutils
+import sys
 
 GSL_CFLAGS = subprocess.check_output("gsl-config --cflags", shell=True)
 
-        
 try:
     import cython
     USE_CYTHON = True
@@ -38,9 +21,10 @@ import numpy
 orbits_ext = Extension("_orbits",
                        sources=["ldc/lisa/orbits/lib/pyorbits.pyx",
                                 "ldc/lisa/orbits/lib/orbits.cc",
-                                "ldc/lisa/orbits/lib/common.cc"], 
+                                "ldc/lisa/orbits/lib/common.cc"],
                        language="c++",
-                       include_dirs=[numpy.get_include(), 'ldc/common/constants'],
+                       include_dirs=[numpy.get_include(), 'ldc/common/constants',
+                                     'ldc/lisa/orbits/lib'],
                        extra_compile_args=["-std=gnu++11"])
 
 fastGB_ext = Extension("fastGB",
@@ -71,26 +55,34 @@ imr_phenomd_ext = Extension("pyimrphenomD",
                             #library_dirs=[lib_gsl_dir])
                             )
 
-setup(
-    name='ldc',
-    version='0.1',
-    description='LISA Data Challenge software',
-    long_description='TBD',
-    author='ldc-dev',
-    author_email='ldc-dev@lisamission.org',
-    cmdclass={'build_ext': build_ext, "build_liborbits": build_liborbits}, 
-    packages=find_namespace_packages(include=['ldc.lisa.*','ldc.common.*',
-                                              'ldc.waveform.*', 'ldc.io.*',
-                                              'ldc.utils.*']),
-    zip_safe=False,
-    install_requires=['numpy'],
-    ext_modules=[orbits_ext, fastGB_ext, imr_phenomd_ext],
-    scripts=[os.path.join("data_generation/scripts", s) for s in ['arm_projection',
-                                                                  "strain_combination",
-                                                                  "strain_interpolation",
-                                                                  'run_lisanode',
-                                                                  'prep_lisanode',
-                                                                  'source_selection',
-                                                                  'data_release']],
-)
+fast_ak_ext = Extension("fastAK",
+                        sources=["ldc/waveform/fastAK/fastAK"+ext_cc,
+                                 "ldc/waveform/fastAK/EMRItemplate.cc",
+                                 "ldc/waveform/fastAK/FreqAK_RAv2.cc",
+                                 "ldc/lisa/orbits/lib/orbits.cc"],
+                        include_dirs=[numpy.get_include(),
+                                      'ldc/common/constants',
+                                      'ldc/lisa/orbits/lib'],
+                        library_dirs=['ldc/lisa/orbits/lib'],
+                        language="c++",
+                        extra_compile_args=["-std=gnu++11"],
+                        libraries=["gsl", "gslcblas", 'orbits'])
 
+
+default = [fastGB_ext, imr_phenomd_ext, fast_ak_ext]
+ext_modules = [orbits_ext]
+ext_modules+= [fastGB_ext, imr_phenomd_ext, fast_ak_ext]
+for iopt, opt in enumerate(['--no-fastGB', '--no-imrphenomD', '--no-fastAK']):
+    if opt in sys.argv:
+        ext_modules.remove(default[iopt])
+        sys.argv.remove(opt)
+
+if orbits_ext in ext_modules:
+    os.system("make -s -C ldc/lisa/orbits/lib")
+    ext_modules.append(orbits_ext)
+
+setup(cmdclass = {'build_ext': build_ext },
+      ext_modules=ext_modules,
+      packages=find_namespace_packages(include=['ldc.lisa.*','ldc.common.*',
+                                                'ldc.waveform.*', 'ldc.io.*',
+                                                'ldc.utils.*']),)

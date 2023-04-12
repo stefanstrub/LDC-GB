@@ -71,32 +71,45 @@ if __name__ == "__main__":
                         help="Save projection on disk every N source")
     parser.add_argument('-l', '--log', type=str, default="", 
                         help="Log file")
+    parser.add_argument('--orbits', type=str, default="",  help="Orbits file")
+
     args = parser.parse_args()
     logger = init_logger(args.log)
     
     cfg = ymlio.load_config(args.config)
-    t_min, t_max, dt = get_trange(cfg)
-
+    t_min = None
+    
     if args.source_config:
         source_cfg = ymlio.load_config(args.source_config) #parse_config(args.source_config)
-    if args.source_config and args.select:
         nsource = source_cfg["nsource"]
-        istart, iend = get_selection(args.select, nsource)
-        if (istart==0 and iend==0) or nsource==0:
-            logger.info("Skipping %s (Less sources than jobs)"%(args.select))
-            Path(args.out).touch()
-            sys.exit(0) # Successful exit
-    
+        if 't_min' in source_cfg.keys():
+            t_min, t_max, dt = get_trange(source_cfg)
+    else:
+        cat = np.load(args.cat)
+        nsource = len(cat)
+    if t_min is None: 
+        t_min, t_max, dt = get_trange(cfg)
+
+    # add some margin to t_max
+    t_max += 500
+        
     # initialize the orbits
+    if args.orbits:
+        cfg["orbit_type"] = 'file'
+        cfg["filename"] = args.orbits
+
     orbits = Orbits.type(cfg)
     nArms = orbits.number_of_arms
 
-    #cat = np.load(args.cat)
-    cat, units = h5io.load_array(args.cat)
+    istart, iend = get_selection(args.select, nsource)
+    if (istart==0 and iend==0) or nsource==0:
+        logger.info("Skipping %s (Less sources than jobs)"%(args.select))
+        Path(args.out).touch()
+        sys.exit(0) # Successful exit
+
+    cat, units = h5io.load_array(args.cat, sl=slice(istart, iend))
     if cat.size==1:
         cat = np.array([cat])
-    istart, iend = get_selection(args.select, cat.size)
-    cat = cat[istart:iend]
     name = os.path.basename(args.cat)
   
     logger.info("selec %s start %s end %s"%(args.select, str(istart), str(iend)))
@@ -112,7 +125,7 @@ if __name__ == "__main__":
         
     # Initialize the projection on arm
     Proj = ProjectedStrain(orbits)
-    nt = int((t_max-t_min)//dt)
+    nt = len(np.arange(t_min, t_max, dt))#int((t_max-t_min)//dt)
 
     yArm = np.zeros((nt, nArms))
     #source_names = ""

@@ -32,24 +32,23 @@ def remove_relative_import(dotpy, custom_prefix="my-"):
         with open(dotpy, 'w', encoding='utf-8') as fid:
             fid.writelines([])
 
-def update_lisanode_config(lisanode_config, pipe_config):
+def update_lisanode_config(lisanode_config, value, key):
     """ Update acceleration noise parameter in config.py
+
+    TODO also update gw strain
     """
-    d = ymlio.load_config(pipe_config)
-    if not 'accnoise' in d.keys():
-        return
     with open(lisanode_config, "r", encoding='utf-8') as fid:
         lines = fid.readlines()
     new_lines = []
     found = False
     for l in lines:
-        if len(l)>22 and l[0:22]=="LISA_ACC_NOISE_A_LEVEL":
-            new_lines.append("LISA_ACC_NOISE_A_LEVEL = %s\n"%(d["accnoise"]))
+        if key+" =" in l:
+            new_lines.append(f"{key} = {value}\n")
             found = True
         else:
             new_lines.append(l)
     if not found:
-        new_lines.append("LISA_ACC_NOISE_A_LEVEL = %s\n"%(d["accnoise"]))
+        new_lines.append(f"{key} = {value}\n")
     with open(lisanode_config, 'w', encoding='utf-8') as fid:
         fid.writelines(new_lines)
             
@@ -62,10 +61,13 @@ if __name__ == "__main__":
                         help= "Output path")
     parser.add_argument('-c', '--config', default="lisanode_config",
                         help= "LISANode config file")
-    parser.add_argument('-g', '--graph', default="graph.py",
+    parser.add_argument('-g', '--graph', default="",
                         help= "LISANode main graph file")
     parser.add_argument('--pipe-config', default="",
                         help= "Pipeline config file")
+    parser.add_argument('--glitch', default="", help= "Glitch input file")
+    parser.add_argument('--gw-dt', type=float, default=-1, 
+                        help= "GW dt, by default deduced from lisanode sampling (ie upsampling is done out of lisanode")
 
     
     args = parser.parse_args()
@@ -94,10 +96,30 @@ if __name__ == "__main__":
     dest_config = os.path.join(run_dir, custom_prefix+"config.py")
     shutil.copy(args.config, dest_config)
     if args.pipe_config:
-        update_lisanode_config(dest_config, args.pipe_config)
+        d = ymlio.load_config(args.pipe_config)
+        if 'accnoise' in d.keys():
+            update_lisanode_config(dest_config, d["accnoise"], "LISA_ACC_NOISE_A_LEVEL")
+        if 'backlinknoise' in d.keys():
+            update_lisanode_config(dest_config, d["backlinknoise"], "LISA_BACKLINK_NOISE_A_LEVEL")
+            
+        dt_physic = d["dt_instrument"].to('s').value/d["physic_upsampling"] #cfg["dt"]
+        dt_instru = d["dt_instrument"].to('s').value
+        if args.gw_dt<0:
+            update_lisanode_config(dest_config, 1/dt_physic, "LISA_GW_FILE_FS")
+        else:
+            update_lisanode_config(dest_config, 1/d["dt"].to("s").value, "LISA_GW_FILE_FS")
+        update_lisanode_config(dest_config, d["sim_kaiser_attenuation"], "LISA_AAFILTER_ATTENUATION")
+        update_lisanode_config(dest_config, f"[{d['sim_kaiser_passband']}, {d['sim_kaiser_stopband']}]",
+                               "LISA_AAFILTER_TRANSITION_BAND")
+        update_lisanode_config(dest_config, d["physic_upsampling"], "LISA_MEASUREMENT_DOWNSAMPLING")
+        update_lisanode_config(dest_config, 1/dt_instru, "LISA_MEASUREMENT_FS")
+        
+    if args.glitch:
+        update_lisanode_config(dest_config, "\'"+os.path.abspath(args.glitch)+"\'", "LISA_GLITCH_FILE")
     
     # copy graph
-    shutil.copy(args.graph, args.output)
+    if args.graph:
+        shutil.copy(args.graph, args.output)
     #for f in args.input:
     #    shutil.copy(f, run_dir)
 

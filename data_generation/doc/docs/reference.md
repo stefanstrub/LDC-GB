@@ -1,7 +1,7 @@
 # References
 
-The LDCPipeline and LDC software projects aim at addressing the needs
-of LISA in phase A regarding simulation and data analysis pipelines.
+The LDC software project aim at addressing the needs of LISA in phase
+A regarding simulation and data analysis pipelines.
 
 Those needs have been indentified in several contexts: 
 
@@ -13,7 +13,7 @@ The LDC software project (https://gitlab.in2p3.fr/LISA/LDC) is a
 python package, it provides common tools like orbits, waveforms, noise
 model subpackages, etc.
 
-The LDCPipeline software project is a set of python scripts used to
+The data generation folder contains a set of python scripts used to
 run data generation pipelines and test them (content of their output
 and their performance). 
 

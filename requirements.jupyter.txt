@@ -1,0 +1,9 @@
+pytest==6.2.4
+pycodestyle==2.7.0
+coverage==5.5
+sphinx==4.1.0
+ipython==7.25.0
+jupyterlab==3.0.16
+seaborn==0.11.2
+latex
+chainconsumer

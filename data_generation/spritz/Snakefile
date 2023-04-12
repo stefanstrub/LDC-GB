@@ -1,0 +1,235 @@
+"""
+spritz dataset production pipeline
+"""
+myconfig = "config.yml"
+configfile: myconfig
+singularity: "ldcpipe.sif" 
+rundir = config["dirname"]
+
+           
+rule all:
+    input: expand(rundir+"/{source}-training.h5", source=config["sources"])
+        
+rule source_selection:
+    input:
+        cfg = "{source}-cfg.yml",
+    output:
+        rundir+"/{source}-cat.h5"
+    log:
+        "log/{source}-cat.log"
+    shell:
+        """
+        source_selection -c {input.cfg} -o {output}
+        """
+
+rule orbits:
+    input: myconfig
+    output: rundir+"/orbits.h5"
+    shell:
+       """
+       build_orbits -o {output} -c {input}
+       """
+
+rule orbits_upsampling:
+    input:
+        orbits = rules.orbits.output,
+        cfg = myconfig,
+    output: rundir+"/orbits-upsampled.h5"
+    log:
+        "log/orbits-upsampling.log"
+    shell:
+        """
+        upsampleorbits -i {input.orbits} -c {input.cfg} -o {output} -l {log}
+        """
+        
+rule arm_projection:
+    input:
+        cfg = "config.yml", 
+        src = rundir+"/{source}-cat.h5",
+        orbits = rules.orbits.output,
+    output:
+        rundir+"/{source}-y.h5"
+    log:
+        "log/{source}-y.log"
+    params:
+        cfg = "{source}-cfg.yml"
+    shell:
+        """
+        arm_projection -i {input.src} -c {input.cfg} -o {output} --log {log} --source-config {params.cfg} --orbits {input.orbits}
+        """
+
+rule interp_strain:
+    input: rundir+"/{source}-y.h5",
+    output: rundir+"/{source}-y-interpolated.h5",
+    log: "log/{source}-strain-interpolation.log"
+    params:  cfg = myconfig,
+    shell:
+        """
+	export DT=`python3 -c "import ldc.io.yml as ymlio; cfg = ymlio.load_config('{params.cfg}');print(cfg['dt'].to('s').value)"`	
+        strain_interpolation --in {input} --out {output} --config {params.cfg} --log {log} --gw-dt $DT
+        """
+        
+rule glitch:
+    output: rundir+"/{source}-glitch.h5",
+    log: "log/{source}-glitch.log"
+    params:
+        cfg = myconfig,
+        cfg2 = "{source}-cfg.yml"
+    shell:
+       """
+       make_glitch --glitch {output} --config {params.cfg} --log {log} --glitch-config {params.cfg2}
+       """
+        
+
+rule lisanode_build:
+    input:
+        graph = "lisanode_graph.py",
+        cfg = myconfig,
+        cfgln = "lisanode_config.py",
+        glitch = rundir+"/{source}-glitch.h5",
+    output:
+        s = rundir+"/{source}-lisanode-withglitch/LISAWithGWAndTDI",
+	d = directory(rundir+"/{source}-lisanode-withglitch")
+    log:
+        "log/lisanode-{source}-withglitch-compile.log"
+    params:
+        graph = "my_graph.py",
+        optim = 3,
+    resources:
+        mem_mb = 60000
+    shell:
+        """
+	export DT=`python3 -c "import ldc.io.yml as ymlio; cfg = ymlio.load_config('{input.cfg}');print(cfg['dt'].to('s').value)"`
+        prep_lisanode -l {log} -o {output.d}/{params.graph} -c {input.cfgln} -g {input.graph} --pipe-config {input.cfg} --glitch {input.glitch} --gw-dt $DT
+        cd {output.d}
+        lisanode run --build -O {params.optim} --enable X Y Z -- {params.graph}:LISAWithGWAndTDI
+        """
+
+rule lisanode_build_glitchfree:
+    input:
+        graph = "lisanode_graph.py",
+        cfg = myconfig,
+        cfgln = "lisanode_config.py",
+    output:
+        s = rundir+"/{source}-lisanode-glitchfree/LISAWithGWAndTDI",
+	d = directory(rundir+"/{source}-lisanode-glitchfree")
+    log:
+        "log/lisanode-{source}-glitchfree-compile.log"
+    params:
+        graph = "my_graph.py",
+        optim = 3,
+    resources:
+        mem_mb = 60000
+    shell:
+        """
+	export DT=`python3 -c "import ldc.io.yml as ymlio; cfg = ymlio.load_config('{input.cfg}');print(cfg['dt'].to('s').value)"`
+        prep_lisanode -l {log} -o {output.d}/{params.graph} -c {input.cfgln} -g {input.graph} --pipe-config {input.cfg}  --gw-dt $DT
+        cd {output.d}
+        lisanode run --build -O {params.optim} --enable X Y Z -- {params.graph}:LISAWithGWAndTDI
+        """
+
+rule L0L1:
+    input:
+        data = rundir+"/{source}-y-interpolated.h5",
+        exe = rundir+"/{source}-lisanode-{glitch}/LISAWithGWAndTDI",
+	orbits = rules.orbits_upsampling.output
+    output: rundir+"/{source}-lisanode-{noise}-{glitch}-tdi-raw.h5"
+    log:
+        "log/{source}-{noise}-{glitch}-tdi.log"
+    params:
+        cfg = "{source}-cfg.yml",
+        pipe_cfg = myconfig
+    resources:
+        mem_mb = 60000
+    shell:
+        """
+	export DURATION=`python3 -c "import ldc.io.yml as ymlio; cfg = ymlio.load_config('{params.cfg}');print(300+cfg['t_max'].to('s').value-cfg['t_min'].to('s').value)"`
+	export T0=`python3 -c "import ldc.io.yml as ymlio; cfg = ymlio.load_config('{params.cfg}');print(cfg['t_min'].to('s').value)"`
+        export READOUT_GAIN=`python3 -c "import ldc.io.yml as ymlio;from lisaconstants import SPEED_OF_LIGHT;cfg = ymlio.load_config('{params.pipe_cfg}');print(cfg['readoutnoise']/SPEED_OF_LIGHT);"`
+	export N=`python3 -c "n=1 if '{wildcards.noise}'=='withnoise' else 0;print(n)"`
+        chmod u+x {input.exe}
+        {input.exe} --gw-path {input.data} -o {output} --lasernoise-on-off 0 --backlinknoise-on-off $N --telescopenoise-on-off 0 --accelnoise-on-off $N --readoutnoise-on-off $N --obpathlengthnoise-on-off 0 --usonoise-on-off 0 --modulationnoise-on-off 0 --rangingnoise-on-off 0 --sc-jitter-phi-on-off 0 --sc-jitter-eta-on-off 0 --sc-jitter-theta-on-off 0 --mosa-jitter-phi-on-off 0 --dwsnoise-on-off 0 --orbit-path {input.orbits} -d $DURATION --time-origin $T0 --readoutnoise-isc-c-gain=$READOUT_GAIN --laser-seed-12 {config[laser_seed_12]}  --backlink-tm-seed-f-12  {config[backlink_tm_seed_f_12]} --backlink-tm-seed-f-13  {config[backlink_tm_seed_f_13]} --backlink-tm-seed-f-21 {config[backlink_tm_seed_f_21]} --backlink-tm-seed-f-23  {config[backlink_tm_seed_f_23]} --backlink-tm-seed-f-31  {config[backlink_tm_seed_f_31]} --backlink-tm-seed-f-32  {config[backlink_tm_seed_f_32]} --backlink-ref-seed-f-12  {config[backlink_ref_seed_f_12]} --backlink-ref-seed-f-13  {config[backlink_ref_seed_f_13]} --backlink-ref-seed-f-21 {config[backlink_ref_seed_f_21]} --backlink-ref-seed-f-23  {config[backlink_ref_seed_f_23]} --backlink-ref-seed-f-31  {config[backlink_ref_seed_f_31]} --backlink-ref-seed-f-32  {config[backlink_ref_seed_f_32]} --backlink-tm-seed1-over-f-12  {config[backlink_tm_seed1_over_f_12]} --backlink-tm-seed1-over-f-13  {config[backlink_tm_seed1_over_f_13]} --backlink-tm-seed1-over-f-21 {config[backlink_tm_seed1_over_f_21]} --backlink-tm-seed1-over-f-23  {config[backlink_tm_seed1_over_f_23]} --backlink-tm-seed1-over-f-31  {config[backlink_tm_seed1_over_f_31]} --backlink-tm-seed1-over-f-32  {config[backlink_tm_seed1_over_f_32]} --backlink-ref-seed1-over-f-12  {config[backlink_ref_seed1_over_f_12]} --backlink-ref-seed1-over-f-13  {config[backlink_ref_seed1_over_f_13]} --backlink-ref-seed1-over-f-21 {config[backlink_ref_seed1_over_f_21]} --backlink-ref-seed1-over-f-23  {config[backlink_ref_seed1_over_f_23]} --backlink-ref-seed1-over-f-31  {config[backlink_ref_seed1_over_f_31]} --backlink-ref-seed1-over-f-32 {config[backlink_ref_seed1_over_f_32]} --readoutnoise-isc-c-seed-12 {config[readout_isc_c_seed_12]} --readoutnoise-isc-sb-seed-12 {config[readout_isc_sb_seed_12]} --readoutnoise-tm-c-seed-12 {config[readout_tm_c_seed_12]} --readoutnoise-ref-c-seed-12 {config[readout_ref_c_seed_12]} --readoutnoise-ref-sb-seed-12 {config[readout_ref_sb_seed_12]} --accelnoise-seed-1-over-f-12 {config[accnoise_seed_1_over_f_12]} --accelnoise-seed-1-over-f-13 {config[accnoise_seed_1_over_f_13]} --accelnoise-seed-1-over-f-21 {config[accnoise_seed_1_over_f_21]} --accelnoise-seed-1-over-f-23 {config[accnoise_seed_1_over_f_23]} --accelnoise-seed-1-over-f-32 {config[accnoise_seed_1_over_f_32]} --accelnoise-seed-1-over-f-31 {config[accnoise_seed_1_over_f_31]} --accelnoise-seed-1-over-f2-12 {config[accnoise_seed_1_over_f2_12]} --accelnoise-seed-1-over-f2-13 {config[accnoise_seed_1_over_f2_13]} --accelnoise-seed-1-over-f2-21 {config[accnoise_seed_1_over_f2_21]} --accelnoise-seed-1-over-f2-23 {config[accnoise_seed_1_over_f2_23]} --accelnoise-seed-1-over-f2-32 {config[accnoise_seed_1_over_f2_32]} --accelnoise-seed-1-over-f2-31 {config[accnoise_seed_1_over_f2_31]} --readoutnoise-isc-c-seed-13 {config[readout_isc_c_seed_13]} --readoutnoise-isc-sb-seed-13 {config[readout_isc_sb_seed_13]} --readoutnoise-tm-c-seed-13 {config[readout_tm_c_seed_13]} --readoutnoise-ref-c-seed-13 {config[readout_ref_c_seed_13]} --readoutnoise-ref-sb-seed-13 {config[readout_ref_sb_seed_13]} --readoutnoise-isc-c-seed-21 {config[readout_isc_c_seed_21]} --readoutnoise-isc-sb-seed-21 {config[readout_isc_sb_seed_21]} --readoutnoise-tm-c-seed-21 {config[readout_tm_c_seed_21]} --readoutnoise-ref-c-seed-21 {config[readout_ref_c_seed_21]} --readoutnoise-ref-sb-seed-21 {config[readout_ref_sb_seed_21]} --readoutnoise-isc-c-seed-23 {config[readout_isc_c_seed_23]} --readoutnoise-isc-sb-seed-23 {config[readout_isc_sb_seed_23]} --readoutnoise-tm-c-seed-23 {config[readout_tm_c_seed_23]} --readoutnoise-ref-c-seed-23 {config[readout_ref_c_seed_23]} --readoutnoise-ref-sb-seed-23 {config[readout_ref_sb_seed_23]} --readoutnoise-isc-c-seed-31 {config[readout_isc_c_seed_31]} --readoutnoise-isc-sb-seed-31 {config[readout_isc_sb_seed_31]} --readoutnoise-tm-c-seed-31 {config[readout_tm_c_seed_31]} --readoutnoise-ref-c-seed-31 {config[readout_ref_c_seed_31]} --readoutnoise-ref-sb-seed-31 {config[readout_ref_sb_seed_31]} --readoutnoise-isc-c-seed-32 {config[readout_isc_c_seed_32]} --readoutnoise-isc-sb-seed-32 {config[readout_isc_sb_seed_32]} --readoutnoise-tm-c-seed-32 {config[readout_tm_c_seed_32]} --readoutnoise-ref-c-seed-32 {config[readout_ref_c_seed_32]} --readoutnoise-ref-sb-seed-32 {config[readout_ref_sb_seed_32]} --progress-bar=0 &> {log} 
+        """
+
+rule interp_tdi:
+    input: rundir+"/{source}-{simulator}-{noise}-{glitch}-tdi-raw.h5"
+    output: rundir+"/{source}-{simulator}-{noise}-{glitch}-tdi.h5"
+    log:
+        "log/{source}-{simulator}-{noise}-{glitch}-tdi-interpolation.log"
+    params:
+        cfg1 = myconfig,
+        cfg2 = "{source}-cfg.yml"
+    shell:
+        """
+	export T0=`python3 -c "import ldc.io.yml as ymlio; cfg = ymlio.load_config('{params.cfg2}');print(cfg['t_min'].to('s').value)"`
+	export DT=`python3 -c "import ldc.io.yml as ymlio; cfg = ymlio.load_config('{params.cfg1}');print(cfg['dt_tdi'].to('s').value)"`
+        tdi_downsampling --in {input} --out {output} --config {params.cfg1} --log {log} --noisefree --lasernoise --time-origin $T0 --dt $DT --source-config {params.cfg2}
+        """
+
+rule gaps:
+    input:
+        tdi = rundir+"/{source}-lisanode-{noise}-tdi.h5",
+    output:tdi=rundir+"/{source}-lisanode-{noise}-tdi-withgaps.h5", gal=rundir+"/{source}-lisanode-{noise}-tdi-galaxy.h5"
+    log:
+        "log/{source}-lisanode-{noise}-gaps.log"
+    params:
+        cfg1 = myconfig,
+        cfg2 = "{source}-cfg.yml",
+	galaxy = config["galaxy"]
+    shell:
+        """
+        ./make_gaps --tdi {input.tdi} --galaxy {params.galaxy} --output {output.tdi} --output-galaxy {output.gal} --pipe-config {params.cfg1} --config {params.cfg2} --log {log}
+        """
+
+rule gapsnogal:
+    input:
+        tdi = rundir+"/{source}-lisanode-{noise}-tdi.h5",
+    output: rundir+"/{source}-lisanode-{noise}-tdi-galfree.h5"
+    log:
+        "log/{source}-lisanode-{noise}-gaps-galfree.log"
+    params:
+        cfg1 = myconfig,
+        cfg2 = "{source}-cfg.yml",
+    shell:
+        """
+        make_gaps --tdi {input.tdi} --output {output} --pipe-config {params.cfg1} --config {params.cfg2} --log {log}
+        """
+	
+rule release:
+    input:
+        tdi = expand(rundir+"/{{source}}-lisanode-{noise}-tdi-withgaps.h5", noise=["withnoise-withglitch", "noisefree-withglitch"]) + expand(rundir+"/{{source}}-lisanode-{noise}-tdi.h5", noise=["withnoise-glitchfree", "noisefree-glitchfree"]),
+	gal = rundir+"/{source}-lisanode-noisefree-glitchfree-tdi-galaxy.h5",
+        cat = rundir+"/{source}-cat.h5",
+        cfg = [myconfig , 'lisanode_config.py' , "{source}-cfg.yml"]
+    output: rundir+"/{source}-training.h5"
+    log: "log/{source}-release.log"
+    shell:
+        """
+        data_release --data-files {input.tdi} {input.gal} {input.cat} --dset-names obs/tdi noisefree/tdi clean/tdi sky/tdi gal/tdi sky/cat --config-files {input.cfg} --config-names obs/config instru/config sky/config -o {output} -l {log}
+        """
+
+rule additional_release:
+    input:
+        tdi = expand(rundir+"/{{source}}-lisanode-{noise}-tdi-galfree.h5", noise=["withnoise-withglitch", "noisefree-withglitch"]) + expand(rundir+"/{{source}}-lisanode-{noise}-tdi.h5", noise=["withnoise-glitchfree", "noisefree-glitchfree"]),
+	gal = rundir+"/{source}-lisanode-noisefree-glitchfree-tdi-galaxy.h5",
+        cat = rundir+"/{source}-cat.h5",
+        cfg = [myconfig , 'lisanode_config.py' , "{source}-cfg.yml"]
+    output: rundir+"/{source}-training-galfree.h5"
+    log: "log/{source}-release.log"
+    shell:
+        """
+        data_release --data-files {input.tdi} {input.gal} {input.cat} --dset-names obs/tdi noisefree/tdi clean/tdi sky/tdi gal/tdi sky/cat --config-files {input.cfg} --config-names obs/config instru/config sky/config -o {output} -l {log}
+        """
+
+
+rule blind:
+    input:
+        tdi = expand(rundir+"/{{source}}-lisanode-{noise}-tdi-withgaps.h5", noise=["withnoise-withglitch"])
+    output: rundir+"/{source}-blind.h5"
+    log: "log/{source}-release.log"
+    shell:
+        """
+        data_release --data-files {input.tdi} --dset-names obs/tdi -o {output} -l {log}
+        """
+
+include: "Snakefile.alt"

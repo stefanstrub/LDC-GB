@@ -11,16 +11,51 @@ Constants
 Series
 ------
 
+Timeseries
+~~~~~~~~~~
+
 .. automodule:: ldc.common.series.timeseries
+   :members:
+
+TDI
+~~~
+
+.. automodule:: ldc.common.series.tdi
    :members:
 
 Tools
 -----
 
+Smoothing
+~~~~~~~~~
+.. automodule:: ldc.common.tools.smoothing
+    :members:
+
+SNR
+~~~
 .. automodule:: ldc.common.tools.snr
    :members:
+
+SPA
+~~~
+.. automodule:: ldc.common.tools.spa
+   :members:
+
+Spherical harmonics
+~~~~~~~~~~~~~~~~~~~
 .. automodule:: ldc.common.tools.spherical_harmonic
    :members:
+
+Trigo
+~~~~~
 .. automodule:: ldc.common.tools.trigo
    :members:
+
+
+
+Windows
+~~~~~~~
+.. automodule:: ldc.common.tools.windows
+   :members:
+
 

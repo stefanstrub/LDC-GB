@@ -1,0 +1,6 @@
+approximant: IMRPhenomD
+catalogs: ../test/data/catalog-selected-source-yorsh-sbbh.dat
+nsource: 2
+indices: [1, 2]
+seed: 1234
+source_type: SBBH

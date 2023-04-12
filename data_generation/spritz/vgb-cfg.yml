@@ -1,0 +1,24 @@
+approximant: TD_fdot
+catalogs: /data/Params_VGBind_210910.hdf5
+nsource: 36
+seed: 1234
+source_type: GB
+t_max: 1 yr
+t_min: 0 s
+dt: 2.5 s
+glitch_type: poisson
+max_glitch: 10000
+glitch_seed: 1234
+glitch_training: /data/checkpoint.pt
+glitch_interval: /data/2021-09-17-intervals_ordinary.txt
+min_beta: -2.3025850929940455
+max_beta: 10.819778284410283
+min_amp: -55.742988125334776
+max_amp: -17.65578323582705
+beta_range:
+- 0.1
+- 50000.0
+amp_range:
+- 6.181983653617034e-25
+- 2.1487741314798323e-08
+gaps_seed: 66

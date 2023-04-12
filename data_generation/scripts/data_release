@@ -52,28 +52,28 @@ if __name__ == "__main__":
         extension = dfile.split(".")[-1]
 
         if extension in ["hdf5", "h5"]:
-            with h5py.File(dfile, "r") as fid:
-                dsets = list(fid.keys())
-            if len(dsets) > 1 and 'tdi' in name:
-                arr = []
-                names = []
-                for i,dset in enumerate(dsets):
-                    subarr, descr = hdf5io.load_array(dfile, name=dset)
-                    if i==0:
-                        ineg = np.where(subarr[:,0]>=0)[0][0]
-                        arr.append(subarr[ineg:,0])
-                        arr.append(subarr[ineg:,1])
-                        names.append("time")
-                        names.append(dset)
-                    else:
-                        arr.append(subarr[ineg:,1])
-                        names.append(dset)
-                arr = np.rec.fromarrays(arr, names=names)
-                del descr["name"]
-                hdf5io.save_array(args.out, arr, name=name, mode='a', **descr)
-            else:
-                arr, descr = hdf5io.load_array(dfile, name=dsets[0])
-                hdf5io.save_array(args.out, arr, name=name, mode='a', **descr)
+            #with h5py.File(dfile, "r") as fid:
+            #    dsets = list(fid.keys())
+            # if len(dsets) > 1 and 'tdi' in name:
+            #     arr = []
+            #     names = []
+            #     for i,dset in enumerate(dsets):
+            #         subarr, descr = hdf5io.load_array(dfile, name=dset)
+            #         if i==0:
+            #             ineg = np.where(subarr[:,0]>=0)[0][0]
+            #             arr.append(subarr[ineg:,0])
+            #             arr.append(subarr[ineg:,1])
+            #             names.append("time")
+            #             names.append(dset)
+            #         else:
+            #             arr.append(subarr[ineg:,1])
+            #             names.append(dset)
+            #     arr = np.rec.fromarrays(arr, names=names)
+            #     del descr["name"]
+            #     hdf5io.save_array(args.out, arr, name=name, mode='a', **descr)
+            # else:
+            arr, descr = hdf5io.load_array(dfile)#, name=dsets[0])
+            hdf5io.save_array(args.out, arr, name=name, mode='a', **descr)
         elif extension in ["npz", "npy"]:
             arr, descr = npzio.load_array(dfile)
             hdf5io.save_array(args.out, arr, name=name, mode='a', **descr)

@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+import h5py
+from ldc.utils.logging import init_logger, close_logger
+import pytdi
+from pytdi.michelson import X2, Y2, Z2
+from pytdi import Data
+from astropy import units
+import numpy as np
+
+if __name__ == "__main__":
+
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--L0', default="",
+                        help= "L0 h5 data file from LISANode")
+    parser.add_argument('--pipe-config', default="",
+                        help= "Pipeline config file")
+    parser.add_argument('-o', '--output', default="./",
+                        help= "Output path")
+    parser.add_argument('-d', '--day', default=-1, type=int, 
+                        help= "Day index, if negative TDI computed for the whole time range")
+    parser.add_argument('-l', '--log', type=str, default="", help="Log file")
+
+    args = parser.parse_args()
+    logger = init_logger(args.log)
+
+    # Load time vector
+    with h5py.File(args.L0, 'r') as hdf5:
+        times = hdf5['isc_c_12'][:, 0]
+
+    # select subset of data
+    sel = None
+    if args.day>0:
+        number_of_days = (len(times)*units.s).to('day')
+        if args.day>number_of_days.value:
+            logger.warning(f"day index ({args.day}) is greater than total number of days ({number_of_days})")
+        assert args.day<number_of_days.value
+        t0 = (times[0]*units.s).to('day') + args.day*units.day - 1*units.day
+        t1 = t0 + 2*units.day
+        logger.info(f"select 2 days of data between: {t0} - {t1}")
+        t0 = max(t0.to('s').value, times[0])
+        t1 = min(t1.to('s').value, times[-1])
+        logger.info(f"restrict to data bounds: {t0} - {t1}")
+        s0 = np.where(times>=t0)[0][0]
+        s1 = np.where(times<=t1)[0][-1]
+        logger.info(f"select indices: {s0} - {s1}")
+        sel = slice(s0, s1)
+        times = times[sel]
+
+    data = Data.from_lisanode(args.L0, sel=sel)
+
+    logger.info("Building X")
+    built = X2.build(**data.args_nodoppler)
+    X2_data = built(data.measurements)
+
+    logger.info("Building Y")
+    built = Y2.build(**data.args_nodoppler)
+    Y2_data = built(data.measurements)
+    
+    logger.info("Building Z")
+    built = Z2.build(**data.args_nodoppler)
+    Z2_data = built(data.measurements)
+
+    logger.info("Write XYZ to disk")
+    with h5py.File(args.output, 'w') as hdf5:
+        hdf5.create_dataset('XYZ', data=np.vstack((times, X2_data, Y2_data, Z2_data)).T) 
+        
+    close_logger(logger)

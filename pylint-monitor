@@ -2,12 +2,16 @@
 import sys
 from io import StringIO
 import glob
+import os
 from pylint.lint import Run
 
-for source in ['ldc/lisa/noise/noise.py',
-               'ldc/common/constants/cosmology.py',
-               'ldc/common/tools/trigo.py'] + \
-               glob.glob("ldc/waveform/waveform/*.py"):
+for source in glob.glob('ldc/lisa/*/*.py') + glob.glob("ldc/waveform/waveform/*.py") +\
+    glob.glob("ldc/common/*/*.py") +  glob.glob("ldc/io/*/*.py") +\
+    glob.glob("ldc/utils/*/*.py") :
+
+    if os.path.basename(source)=="__init__.py":
+        continue
+    
     stdout = sys.stdout
     sys.stdout = StringIO()
 

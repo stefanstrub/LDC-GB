@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+import numpy as np
+from ldc.utils.logging import init_logger, close_logger
+from ldc.common.series import TimeSeries, TDI
+import ldc.io.hdf5 as h5io
+
+
+def load(filename):
+    arr1, descr1 = h5io.load_array(filename)
+    X = TimeSeries(arr1[:,1], dt=arr1[1,0]-arr1[0,0], t0=arr1[0,0])
+    Y = TimeSeries(arr1[:,2], dt=arr1[1,0]-arr1[0,0], t0=arr1[0,0])
+    Z = TimeSeries(arr1[:,3], dt=arr1[1,0]-arr1[0,0], t0=arr1[0,0])
+    tdi = TDI(dict({"X":X, "Y":Y, "Z":Z}))
+    return tdi
+
+
+if __name__ == "__main__":
+
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--inp', dest='hdf5', help= "Path to hdf5 TDI files")
+    parser.add_argument('-o', '--out', default="./tdi_merged.hdf5", help= "Output TDI")
+    parser.add_argument('-l', '--log', type=str, default="", help="Log file")
+
+    args = parser.parse_args()
+    logger = init_logger(args.log)		
+
+    args.inp = sorted(args.inp)
+
+    tdi_combined = load(args.inp[0])
+    for fn in args.inp[1:]:
+        logger.info(f"processing {fn}")
+        tdi_combined = tdi_combined.combine_first(load(tdi))
+    
+    tdi_combined.save(args.out)    

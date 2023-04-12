@@ -1,0 +1,109 @@
+
+rule lisa_instrument:
+    input:
+        data = rundir+"/{source}-y-interpolated.h5",
+        orbits = rules.orbits.output,
+        glitch = rundir+"/{source}-glitch.h5",
+    output:
+        tdi = rundir+"/{source}-lisainstrument-noisefree-tdi-raw.h5",
+    log:
+        "log/{source}-lisainstrument-tdi.log"
+    params:
+        cfg = myconfig,
+    shell:
+       """
+       lisa_instrument --strain {input.data} -o {output.tdi} --pipe-config {params.cfg} --noisefree --orbits {input.orbits} --log {log} --glitch {input.glitch} --lasernoise
+       """
+
+rule lisa_instrument_withnoise:
+    input:
+        data = rundir+"/{source}-y-interpolated.h5",
+        orbits = rules.orbits.output,
+        glitch = rundir+"/{source}-glitch.h5",
+    output:
+        tdi = rundir+"/{source}-lisainstrument-withnoise-tdi-raw.h5",
+    log:
+        "log/{source}-lisainstrument-withnoise-tdi.log"
+    params:
+        cfg = myconfig,
+    shell:
+       """
+       lisa_instrument --strain {input.data} -o {output.tdi} --pipe-config {params.cfg} --orbits {input.orbits} --log {log} --glitch {input.glitch} 
+       """
+
+rule lisanode_build2:
+    input:
+        cfg = myconfig,
+        cfgln = "lisanode_config.py",
+        glitch = rundir+"/{source}-glitch.h5",
+    output:
+        s = rundir+"/{source}-lisanode/LISA",
+	d = directory(rundir+"/{source}-lisanode")
+    log:
+        "log/lisanode-{source}-compile2.log"
+    params:
+        graph = "my_instrument.py",
+        optim = 2,
+    resources:
+        mem_mb = 60000
+    shell:
+        """
+        prep_lisanode -l {log} -o {output.d}/{params.graph} -c {input.cfgln} --pipe-config {input.cfg} --glitch {input.glitch}
+        cd {output.d}
+        lisanode run --build -O {params.optim} {params.graph}:LISA
+        """
+
+rule L0:
+    input:
+        data = rundir+"/{source}-y-interpolated.h5",
+        exe = rundir+"/{source}-lisanode/LISA",
+	orbits = rules.orbits_upsampling.output
+    output: rundir+"/{source}-lisanode-withnoise-L0.h5"
+    log:
+        "log/{source}-L0.log"
+    params:
+        cfg = "{source}-cfg.yml",
+        pipe_cfg = myconfig
+    resources:
+        mem_mb = 60000
+    shell:
+        """
+	export DURATION=`python3 -c "import ldc.io.yml as ymlio; cfg = ymlio.load_config('{params.cfg}');print(cfg['t_max'].to('s').value-cfg['t_min'].to('s').value)"`
+	export T0=`python3 -c "import ldc.io.yml as ymlio; cfg = ymlio.load_config('{params.cfg}');print(cfg['t_min'].to('s').value)"`
+        export READOUT_GAIN=`python3 -c "import ldc.io.yml as ymlio;from lisaconstants import SPEED_OF_LIGHT;cfg = ymlio.load_config('{params.pipe_cfg}');print(cfg['readoutnoise']/SPEED_OF_LIGHT);"`
+        chmod u+x {input.exe}
+        {input.exe} --gw-path {input.data} -o {output} --lasernoise-on-off 0 --backlinknoise-on-off 1 --telescopenoise-on-off 0 --accelnoise-on-off 1 --readoutnoise-on-off 1 --obpathlengthnoise-on-off 0 --usonoise-on-off 0 --modulationnoise-on-off 0 --rangingnoise-on-off 0 --orbit-path {input.orbits} -d $DURATION --time-origin $T0 --readoutnoise-isc-c-gain=$READOUT_GAIN 
+        """
+
+rule L0_noisefree:
+    input:
+        data = rundir+"/{source}-y-interpolated.h5",
+        exe = rundir+"/{source}-lisanode/LISA",
+	orbits = rules.orbits_upsampling.output
+    output: rundir+"/{source}-lisanode-noisefree-L0.h5"
+    log:
+        "log/{source}-L0.log"
+    params:
+        cfg = "{source}-cfg.yml",
+        pipe_cfg = myconfig
+    resources:
+        mem_mb = 60000
+    shell:
+        """
+	export DURATION=`python3 -c "import ldc.io.yml as ymlio; cfg = ymlio.load_config('{params.cfg}');print(cfg['t_max'].to('s').value-cfg['t_min'].to('s').value)"`
+	export T0=`python3 -c "import ldc.io.yml as ymlio; cfg = ymlio.load_config('{params.cfg}');print(cfg['t_min'].to('s').value)"`
+        export READOUT_GAIN=`python3 -c "import ldc.io.yml as ymlio;from lisaconstants import SPEED_OF_LIGHT;cfg = ymlio.load_config('{params.pipe_cfg}');print(cfg['readoutnoise']/SPEED_OF_LIGHT);"`
+        chmod u+x {input.exe}
+        {input.exe} --gw-path {input.data} -o {output} --lasernoise-on-off 1 --backlinknoise-on-off 0 --telescopenoise-on-off 0 --accelnoise-on-off 0 --readoutnoise-on-off 0 --obpathlengthnoise-on-off 0 --usonoise-on-off 0 --modulationnoise-on-off 0 --rangingnoise-on-off 0 --orbit-path {input.orbits} -d $DURATION --time-origin $T0 --readoutnoise-isc-c-gain=$READOUT_GAIN 
+        """
+
+rule pyTDI:
+    input:
+        data = rundir+"/{source}-lisanode-{noise}-L0.h5",
+    output: rundir+"/{source}-pytdi-{noise}-tdi-raw.h5"
+    log:
+        "log/{source}-pytdi-{noise}.log"
+    shell:
+        """
+        run_pytdi --L0 {input.data} -o {output} -l {log}
+	"""

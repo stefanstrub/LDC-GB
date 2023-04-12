@@ -1,0 +1,33 @@
+dt: 5 s
+t_max:  2 yr #60 d #1 yr #86400 s #1 day                                                                                                                                                                                               
+t_min:  0.0 s
+
+orbit_type:  keplerian #equal_armlength # equal_armlength or keplerian                                                                                                                                                                 
+initial_position:  0.0 rad
+initial_rotation:  0.0 rad
+nominal_arm_length:  2500000000.0 m
+kepler_order: 2 # only used if orbit_type=keplerian                                                                                                                                                                                    
+dt_orbits: 86400 s
+travel_time_order: 1
+
+dt_instrument: 0.25 s # LISA baseline 4/16Hz                                                                                                                                                                                           
+physic_upsampling: 1
+interp_order: 5
+sim_kaiser_passband: 1.1
+sim_kaiser_stopband: 2.9
+sim_kaiser_attenuation: 240
+sim_kaiser_delay: 4.5
+tdi_kaiser_passband: 0.05
+tdi_kaiser_stopband: 0.1
+tdi_kaiser_attenuation: 240
+tdi_kaiser_delay: 161.75
+tdi_kaiser_cutoff: 0.05
+
+backlinknoise: 3.00e-12 #m/sqrt(Hz)                                                                                                                                                                                                    
+readoutnoise: 6.35e-12 #m/sqrt(Hz)                                                                                                                                                                                                     
+accnoise: 2.4e-15 # m/s^2/sqrt(Hz)                                                                                                                                                                                                     
+# galaxy: /data/reduced_1_yr.h5                                                                                                                                                                                                        
+
+source: sbbh
+nbatch: 1
+dirname: run_sbbh_snr_11p82
