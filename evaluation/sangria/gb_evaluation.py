@@ -61,21 +61,16 @@ class GBEval:
                 return
             i_c = np.argmax(np.array(self.match[i_inj])[:,1])
             i_sub = int(np.array(self.match[i_inj])[i_c,0])
-        if self.team== ['apc-l2it', 'eth']:
+        if self.team in ['apc-l2it', 'eth']:
             f0 = self.sub_cat["Frequency"][i_sub]
             idx = np.argmin(np.abs(self.pdf_f0-f0*1000))
             csv_file = self.pdf_file[idx]
             ldc_chain = np.genfromtxt(csv_file, names=True, delimiter=",")
-            if full_chain:
-                return ldc_chain
-            if f'Frequency_{i_sub}' not in ldc_chain.dtype.names:
-                return None
-            names = [n for n in ldc_chain.dtype.names if n.split('_')[-1]==str(i_sub)]
-            ldc_chain = ldc_chain[names]
-            names_ = [n.split("_")[0] for n in names]
-            ldc_chain.dtype.names = names_
             ldc_chain["Frequency"] *= 1e-3
+            negative_longitude_mask = ldc_chain["EclipticLongitude"] < 0
+            ldc_chain["EclipticLongitude"][negative_longitude_mask] += 2*np.pi
             return ldc_chain
+
         if self.team=='msfc-montana':
             record = self.sub_cat["record"][i_sub]
             ucb_samples_attr = self.ucb_catalog.get_attr_source_samples(record)
@@ -96,7 +91,7 @@ class GBEval:
             yml_solution = os.path.join(self.teamdir, "ETH-LDC2-sangria-training-v2-training-gb-cut.yaml")
             if not os.path.exists(yml_solution):
                 download(yml_solution)
-            csv_dir = os.path.join(self.teamdir, "Chains")
+            csv_dir = os.path.join(self.teamdir, "Chain")
             if not os.path.exists(csv_dir):
                 download(csv_dir)
             self.pdf_file = sorted(glob.glob(os.path.join(csv_dir, "*.csv")))
@@ -463,6 +458,7 @@ if __name__ == '__main__':
 
     # gb_apc.load_from_workspace()
     # gb_usa.load_from_workspace()
+
     gb_eth.load_from_workspace()
 
     if 0:
