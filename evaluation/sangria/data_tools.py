@@ -34,6 +34,8 @@ def download(fn):
                 'UCB.h5':'https://lisa-ldc.lal.in2p3.fr/media/uploads/submission/MSFC-Montana_12mo_catalog.tgz',
                 'APC_L2IT_sangria-noise.csv':'https://lisa-ldc.lal.in2p3.fr/media/uploads/submission/APC_L2IT_noise_MBHBs.tar.gz',
                 'APC_L2IT-ldc2a-mbhb.yaml':'https://lisa-ldc.lal.in2p3.fr/media/uploads/submission/APC_L2IT_noise_MBHBs.tar.gz',
+                'Chain':'https://lisa-ldc.lal.in2p3.fr/media/uploads/submission/Chain.tar.xz',
+                'ETH-LDC2-sangria-training-v2-training-gb-cut.yaml':'https://lisa-ldc.lal.in2p3.fr/media/uploads/submission/ETH-LDC2-sangria-training-v2-training-gb-cut.yaml',
                 })
     o = os.path.join(dirname, url[basename].split('/')[-1])
     os.system(f'wget {url[basename]} -O {o}')
