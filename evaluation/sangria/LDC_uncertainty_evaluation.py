@@ -16,7 +16,6 @@ import numpy.lib.recfunctions as recf
 
 from ldc.lisa.noise import AnalyticNoise
 from gb_evaluation import GBEval
-from data_tools import mbhb_free_data
 
 from astropy import units as u
 import astropy.coordinates as coord
@@ -320,20 +319,22 @@ confidence_threshold = 0.68
 
 workdir = "/home/stefan/LDC/Sangria/evaluation"
 # gb = GBEval('apc-l2it', workdir, submitted_noise=True)
-gb = GBEval('msfc-montana', workdir, submitted_noise=True)
-# gb= GBEval('eth', workdir, submitted_noise=True)
+# gb = GBEval('msfc-montana', workdir, submitted_noise=True)
+gb= GBEval('eth', workdir, submitted_noise=True)
 
 gb.load_from_workspace()
 
+names = ['Amplitude', 'Inclination', 'EclipticLatitude', 'EclipticLongitude',
+            'Frequency', 'FrequencyDerivative']
 for i_inj in range(len(gb.inj_cat)):
     if i_inj % 10 != 0:
         continue
-    names = ['Amplitude', 'Inclination', 'EclipticLatitude', 'EclipticLongitude',
-                'Frequency', 'FrequencyDerivative']
-    try:
-        pdf = gb.get_pdf(i_inj=i_inj)[names]
-    except:
+    
+    pdf = gb.get_pdf(i_inj=i_inj, full_chain=True)
+    if pdf is None:
         continue
+    pdf = pdf[names]
+
     truth = gb.inj_cat[i_inj]
 
     if i_inj % int(len(gb.inj_cat)/10) == 0:
@@ -351,40 +352,10 @@ for i_inj in range(len(gb.inj_cat)):
     #     in_contour[parameter_x,parameter_x].append(check_if_in_confidence_region(parameter_x, parameter_x))
     # for parameter in parameters:
     #     in_contour[parameter].append(check_if_in_confidence_region_1D_kde(parameter))
-    # parameter_x = 'Frequency'
-    # parameter_y = 'FrequencyDerivative'
-    # in_contour[parameter_x,parameter_y].append(check_if_in_confidence_region(parameter_x, parameter_y))
-    # parameter_x = 'Frequency'
-    # parameter_y = 'EclipticLongitude'
-    # in_contour_f_ip_list.append(check_if_in_confidence_region(parameter_x, parameter_y))
-    # parameter_y = 'EclipticLongitude'
-    # parameter_x = 'EclipticLatitude'
-    # in_contour[parameter_x,parameter_y].append(check_if_in_confidence_region(parameter_x, parameter_y))
-    # parameter_x = 'Amplitude'
-    # parameter_y = 'Inclination'
-    # in_contour[parameter_x,parameter_y].append(check_if_in_confidence_region(parameter_x, parameter_y))
 
-    # if in_contour_f_fd_list[-1] and in_contour_sky_list[-1] and in_contour_amp_inclination_list[-1]:
-    #     in_contour_list.append(True)
-    # else:
-    #     in_contour_list.append(False)
-
-print('number of signals', len(in_contour[parameter_x,parameter_y]))
+print('number of signals', len(in_contour['Frequency','FrequencyDerivative']))
 print( 'confidence area:', int(confidence_threshold*100) , '%')
 for parameter_x, parameter_y in parameter_pairs:
     print(parameter_x, parameter_y, int(np.round(len(np.ones_like(in_contour[parameter_x,parameter_y])[in_contour[parameter_x,parameter_y]])/len(in_contour[parameter_x,parameter_y]),2)*100) , '%')
 
-# for parameter_x in parameters:
-    # print(parameter_x, parameter_x, len(np.ones_like(in_contour[parameter_x,parameter_x])[in_contour[parameter_x,parameter_x]])/len(in_contour[parameter_x,parameter_x]))
-    # print(parameter_x, len(np.ones_like(in_contour[parameter_x])[in_contour[parameter_x]])/len(in_contour[parameter_x]))
-
-# f_trues = len(np.ones_like(in_contour_f_fd_list)[in_contour_f_fd_list])
-# sky_trues = len(np.ones_like(in_contour_sky_list)[in_contour_sky_list])
-# amp_incl_trues = len(np.ones_like(in_contour_amp_inclination_list)[in_contour_amp_inclination_list])
-# all_trues = len(np.ones_like(in_contour_list)[in_contour_list])
-
-# print('frequency and derivative inside', f_trues/len(in_contour_f_fd_list))
-# print('skylocation inside', sky_trues/len(in_contour_f_fd_list))
-# print('amplitude and inclination inside', amp_incl_trues/len(in_contour_f_fd_list))
-# print('all inside', all_trues/len(in_contour_f_fd_list))
-# pdf = fastKDE.pdf_at_points(normalize(df[parameter_x]),normalize(df[parameter_y]),list_of_points = [(0.5,0.5)], axes=[ax,ax])
+breakpoint()
