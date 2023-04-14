@@ -2,6 +2,7 @@ import numpy as np
 import os
 from os import listdir
 from os.path import isfile, join
+import pickle
 
 # get current directory
 path = os.getcwd()
@@ -22,13 +23,13 @@ folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/found_signals"
 # folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/found_signals_half_year_full"
 # folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/found_signals"
 # folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/optimized_signals"
-# folderpath_parent = grandparent+"/LDC/pictures/Sangria/found_signals"
+folderpath_parent = grandparent+"/LDC/pictures/Sangria/found_signals"
 # folderpath_parent = grandparent+"/LDC/pictures/Sangria/optimized"
-# folderpath_save = grandparent+"/LDC/pictures/Sangria"
-folderpath_save = grandparent+"/LDC/pictures/LDC1-4"
+folderpath_save = grandparent+"/LDC/pictures/Sangria"
+# folderpath_save = grandparent+"/LDC/pictures/LDC1-4"
 
-name = '_1_full'
-save_name = 'Radler' + name
+name = '_1_odd_dynamic_noise'
+save_name = 'Sangria' + name
 # save_name = 'Sangria' + name
 folderpath = folderpath_parent + name
 onlyfiles = [f for f in listdir(folderpath) if isfile(join(folderpath, f))]
@@ -36,7 +37,9 @@ found_sources_mp_even_unsorted = []
 frequencies = []
 for i in range(len(onlyfiles)):
     print(i)
-    sources = np.load(folderpath+'/'+onlyfiles[i], allow_pickle = True).tolist()
+
+    sources = pickle.load(open(folderpath+'/'+onlyfiles[i], 'rb'))
+    # sources = np.load(folderpath+'/'+onlyfiles[i], allow_pickle = True).tolist()
     frequency = 0
     for j in range(len(sources)):
         try:
