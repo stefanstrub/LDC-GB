@@ -28,7 +28,7 @@ folderpath_parent = grandparent+"/LDC/pictures/Sangria/found_signals"
 folderpath_save = grandparent+"/LDC/pictures/Sangria"
 # folderpath_save = grandparent+"/LDC/pictures/LDC1-4"
 
-name = '_1_odd_dynamic_noise'
+name = '_1_odd_dynamic_noise_SNR5'
 save_name = 'Sangria' + name
 # save_name = 'Sangria' + name
 folderpath = folderpath_parent + name
@@ -47,6 +47,7 @@ for i in range(len(onlyfiles)):
             frequency = sources[j][4][0]
             frequencies.append(frequency)
             found_sources_mp_even_unsorted.append(sources[j])
+
         except:
             pass
     # frequencies.append(frequency)

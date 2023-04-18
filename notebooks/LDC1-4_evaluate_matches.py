@@ -82,10 +82,12 @@ else:
 
 SAVEPATH_sangria = grandparent+"/LDC/pictures/Sangria/"
 save_name3 = 'Sangria_1_full_cut'
-save_name4 = 'LDC1-4_2_optimized_second'
-save_name3 = 'Radler_1_full'
+save_name1 = 'Sangria_1_odd_dynamic_noise_SNR5'
+save_name4 = 'Sangria_1_odd_dynamic_noise'
+# save_name4 = 'LDC1-4_2_optimized_second'
+# save_name3 = 'Radler_1_full'
 # save_name2 = 'Rxadler_1_full'
-save_name1 = 'LDC1-4_half_year'
+# save_name1 = 'LDC1-4_half_year'
 # save_name = 'LDC1-4_half_year'
 # save_name = 'Sangria_1_full_cut'
 
@@ -98,7 +100,7 @@ duration = '31457280'
 save_name2 = 'Montana2022_'+duration
 
 save_names = [save_name1, save_name2, save_name3, save_name4]
-SAVEPATHS = [SAVEPATH,SAVEPATH,SAVEPATH,SAVEPATH]
+SAVEPATHS = [SAVEPATH_sangria,SAVEPATH,SAVEPATH_sangria,SAVEPATH]
 
 Tobs = int(duration)
 
@@ -165,11 +167,17 @@ for i, save_name in enumerate([save_name1, save_name2, save_name3, save_name4]):
 # found_sources_matched_flat_df3, found_sources_not_matched_flat_df3, pGB_injected_matched_flat_df3, pGB_injected_not_matched_flat_df3, match_list3, pGB_best_list3, match_best_list3 = load_files(SAVEPATH, save_name3)
 # found_sources_matched_flat_df4, found_sources_not_matched_flat_df4, pGB_injected_matched_flat_df4, pGB_injected_not_matched_flat_df4, match_list4, pGB_best_list4, match_best_list4 = load_files(SAVEPATH, save_name4)
 
+i = 0
+SNR_threshold = 10
+mask_matched = found_sources_matched_list[i]['IntrinsicSNR'] > SNR_threshold
+mask_not_matched = found_sources_not_matched_list[i]['IntrinsicSNR'] > SNR_threshold
+print(len(found_sources_matched_list[i][mask_matched]))
+print(len(found_sources_not_matched_list[i][mask_not_matched]), len(found_sources_matched_list[i][mask_matched])/(len(found_sources_matched_list[i][mask_matched])+len(found_sources_not_matched_list[i][mask_not_matched])))
 
 #### plot SNR - frequency
 markersize = 3
 alpha = 0.5
-i = 3
+i = 0
 parameter_to_plot = 'IntrinsicSNR'
 fig = plt.figure()
 # plt.plot(pGB_injectced_flat_df['Frequency']*10**3,pGB_injected_flat_df['IntrinsicSNR'], '.', color= colors[0], label = 'Injected', markersize= markersize, alpha = alpha)
@@ -388,6 +396,7 @@ colors[3] = '#BB5500'
 
 linestyle = ['solid', 'solid', 'dashed', 'solid']
 # labels_plot = ['ETH 1 yr', 'MM 1 yr', 'ETH 0.5 yr', 'MM 0.5 yr']
+# labels_plot = ['LDC1 0.5 yr', 'LDC1 1 yr', 'LDC2 1 yr', 'LDC1 2 yr']
 labels_plot = ['LDC1 0.5 yr', 'LDC1 1 yr', 'LDC2 1 yr', 'LDC1 2 yr']
 custom_lines = [plt.Line2D([0], [0], color=colors[0], lw=2, linestyle=linestyle[0]),
                 plt.Line2D([0], [0], color=colors[1], lw=2, linestyle=linestyle[1]),

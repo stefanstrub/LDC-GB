@@ -1917,8 +1917,8 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search):
     return tdi_fs_subtracted2
 
 try:
-    # cat = np.load(DATAPATH+'cat_sorted_all.npy', allow_pickle = True)
-    cat = np.load(SAVEPATH+'/cat_sorted_v'+version+'.npy', allow_pickle = True)
+    cat = np.load(SAVEPATH+'cat_sorted.npy', allow_pickle = True)
+    # cat = np.load(SAVEPATH+'/cat_sorted_v'+version+'.npy', allow_pickle = True)
     print('cat sorted loaded')
 except:
     # get the source parameters
@@ -2017,6 +2017,7 @@ frequencies_odd = frequencies[1::2]
 start_index = np.searchsorted(np.asarray(frequencies_odd)[:,0], 0.0040489)-1
 
 save_name = 'Sangria_1_full_cut'
+save_name = 'Sangria_1_odd_dynamic_noise_SNR5'
 # save_name = 'Radler_1_full'
 # save_name = 'LDC1-4_2_optimized_second' ### ETH submission
 # save_name = 'Montana'
@@ -2197,27 +2198,27 @@ def SNR_match_amplitude_condsiered(pGB_injected, pGB_found):
 try:
     found_sources_in_flat = np.load(SAVEPATH+'found_sources' +save_name+'_flat.npy', allow_pickle = True)
 except:
-    found_sources_in_flat = np.load(SAVEPATH+'found_sources' +save_name+'.npy', allow_pickle = True)
-# found_sources_mp = np.load(SAVEPATH+'found_sources' +save_name+'.npy', allow_pickle = True)
+    # found_sources_in_flat = np.load(SAVEPATH+'found_sources' +save_name+'.npy', allow_pickle = True)
+    found_sources_mp = np.load(SAVEPATH+'found_sources' +save_name+'.npy', allow_pickle = True)
 
-# found_sources_mp_best = []
-# found_sources_mp_all = []
-# for i in range(len(found_sources_mp)):
-#     found_sources_mp_best.append(found_sources_mp[i][0])
-#     found_sources_in_window = []
-#     for j in range(len(found_sources_mp[i][1])):
-#         found_sources_in_window.append(found_sources_mp[i][1][j][0][0])
-#     found_sources_mp_all.append(found_sources_in_window)
+    found_sources_mp_best = []
+    found_sources_mp_all = []
+    for i in range(len(found_sources_mp)):
+        found_sources_mp_best.append(found_sources_mp[i][0])
+        found_sources_in_window = []
+        for j in range(len(found_sources_mp[i][1])):
+            found_sources_in_window.append(found_sources_mp[i][1][j][0][0])
+        found_sources_mp_all.append(found_sources_in_window)
 
-# found_sources_in_flat = []
-# number_of_found_flat = 0
-# for i in range(len(found_sources_mp)):
-#     for j in range(len(found_sources_mp[i][3])):
-#         found_sources_in_flat.append(found_sources_mp[i][3][j])
-#         number_of_found_flat += 1
-# found_sources_in_flat = np.asarray(found_sources_in_flat)
+    found_sources_in_flat = []
+    number_of_found_flat = 0
+    for i in range(len(found_sources_mp)):
+        for j in range(len(found_sources_mp[i][3])):
+            found_sources_in_flat.append(found_sources_mp[i][3][j])
+            number_of_found_flat += 1
+    found_sources_in_flat = np.asarray(found_sources_in_flat)
 
-# np.save(SAVEPATH+'found_sources' +save_name+'_flat.npy', np.asarray(found_sources_in_flat))
+    np.save(SAVEPATH+'found_sources' +save_name+'_flat.npy', np.asarray(found_sources_in_flat))
 
 found_sources_in_flat_frequency = []
 for i in range(len(found_sources_in_flat)):
@@ -2250,7 +2251,7 @@ for i in range(len(frequencies_search)):
 #     found_sources_in.append(found_sources_in_flat[lower_index:higher_index])
 
 new_dt = np.dtype(cat_sorted.dtype.descr + [('IntrinsicSNR','<f8')])
-cat_sorted_SNR = np.zeros(cat_sorted.shape, dtype=new_dt)
+cat_sorted_SNR = np.zeros(cat_sorted.shape, dtype=cat_sorted.dtype.descr + [('IntrinsicSNR','<f8')])
 for parameter in parameters:
     cat_sorted_SNR[parameter] = cat_sorted[parameter]
 cat_sorted = cat_sorted_SNR
@@ -2601,21 +2602,21 @@ found_sources_in_flat_array = {attribute: np.asarray([x[attribute] for x in foun
 found_sources_in_flat_df = pd.DataFrame(found_sources_in_flat_array)
 
 ##### save yaml file
-# import yaml
-# member = deepcopy(found_sources_in_flat)
-# for i in range(len(member)):
-#     for parameter in parameters:
-#         member[i][parameter] = str(member[i][parameter])
-#     member[i]['IntrinsicSNR'] = str(member[i]['IntrinsicSNR'])
-# data = {}
-# data["author"] = np.asarray(["Stefan Strub"])
-# data["e-mail"] = np.asarray(["stefan.strub@erdw.ethz.ch"])
-# data["date"] = np.asarray(["20.07.2022"])
-# data["challenge"] = np.asarray(["LDC1-4"])
-# data["dataset"] = np.asarray(["LDC1-4_GB_v2"])
-# data["esimates"] = member
-# with open(SAVEPATH+'/ETH_LDC1-4_4mHz.yaml', 'w') as file:
-#     documents = yaml.dump(member, file)
+import yaml
+member = deepcopy(found_sources_in_flat)
+for i in range(len(member)):
+    for parameter in parameters:
+        member[i][parameter] = str(member[i][parameter])
+    member[i]['IntrinsicSNR'] = str(member[i]['IntrinsicSNR'])
+data = {}
+data["author"] = np.asarray(["Stefan Strub"])
+data["e-mail"] = np.asarray(["stefan.strub@erdw.ethz.ch"])
+data["date"] = np.asarray(["20.07.2022"])
+data["challenge"] = np.asarray(["LDC1-4"])
+data["dataset"] = np.asarray(["LDC1-4_GB_v2"])
+data["esimates"] = member
+with open(SAVEPATH+save_name+'.yaml', 'w') as file:
+    documents = yaml.dump(member, file)
 
 # #### parallel
 # input = []
@@ -2690,7 +2691,7 @@ def match_function(found_sources_in, pGB_injected_not_matched, found_sources_not
 
 # 0.73, 0.39
 # 0.93, 0.81
-do_match_parallelized = False
+do_match_parallelized = True
 if do_match_parallelized:
     pGB_injected_matched = []
     found_sources_matched = []

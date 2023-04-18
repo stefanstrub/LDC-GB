@@ -1113,7 +1113,7 @@ class Search():
             maxpGB.append(scaletooriginal(pGB01,self.boundaries_reduced))
         print(res)
         print(maxpGB)
-        print('log-likelihood',self.loglikelihood(maxpGB))
+        # print('log-likelihood',self.loglikelihood(maxpGB))
         # print(pGB)
         return [maxpGB], res.nfev
 
@@ -1228,7 +1228,7 @@ class Search():
                     for parameter in parameters:
                         x.append(pGBs01[signal][parameter])
                 # print(loglikelihood(maxpGB))
-                res = scipy.optimize.minimize(self.function, x, args=boundaries_reduced, method='SLSQP', bounds=bounds, tol=1e-5, options= {'maxiter':100})
+                res = scipy.optimize.minimize(self.function, x, args=boundaries_reduced, method='SLSQP', bounds=bounds, tol=1e-5)#, options= {'maxiter':100})
                 # res = scipy.optimize.minimize(self.function, x, args=boundaries_reduced, method='Nelder-Mead', tol=1e-6)
                 # res = scipy.optimize.least_squares(self.function, x, args=boundaries_reduced, bounds=bounds)
                 for signal in range(number_of_signals_optimize):
@@ -1946,7 +1946,9 @@ class MLP_search():
     def search(self, lower_frequency, upper_frequency):
         found_sources = []
         tdi_fs_search = deepcopy(self.tdi_fs)
-
+        print('start search', lower_frequency, upper_frequency)
+        if lower_frequency > 10**-2:
+            self.signals_per_window = 3
         initial_guess = []
         if len(self.found_sources_previous) > 0:
             if do_subtract:
@@ -1986,11 +1988,15 @@ class MLP_search():
         number_of_evaluations_all = []
         found_sources_in = []
         current_SNR = 100
-        SNR_threshold = 7
+        SNR_threshold = 5
         loglikelihood_ratio_threshold = 50
         f_transfer = 19.1*10**-3
         # if lower_frequency > f_transfer:
         #     loglikelihood_ratio_threshold = 200
+        if lower_frequency > 10*10**-3:
+            SNR_threshold = 10
+        if lower_frequency > 15*10**-3:
+            SNR_threshold = 25
         # current_loglikelihood_ratio = 1000
         ind = 0
         while current_SNR > SNR_threshold and ind < self.signals_per_window:
@@ -2324,12 +2330,12 @@ frequencies_search = np.asarray(frequencies)
 # plt.savefig(SAVEPATH+'bandwidth.png')
 
 
-save_name = 'Sangria_even'
+save_name = 'Sangria_odd'
 # for i in range(65):
-frequencies_search = frequencies_even
+frequencies_search = frequencies_odd
 frequencies_search_full = deepcopy(frequencies_search)
 # batch_index = int(sys.argv[1])
-batch_index = 45
+batch_index = 2624
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00399)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00404)
@@ -2342,8 +2348,8 @@ batch_index = 45
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.01488)-1
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], cat[-1]['Frequency'])-5
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.0004)-1
-batch_size = 64
-start_index = batch_size*batch_index
+batch_size = int(64/64)
+start_index = int(batch_size*batch_index)
 print('batch',batch_index, start_index)
 frequencies_search = frequencies_search[start_index:start_index+batch_size]
 # frequencies_search = frequencies_search[int(6757/2):]
@@ -2519,7 +2525,7 @@ if do_subtract:
     # save_name_previous = 'found_sourcesSangria_odd'
     # save_name_previous = 'found_sourcesRadler_1_even3'
     # save_name_previous = 'found_sourcesRadler_1_odd'
-    save_name_previous = 'found_sourcesSangria_1_odd_dynamic_noise'
+    save_name_previous = 'found_sourcesSangria_1_even3_dynamic_noise'
     # save_name_previous = 'found_sources'+save_name
     found_sources_mp_subtract = np.load(SAVEPATH+save_name_previous+'.npy', allow_pickle = True)
 
@@ -2540,12 +2546,12 @@ if do_subtract:
     print('subtraction time', time.time()-start)
     plot_subtraction = False
     if plot_subtraction:
-        i = 1
+        i = 34
         lower_frequency = frequencies_search[i][0]
         upper_frequency = frequencies_search[i][1]
         search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
         # source = [{'Amplitude': 4.500916389929765e-20, 'EclipticLatitude': 0.8528320149942861, 'EclipticLongitude': -0.9418744765040503, 'Frequency': frequencies_search[i][0]+(frequencies_search[i][1]-frequencies_search[i][0])/2, 'FrequencyDerivative': 2.1688352300259018e-22, 'Inclination': 1.343872907043714, 'InitialPhase': 3.583816929574315, 'Polarization': 2.69557290704741}]
-        search1.plot(second_data= tdi_fs_subtracted, found_sources_in=found_sources_out_flat)
+        search1.plot(second_data= tdi_fs_subtracted, found_sources_in=found_sources_flat)
         # search1.plot(found_sources_in=source)
         # search1.plot(second_data= tdi_fs_subtracted, found_sources_in=found_sources_mp_o[start_index][0])
         
@@ -2710,6 +2716,7 @@ if do_search:
     found_sources_mp = pool.starmap(MLP.search, frequencies_search)
     pool.close()
     pool.join()
+    # found_sources_mp = [MLP.search(*frequencies_search[0])]
     print('time to search ', len(frequencies_search), 'windows: ', time.time()-start)
 
     fn = SAVEPATH+'found_signals/found_sources'+ str(int(np.round(search_range[0]*10**9)))+'nHz_to'+ str(int(np.round(search_range[1]*10**9)))+'nHz_' +save_name+'.pkl'
