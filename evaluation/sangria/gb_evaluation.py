@@ -88,7 +88,7 @@ class GBEval:
         """ Convert yml into a recarray
         """
         if self.team=="eth":
-            yml_solution = os.path.join(self.teamdir, "ETH-LDC2-sangria-training-v2-training-gb-cut.yaml")
+            yml_solution = os.path.join(self.teamdir, "ETH-LDC2-sangria-training-v2-training-gb-only-SNR5.yaml")
             if not os.path.exists(yml_solution):
                 download(yml_solution)
             csv_dir = os.path.join(self.teamdir, "Chain")
