@@ -17,12 +17,13 @@ entry = {'author': 'Stefan Strub',
          'e-mail': 'stefan.strub@erdw.ethz.ch',
          'date': '2022/11/2',           # standardize?
          'challenge': 'LDC2a',
-         'dataset': 'LDC2_sangria_training_v2'}
+         'dataset': 'LDC2_sangria_training_v2_mbhb_subtracted'}
 
 
 folderpath_parent = grandparent+"/LDC/pictures/Sangria/"
 folderpath_save = grandparent+"/LDC/pictures/Sangria/"
 name = 'found_sources_not_anticorrelatedSangria_1_full_cut'
+name = 'found_sources_not_anticorrelated30000to9261573Sangria_1_odd_dynamic_noise_SNR5'
 save_name = name
 folderpath = folderpath_parent + name
 
@@ -69,6 +70,6 @@ units = {
 entry['estimates'] = found_sources_flat
 entry['units'] = units
 
-open(folderpath_save+'ETH-LDC2-sangria-training-v2-training-gb-cut.yaml','w').write(yaml.dump(entry, default_flow_style=False))
+open(folderpath_save+'ETH-LDC2-sangria-training-v2-training-gb-only_SNR5.yaml','w').write(yaml.dump(entry, default_flow_style=False))
 
 print('end')

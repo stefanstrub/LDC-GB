@@ -2601,23 +2601,6 @@ found_sources_in_flat = np.concatenate(found_sources_in)
 found_sources_in_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_in_flat]) for attribute in found_sources_in_flat[0].keys()}
 found_sources_in_flat_df = pd.DataFrame(found_sources_in_flat_array)
 
-##### save yaml file
-import yaml
-member = deepcopy(found_sources_in_flat)
-for i in range(len(member)):
-    for parameter in parameters:
-        member[i][parameter] = str(member[i][parameter])
-    member[i]['IntrinsicSNR'] = str(member[i]['IntrinsicSNR'])
-data = {}
-data["author"] = np.asarray(["Stefan Strub"])
-data["e-mail"] = np.asarray(["stefan.strub@erdw.ethz.ch"])
-data["date"] = np.asarray(["20.07.2022"])
-data["challenge"] = np.asarray(["LDC1-4"])
-data["dataset"] = np.asarray(["LDC1-4_GB_v2"])
-data["esimates"] = member
-with open(SAVEPATH+save_name+'.yaml', 'w') as file:
-    documents = yaml.dump(member, file)
-
 # #### parallel
 # input = []
 # index = []
