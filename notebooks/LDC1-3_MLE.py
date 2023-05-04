@@ -16,6 +16,7 @@ import pandas as pd
 import os
 import h5py
 import sys
+import pickle
 sys.path.append('/cluster/home/sstrub/Repositories/LDC/lib/lib64/python3.8/site-packages/ldc-0.1-py3.8-linux-x86_64.egg')
 
 from ldc.lisa.noise import get_noise_model
@@ -347,9 +348,9 @@ class Search():
         self.upper_frequency = upper_frequency
         self.padding = (upper_frequency - lower_frequency)/2
         tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
-        f, psdX =  scipy.signal.welch(tdi_ts["X"], fs=1.0/dt, window='hanning', nperseg=len(tdi_ts["X"])/1)
-        f, psdY =  scipy.signal.welch(tdi_ts["Y"], fs=1.0/dt, window='hanning', nperseg=len(tdi_ts["X"])/1)
-        f, psdZ =  scipy.signal.welch(tdi_ts["Z"], fs=1.0/dt, window='hanning', nperseg=len(tdi_ts["X"])/1)
+        f, psdX =  scipy.signal.welch(tdi_ts["X"], fs=1.0/dt, nperseg=len(tdi_ts["X"])/1)
+        f, psdY =  scipy.signal.welch(tdi_ts["Y"], fs=1.0/dt, nperseg=len(tdi_ts["X"])/1)
+        f, psdZ =  scipy.signal.welch(tdi_ts["Z"], fs=1.0/dt, nperseg=len(tdi_ts["X"])/1)
         psd = psdX + psdY + psdZ
         indexes = np.logical_and(f>lower_frequency-self.padding, f<upper_frequency+self.padding)
         psd = psd[indexes]
@@ -1155,69 +1156,160 @@ class Search():
             print(step_size['Amplitude'],inner_product['Amplitude']['Amplitude'],step_size['Frequency'],inner_product['Frequency']['Frequency'])
         return inner_product
 
-
 class MLP_search():
-    def __init__(self,tdi_fs, Tobs, signals_per_window, number_of_searches_per_signal = 3, strategy = 'DE'):
+    def __init__(self,tdi_fs, Tobs, signals_per_window, found_sources_previous = [], strategy = 'DE'):
         self.tdi_fs = tdi_fs
         self.Tobs = Tobs
         self.signals_per_window = signals_per_window
         self.strategy = strategy
-        self.number_of_searches_per_signal = number_of_searches_per_signal
+        self.found_sources_previous = found_sources_previous
 
     def search(self, lower_frequency, upper_frequency):
         found_sources = []
         tdi_fs_search = deepcopy(self.tdi_fs)
+        print('start search', lower_frequency, upper_frequency)
+        start_search = time.time()
+        if lower_frequency > 10**-2:
+            self.signals_per_window = 3
+        initial_guess = []
+        if len(self.found_sources_previous) > 0:
+            if do_subtract:
+                padding_of_initial_guess_range = 0
+            else:
+                padding_of_initial_guess_range = (upper_frequency - lower_frequency)/2
+            found_sources_previous_in_range = self.found_sources_previous[self.found_sources_previous['Frequency'] > lower_frequency-padding_of_initial_guess_range]
+            found_sources_previous_in_range = found_sources_previous_in_range[found_sources_previous_in_range['Frequency'] < upper_frequency+padding_of_initial_guess_range]
+            indexesA = np.argsort(-found_sources_previous_in_range['Amplitude'])
+            pGB_stacked = {}
+            for parameter in parameters:
+                pGB_stacked[parameter] = found_sources_previous_in_range[parameter][indexesA]
+            for i in range(len(found_sources_previous_in_range['Amplitude'])):
+                pGBs = {}
+                for parameter in parameters:
+                    pGBs[parameter] = pGB_stacked[parameter][i]
+                initial_guess.append(pGBs)
+            
+            search1 = Search(tdi_fs_search,self.Tobs, lower_frequency, upper_frequency)
+            ### sort the initial guesses such that the highest loglikelihhod guess comes first
+            SNR_guesses = []
+            for i in range(len(initial_guess)):
+                SNR_guesses.append(search1.SNR([initial_guess[i]]))
+            indexes = np.argsort(SNR_guesses)[::-1]
+            initial_guess = [initial_guess[i] for i in indexes]
+        # indexes = np.argsort(p.get('Frequency'))
+        # index_low = np.searchsorted(p.get('Frequency')[indexes], lower_frequency)
+        # index_high = np.searchsorted(p.get('Frequency')[indexes], upper_frequency)
+        # pGB_injected = []
+        # for i in range(len(p.get('Amplitude')[indexes][index_low:index_high])):
+        #     pGBs = {}
+        #     for parameter in parameters:
+        #         pGBs[parameter] = p.get(parameter)[indexes][index_low:index_high][i]
+        #     pGB_injected.append(pGBs)
         # previous_found_sources = [{'Amplitude': 4.084935966774485e-22, 'EclipticLatitude': 0.8719934546490874, 'EclipticLongitude': 0.48611009683797857, 'Frequency': 0.003995221087430858, 'FrequencyDerivative': 1.0704703957490903e-16, 'Inclination': 1.0245091695238984, 'InitialPhase': 2.320136113624083, 'Polarization': 2.65883774239409}, {'Amplitude': 1.170377953453263e-22, 'EclipticLatitude': -1.1827019140449202, 'EclipticLongitude': -2.6708716710257203, 'Frequency': 0.003994619937260686, 'FrequencyDerivative': 9.604827167870394e-17, 'Inclination': 1.9399867466326164, 'InitialPhase': 2.468693959968005, 'Polarization': 2.5128702009090644}]
         found_sources_all = []
         number_of_evaluations_all = []
+        found_sources_in = []
         current_SNR = 100
+        SNR_threshold = 7
+        loglikelihood_ratio_threshold = 50
+        f_transfer = 19.1*10**-3
+        # if lower_frequency > f_transfer:
+        #     loglikelihood_ratio_threshold = 200
+        if lower_frequency > 10*10**-3:
+            SNR_threshold = 10
+        if lower_frequency > 15*10**-3:
+            SNR_threshold = 25
+        # current_loglikelihood_ratio = 1000
         ind = 0
-        SNR_threshold = 8
         while current_SNR > SNR_threshold and ind < self.signals_per_window:
+        # while current_loglikelihood_ratio > loglikelihood_ratio_threshold and ind < self.signals_per_window:
             ind += 1
             search1 = Search(tdi_fs_search,self.Tobs, lower_frequency, upper_frequency)
+            # search1.update_noise()
+            # N_frequency = 5
+            # F_stat, frequencies_F_stat, eclipticlatitude_F_stat, eclipticlongitude_F_stat =  search1.f_statistic(N_frequency,5)
+            # ind = np.unravel_index(np.argmax(F_stat, axis=None), F_stat.shape)
+            # if ind[0]>1:
+            #     lower_index = ind[0]-2
+            # else:
+            #     lower_index = ind[0]
+            # if ind[0]<N_frequency-2:
+            #     upper_index = ind[0]+2
+            # else:
+            #     upper_index = ind[0]
+            # print(frequencies_F_stat[ind[0]])
+            # search1.reduced_frequency_boundaries = [frequencies_F_stat[lower_index],frequencies_F_stat[upper_index]]
             start = time.time()
-            for i in range(self.number_of_searches_per_signal):
+
+            # print('SNR ',np.round(search1.SNR([search1.pGB])))
+            # print('SNR2', np.round(search1.loglikelihood([search1.pGB])))
+            # print('SNR2', np.round(search1.loglikelihoodsdf([search1.pGB])))
+            # print('SNR', np.round(search1.SNR([search1.pGB]),3))
+            # print('SNRflat', np.round(search1.loglikelihoodflat([search1.pGB])))
+            # search1.plot()#pGBadded=pGBadded5)
+            # print(pGBadded7["FrequencyDerivative"] * self.Tobs)
+            # print('smear f', 300*pGBadded7["Frequency"] * 10**3 / 10**9)
+            # print(search1.reduced_frequency_boundaries)
+            if ind <= len(initial_guess):
+                search_repetitions = 1
+            else:
+                search_repetitions = 1
+            for i in range(search_repetitions):
                 # if i > 0:
                 #     search1.recombination = 0.75
                 #     maxpGBsearch_new, energies =  search1.differential_evolution_search(search1.boundaries['Frequency'], initial_guess=maxpGBsearch[0])
                 # else:
                 if self.strategy == 'DE':
-                    maxpGBsearch_new, number_of_evaluations =  search1.differential_evolution_search(search1.boundaries['Frequency'])
+                    if ind <= len(initial_guess) and i == 0:
+                        maxpGBsearch_new, number_of_evaluations =  search1.differential_evolution_search(search1.boundaries['Frequency'], initial_guess = [initial_guess[ind-1]])
+                    else:
+                        maxpGBsearch_new, number_of_evaluations =  search1.differential_evolution_search(search1.boundaries['Frequency'])
                 if self.strategy == 'CD':
                     maxpGBsearch_new, number_of_evaluations =  search1.searchCD()
 
-                print('SNRm of found signal', np.round(search1.SNRm(maxpGBsearch_new[0]),3))
-                print('which signal per window', ind, i)
                 found_sources_all.append(maxpGBsearch_new)
                 number_of_evaluations_all.append(number_of_evaluations)
-                new_SNR = search1.SNRm(maxpGBsearch_new[0])[2]
+                new_SNR = search1.SNR(maxpGBsearch_new[0])
+                print('SNR of found signal', np.round(new_SNR,3))
+                print('which signal per window', ind,'and repetition:', i)
                 if i == 0:
                     current_SNR = deepcopy(new_SNR)
-                if new_SNR > current_SNR:
+                    maxpGBsearch = deepcopy(maxpGBsearch_new)
+                if new_SNR >= current_SNR:
                     current_SNR = deepcopy(new_SNR)
-                if current_SNR < SNR_threshold:
+                    maxpGBsearch = deepcopy(maxpGBsearch_new)
+                print('current SNR', np.round(current_SNR,3))
+                found_sources_all[-1] = maxpGBsearch_new
+                if current_SNR < SNR_threshold-2:
                     break
-                
-                try:
-                    for j in range(len(maxpGBsearch_new[0])):
-                        A_optimized = search1.calculate_Amplitude([maxpGBsearch_new[0][j]])
-                        maxpGBsearch_new[0][j]['Amplitude'] *= A_optimized.values
-                    print(maxpGBsearch_new[0][0]['Frequency'] > lower_frequency and maxpGBsearch_new[0][0]['Frequency'] < upper_frequency)
-                    new_SNR = search1.SNRm(maxpGBsearch_new[0])[2]
-                    if i == 0:
-                        maxpGBsearch = deepcopy(maxpGBsearch_new)
-                    if new_SNR > current_SNR:
-                        maxpGBsearch = deepcopy(maxpGBsearch_new)
-                    found_sources_all[-1] = maxpGBsearch_new
-                except:
-                    break
-                print('current SNR', current_SNR)
-                current_loglikelihood_ratio = search1.loglikelihood(maxpGBsearch[0])
-                print('current loglikelihood ratio', current_loglikelihood_ratio)
 
             if current_SNR < SNR_threshold:
                 break
+
+            print('to optimize Amplitude', maxpGBsearch[0])
+            for j in range(len(maxpGBsearch[0])):
+                A_optimized = search1.calculate_Amplitude([maxpGBsearch[0][j]])
+                # A_optimized.values = -1
+                if A_optimized.values > 0:
+                    maxpGBsearch[0][j]['Amplitude'] *= A_optimized.values
+                else:
+                    for i in range(30):
+                        print('pGB error!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+                    print('Amplitude optimization failed with parameters:', maxpGBsearch[0][j])
+                    print('switch to optimize with scipy minimize trust-constr')
+                    maxpGBsearch[0][j] = search1.optimizeA([[maxpGBsearch[0][j]]])[0]
+                    print('Optimized with parameters:', maxpGBsearch[0][j])
+                print('loglikelihood optimized amplitude',search1.loglikelihood([maxpGBsearch[0][j]]))
+            print('in range', maxpGBsearch[0][0]['Frequency'] > lower_frequency and maxpGBsearch[0][0]['Frequency'] < upper_frequency)
+            # new_SNR = search1.SNR(maxpGBsearch[0])
+
+            # current_loglikelihood_ratio = search1.loglikelihood(maxpGBsearch[0])
+            # print('current loglikelihood ratio', current_loglikelihood_ratio)
+            current_SNR = search1.SNR(maxpGBsearch[0])
+            print('current SNR ratio', current_SNR)
+
+
+
             maxpGB = []
             for j in range(signals_per_subtraction):
                 maxpGB.append(maxpGBsearch[j])
@@ -1225,6 +1317,7 @@ class MLP_search():
             for j in range(signals_per_subtraction):
                 for i in range(number_of_signals):
                     found_sources.append(maxpGB[j][i])
+
             # create two sets of found sources. found_sources_in with signals inside the boundary and founce_sources_out with outside sources
             found_sources_in = []
             found_sources_out = []
@@ -1235,32 +1328,43 @@ class MLP_search():
                     found_sources_out.append(found_sources[i])
 
             #global optimization
-            if len(found_sources_in) > 1:
-                if maxpGBsearch[0][0]['Frequency'] > lower_frequency and maxpGBsearch[0][0]['Frequency'] < upper_frequency:
-                    tdi_fs_subtracted = deepcopy(self.tdi_fs)
-                    for i in range(len(found_sources_out)):
-                        Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_out[i], oversample=4, simulator="synthlisa")
-                        source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
-                        index_low = np.searchsorted(tdi_fs_subtracted["X"].f, Xs_subtracted.f[0])
-                        index_high = index_low+len(Xs_subtracted)
-                        for k in ["X", "Y", "Z"]:
-                            tdi_fs_subtracted[k].data[index_low:index_high] = tdi_fs_subtracted[k].data[index_low:index_high] - source_subtracted[k].data
-                        tdi_ts_subtracted = xr.Dataset(dict([(k, tdi_fs_subtracted[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
+            if len(found_sources_in) > 0:
+                tdi_fs_subtracted = deepcopy(self.tdi_fs)
+                for i in range(len(found_sources_out)):
+                    Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_out[i], oversample=4, simulator="synthlisa")
+                    source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
+                    index_low = np.searchsorted(tdi_fs_subtracted["X"].f, Xs_subtracted.f[0])
+                    index_high = index_low+len(Xs_subtracted)
+                    for k in ["X", "Y", "Z"]:
+                        tdi_fs_subtracted[k].data[index_low:index_high] = tdi_fs_subtracted[k].data[index_low:index_high] - source_subtracted[k].data
 
-                    search_out_subtracted = Search(tdi_fs_subtracted,self.Tobs, lower_frequency, upper_frequency)
+                search_out_subtracted = Search(tdi_fs_subtracted,self.Tobs, lower_frequency, upper_frequency)
+                # search_out_subtracted.update_noise()
+                total_boundaries = deepcopy(search_out_subtracted.boundaries)
+                # amplitudes = []
+                # for i in range(len(found_sources_in)):
+                #     amplitudes.append(found_sources_in[i]['Amplitude'])
+                # total_boundaries['Amplitude'] = [np.min(amplitudes),np.max(amplitudes)]
+                # amplitudes_length = search1.boundaries['Amplitude'][1] - search1.boundaries['Amplitude'][0]
+                # total_boundaries['Amplitude'] = [np.log10(total_boundaries['Amplitude'][0]), np.log10(total_boundaries['Amplitude'][1])]
+                # total_boundaries['Amplitude'] = [total_boundaries['Amplitude'][0] - amplitudes_length/10,total_boundaries['Amplitude'][1] + amplitudes_length/10,]
+                
+                start = time.time()
+                found_sources_in_opt = search_out_subtracted.optimize([found_sources_in], boundaries= total_boundaries)
+                print('global optimization time', time.time()-start)
 
-                    total_boundaries = deepcopy(search1.boundaries)
-                    amplitudes = []
-                    for i in range(len(found_sources_in)):
-                        amplitudes.append(found_sources_in[i]['Amplitude'])
-                    total_boundaries['Amplitude'] = [np.min(amplitudes),np.max(amplitudes)]
-                    amplitudes_length = np.log10(total_boundaries['Amplitude'][1]) - np.log10(total_boundaries['Amplitude'][0])
-                    total_boundaries['Amplitude'] = [np.log10(total_boundaries['Amplitude'][0]) - amplitudes_length/5, np.log10(total_boundaries['Amplitude'][1]) + amplitudes_length/5]
+                #### after optimization a signal inside window could lay outside. Therefore new selection is required
+                if search_out_subtracted.loglikelihood(found_sources_in_opt) > search_out_subtracted.loglikelihood(found_sources_in):
+                    found_sources_in = []
+                    for i in range(len(found_sources_in_opt)):
+                        if found_sources_in_opt[i]['Frequency'] > lower_frequency and found_sources_in_opt[i]['Frequency'] < upper_frequency:
+                            found_sources_in.append(found_sources_in_opt[i])
+                        else:
+                            found_sources_out.append(found_sources_in_opt[i])
+                else:
+                    for i in range(30):
+                        print('optimization failed: ', 'new loglikelihood', search_out_subtracted.loglikelihood(found_sources_in_opt), 'old loglikelihood', search_out_subtracted.loglikelihood(found_sources_in))
 
-                    
-                    start = time.time()
-                    found_sources_in = search_out_subtracted.optimize([found_sources_in], boundaries= total_boundaries)
-                    print(time.time()-start)
 
             found_sources = found_sources_in + found_sources_out
 
@@ -1273,6 +1377,7 @@ class MLP_search():
                 index_high = index_low+len(Xs_subtracted)
                 for k in ["X", "Y", "Z"]:
                     tdi_fs_search[k].data[index_low:index_high] = tdi_fs_search[k].data[index_low:index_high] - source_subtracted[k].data
+        print('search time', time.time()-start_search, 'frequency', lower_frequency, upper_frequency)
         return found_sources, found_sources_all, number_of_evaluations_all, found_sources_in, [lower_frequency, upper_frequency]
 
 def frequency_derivative(f, Mc):
@@ -1287,16 +1392,6 @@ def frequency_derivative_tyson_lower(f):
     return -5*10**-6*f**(13/3)
 def frequency_derivative2(f, Mc_s):
     return 96/5*np.pi**(8/3)*Mc_s**(5/3)*(f)**(11/3)
-
-pGBadded20 = {}
-pGBadded20['Amplitude'] = 4.55e-23
-pGBadded20['EclipticLatitude'] = 0.2
-pGBadded20['EclipticLongitude'] = 1.5
-pGBadded20['Frequency'] = 0.00140457
-pGBadded20['FrequencyDerivative'] = 5*1e-18
-pGBadded20['Inclination'] = 1.2
-pGBadded20['InitialPhase'] = 3
-pGBadded20['Polarization'] = 2
 
 prop_cycle = plt.rcParams['axes.prop_cycle']
 colors = prop_cycle.by_key()['color']
@@ -1325,7 +1420,7 @@ parent = os.path.dirname(path)
 grandparent = os.path.dirname(parent)
 
 DATAPATH = grandparent+"/LDC/Radler/data"
-SAVEPATH = grandparent+"/LDC/pictures"
+SAVEPATH = grandparent+"/LDC/pictures/LDC1-4"
 
 # radler_fn = DATAPATH + "/dgb-tdi.h5"
 radler_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
@@ -1357,8 +1452,19 @@ tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt)) for 
 tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
 
+pGBadded20 = {}
+pGBadded20['Amplitude'] = 1e-21
+pGBadded20['EclipticLatitude'] = 0.2
+pGBadded20['EclipticLongitude'] = 1.5
+pGBadded20['Frequency'] = 0.0003
+pGBadded20['FrequencyDerivative'] = 5*1e-17
+pGBadded20['Inclination'] = 1.2
+pGBadded20['InitialPhase'] = 3
+pGBadded20['Polarization'] = 2
+
+do_subtract = False
 # add signal
-add_signal = False
+add_signal = True
 if add_signal:
     for pGBadding in [pGBadded20]: # faint
     # for pGBadding in [pGBadded11]:              # overlap single signal
@@ -1399,7 +1505,7 @@ while current_frequency < end_frequency:
 
 padding = 0.5e-6
 
-save_name = 'LDC1-3'
+save_name = 'LDC1-3_added_pulsar'
 indexes = np.argsort(cat['Frequency'])
 cat_sorted = cat[indexes]
 cat = cat_sorted
@@ -1416,8 +1522,8 @@ for i in range(len(target_frequencies)):
     frequencies.append([target_frequencies[i]-window_length/2+window_shift,target_frequencies[i]+window_length/2+window_shift])
 
 number_of_windows = len(frequencies)
-MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1, number_of_searches_per_signal=2, strategy = 'DE')
-# found_sources_mp = [MLP.search(frequencies[0][0], frequencies[0][1])]
+MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1, strategy = 'DE')
+found_sources_mp = [MLP.search(frequencies[0][0], frequencies[0][1])]
 # MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1, strategy = 'CD')
 # found_sources_mp = [MLP.search(frequencies[0][0], frequencies[0][1])]
 
@@ -1430,9 +1536,13 @@ MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 1, number_of_searches_per_si
 # pool.join()
 # print('time to search ', number_of_windows, 'windows: ', time.time()-start)
 # print(found_sources_mp)
+fn = SAVEPATH+'/found_signals/found_sources_' +save_name+'.pkl'
+pickle.dump(found_sources_mp, open(fn, "wb"))
+    
 # np.save(SAVEPATH+'/found_sources'+save_name+'.npy', found_sources_mp)
+# found_sources_mp = pickle.load(open(fn, 'rb'))
 
-found_sources_mp = np.load(SAVEPATH+'/found_sources'+save_name+'.npy', allow_pickle= True)
+# found_sources_mp = np.load(SAVEPATH+'/found_sources'+save_name+'.npy', allow_pickle= True)
 # found_sources_mp = np.load(SAVEPATH+'/found_sources'+save_name+'_test.npy', allow_pickle= True)
 
 found_sources_in = []
@@ -1445,6 +1555,8 @@ for i in range(len(found_sources_mp)):
             found_sources_in[i].append(found_sources_mp[i][0][j])
         else:
             found_sources_out[i].append(found_sources_mp[i][0][j])
+
+np.save(SAVEPATH+'/found_sources_'+save_name+'_in.npy', found_sources_in)
 
 found_sources_in_all = []
 number_of_evaluations = []
@@ -1479,7 +1591,7 @@ for i in range(len(pGB_injected)):
     print(i,'frequency',pGB_injected[i][0]['Frequency'],'error',search1.norm(pGB_injected= pGB_injected[i]))
 
 for i in range(len(pGB_injected)):
-    if i != 1:
+    if i != 0:
         continue
     # search1 = Search(tdi_fs,Tobs, frequencies[i][0], frequencies[i][1])
     search1 = Search(tdi_fs,Tobs, frequencies[i][0], frequencies[i][1])
@@ -1518,8 +1630,8 @@ print(df_search_results.to_latex(index=False))
 
 #plot strains
 for i in range(len(frequencies)):
-    # if i != 5:
-    #     continue
+    if i != 0:
+        continue
     print('plot')
     lower_frequency = frequencies[i][0]
     upper_frequency = frequencies[i][1]

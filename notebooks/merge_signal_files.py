@@ -10,36 +10,23 @@ path = os.getcwd()
 parent = os.path.dirname(path)
 # grandparent directory
 grandparent = os.path.dirname(parent)
-# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4s3"
-# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4uneven"
-# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4_4mHz_Euler"
-# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4_half_even"
-# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4_4mHz/Found_signals"
-# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/Found_signals"
 folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/found_signals"
-# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/Found_signals_half_year_even3_T"
-# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/Found_signals_half_year_odd_T"
-# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/found_signals_half_year_even10"
-# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/found_signals_half_year_full"
-# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/found_signals"
-# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/optimized_signals"
-folderpath_parent = grandparent+"/LDC/pictures/Sangria/found_signals"
-# folderpath_parent = grandparent+"/LDC/pictures/Sangria/optimized"
-folderpath_save = grandparent+"/LDC/pictures/Sangria"
-# folderpath_save = grandparent+"/LDC/pictures/LDC1-4"
+# folderpath_parent = grandparent+"/LDC/pictures/Sangria/found_signals"
+folderpath_save = grandparent+"/LDC/pictures/LDC1-4"
+# folderpath_save = grandparent+"/LDC/pictures/Sangria"
 
-name = '_1_odd_dynamic_noise_SNR5'
-save_name = 'Sangria' + name
+name = '_12m_even10_first'
+save_name = 'Radler' + name
 # save_name = 'Sangria' + name
 folderpath = folderpath_parent + name
 onlyfiles = [f for f in listdir(folderpath) if isfile(join(folderpath, f))]
 found_sources_mp_even_unsorted = []
 frequencies = []
 for i in range(len(onlyfiles)):
-    print(i)
-
-    sources = pickle.load(open(folderpath+'/'+onlyfiles[i], 'rb'))
-    # sources = np.load(folderpath+'/'+onlyfiles[i], allow_pickle = True).tolist()
+    try:
+        sources = pickle.load(open(folderpath+'/'+onlyfiles[i], 'rb'))
+    except:
+        sources = np.load(folderpath+'/'+onlyfiles[i], allow_pickle = True).tolist()
     frequency = 0
     for j in range(len(sources)):
         try:
@@ -57,4 +44,16 @@ found_sources_mp = []
 for i in range(len(sorted_indexes)):
     found_sources_mp.append(found_sources_mp_even_unsorted[sorted_indexes[i]])
 
-np.save(folderpath_save+'/found_sources' +save_name+'.npy', found_sources_mp)
+try:
+    time = 0
+    times = []
+    for i in range(len(found_sources_mp)):
+        times.append(found_sources_mp[i][5])
+    time = np.sum(times)
+    max_time = np.max(times)
+    print('time', np.round(time/3600,1), 'hours')
+    print('max time', np.round(max_time/60,1), 'minutes')
+except:
+    print('no time')
+
+np.save(folderpath_save+'/found_sources_' +save_name+'.npy', found_sources_mp)

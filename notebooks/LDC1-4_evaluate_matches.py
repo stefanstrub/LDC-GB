@@ -19,13 +19,10 @@ sys.path.append('/cluster/home/sstrub/Repositories/LDC/lib/lib64/python3.8/site-
 from astropy import units as u
 import astropy.coordinates as coord
 
-from ldc.lisa.noise import get_noise_model
-from ldc.common.series import TimeSeries, window
-import ldc.waveform.fastGB as fastGB
-from ldc.common.tools import compute_tdi_snr
 
 
 from Search import Search
+from sources2 import *
 
 
 # customized settings
@@ -81,13 +78,14 @@ else:
     SAVEPATH = grandparent+"/LDC/pictures/Sangria/"
 
 SAVEPATH_sangria = grandparent+"/LDC/pictures/Sangria/"
-save_name3 = 'Sangria_1_full_cut'
-save_name1 = 'Sangria_1_odd_dynamic_noise_SNR5'
-save_name4 = 'Sangria_1_odd_dynamic_noise'
-# save_name4 = 'LDC1-4_2_optimized_second'
-# save_name3 = 'Radler_1_full'
+save_name2 = 'Sangria_1year_dynamic_noise'
+save_name0 = 'Sangria_12m'
+save_name3 = 'Sangria_1_odd_dynamic_noise_SNR5'
+# save_name3 = 'LDC1-4_2_optimized_second'
+# save_name2 = 'Radler_1_full'
 # save_name2 = 'Rxadler_1_full'
-# save_name1 = 'LDC1-4_half_year'
+# save_name0 = 'LDC1-4_half_year'
+save_name2 = 'Radler_half_dynamic_noise'
 # save_name = 'LDC1-4_half_year'
 # save_name = 'Sangria_1_full_cut'
 
@@ -95,12 +93,12 @@ save_name4 = 'Sangria_1_odd_dynamic_noise'
 # duration = '7864320'
 duration = '15728640'
 # duration = '31457280'
-save_name4 = 'Montana2022_'+duration
+save_name3 = 'Montana2022_'+duration
 duration = '31457280'
-save_name2 = 'Montana2022_'+duration
+save_name1 = 'Montana2022_'+duration
 
-save_names = [save_name1, save_name2, save_name3, save_name4]
-SAVEPATHS = [SAVEPATH_sangria,SAVEPATH,SAVEPATH_sangria,SAVEPATH]
+save_names = [save_name0, save_name1, save_name2, save_name3]
+SAVEPATHS = [SAVEPATH_sangria,SAVEPATH,SAVEPATH,SAVEPATH]
 
 Tobs = int(duration)
 
@@ -153,7 +151,7 @@ pGB_injected_not_matched_list = []
 match_list = []
 pGB_best_list = []
 match_best_list = []
-for i, save_name in enumerate([save_name1, save_name2, save_name3, save_name4]):
+for i, save_name in enumerate(save_names):
     found_sources_matched_flat_df, found_sources_not_matched_flat_df, pGB_injected_matched_flat_df, pGB_injected_not_matched_flat_df, match, pGB_best, match_best = load_files(SAVEPATHS[i], save_name)
     found_sources_matched_list.append(found_sources_matched_flat_df)
     found_sources_not_matched_list.append(found_sources_not_matched_flat_df)
@@ -173,24 +171,27 @@ mask_matched = found_sources_matched_list[i]['IntrinsicSNR'] > SNR_threshold
 mask_not_matched = found_sources_not_matched_list[i]['IntrinsicSNR'] > SNR_threshold
 print(len(found_sources_matched_list[i][mask_matched]))
 print(len(found_sources_not_matched_list[i][mask_not_matched]), len(found_sources_matched_list[i][mask_matched])/(len(found_sources_matched_list[i][mask_matched])+len(found_sources_not_matched_list[i][mask_not_matched])))
+print(len(found_sources_matched_list[i]['Frequency'][found_sources_matched_list[i]['Frequency'] < 1.25*10**-3]))
+
 
 #### plot SNR - frequency
 markersize = 3
 alpha = 0.5
 i = 0
 parameter_to_plot = 'IntrinsicSNR'
+# parameter_to_plot = 'Amplitude'
 fig = plt.figure()
-# plt.plot(pGB_injectced_flat_df['Frequency']*10**3,pGB_injected_flat_df['IntrinsicSNR'], '.', color= colors[0], label = 'Injected', markersize= markersize, alpha = alpha)
-# plt.plot(pGB_injected_matched_flat_df['Frequency']*10**3,pGB_injected_matched_flat_df['IntrinsicSNR'], '.', color= colors[1], label = 'Injected matched', markersize= markersize, alpha = alpha)
-# plt.plot(pGB_injected_flat_df_high_SNR['Frequency']*10**3,pGB_injected_flat_df_high_SNR['IntrinsicSNR'],'.', color= colors[1], markersize= markersize, label = 'Injected SNR > 10', alpha = alpha)
-plt.plot(found_sources_matched_list[i]['Frequency']*10**3,found_sources_matched_list[i]['IntrinsicSNR'],'g.', label = 'Found matched', markersize= markersize, alpha = alpha, zorder = 5)
-plt.plot(pGB_injected_not_matched_list[i]['Frequency']*10**3,pGB_injected_not_matched_list[i]['IntrinsicSNR'], '+', color = 'r', label = 'Injected not matched', markersize= markersize, alpha = alpha)
-plt.plot(found_sources_not_matched_list[i]['Frequency']*10**3,found_sources_not_matched_list[i]['IntrinsicSNR'],'o',color= 'blue',  markerfacecolor='None', markersize= markersize, label = 'Found not matched', alpha = alpha)
+# plt.plot(pGB_injectced_flat_df['Frequency']*10**3,pGB_injected_flat_df[parameter_to_plot], '.', color= colors[0], label = 'Injected', markersize= markersize, alpha = alpha)
+# plt.plot(pGB_injected_matched_flat_df['Frequency']*10**3,pGB_injected_matched_flat_df[parameter_to_plot], '.', color= colors[1], label = 'Injected matched', markersize= markersize, alpha = alpha)
+# plt.plot(pGB_injected_flat_df_high_SNR['Frequency']*10**3,pGB_injected_flat_df_high_SNR[parameter_to_plot],'.', color= colors[1], markersize= markersize, label = 'Injected SNR > 10', alpha = alpha)
+plt.plot(found_sources_matched_list[i]['Frequency']*10**3,found_sources_matched_list[i][parameter_to_plot],'g.', label = 'Found matched', markersize= markersize, alpha = alpha, zorder = 5)
+plt.plot(pGB_injected_not_matched_list[i]['Frequency']*10**3,pGB_injected_not_matched_list[i][parameter_to_plot], '+', color = 'r', label = 'Injected not matched', markersize= markersize, alpha = alpha)
+plt.plot(found_sources_not_matched_list[i]['Frequency']*10**3,found_sources_not_matched_list[i][parameter_to_plot],'o',color= 'blue',  markerfacecolor='None', markersize= markersize, label = 'Found not matched', alpha = alpha)
 plt.yscale('log')
 plt.xscale('log')
 plt.xlabel('f (mHz)')
 plt.xlim(0.3,100)
-plt.ylim(0.1,2000)
+# plt.ylim(0.1,2000)
 if parameter_to_plot == 'IntrinsicSNR':
     plt.ylabel('Intrinsic SNR')
 else:
@@ -198,6 +199,9 @@ else:
 plt.legend(markerscale=4, loc = 'lower right')
 plt.savefig(SAVEPATH+'/Evaluation/'+parameter_to_plot+save_name+'injected_not_matched_found_matched_found_not_matched'+end_string,dpi=300,bbox_inches='tight')
 plt.show()
+
+
+
 
 def get_errors(pGB_injected_matched_flat_df, found_sources_matched_flat_df):
     error = {}

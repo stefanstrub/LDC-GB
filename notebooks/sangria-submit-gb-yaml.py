@@ -23,7 +23,7 @@ entry = {'author': 'Stefan Strub',
 folderpath_parent = grandparent+"/LDC/pictures/Sangria/"
 folderpath_save = grandparent+"/LDC/pictures/Sangria/"
 name = 'found_sources_not_anticorrelatedSangria_1_full_cut'
-name = 'found_sources_not_anticorrelated30000to9261573Sangria_1_odd_dynamic_noise'
+name = 'found_sources_not_anticorrelated30000to9261573Sangria_1_dynamic_noise'
 save_name = name
 folderpath = folderpath_parent + name
 
@@ -70,6 +70,6 @@ units = {
 entry['estimates'] = found_sources_flat
 entry['units'] = units
 
-open(folderpath_save+'ETH-LDC2-sangria-training-v2-training-gb-only.yaml','w').write(yaml.dump(entry, default_flow_style=False))
+open(folderpath_save+'ETH-LDC2-sangria-training-v2-training-gb-only-SNR7.yaml','w').write(yaml.dump(entry, default_flow_style=False))
 
 print('end')

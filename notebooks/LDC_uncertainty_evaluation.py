@@ -19,20 +19,6 @@ import itertools
 from KDEpy import FFTKDE
 
 
-from astropy import units as u
-import astropy.coordinates as coord
-
-
-from fastkde import fastKDE
-
-from ldc.lisa.noise import get_noise_model
-from ldc.common.series import TimeSeries, window
-import ldc.waveform.fastGB as fastGB
-from ldc.common.tools import compute_tdi_snr
-
-
-from Search import Search
-
 
 # customized settings
 plot_parameter = {  # 'backend': 'ps',
@@ -80,8 +66,9 @@ grandparent = os.path.dirname(parent)
 SAVEPATH = grandparent+"/LDC/pictures/LDC1-4/"
 SAVEPATH = grandparent+"/LDC/Radler/LDC1-4_evaluation/"
 SAVEPATH_sangria = grandparent+"/LDC/Sangria/evaluation/"
+SAVEPATH_sangria = grandparent+"/LDC/pictures/Sangria/"
 
-save_name3 = 'Sangria_1_full_cut'
+save_name3 = 'Sangria_1_dynamic_noise'
 save_name4 = 'LDC1-4_2_optimized_second'
 # save_name3 = 'Radler_1_full'
 save_name2 = 'Radler_1_full'
@@ -100,7 +87,7 @@ duration = '31457280'
 save_names = [save_name1, save_name2, save_name3, save_name4]
 SAVEPATHS = [SAVEPATH,SAVEPATH,SAVEPATH_sangria,SAVEPATH]
 
-chain_path = SAVEPATH_sangria + 'Chains_gpu_residual_full_fd/'
+chain_path = SAVEPATH_sangria + 'Chains_gpu_data_noise_smooth/'
 
 Tobs = int(duration)
 
@@ -182,15 +169,15 @@ def check_if_in_confidence_region_1D_kde(parameter_x):
     x, pdf = FFTKDE(bw=0.1, kernel='gaussian').fit(np.array(normalize(df[parameter_x], min_x, max_x)), weights=None).evaluate(2**8)
 
     hist_indexes_sorted = np.unravel_index(np.argsort(-pdf, axis=None), pdf.shape)
-    pdf_sorted = pdf[hist_indexes_sorted]
+    pdf_sorted = pdf[hist_indexes_sorted]*(x[1]-x[0])
 
-    plt.figure()
-    plt.plot(x, pdf); plt.tight_layout()
-    plt.show()
+    # plt.figure()
+    # plt.plot(x, pdf); plt.tight_layout()
+    # plt.show()
 
-    plt.figure()
-    plt.hist(df[parameter_x].values)
-    plt.show()
+    # plt.figure()
+    # plt.hist(df[parameter_x].values)
+    # plt.show()
 
     sum = 0
     for i in range(len(pdf_sorted)):
@@ -203,7 +190,7 @@ def check_if_in_confidence_region_1D_kde(parameter_x):
     for i in range(largest_index_in_contour):
         contour[hist_indexes_sorted[0][i]] = 1
     true_parameter = pGB_injected_matched_list[2][parameter_x][index_of_signal]
-    index_true = np.searchsorted(x, true_parameter)
+    index_true = np.searchsorted(x, normalize(true_parameter, min_x, max_x))
 
     if index_true > len(pdf)-1:
         index_true -= 1
@@ -424,7 +411,7 @@ for parameter_x in parameters:
 for parameter in parameters:
     in_contour[parameter] = []
 
-confidence_threshold = 0.95
+confidence_threshold = 0.4
 
 index = 6
 for index in range(len(onlyfiles)):
@@ -442,9 +429,10 @@ for index in range(len(onlyfiles)):
     if index % int(len(onlyfiles)/10) == 0:
         print(np.round(index/len(onlyfiles),2))
     # print('frequency'+str(int(np.round(found_sources_matched_list[2]['Frequency'][index_of_signal]*10**9)))+'Sangria_1_full_cut.csv')
-
-    df = pd.read_csv(chain_path+'frequency'+str(int(np.round(found_sources_matched_list[2]['Frequency'][index_of_signal]*10**9)))+'nHzSangria_1_full_cut.csv')
-
+    try:
+        df = pd.read_csv(chain_path+'frequency'+str(int(np.round(found_sources_matched_list[2]['Frequency'][index_of_signal]*10**9)))+'nHzSangria_1year_dynamic_noise.csv')
+    except:
+        pass
     injected_parameters = pGB_injected_matched_list[2]
     if injected_parameters['EclipticLongitude'][index_of_signal] > np.pi:
         injected_parameters.loc[index_of_signal, 'EclipticLongitude'] -= 2*np.pi
@@ -457,8 +445,8 @@ for index in range(len(onlyfiles)):
     #     in_contour[parameter_x,parameter_y].append(check_if_in_confidence_region_2D(parameter_x, parameter_y))
     # for parameter_x in parameters:
     #     in_contour[parameter_x,parameter_x].append(check_if_in_confidence_region(parameter_x, parameter_x))
-    # for parameter in parameters:
-    #     in_contour[parameter].append(check_if_in_confidence_region_1D_kde(parameter))
+    for parameter in parameters:
+        in_contour[parameter].append(check_if_in_confidence_region_1D_kde(parameter))
     # parameter_x = 'Frequency'
     # parameter_y = 'FrequencyDerivative'
     # in_contour[parameter_x,parameter_y].append(check_if_in_confidence_region(parameter_x, parameter_y))
@@ -477,13 +465,13 @@ for index in range(len(onlyfiles)):
     # else:
     #     in_contour_list.append(False)
 
+print('confidence region', confidence_threshold)
 for parameter_x, parameter_y in itertools.combinations(parameters, 2):
-    print(parameter_x, parameter_y, len(np.ones_like(in_contour[parameter_x,parameter_y])[in_contour[parameter_x,parameter_y]])/len(in_contour[parameter_x,parameter_y]))
+    print(parameter_x, parameter_y, int(np.round(len(np.ones_like(in_contour[parameter_x,parameter_y])[in_contour[parameter_x,parameter_y]])/len(in_contour[parameter_x,parameter_y])*100)), '%')
 
 for parameter_x in parameters:
     # print(parameter_x, parameter_x, len(np.ones_like(in_contour[parameter_x,parameter_x])[in_contour[parameter_x,parameter_x]])/len(in_contour[parameter_x,parameter_x]))
-
-    print(parameter_x, len(np.ones_like(in_contour[parameter_x])[in_contour[parameter_x]])/len(in_contour[parameter_x]))
+    print(parameter_x, int(np.round(len(np.ones_like(in_contour[parameter_x])[in_contour[parameter_x]])/len(in_contour[parameter_x])*100)), '%')
 
 # f_trues = len(np.ones_like(in_contour_f_fd_list)[in_contour_f_fd_list])
 # sky_trues = len(np.ones_like(in_contour_sky_list)[in_contour_sky_list])
