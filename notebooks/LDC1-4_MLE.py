@@ -229,12 +229,13 @@ class MLP_search():
                     pGBs[parameter] = pGB_stacked[parameter][i]
                 initial_guess.append(pGBs)
             
-            ### sort the initial guesses such that the highest loglikelihhod guess comes first
+            ### sort the initial guesses such that the highest SNR guess comes first
             SNR_guesses = []
             for i in range(len(initial_guess)):
                 SNR_guesses.append(search1.SNR([initial_guess[i]]))
             indexes = np.argsort(SNR_guesses)[::-1]
             initial_guess = [initial_guess[i] for i in indexes]
+
         # indexes = np.argsort(p.get('Frequency'))
         # index_low = np.searchsorted(p.get('Frequency')[indexes], lower_frequency)
         # index_high = np.searchsorted(p.get('Frequency')[indexes], upper_frequency)
@@ -603,22 +604,22 @@ search_range = [frequencies_search[0][0],frequencies_search[-1][1]]
 # search_range = [1619472*10**-8,2689639*10**-8]
 print('search range '+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))))
 
-save_name_previous = 'found_sources_Radler_12m_even10_first'
-found_sources_mp_subtract = np.load(SAVEPATH+save_name_previous+'.npy', allow_pickle = True)
-frequencies_search_reduced = []
-for i in range(len(found_sources_mp_subtract)):
-    if i in range(start_index,start_index+batch_size):
-        print(i)
-        if len(found_sources_mp_subtract[i][0]) > 3:
-            frequencies_search_reduced.append(frequencies_search_full[i])
+# save_name_previous = 'found_sources_Radler_12m_even10_first'
+# found_sources_mp_subtract = np.load(SAVEPATH+save_name_previous+'.npy', allow_pickle = True)
+# frequencies_search_reduced = []
+# for i in range(len(found_sources_mp_subtract)):
+#     if i in range(start_index,start_index+batch_size):
+#         if len(found_sources_mp_subtract[i][0]) > 3:
+#             frequencies_search_reduced.append(frequencies_search_full[i])
+# frequencies_search = frequencies_search_reduced
 
-do_subtract = False
+do_subtract = True
 if do_subtract:
     start = time.time()
     # save_name_previous = 'found_sourcesRadler_half_odd_dynamic_noise'
     # Sangria
     # save_name_previous = 'found_sources_Sangria_12m_even3'
-    save_name_previous = 'found_sources_Radler_12m_even10_first'
+    save_name_previous = 'found_sources_Radler_12m_odd'
     # save_name_previous = 'found_sources_Radler_half_odd_dynamic_noise'
     # save_name_previous = 'found_sources_Sangria_1_odd_dynamic_noise'
     # save_name_previous = 'found_sourcesSangria_half_odd'
@@ -648,20 +649,19 @@ if do_subtract:
     print('subtraction time', time.time()-start)
     plot_subtraction = False
     if plot_subtraction:
-        i = 8
-        # lower_frequency = frequencies_search[i][0]
-        # upper_frequency = frequencies_search[i][1]
-        lower_frequency = frequencies_search[i][1]
-        upper_frequency = frequencies_search[i+1][0]
-        found_sources_neighbor = found_sources_flat[(found_sources_flat_df['Frequency']> frequencies_search[i-1][0]) & (found_sources_flat_df['Frequency']< frequencies_search[i+1][1])]
+        i = 6
+        # lower_frequency = frequencies_search_full[start_index+i][0]
+        # upper_frequency = frequencies_search_full[start_index+i][1]
+        lower_frequency = frequencies_search_full[start_index+i][1]
+        upper_frequency = frequencies_search_full[start_index+i+1][0]
+        found_sources_neighbor = found_sources_flat[(found_sources_flat_df['Frequency']> frequencies_search_full[start_index+i-1][0]) & (found_sources_flat_df['Frequency']< frequencies_search_full[start_index+i+1][1])]
         search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
         search1.plot(second_data= tdi_fs_subtracted, found_sources_in=found_sources_neighbor)
         # search1.plot()
         
     tdi_fs = deepcopy(tdi_fs_subtracted)
 
-
-do_not_search_unchanged_even_windows = False
+do_not_search_unchanged_even_windows = True
 if do_not_search_unchanged_even_windows:
     frequencies_search_reduced = []
 
@@ -673,10 +673,8 @@ if do_not_search_unchanged_even_windows:
             found_sources_flat.append(found_sources_mp_previous[j][3][k])
     found_sources_flat = np.asarray(found_sources_flat)
     found_sources_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_flat]) for attribute in found_sources_flat[0].keys()}
-
+    found_sources_flat_df = pd.DataFrame(found_sources_flat_array)
     for i in range(len(frequencies_search)):
-        found_sources_flat_df = pd.DataFrame(found_sources_flat_array)
-        found_sources_flat_df = found_sources_flat_df[(found_sources_flat_df['Frequency']> frequencies_search[i][0]) & (found_sources_flat_df['Frequency']< frequencies_search[i][1])]
         try:
             found_sources_out_lower = found_sources_out_flat_df[(found_sources_out_flat_df['Frequency']> frequencies_search[i-1][1]) & (found_sources_out_flat_df['Frequency']< frequencies_search[i][0])]
         except:
@@ -688,7 +686,8 @@ if do_not_search_unchanged_even_windows:
         if not(len(found_sources_out_lower) == 0 and len(found_sources_out_upper) == 0):
             frequencies_search_reduced.append(frequencies_search[i])
         else:
-            if len(found_sources_flat_df) > 2:
+            found_sources_in_flat_df = found_sources_flat_df[(found_sources_flat_df['Frequency']> frequencies_search[i][0]) & (found_sources_flat_df['Frequency']< frequencies_search[i][1])]
+            if len(found_sources_in_flat_df) > 2:
                 frequencies_search_reduced.append(frequencies_search[i])
     frequencies_search = frequencies_search_reduced
 
@@ -743,7 +742,7 @@ if use_initial_guess:
 
 do_search = True
 if do_search:
-    MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 3, found_sources_previous = found_sources_sorted, strategy = 'DE')
+    MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 10, found_sources_previous = found_sources_sorted, strategy = 'DE')
     start = time.time()
 
     # cpu_cores = 16
