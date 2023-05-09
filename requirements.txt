@@ -10,3 +10,4 @@ xarray==0.15.0
 lisaconstants
 lisaorbits>=2.1
 h5netcdf
+lisa-data-challenge

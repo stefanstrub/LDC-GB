@@ -17,7 +17,7 @@ sys.path.append('/cluster/home/sstrub/Repositories/LDC/lib/lib64/python3.8/site-
 
 
 from ldc.lisa.noise import get_noise_model
-from ldc.common.series import TimeSeries, window
+from ldc.common.series import TimeSeries
 import ldc.waveform.fastGB as fastGB
 from ldc.common.tools import compute_tdi_snr
 
