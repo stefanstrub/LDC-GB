@@ -376,7 +376,7 @@ def moving_average(a, n=3) :
     return ret[n - 1:] / n
 
 class Search():
-    def __init__(self,tdi_fs,Tobs, lower_frequency, upper_frequency, noise_model =  "SciRDv1", recombination=0.75, dt=None,
+    def __init__(self,tdi_fs,Tobs, lower_frequency, upper_frequency, noise_model =  "SciRDv1", recombination=0.75, dt=None, update_noise=True,
     parameters = [
     "Amplitude",
     "EclipticLatitude",
@@ -451,7 +451,8 @@ class Search():
         self.SE = Nmodel.psd(freq=freq, option="E")
         self.ST = Nmodel.psd(freq=freq, option="T")
         self.SE_theory = Nmodel.psd(freq=freq, option="E")
-        self.update_noise()
+        if update_noise:
+            self.update_noise()
 
         f_0 = fmin
         f_transfer = 19.1*10**-3

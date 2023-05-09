@@ -85,7 +85,8 @@ save_name3 = 'Sangria_1_odd_dynamic_noise_SNR5'
 # save_name2 = 'Radler_1_full'
 # save_name2 = 'Rxadler_1_full'
 # save_name0 = 'LDC1-4_half_year'
-save_name2 = 'Radler_half_dynamic_noise'
+save_name2 = 'Radler_12m'
+save_name1 = 'Radler_24m'
 # save_name = 'LDC1-4_half_year'
 # save_name = 'Sangria_1_full_cut'
 
@@ -95,7 +96,7 @@ duration = '15728640'
 # duration = '31457280'
 save_name3 = 'Montana2022_'+duration
 duration = '31457280'
-save_name1 = 'Montana2022_'+duration
+# save_name1 = 'Montana2022_'+duration
 
 save_names = [save_name0, save_name1, save_name2, save_name3]
 SAVEPATHS = [SAVEPATH_sangria,SAVEPATH,SAVEPATH,SAVEPATH]
@@ -177,7 +178,7 @@ print(len(found_sources_matched_list[i]['Frequency'][found_sources_matched_list[
 #### plot SNR - frequency
 markersize = 3
 alpha = 0.5
-i = 0
+i = 2
 parameter_to_plot = 'IntrinsicSNR'
 # parameter_to_plot = 'Amplitude'
 fig = plt.figure()

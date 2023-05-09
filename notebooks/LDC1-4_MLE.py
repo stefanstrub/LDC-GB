@@ -15,6 +15,7 @@ import sys
 import pickle
 sys.path.append('/cluster/home/sstrub/Repositories/LDC/lib/lib64/python3.8/site-packages/ldc-0.1-py3.8-linux-x86_64.egg')
 
+
 from ldc.lisa.noise import get_noise_model
 from ldc.common.series import TimeSeries, window
 import ldc.waveform.fastGB as fastGB
@@ -91,7 +92,7 @@ else:
     sangria_fn = DATAPATH + "/LDC2_sangria_training_v2.h5"
 fid = h5py.File(sangria_fn)
 
-reduction = 2
+reduction = 1
 
 # get TDI 
 if Radler:
@@ -569,8 +570,8 @@ frequencies_odd = frequencies[1::2]
 # plt.savefig(SAVEPATH+'bandwidth.png')
 
 
-# save_name = 'Sangria_12m_odd'
-save_name = 'Radler_12m_even3'
+# save_name = 'Sangria_12m_even'
+save_name = 'Radler_24m_even'
 # for i in range(65):
 frequencies_search = frequencies_even
 frequencies_search_full = deepcopy(frequencies_search)
@@ -619,7 +620,7 @@ if do_subtract:
     # save_name_previous = 'found_sourcesRadler_half_odd_dynamic_noise'
     # Sangria
     # save_name_previous = 'found_sources_Sangria_12m_even3'
-    save_name_previous = 'found_sources_Radler_12m_odd'
+    save_name_previous = 'found_sources_Radler_24m_odd'
     # save_name_previous = 'found_sources_Radler_half_odd_dynamic_noise'
     # save_name_previous = 'found_sources_Sangria_1_odd_dynamic_noise'
     # save_name_previous = 'found_sourcesSangria_half_odd'
@@ -649,12 +650,12 @@ if do_subtract:
     print('subtraction time', time.time()-start)
     plot_subtraction = False
     if plot_subtraction:
-        i = 6
+        i = start_index+9
         # lower_frequency = frequencies_search_full[start_index+i][0]
         # upper_frequency = frequencies_search_full[start_index+i][1]
-        lower_frequency = frequencies_search_full[start_index+i][1]
-        upper_frequency = frequencies_search_full[start_index+i+1][0]
-        found_sources_neighbor = found_sources_flat[(found_sources_flat_df['Frequency']> frequencies_search_full[start_index+i-1][0]) & (found_sources_flat_df['Frequency']< frequencies_search_full[start_index+i+1][1])]
+        lower_frequency = frequencies_search_full[i][1]
+        upper_frequency = frequencies_search_full[i+1][0]
+        found_sources_neighbor = found_sources_flat[(found_sources_flat_df['Frequency']> frequencies_search_full[i-1][0]) & (found_sources_flat_df['Frequency']< frequencies_search_full[i+1][1])]
         search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
         search1.plot(second_data= tdi_fs_subtracted, found_sources_in=found_sources_neighbor)
         # search1.plot()
@@ -665,7 +666,8 @@ do_not_search_unchanged_even_windows = True
 if do_not_search_unchanged_even_windows:
     frequencies_search_reduced = []
 
-    save_name_previous = 'found_sources_Sangria_12m_even3'
+    # save_name_previous = 'found_sources_Sangria_12m_even3'
+    save_name_previous = 'found_sources_Radler_24m_even3'
     found_sources_mp_previous = np.load(SAVEPATH+save_name_previous+'.npy', allow_pickle = True)
     found_sources_flat = []
     for j in range(len(found_sources_mp_previous)):
@@ -675,6 +677,8 @@ if do_not_search_unchanged_even_windows:
     found_sources_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_flat]) for attribute in found_sources_flat[0].keys()}
     found_sources_flat_df = pd.DataFrame(found_sources_flat_array)
     for i in range(len(frequencies_search)):
+        found_sources_out_lower = []
+        found_sources_out_upper = []
         try:
             found_sources_out_lower = found_sources_out_flat_df[(found_sources_out_flat_df['Frequency']> frequencies_search[i-1][1]) & (found_sources_out_flat_df['Frequency']< frequencies_search[i][0])]
         except:
@@ -698,7 +702,7 @@ if use_initial_guess:
     # save_name_found_sources_previous = 'found_sources397919to400770LDC1-4_4mHz_half_year_odd'
     # save_name_found_sources_previous = 'found_sources2537595to3305084LDC1-4_4mHz_half_year_even'
     # save_name_found_sources_previous = 'found_sourcesLDC1-4_half_even10'
-    save_name_found_sources_previous = 'found_sources_Radler_6m'
+    save_name_found_sources_previous = 'found_sources_Radler_12m'
     # save_name_found_sources_previous = 'found_sourcesLDC1-4_half_odd'
     found_sources_mp_subtract = np.load(SAVEPATH+save_name_found_sources_previous+'.npy', allow_pickle = True)
 
