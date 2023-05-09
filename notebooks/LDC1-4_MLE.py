@@ -139,7 +139,7 @@ else:
         td[k] = td[k] - td_mbhb[k]
 
 # Build timeseries and frequencyseries object for X,Y,Z
-tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
+tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt, t0=0)) for k in ["X", "Y", "Z"]])
 tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
 
@@ -161,7 +161,7 @@ if add_signal:
         cat = np.hstack((cat,cat[0]))
         for parameter in parameters:
             cat[-1][parameter] = pGBadding[parameter]
-        Xs_added, Ys_added, Zs_added = GB.get_fd_tdixyz(template=pGBadding, oversample=4, simulator="synthlisa")
+        Xs_added, Ys_added, Zs_added = GB.get_fd_tdixyz(template=pGBadding, oversample=4)
         source_added = dict({"X": Xs_added, "Y": Ys_added, "Z": Zs_added})
         index_low = np.searchsorted(tdi_fs["X"].f, Xs_added.f[0])
         index_high = index_low+len(Xs_added)
@@ -376,7 +376,7 @@ class MLP_search():
             if len(found_sources_in) > 0:
                 tdi_fs_subtracted = deepcopy(self.tdi_fs)
                 for i in range(len(found_sources_out)):
-                    Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_out[i], oversample=4, simulator="synthlisa")
+                    Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_out[i], oversample=4)
                     source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
                     index_low = np.searchsorted(tdi_fs_subtracted["X"].f, Xs_subtracted.f[0])
                     index_high = index_low+len(Xs_subtracted)
@@ -415,7 +415,7 @@ class MLP_search():
             #subtract the found sources from original
             tdi_fs_search = deepcopy(self.tdi_fs)
             for i in range(len(found_sources)):
-                Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources[i], oversample=4, simulator="synthlisa")
+                Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources[i], oversample=4)
                 source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
                 index_low = np.searchsorted(tdi_fs_search["X"].f, Xs_subtracted.f[0])
                 index_high = index_low+len(Xs_subtracted)
@@ -483,7 +483,7 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search):
     tdi_fs_subtracted2 = deepcopy(tdi_fs)
     for i in range(len(found_sources_mp_subtract)):
         # for j in range(len(found_sources_to_subtract[i])):
-            Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_mp_subtract[i], oversample=4, simulator="synthlisa")
+            Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_mp_subtract[i], oversample=4)
             source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
             index_low = np.searchsorted(tdi_fs_subtracted2["X"].f, Xs_subtracted.f[0])
             index_high = index_low+len(Xs_subtracted)
@@ -575,8 +575,8 @@ save_name = 'Radler_24m_even'
 # for i in range(65):
 frequencies_search = frequencies_even
 frequencies_search_full = deepcopy(frequencies_search)
-batch_index = int(sys.argv[1])
-# batch_index = int(150)
+# batch_index = int(sys.argv[1])
+batch_index = int(150)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00399)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00404)
@@ -835,8 +835,8 @@ if final_optimization:
 # print(search1.SNR(found_sources_mp[i][0]))
 
 def SNR_match(pGB_injected, pGB_found):
-    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4, simulator="synthlisa")
-    Xs_injected, Ys_injected, Zs_injected = GB.get_fd_tdixyz(template=pGB_injected, oversample=4, simulator="synthlisa")
+    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4)
+    Xs_injected, Ys_injected, Zs_injected = GB.get_fd_tdixyz(template=pGB_injected, oversample=4)
     Xs_aligned = xr.align(Xs_injected, Xs, join='left',fill_value=0)[1]
     Ys_aligned = xr.align(Ys_injected, Ys, join='left',fill_value=0)[1]
     Zs_aligned = xr.align(Zs_injected, Zs, join='left',fill_value=0)[1]
@@ -869,8 +869,8 @@ def SNR_match(pGB_injected, pGB_found):
     return SNR3.values
 
 def SNR_match_XYZ(pGB_injected, pGB_found):
-    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4, simulator="synthlisa")
-    Xs_injected, Ys_injected, Zs_injected = GB.get_fd_tdixyz(template=pGB_injected, oversample=4, simulator="synthlisa")
+    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4)
+    Xs_injected, Ys_injected, Zs_injected = GB.get_fd_tdixyz(template=pGB_injected, oversample=4)
     Xs_aligned = xr.align(Xs_injected, Xs, join='left',fill_value=0)[1]
     Ys_aligned = xr.align(Ys_injected, Ys, join='left',fill_value=0)[1]
     Zs_aligned = xr.align(Zs_injected, Zs, join='left',fill_value=0)[1]
@@ -983,7 +983,7 @@ if do_print:
         #global optimization
         tdi_fs_subtracted = deepcopy(tdi_fs)
         for j in range(len(found_sources_out[i])):
-            Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_out[i][j], oversample=4, simulator="synthlisa")
+            Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_out[i][j], oversample=4)
             source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
             index_low = np.searchsorted(tdi_fs_subtracted["X"].f, Xs_subtracted.f[0])
             index_high = index_low+len(Xs_subtracted)
@@ -1292,7 +1292,7 @@ if do_print:
             #subtract the found sources from original
             tdi_fs_subtracted = deepcopy(tdi_fs)
             for n in range(len( pGB_injected[i][:j])):
-                Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=pGB_injected[i][n], oversample=4, simulator="synthlisa")
+                Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=pGB_injected[i][n], oversample=4)
                 source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
                 index_low = np.searchsorted(tdi_fs_subtracted["X"].f, Xs_subtracted.f[0])
                 index_high = index_low+len(Xs_subtracted)
@@ -1305,7 +1305,7 @@ if do_print:
             #subtract the found sources from original
             tdi_fs_subtracted = deepcopy(tdi_fs)
             for n in range(len( found_sources_in[i][:j])):
-                Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_in[i][n], oversample=4, simulator="synthlisa")
+                Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_in[i][n], oversample=4)
                 source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
                 index_low = np.searchsorted(tdi_fs_subtracted["X"].f, Xs_subtracted.f[0])
                 index_high = index_low+len(Xs_subtracted)
@@ -1354,7 +1354,7 @@ if do_print:
 #     tdi_fs_subtracted = deepcopy(tdi_fs)
 #     for i in range(len(found_sources_in)):
 #         for j in range(len(found_sources_in[i])):
-#             Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_in[i][j], oversample=4, simulator="synthlisa")
+#             Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_in[i][j], oversample=4)
 #             source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
 #             index_low = np.searchsorted(tdi_fs_subtracted["X"].f, Xs_subtracted.f[0])
 #             index_high = index_low+len(Xs_subtracted)
@@ -1384,7 +1384,7 @@ if do_print:
 #     tdi_fs_subtracted = deepcopy(tdi_fs)
 #     for i in range(len(found_sources_in)):
 #         for j in range(len(found_sources_in[i])):
-#             Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_in[i][j], oversample=4, simulator="synthlisa")
+#             Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_in[i][j], oversample=4)
 #             source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
 #             index_low = np.searchsorted(tdi_fs_subtracted["X"].f, Xs_subtracted.f[0])
 #             index_high = index_low+len(Xs_subtracted)
