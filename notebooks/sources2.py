@@ -14,9 +14,9 @@ import sys
 import pickle
 
 from ldc.lisa.noise import get_noise_model
-from ldc.common.series import TimeSeries, window
+from ldc.common.series import TimeSeries
 import ldc.waveform.fastGB as fastGB
-from ldc.common.tools import compute_tdi_snr
+from ldc.common.tools import compute_tdi_snr, window
 
 # customized settings
 plot_parameter = {  # 'backend': 'ps',
