@@ -18,6 +18,15 @@ from ldc.common.series import TimeSeries, window
 import ldc.waveform.fastGB as fastGB
 from ldc.common.tools import compute_tdi_snr
 
+try:
+    import cupy as xp
+
+    gpu_available = True
+
+except (ImportError, ModuleNotFoundError) as e:
+    import numpy as xp
+
+    gpu_available = False
 
 # customized settings
 plot_parameter = {  # 'backend': 'ps',
