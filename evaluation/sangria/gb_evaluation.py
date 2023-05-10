@@ -461,13 +461,12 @@ class GBEval:
 if __name__ == '__main__':        
 
     workdir = "/home/stefan/LDC/Sangria/evaluation"
-    # gb_apc = GBEval('apc-l2it', workdir, submitted_noise=True)
-    # gb_usa = GBEval('msfc-montana', workdir, submitted_noise=True)
+    gb_apc = GBEval('apc-l2it', workdir, submitted_noise=True)
+    gb_usa = GBEval('msfc-montana', workdir, submitted_noise=True)
     gb_eth = GBEval('eth', workdir, submitted_noise=True)
 
-    # gb_apc.load_from_workspace()
-    # gb_usa.load_from_workspace()
-
+    gb_apc.load_from_workspace()
+    gb_usa.load_from_workspace()
     gb_eth.load_from_workspace()
 
     if 0:

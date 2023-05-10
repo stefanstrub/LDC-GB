@@ -21,9 +21,9 @@ from astropy import units as u
 import astropy.coordinates as coord
 
 from ldc.lisa.noise import get_noise_model
-from ldc.common.series import TimeSeries, window
+from ldc.common.series import TimeSeries
 import ldc.waveform.fastGB as fastGB
-from ldc.common.tools import compute_tdi_snr
+from ldc.common.tools import compute_tdi_snr, window
 
 from sources2 import *
 
@@ -150,7 +150,7 @@ else:
 
 
 # Build timeseries and frequencyseries object for X,Y,Z
-tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
+tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt, t0=0)) for k in ["X", "Y", "Z"]])
 tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
 
@@ -571,14 +571,14 @@ def get_SNR(pGB_injected, lower_frequency, upper_frequency):
     return intrinsic_SNR_injected
 
 try:
-    # found_sources_in = np.load(SAVEPATH+'/found_sources_in_SNR_'+save_name+'.npy', allow_pickle= True)
+    found_sources_in = np.load(SAVEPATH+'/found_sources_in_SNR_'+save_name+'.npy', allow_pickle= True)
     
-    fn = SAVEPATH+'/found_sources_in_SNR'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.pkl'
-    found_sources_in = pickle.load(open(fn, 'rb'))
+    # fn = SAVEPATH+'/found_sources_in_SNR_'+save_name+'.pkl'
+    # found_sources_in = pickle.load(open(fn, 'rb'))
 
 # delete 7400 element from montana solution
 # found_sources_in[5218] = np.delete(found_sources_in[5218],2)
-# np.save(SAVEPATH+'/found_sources_in_SNR'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', np.asarray(found_sources_in))
+# np.save(SAVEPATH+'/found_sources_in_SNR'+save_name+'.npy', np.asarray(found_sources_in))
 
 except:
     #### parallel found sources
@@ -958,7 +958,7 @@ def match_function(found_sources_in, pGB_injected_not_matched, found_sources_not
 
 # 0.73, 0.39
 # 0.93, 0.81
-do_match_parallelized = True
+do_match_parallelized = False
 if do_match_parallelized:
     pGB_injected_matched = []
     found_sources_matched = []
