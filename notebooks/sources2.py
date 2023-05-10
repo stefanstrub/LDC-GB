@@ -14,9 +14,9 @@ import sys
 import pickle
 
 from ldc.lisa.noise import get_noise_model
-from ldc.common.series import TimeSeries
+from ldc.common.series import TimeSeries, window
 import ldc.waveform.fastGB as fastGB
-from ldc.common.tools import compute_tdi_snr, window
+from ldc.common.tools import compute_tdi_snr
 
 try:
     import cupy as xp
@@ -27,12 +27,6 @@ except (ImportError, ModuleNotFoundError) as e:
     import numpy as xp
 
     gpu_available = False
-
-from gbgpu.gbgpu import GBGPU
-
-from gbgpu.utils.constants import *
-
-gb = GBGPU(use_gpu=gpu_available)
 
 # customized settings
 plot_parameter = {  # 'backend': 'ps',
@@ -415,7 +409,7 @@ def moving_average(a, n=3) :
     return ret[n - 1:] / n
 
 class Search():
-    def __init__(self,tdi_fs,Tobs, lower_frequency, upper_frequency, noise_model =  "SciRDv1", recombination=0.75, dt=None, update_noise=False, noise=None, GPU=False,
+    def __init__(self,tdi_fs,Tobs, lower_frequency, upper_frequency, noise_model =  "SciRDv1", recombination=0.75, dt=None, update_noise=False, noise=None, gb_gpu=None,
     parameters = [
     "Amplitude",
     "EclipticLatitude",
@@ -434,6 +428,7 @@ class Search():
         self.N_samples = (len(tdi_fs['X'].f)-1)*2
         self.tdi_fs = tdi_fs
         self.Tobs = Tobs
+        self.gb_gpu = gb_gpu
         if dt is None:
             dt =   Tobs/self.N_samples # 0 and f_Nyquist are both included
         self.dt = dt
@@ -477,7 +472,7 @@ class Search():
         self.DEf = (self.dataZ - 2.0*self.dataY + self.dataX)/np.sqrt(6.0)
         self.DTf = (self.dataZ + self.dataY + self.dataX)/np.sqrt(3.0)
 
-        if GPU:
+        if gb_gpu:
             self.dataX_full_f = tdi_fs["X"]
             self.dataY_full_f = tdi_fs["Y"]
             self.dataZ_full_f = tdi_fs["Z"]
@@ -501,7 +496,7 @@ class Search():
             self.SA = Nmodel.psd(freq=freq, option="A")
             self.SE = Nmodel.psd(freq=freq, option="E")
             self.ST = Nmodel.psd(freq=freq, option="T")
-            if GPU:
+            if gb_gpu:
                 self.SA_full_f = Nmodel.psd(freq=self.DAf_full_f.f, option="A")
                 self.SE_full_f = Nmodel.psd(freq=self.DEf_full_f.f, option="E")
                 self.ST_full_f = Nmodel.psd(freq=self.DAf_full_f.f, option="T")
@@ -515,7 +510,7 @@ class Search():
             self.SE = self.SE_full_f[self.indexes]
             self.ST = self.ST_full_f[self.indexes]
 
-        if GPU:
+        if gb_gpu:
             self.data_GPU = [xp.array(self.DAf_full_f),
                     xp.array(self.DEf_full_f),
             ]
@@ -846,7 +841,7 @@ class Search():
     def loglikelihood_gpu(self, parameters, start_freq_ind=0):
         # N_index = np.searchsorted(self.N_values,int(len(self.dataX)))
         N = 256
-        gb.d_d = 0
+        self.gb_gpu.d_d = 0
         # parameters[4] *= -1
         partial_length = 1*10**4
         full_length = parameters.shape[-1]
@@ -854,13 +849,11 @@ class Search():
         if len(parameters.shape) == 2:
             parameters = np.array([parameters])
         for n in range(int(full_length/partial_length)):
-            like[n*partial_length:(n+1)*partial_length] = gb.get_ll(parameters[:,:,(n)*partial_length:(n+1)*partial_length], self.data_GPU, self.PSD_GPU, N=N, oversample=4, dt=self.dt, T=self.Tobs, start_freq_ind=start_freq_ind)
+            like[n*partial_length:(n+1)*partial_length] = self.gb_gpu.get_ll(parameters[:,:,(n)*partial_length:(n+1)*partial_length], self.data_GPU, self.PSD_GPU, N=N, oversample=4, dt=self.dt, T=self.Tobs, start_freq_ind=start_freq_ind)
         try:
-            like[int(full_length/partial_length)*partial_length:] = gb.get_ll(parameters[:,:,int(full_length/partial_length)*partial_length:], self.data_GPU, self.PSD_GPU, N=N, oversample=4, dt=self.dt, T=self.Tobs, start_freq_ind=start_freq_ind)
+            like[int(full_length/partial_length)*partial_length:] = self.gb_gpu.get_ll(parameters[:,:,int(full_length/partial_length)*partial_length:], self.data_GPU, self.PSD_GPU, N=N, oversample=4, dt=self.dt, T=self.Tobs, start_freq_ind=start_freq_ind)
         except:
             pass
-        # like = gb.get_ll(parameters, self.data_GPU, self.PSD_GPU, N=N, dt=dt, T=Tobs)
-
         return like
 
     def loglikelihood(self, pGBs):
