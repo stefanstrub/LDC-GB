@@ -21,9 +21,9 @@ from astropy import units as u
 import astropy.coordinates as coord
 
 from ldc.lisa.noise import get_noise_model
-from ldc.common.series import TimeSeries, window
+from ldc.common.series import TimeSeries
 import ldc.waveform.fastGB as fastGB
-from ldc.common.tools import compute_tdi_snr
+from ldc.common.tools import compute_tdi_snr, window
 
 from sources2 import *
 
@@ -150,7 +150,7 @@ else:
 
 
 # Build timeseries and frequencyseries object for X,Y,Z
-tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
+tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt, t0=0)) for k in ["X", "Y", "Z"]])
 tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
 
@@ -190,7 +190,7 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search):
     tdi_fs_subtracted2 = deepcopy(tdi_fs)
     for i in range(len(found_sources_mp_subtract)):
         # for j in range(len(found_sources_to_subtract[i])):
-            Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_mp_subtract[i], oversample=4, simulator="synthlisa")
+            Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_mp_subtract[i], oversample=4)
             source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
             index_low = np.searchsorted(tdi_fs_subtracted2["X"].f, Xs_subtracted.f[0])
             index_high = index_low+len(Xs_subtracted)
@@ -337,8 +337,8 @@ print('search range '+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(n
 # search1.plot()
 
 def l2_norm_match(pGB_injected, pGB_found):
-    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4, simulator="synthlisa")
-    Xs_injected, Ys_injected, Zs_injected = GB.get_fd_tdixyz(template=pGB_injected, oversample=4, simulator="synthlisa")
+    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4)
+    Xs_injected, Ys_injected, Zs_injected = GB.get_fd_tdixyz(template=pGB_injected, oversample=4)
     Xs_aligned = xr.align(Xs_injected, Xs, join='left',fill_value=0)[1]
     Ys_aligned = xr.align(Ys_injected, Ys, join='left',fill_value=0)[1]
     Zs_aligned = xr.align(Zs_injected, Zs, join='left',fill_value=0)[1]
@@ -365,8 +365,8 @@ def l2_norm_match(pGB_injected, pGB_found):
     return norm_relative
 
 def correlation_match(pGB_injected, pGB_found):
-    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4, simulator="synthlisa")
-    Xs_injected, Ys_injected, Zs_injected = GB.get_fd_tdixyz(template=pGB_injected, oversample=4, simulator="synthlisa")
+    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4)
+    Xs_injected, Ys_injected, Zs_injected = GB.get_fd_tdixyz(template=pGB_injected, oversample=4)
     Xs_aligned = xr.align(Xs_injected, Xs, join='left',fill_value=0)[1]
     Ys_aligned = xr.align(Ys_injected, Ys, join='left',fill_value=0)[1]
     Zs_aligned = xr.align(Zs_injected, Zs, join='left',fill_value=0)[1]
@@ -398,8 +398,8 @@ def correlation_match(pGB_injected, pGB_found):
     return SNR3.values
 
 def SNR_match_scaled(pGB_injected, pGB_found):
-    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4, simulator="synthlisa")
-    Xs_injected, Ys_injected, Zs_injected = GB.get_fd_tdixyz(template=pGB_injected, oversample=4, simulator="synthlisa")
+    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4)
+    Xs_injected, Ys_injected, Zs_injected = GB.get_fd_tdixyz(template=pGB_injected, oversample=4)
     Xs_aligned = xr.align(Xs_injected, Xs, join='left',fill_value=0)[1]
     Ys_aligned = xr.align(Ys_injected, Ys, join='left',fill_value=0)[1]
     Zs_aligned = xr.align(Zs_injected, Zs, join='left',fill_value=0)[1]
@@ -432,8 +432,8 @@ def SNR_match_scaled(pGB_injected, pGB_found):
     return SNR3.values
 
 def SNR_match_amplitude_condsiered(pGB_injected, pGB_found):
-    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4, simulator="synthlisa")
-    Xs_injected, Ys_injected, Zs_injected = GB.get_fd_tdixyz(template=pGB_injected, oversample=4, simulator="synthlisa")
+    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4)
+    Xs_injected, Ys_injected, Zs_injected = GB.get_fd_tdixyz(template=pGB_injected, oversample=4)
     Xs_aligned = xr.align(Xs_injected, Xs, join='left',fill_value=0)[1]
     Ys_aligned = xr.align(Ys_injected, Ys, join='left',fill_value=0)[1]
     Zs_aligned = xr.align(Zs_injected, Zs, join='left',fill_value=0)[1]
@@ -573,7 +573,7 @@ def get_SNR(pGB_injected, lower_frequency, upper_frequency):
 try:
     # found_sources_in = np.load(SAVEPATH+'/found_sources_in_SNR_'+save_name+'.npy', allow_pickle= True)
     
-    fn = SAVEPATH+'/found_sources_in_SNR'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.pkl'
+    fn = SAVEPATH+'/found_sources_in_SNR_'+save_name+'.pkl'
     found_sources_in = pickle.load(open(fn, 'rb'))
 
 # delete 7400 element from montana solution
@@ -600,7 +600,7 @@ except:
             if len(found_sources_in[index[i]]) > 0:
                 found_sources_in[index[i]][j]['IntrinsicSNR'] = SNR_intrinsic[i][j]
 
-    fn = SAVEPATH+'/found_sources_in_SNR'+save_name+'.pkl'
+    fn = SAVEPATH+'/found_sources_in_SNR_'+save_name+'.pkl'
     pickle.dump(found_sources_in, open(fn, "wb"))
     # np.save(SAVEPATH+'/found_sources_in_SNR'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy',found_sources_in)
 
@@ -726,7 +726,7 @@ for j in range(len(frequencies_search)):
     except:
         pass
     pGB_injected.append(pGB_injected_flat[index_low:index_high])
-pGB_injected = np.array(pGB_injected)
+# pGB_injected = np.array(pGB_injected)
 for i in range(len(pGB_injected)):
     # pGB_injected_amplitude = pGB_injected[i]['IntrinsicSNR']
     pGB_injected[i] = pGB_injected[i][np.argsort(-pGB_injected[i]['IntrinsicSNR'])]
@@ -777,7 +777,8 @@ for i in range(len(pGB_injected_overlap)):
 # pGB_injected_overlap_flat = np.concatenate(pGB_injected_overlap)
 
 try:
-    found_sources_in = np.load(SAVEPATH+'/found_sources_not_anticorrelated'+save_name+'.npy', allow_pickle=True)
+    fn = SAVEPATH+'/found_sources_not_anticorrelated_'+save_name+'.pkl'
+    found_sources_in = pickle.load(open(fn, 'rb'))
 except:
     found_sources_anitcorrelate = []
     found_sources_not_anitcorrelated = deepcopy(found_sources_in)
@@ -877,7 +878,10 @@ except:
     found_sources_not_anitcorrelated2_array = []
     for i in range(len(found_sources_not_anitcorrelated2)):
         found_sources_not_anitcorrelated2_array.append(np.asarray(found_sources_not_anitcorrelated2[i]))
-    np.save(SAVEPATH+'/found_sources_not_anticorrelated_'+save_name+'.npy', found_sources_not_anitcorrelated2)
+
+    fn = SAVEPATH+'/found_sources_not_anticorrelated_'+save_name+'.pkl'
+    pickle.dump(found_sources_in, open(fn, "wb"))
+    # np.save(SAVEPATH+'/found_sources_not_anticorrelated_'+save_name+'.npy', found_sources_not_anitcorrelated2)
     found_sources_in = found_sources_not_anitcorrelated2
 
 found_sources_in_flat = np.concatenate(found_sources_in)
@@ -956,8 +960,6 @@ def match_function(found_sources_in, pGB_injected_not_matched, found_sources_not
         match_best_list.append(found_sources_in[j])
     return found_sources_in, pGB_injected_not_matched, match_list, pGB_best_list, match_best_list, found_sources_not_matched, pGB_injected_matched, found_sources_matched
 
-# 0.73, 0.39
-# 0.93, 0.81
 do_match_parallelized = True
 if do_match_parallelized:
     pGB_injected_matched = []
@@ -1331,7 +1333,7 @@ plt.show()
 #     #     #subtract the found sources from original
 #     #     tdi_fs_subtracted = deepcopy(tdi_fs)
 #     #     for n in range(len( found_sources_matched[i][:j])):
-#     #         Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_matched[i][n], oversample=4, simulator="synthlisa")
+#     #         Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_matched[i][n], oversample=4)
 #     #         source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
 #     #         index_low = np.searchsorted(tdi_fs_subtracted["X"].f, Xs_subtracted.f[0])
 #     #         index_high = index_low+len(Xs_subtracted)
@@ -1503,7 +1505,7 @@ found_sources = []
 tdi_fs_neighbors_subtracted = deepcopy(tdi_fs)
 found_sources_to_subtract = np.concatenate([found_sources_mp[start_index_shift+index_of_interest_to_plot-1][3],found_sources_mp[start_index_shift+index_of_interest_to_plot+1][3]])
 for j in range(len(found_sources_to_subtract)):
-    Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_to_subtract[j], oversample=4, simulator="synthlisa")
+    Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_to_subtract[j], oversample=4)
     source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
     index_low = np.searchsorted(tdi_fs_neighbors_subtracted["X"].f, Xs_subtracted.f[0])
     index_high = index_low+len(Xs_subtracted)
@@ -1553,7 +1555,7 @@ for i in range(5):
 
     tdi_fs_subtracted = deepcopy(tdi_fs_neighbors_subtracted)
     for j in range(len(found_sources_out_optimize)):
-        Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_out_optimize[j], oversample=4, simulator="synthlisa")
+        Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_out_optimize[j], oversample=4)
         source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
         index_low = np.searchsorted(tdi_fs_subtracted["X"].f, Xs_subtracted.f[0])
         index_high = index_low+len(Xs_subtracted)
@@ -1588,7 +1590,7 @@ for i in range(5):
     found_sources = pGB_injected_dict_list
     tdi_fs_subtracted = deepcopy(tdi_fs_neighbors_subtracted)
     for j in range(len(found_sources)):
-        Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources[j], oversample=4, simulator="synthlisa")
+        Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources[j], oversample=4)
         source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
         index_low = np.searchsorted(tdi_fs_subtracted["X"].f, Xs_subtracted.f[0])
         index_high = index_low+len(Xs_subtracted)
@@ -1605,7 +1607,7 @@ def tdi_subtraction(tdi_fs,found_sources_to_subtract):
     #subtract the found sources from original
     tdi_fs_subtracted2 = deepcopy(tdi_fs)
     for i in range(len(found_sources_to_subtract)):
-        Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_to_subtract[i], oversample=4, simulator="synthlisa")
+        Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_to_subtract[i], oversample=4)
         source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
         index_low = np.searchsorted(tdi_fs_subtracted2["X"].f, Xs_subtracted.f[0])
         index_high = index_low+len(Xs_subtracted)
@@ -1907,7 +1909,7 @@ found_sources_matched_flat_df['SkylocationError'] = coordinates_injected.separat
 # print('time loglikelihood', time.time() - start)
 # start = time.time()
 # for j in range(N):
-#     Xs, Ys, Zs = search1.GB.get_fd_tdixyz(template=found_sources_mp[i][3][0], oversample=4, simulator="synthlisa")
+#     Xs, Ys, Zs = search1.GB.get_fd_tdixyz(template=found_sources_mp[i][3][0], oversample=4)
 # print('time tdi', time.time() - start)
 
 #### get galactic coordinates with distance
