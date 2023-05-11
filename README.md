@@ -22,13 +22,13 @@ To install this software for use with NVIDIA GPUs (compute capability >2.0), you
 1) Create a virtual environment. **Note**: There is no available `conda` compiler for Windows. If you want to install for Windows, you will probably need to add libraries and include paths to the `setup.py` file.
 
 ```
-conda create -n gbgpu_env -c conda-forge gcc_linux-64 gxx_linux-64 gsl numpy Cython scipy jupyter ipython h5py matplotlib python=3.8
-conda activate gbgpu_env
+conda create -n ldc-gpu -c conda-forge gcc_linux-64 gxx_linux-64 gsl numpy Cython scipy jupyter ipython h5py matplotlib python=3.9
+conda activate ldc-gpu
 ```
 
     If on MACOSX, substitute `gcc_linux-64` and `gxx_linus-64` with `clang_osx-64` and `clangxx_osx-64`.
 
-2) If using GPUs, use pip to [install cupy](https://docs-cupy.chainer.org/en/stable/install.html). If you have cuda version 11, for example:
+2) If using GPUs, use pip to [install cupy](https://docs-cupy.chainer.org/en/stable/install.html) and make sure you have cudatoolkit installed. If you have cuda version 11, for example:
 
 ```
 conda install -c conda-forge cudatoolkit=11.2.2 cudnn=8.1.0
@@ -38,6 +38,7 @@ pip install cupy-cuda11x
 4) Install requirements and run install. Make sure CUDA is on your PATH.
 
 ```
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CONDA_PREFIX/lib/
 pip install -r requirements.txt
 python setup.py install
 ```
