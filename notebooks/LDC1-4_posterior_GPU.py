@@ -19,9 +19,10 @@ import sys
 sys.path.append('/cluster/home/sstrub/Repositories/LDC/lib/lib64/python3.8/site-packages/ldc-0.1-py3.8-linux-x86_64.egg')
 
 from ldc.lisa.noise import get_noise_model
-from ldc.common.series import TimeSeries, window
+from ldc.lisa.noise import AnalyticNoise
+from ldc.common.series import TimeSeries
 import ldc.waveform.fastGB as fastGB
-# from ldc.common.tools import window
+from ldc.common.tools import window
 # from ldc.waveform.fastGB import fastGB
 # import ldc.waveform.fastGB as fastGB
 
@@ -1962,7 +1963,7 @@ else:
 
 
 # Build timeseries and frequencyseries object for X,Y,Z
-tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt, t0=0)) for k in ["X", "Y", "Z"]])
+tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt, t0=td.t[0])) for k in ["X", "Y", "Z"]])
 tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
 
@@ -2137,6 +2138,7 @@ frequencies_odd = frequencies[1::2]
 
 # save_name = 'not_anticorrelatedLDC1-4_2_optimized_second'
 save_name = 'Sangria_12m'
+# save_name = 'Sangria_1_dynamic_noise'
 # save_name = 'not_anticorrelatedRadler_half_dynamic_noise'
 # for i in range(65):
 frequencies_search = frequencies
@@ -3307,9 +3309,9 @@ search1 = Search(tdi_fs_residual,Tobs, lower_frequency, upper_frequency)
 # psdA_fit = median_windows(psdA,20)
 # psdE_fit = median_windows(psdE,20)
 # psdT_fit = median_windows(psdT,20)
-psdA_fit = smooth_psd(psdA_residual, f_res)
-psdE_fit = smooth_psd(psdE_residual, f_res)
-psdT_fit = smooth_psd(psdT_residual, f_res)
+psdA_fit, smoothedA = smooth_psd(psdA_partial, f_res)
+psdE_fit, smoothedE = smooth_psd(psdE_partial, f_res)
+psdT_fit, smoothedT = smooth_psd(psdT_partial, f_res)
 
 # psdA_fit = smooth_psd(noise_means, frequencies_means)
 
@@ -3335,26 +3337,39 @@ fs = 1/dt
 N = len(tdi_ts['X'])
 tdi_fsX = np.fft.rfft(tdi_ts['X'].data)[0:N//2+1]/fs
 
+noise_model = 'sangria'
+Nmodel = get_noise_model(noise_model, f_res[1:])
+Sn = Nmodel.psd(freq=f_res[1:], option="X")
+SA = Nmodel.psd(freq=f_res[1:], option="A")
+SE = Nmodel.psd(freq=f_res[1:], option="E")
+ST = Nmodel.psd(freq=f_res[1:], option="T")
+
+ldc_noise = AnalyticNoise(f_res[1:], model="sangria", wd=1)
+SAa = ldc_noise.psd(f_res[1:], option='A')
+
 plt.figure()
 # plt.plot(xnew, np.sin(xnew), '-.', label='sin(x)')
 # plt.plot(xnew, BSpline(*tck)(xnew), '-', label='s=0')
 # plt.loglog(f_res, psdA)   
-plt.loglog(f_res, psdA_residual)  
+plt.loglog(f_res, psdA_residual, label='welch')  
 # plt.loglog(f_res, psdA_partial)   
 # plt.loglog(f_res, smoothed_A)     
 # plt.loglog(tdi_fs.f, spline(tdi_fs.f))
-plt.loglog(tdi_fs.f, psdA_fit, zorder=5)   
 # plt.loglog(frequencies_means, psd_fit, zorder=5)    
-# plt.loglog(tdi_fs.f, SA_full_f, zorder=5)    
+# plt.loglog(f_res[1:], SA, zorder=5)   
+plt.loglog(f_res, smoothedA, zorder=4, label='median window smoothed')   
+plt.loglog(tdi_fs.f, psdA_fit, zorder=5, label='estimate')   
+plt.loglog(f_res[1:], SAa, 'k--', zorder=5, label='instrument')   
 # plt.loglog(tdi_fs.f, noise_means, zorder=3)  
-plt.loglog(tdi_fs.f, np.abs(tdi_fs_residual['A']/dt)**2 /(fs*len(tdi_ts['X']))*2 ,'.', zorder =1)   
+# plt.loglog(tdi_fs.f, np.abs(tdi_fs_residual['A']/dt)**2 /(fs*len(tdi_ts['X']))*2 ,'.', zorder =1)     
 # plt.loglog(tdi_fs.f, tdi_fs['X'],'.', zorder =1)   
 # plt.loglog(tdi_fs.f, tdi_fsX,'.', zorder =1)    
 # plt.loglog(tdi_fs.f, (psdA_residual-np.abs(tdi_fs_residual['A'])**2 /(Tobs)*2)/psdA_residual,'.')    
 # plt.loglog(f_res[peaks], psdA_residual[peaks],'x', color='red')     
 # plt.loglog(f_res[lower_index_res:], y_pred)     
-# plt.legend()
-plt.xlim(0.0001,0.1)
+plt.legend()
+plt.xlim(0.0003,0.1)
+plt.ylim(10**-43,10**-37)
 plt.show()
 
 
@@ -3368,8 +3383,8 @@ noise_fit = {'A': psdA_fit, 'E': psdE_fit, 'T': psdT_fit}
 noise_residual = {'A': psdA_residual, 'E': psdE_residual, 'T': psdT_residual}
 # noise_partial_residual = {'A': psdA_partial_residual, 'E': psdE_partial_residual, 'T': psdT_partial_residual}
 noise = noise_fit
-# noise['f'] = f_res
 
+# noise['f'] = tdi_fs.f
 # noise_df = pd.DataFrame(noise)
 # noise_df.to_csv(SAVEPATH+'ETH_sangria_noise.csv')
 
@@ -3425,7 +3440,7 @@ DAf_original = (dataZ_original - dataX_original)/np.sqrt(2.0)
 
 start_all = time.time()
 for i in range(len(found_sources_in)):
-    # if i != 2780:
+    # if i < 2898:
     #     continue
     # if i%10 != 0:
     #     continue

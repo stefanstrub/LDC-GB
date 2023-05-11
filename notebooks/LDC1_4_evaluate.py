@@ -150,7 +150,7 @@ else:
 
 
 # Build timeseries and frequencyseries object for X,Y,Z
-tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt, t0=0)) for k in ["X", "Y", "Z"]])
+tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt, t0=td.t[0])) for k in ["X", "Y", "Z"]])
 tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
 
@@ -288,7 +288,7 @@ start_index = np.searchsorted(np.asarray(frequencies_odd)[:,0], 0.0040489)-1
 
 save_name = 'Sangria_1_full_cut'
 save_name = 'Sangria_12m'
-# save_name = 'Radler_24m'
+save_name = 'Radler_24m'
 # save_name = 'Radler_half_even_dynamic_noise'
 # save_name = 'LDC1-4_2_optimized_second' ### ETH submission
 # save_name = 'Montana'
@@ -960,7 +960,7 @@ def match_function(found_sources_in, pGB_injected_not_matched, found_sources_not
         match_best_list.append(found_sources_in[j])
     return found_sources_in, pGB_injected_not_matched, match_list, pGB_best_list, match_best_list, found_sources_not_matched, pGB_injected_matched, found_sources_matched
 
-do_match_parallelized = True
+do_match_parallelized = False
 if do_match_parallelized:
     pGB_injected_matched = []
     found_sources_matched = []
@@ -1139,26 +1139,38 @@ try:
     found_sources_matched_array = []
     for i in range(len(found_sources_matched)):
         found_sources_matched_array.append(np.asarray(found_sources_matched[i]))
-    found_sources_matched_array = np.asarray(found_sources_matched_array)
+    # found_sources_matched_array = np.asarray(found_sources_matched_array)
     found_sources_not_matched_array = []
     for i in range(len(found_sources_not_matched)):
         found_sources_not_matched_array.append(np.asarray(found_sources_not_matched[i]))
-    found_sources_not_matched_array = np.asarray(found_sources_not_matched_array)
-    np.save(SAVEPATH+'/found_sources_matched' +save_name+end_string+'.npy', found_sources_matched_array)
-    np.save(SAVEPATH+'/found_sources_not_matched' +save_name+end_string+'.npy', found_sources_not_matched_array)
-    np.save(SAVEPATH+'/injected_not_matched_windows' +save_name+end_string+'.npy', pGB_injected_not_matched)
-    np.save(SAVEPATH+'/injected_matched_windows' +save_name+end_string+'.npy', pGB_injected_matched)
-    np.save(SAVEPATH+'/match_list' +save_name+end_string+'.npy', match_list)
-    np.save(SAVEPATH+'/pGB_best_list' +save_name+end_string+'.npy', pGB_best_list)
-    np.save(SAVEPATH+'/match_best_list' +save_name+end_string+'.npy', match_best_list)
+    # found_sources_not_matched_array = np.asarray(found_sources_not_matched_array)
+
+    pickle.dump(found_sources_matched_array, open(SAVEPATH+'/found_sources_matched' +save_name+end_string+'.npy', "wb"))
+    pickle.dump(found_sources_matched_array, open(SAVEPATH+'/found_sources_matched' +save_name+end_string+'.npy', "wb"))
+    pickle.dump(found_sources_not_matched_array, open(SAVEPATH+'/found_sources_not_matched' +save_name+end_string+'.npy', "wb"))
+    pickle.dump(pGB_injected_not_matched, open(SAVEPATH+'/injected_not_matched_windows' +save_name+end_string+'.npy', "wb"))
+    pickle.dump(pGB_injected_matched, open(SAVEPATH+'/injected_matched_windows' +save_name+end_string+'.npy', "wb"))
+    pickle.dump(match_list, open(SAVEPATH+'/match_list' +save_name+end_string+'.npy', "wb"))
+    pickle.dump(pGB_best_list, open(SAVEPATH+'/pGB_best_list' +save_name+end_string+'.npy', "wb"))
+    pickle.dump(match_best_list, open(SAVEPATH+'/match_best_list' +save_name+end_string+'.npy', "wb"))
 except:
-    found_sources_matched = np.load(SAVEPATH+'/found_sources_matched' +save_name+end_string+'.npy', allow_pickle=True)
-    found_sources_not_matched = np.load(SAVEPATH+'/found_sources_not_matched' +save_name+end_string+'.npy', allow_pickle=True)
-    pGB_injected_not_matched = np.load(SAVEPATH+'/injected_not_matched_windows' +save_name+end_string+'.npy', allow_pickle=True)
-    pGB_injected_matched = np.load(SAVEPATH+'/injected_matched_windows' +save_name+end_string+'.npy', allow_pickle=True)
-    match_list = np.load(SAVEPATH+'/match_list' +save_name+end_string+'.npy', allow_pickle=True)
-    pGB_best_list = np.load(SAVEPATH+'/pGB_best_list' +save_name+end_string+'.npy', allow_pickle=True)
-    match_best_list = np.load(SAVEPATH+'/match_best_list' +save_name+end_string+'.npy', allow_pickle=True)
+
+    found_sources_in = pickle.load(open(fn, 'rb'))
+    found_sources_matched = pickle.load(open(SAVEPATH+'/found_sources_matched' +save_name+end_string+'.npy', 'rb'))
+    found_sources_not_matched = pickle.load(open(SAVEPATH+'/found_sources_not_matched' +save_name+end_string+'.npy', 'rb'))
+    pGB_injected_not_matched = pickle.load(open(SAVEPATH+'/injected_not_matched_windows' +save_name+end_string+'.npy', 'rb'))
+    pGB_injected_matched = pickle.load(open(SAVEPATH+'/injected_matched_windows' +save_name+end_string+'.npy', 'rb'))
+    match_list = pickle.load(open(SAVEPATH+'/match_list' +save_name+end_string+'.npy', 'rb'))
+    pGB_best_list = pickle.load(open(SAVEPATH+'/pGB_best_list' +save_name+end_string+'.npy', 'rb'))
+    match_best_list = pickle.load(open(SAVEPATH+'/match_best_list' +save_name+end_string+'.npy', 'rb'))
+
+    # found_sources_matched = np.load(SAVEPATH+'/found_sources_matched' +save_name+end_string+'.npy', allow_pickle=True)
+    # found_sources_not_matched = np.load(SAVEPATH+'/found_sources_not_matched' +save_name+end_string+'.npy', allow_pickle=True)
+    # pGB_injected_not_matched = np.load(SAVEPATH+'/injected_not_matched_windows' +save_name+end_string+'.npy', allow_pickle=True)
+    # pGB_injected_matched = np.load(SAVEPATH+'/injected_matched_windows' +save_name+end_string+'.npy', allow_pickle=True)
+    # match_list = np.load(SAVEPATH+'/match_list' +save_name+end_string+'.npy', allow_pickle=True)
+    # pGB_best_list = np.load(SAVEPATH+'/pGB_best_list' +save_name+end_string+'.npy', allow_pickle=True)
+    # match_best_list = np.load(SAVEPATH+'/match_best_list' +save_name+end_string+'.npy', allow_pickle=True)
 
 # found_sources_not_matched_high_f_old = np.concatenate(found_sources_not_matched_old)
 # found_sources_not_matched_high_f = np.concatenate(found_sources_not_matched)
@@ -1268,7 +1280,7 @@ for i in range(len(pGB_injected)):
         pGB_injected_reduced.append(pGB_injected[i].iloc[:40])
     except:
         pGB_injected_reduced.append(pGB_injected[i])
-pGB_injected_flat_reduced = np.concatenate(np.asarray(pGB_injected_reduced))   
+pGB_injected_flat_reduced = np.concatenate(pGB_injected_reduced)
 pGB_injected_flat_reduced_df = pd.DataFrame(np.asarray(pGB_injected_flat_reduced))
 pGB_injected_flat_reduced_df = pGB_injected_flat_reduced_df.sort_values(by='Frequency')
 # pGB_injected_flat_highSNR_df = pGB_injected_flat_reduced_df[pGB_injected_flat_reduced_df['IntrinsicSNR']>10]
@@ -1291,10 +1303,10 @@ pGB_injected_matched_flat_df.to_pickle(SAVEPATH+'/injected_matched_windows' +sav
 pGB_injected_not_matched_flat_df.to_pickle(SAVEPATH+'/injected_not_matched_windows' +save_name+end_string+'_df')
 
 
-index =433
-search1 = Search(tdi_fs,Tobs, frequencies_search[index][0], frequencies_search[index][1], update_noise=False)
-print(search1.SNR(found_sources_not_matched[index]))
-search1.plot(found_sources_in= found_sources_not_matched[index], pGB_injected= pGB_injected_not_matched[index])
+# index =433
+# search1 = Search(tdi_fs,Tobs, frequencies_search[index][0], frequencies_search[index][1], update_noise=False)
+# print(search1.SNR(found_sources_not_matched[index]))
+# search1.plot(found_sources_in= found_sources_not_matched[index], pGB_injected= pGB_injected_not_matched[index])
 
 # found_sources_matched_flat_df = pd.read_pickle(SAVEPATH+'/found_sources_matched' +save_name+'df')
 # found_sources_not_matched_flat_df = pd.read_pickle(SAVEPATH+'/found_sources_not_matched' +save_name+'df')
@@ -1379,48 +1391,10 @@ found_sources_in = deepcopy(found_sources_in_SNR_sorted)
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.00264612)
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.002084612)
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.003988)+1
-index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.005208333333333333)
-index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.004)+15
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.01)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.0037305)
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.0018776)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.001851)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.002825)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.009297)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.001197)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.003988)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.008605)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.004654)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00966)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.01022)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.01137)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.012144005913068922)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.012594655254592595)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.012911925072033257)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.012962249851778103)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.01306191115728545)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.014131028697661994)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.014880504053657114)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.015381574175293712)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.016056465377498327)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.01803821797758112)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.02364600963097699)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.0268)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.04296)-1
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.05994535926230327)-1
-
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  pGB_injected_not_matched_flat_df.iloc[-1]['Frequency'])-1
-# index_of_interest_to_plot = 4710
-# + shift 4671
-# index_of_interest_to_plot = 3
-# index_of_interest_to_plot = 128
-# index_of_interest_to_plot = 273
-# index_of_interest_to_plot = 448
-# index_of_interest_to_plot = 458
-# index_of_interest_to_plot = 4
-# index_of_interest_to_plot = 392
+# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.005208333333333333)+3
+index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.00399)+40
 #plot strains
-number_of_windows = 1
+number_of_windows = 4
 for i in range(len(frequencies_search)):
     if i != index_of_interest_to_plot:
         continue
@@ -1428,6 +1402,7 @@ for i in range(len(frequencies_search)):
     vertical_lines = []
     for j in range(number_of_windows):
         vertical_lines.append(frequencies_search[i+j][0])
+        vertical_lines.append(frequencies_search[i+j][1])
     found_extended = np.concatenate(found_sources_matched[i:i+number_of_windows])
     found_not_matched_extended = np.concatenate(found_sources_not_matched[i:i+number_of_windows])
     # matched_extended = np.concatenate(pGB_injected_matched[i:i+number_of_windows])
@@ -1435,13 +1410,14 @@ for i in range(len(frequencies_search)):
     pGB_injected_dict_list = []
     matched_extended = []
     not_matched_extended = []
-    for j in range(number_of_windows):
-        for k in range(len(pGB_injected_SNR_sorted_overlap[i+j])):
-            pGB_injected_dict_list.append({})
-            for parameter in parameters:
-                pGB_injected_dict_list[-1][parameter] = pGB_injected_SNR_sorted_overlap[i+j][k][parameter]
-            if k > 20:
-                break
+    pGB_injected_not_matched_flat_df_in_window = pGB_injected_not_matched_flat_df[pGB_injected_not_matched_flat_df['Frequency'] >= frequencies_search[i][0]]
+    pGB_injected_not_matched_flat_df_in_window = pGB_injected_not_matched_flat_df_in_window[pGB_injected_not_matched_flat_df_in_window['Frequency'] <= frequencies_search[i+number_of_windows-1][1]]
+    for j in range(len(pGB_injected_not_matched_flat_df_in_window)):
+        pGB_injected_dict_list.append({})
+        for parameter in parameters:
+            pGB_injected_dict_list[-1][parameter] = pGB_injected_not_matched_flat_df_in_window[parameter].iloc[j]
+        if j > 20:
+            break
     for j in range(number_of_windows):
         for k in range(len(pGB_injected_matched[i+j])):
             matched_extended.append({})
@@ -1464,11 +1440,11 @@ for i in range(len(frequencies_search)):
     # found_extended = []
     # matched_extended = [matched_extended[3],matched_extended[4]]
     # matched_extended = []
-    save_name_path = SAVEPATH+'/strain added Amplitude'+ str(int(np.round(frequencies_search[i][0]*10**8))) +save_name+str(int(len(matched_extended)))+'kristen.png'
+    save_name_path = SAVEPATH+'/strain added Amplitude'+ str(int(np.round(frequencies_search[i][0]*10**8))) +save_name+str(int(len(matched_extended)))+'.png'
     if len(pGB_injected_SNR_sorted_overlap[i]) > 20:
         search1.plot(found_sources_in=found_extended, found_sources_not_matched = found_not_matched_extended, pGB_injected= pGB_injected_dict_list[:20],  pGB_injected_matched= matched_extended, vertical_lines= vertical_lines, saving_label =save_name_path) 
     else:
-        search1.plot(found_sources_in=found_extended, found_sources_not_matched = found_not_matched_extended, pGB_injected= pGB_injected_dict_list,  pGB_injected_matched= matched_extended, vertical_lines= vertical_lines, saving_label =save_name_path) 
+        search1.plotA(found_sources_in=found_extended, found_sources_not_matched = found_not_matched_extended, pGB_injected= pGB_injected_dict_list,  pGB_injected_matched= matched_extended, vertical_lines= vertical_lines, saving_label =save_name_path) 
         # search1.plot(found_sources_in=found_sources_mp_best[i], pGB_injected=pGB_injected[i][:10], pGB_injected_matched= matched_extended, saving_label =SAVEPATH+'/strain added'+ str(int(np.round(frequencies_search[i][0]*10**8))) +save_name+'in.png') 
 
 print(correlation_match(pGB_injected_dict_list[0],found_not_matched_extended[0]))

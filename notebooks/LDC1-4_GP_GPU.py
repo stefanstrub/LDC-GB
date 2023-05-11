@@ -24,9 +24,9 @@ import ldc.waveform.fastGB as fastGB
 # from ldc.common.tools import compute_tdi_snr
 
 from fastkde import fastKDE
-from sklearn.metrics import mean_squared_error
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF
+# from sklearn.metrics import mean_squared_error
+# from sklearn.gaussian_process import GaussianProcessRegressor
+# from sklearn.gaussian_process.kernels import RBF
 # from chainconsumer import ChainConsumer
 
 
@@ -2703,43 +2703,12 @@ number_of_signals = 0
 frequencies_found = []
 # LDC1-4 ####################
 posterior_calculation_input = []
-batch = int(sys.argv[1])
-# batch = 0
+# batch = int(sys.argv[1])
+batch = 0
 batch_size = 100
 lower_window = batch*batch_size
 higher_window = lower_window+batch_size
 # lower_window = 7210
-
-do_subtract = False
-if do_subtract:
-    start = time.time()
-    found_sources_mp_subtract = found_sources_matched
-
-    found_sources_flat = []
-    for i in range(len(found_sources_mp_subtract)):
-        for j in range(len(found_sources_mp_subtract[i])):
-            found_sources_flat.append(found_sources_mp_subtract[i][j])
-    found_sources_flat = np.asarray(found_sources_flat)
-    found_sources_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_flat]) for attribute in found_sources_flat[0].keys()}
-    found_sources_flat_df = pd.DataFrame(found_sources_flat_array)
-    found_sources_flat_df = found_sources_flat_df.sort_values('Frequency')
-    # for i in range(len(frequencies_search_full)):
-    #     found_sources_flat_df = found_sources_flat_df[(found_sources_flat_df['Frequency']< frequencies_search_full[i][0]) | (found_sources_flat_df['Frequency']> frequencies_search_full[i][1])]
-    # found_sources_flat_df = found_sources_flat_df.sort_values('Frequency')
-    found_sources_out_flat = found_sources_flat_df.to_dict(orient='records')
-    tdi_fs_subtracted = tdi_subtraction(tdi_fs,found_sources_out_flat, frequencies_search_full)
-
-    print('subtraction time', time.time()-start)
-    plot_subtraction = False
-    if plot_subtraction:
-        i = 4000
-        lower_frequency = frequencies_search[i][0]
-        upper_frequency = frequencies_search[i][1]
-        search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
-        search1.plot(second_data= tdi_fs_subtracted)#, found_sources_in=found_sources_out_flat)
-        # search1.plot(second_data= tdi_fs_subtracted, found_sources_in=found_sources_mp_o[start_index][0])
-        
-    tdi_fs = deepcopy(tdi_fs_subtracted)
 
 for i in range(len(found_sources_in)):
     if i < lower_window or i >= higher_window:
