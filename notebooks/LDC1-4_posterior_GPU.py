@@ -49,7 +49,7 @@ from gbgpu.gbgpu import GBGPU
 
 from gbgpu.utils.constants import *
 
-from sources2 import *
+from sources import *
 
 import subprocess as sp
 import os

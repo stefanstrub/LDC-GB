@@ -13,7 +13,7 @@ from ldc.lisa.noise import get_noise_model
 from ldc.common.series import TimeSeries, window
 import ldc.waveform.fastGB as fastGB
 
-from sources2 import *
+from sources import *
 
 class Global_optimizer():
     def __init__(self,tdi_fs, Tobs):

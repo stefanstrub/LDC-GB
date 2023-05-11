@@ -25,7 +25,7 @@ from ldc.common.series import TimeSeries
 import ldc.waveform.fastGB as fastGB
 from ldc.common.tools import compute_tdi_snr, window
 
-from sources2 import *
+from sources import *
 
 # customized settings
 plot_parameter = {  # 'backend': 'ps',

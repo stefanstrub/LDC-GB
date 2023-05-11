@@ -22,7 +22,7 @@ import astropy.coordinates as coord
 
 
 from Search import Search
-from sources2 import *
+from sources import *
 
 
 # customized settings
