@@ -1,4 +1,8 @@
-# gbgpu: GPU/CPU Galactic Binary Waveforms
+# Accelerated global Galactic binary search algorithm
+
+The parameter estimate of Galactic binaries (GBs) is split into two parts. The first part extracts the best fitting GBs in the provided data set based on a differential evolution search algorithm. The second part uses the GBGPU, https://github.com/mikekatz04/GBGPU, to quickly sample across a reduced parameter space around the maximum likelihood estimate from the first steps. That way we are able to obtain a posterior distribution of a found GB within 2 seconds on a laptop grade GPU. 
+
+The first part only requires the pip installable lisa-data-challenge. The second part requires GBGPU with GPU access.
 
 `GBGPU` is a GPU-accelerated version of the `FastGB` waveform which has been developed by Neil Cornish, Tyson Littenberg, Travis Robson, and Stas Babak. It computes gravitational waveforms for Galactic binary systems observable by LISA using a fast/slow-type decomposition. For more details on the original construction of `FastGB` see [arXiv:0704.1808](https://arxiv.org/abs/0704.1808).
 
