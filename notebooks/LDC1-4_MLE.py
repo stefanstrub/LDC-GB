@@ -25,9 +25,11 @@ from sources import *
 
 # customized settings
 plot_parameter = {  # 'backend': 'ps',
-    "font.family": "serif",
-    "font.serif": "times",
+    "font.family": "DeJavu Serif",
+    # "font.serif": "Times",
+    "font.serif" : ["Computer Modern Serif"],
     "font.size": 16,
+    "mathtext.fontset": "cm",
     "axes.labelsize": "medium",
     "axes.titlesize": "medium",
     "legend.fontsize": "medium",
@@ -534,7 +536,7 @@ f_Nyquist = 1/dt/2
 search_range = [0.0003, f_Nyquist]
 if Radler:
     search_range = [0.0003, 0.0319]
-# search_range = [0.0001, 0.11]
+search_range = [0.0001, 0.11]
 # search_range = [0.0019935, 0.0020135]
 # search_range = [0.0029935, 0.0030135]
 # window_length = 1*10**-7 # Hz
@@ -548,26 +550,27 @@ frequencies_odd = frequencies[1::2]
 # for i in range(len(pGB_injected)):
 #     counts[i] = len(pGB_injected[i])
 
-# frequencies_search = np.asarray(frequencies)
+frequencies_search = np.asarray(frequencies)
 # figure = plt.figure()
 # plt.loglog(frequencies_search[:,1],counts, '.')
 # plt.xlabel('Frequency [Hz]')
 # plt.ylabel('Number of signals')
 # plt.show()
 
-
-# figure = plt.figure()
-# plt.loglog(frequencies_search[:,0],frequencies_search[:,1]-frequencies_search[:,0],  linewidth= 4, label= '$B$')
-# plt.loglog(frequencies_search[:,0],frequency_derivative(frequencies_search[:,0],2)*Tobs, label= '$B_{F}$')
-# plt.loglog(frequencies_search[:,0],frequencies_search[:,0]*3* 10**-4, label= '$3 \cdot B_{O}$')
-# plt.loglog(frequencies_search[:,0],np.ones(len(frequencies_search[:,0]))*4*32*10**-9*2, label= '$2 \cdot B_{C}$')
-# plt.xlabel('Frequency [Hz]')
-# plt.ylabel('Frequency window witdh [Hz]')
-# plt.xlim(search_range[0],0.1)
-# plt.ylim(bottom=(frequencies_search[0,1]-frequencies_search[0,0])/10**1)
-# plt.legend()
-# plt.show()
-# plt.savefig(SAVEPATH+'bandwidth.png')
+figure = plt.figure()
+plt.loglog(frequencies_search[:,0],(frequencies_search[:,1]-frequencies_search[:,0]),  linewidth= 4, label= '$B_{segment}$')
+plt.loglog(frequencies_search[:,0],(frequencies_search[:,1]-frequencies_search[:,0])/2,  linewidth= 4, label= '$B_{max}$')
+plt.loglog(frequencies_search[:,0],frequency_derivative(frequencies_search[:,0],M_chirp_upper_boundary)*Tobs,  linewidth= 4, label= '$B_{max}$')
+# plt.loglog(frequencies_search[:,0],frequency_derivative(frequencies_search[:,0],M_chirp_upper_boundary)*Tobs+frequencies_search[:,0]*2* 10**-4+4/31536000*2, label= '$B_{F}$')
+plt.loglog(frequencies_search[:,0],frequencies_search[:,0]*2* 10**-4, label= '$2 \cdot B_{O}$')
+plt.loglog(frequencies_search[:,0],np.ones(len(frequencies_search[:,0]))*4/31536000*2, label= '$2 \cdot B_{C}$')
+plt.xlabel(r'$f$ (Hz)')
+plt.ylabel(r'window width (Hz)')
+plt.xlim(10**-4,0.1)
+plt.ylim(bottom=(frequencies_search[0,1]-frequencies_search[0,0])/10**1)
+plt.legend()
+plt.show()
+plt.savefig(SAVEPATH+'bandwidth.png')
 
 
 # save_name = 'Sangria_12m_even'

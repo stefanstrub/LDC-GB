@@ -33,6 +33,7 @@ def time_to_seconds(time_str):
     return total_seconds
 
 time = 0
+times = []
 numer_of_times = 0
 # Open the text file in read mode
 with open(SAVEPATH+'times_sangria_12m_even.txt', "r") as file:
@@ -46,7 +47,12 @@ with open(SAVEPATH+'times_sangria_12m_even.txt', "r") as file:
             # Access the 10th element (index 9) and print it
             # print(time_to_seconds(elements[5]))
             numer_of_times += 1
+            times.append(time_to_seconds(elements[5]))
             time += time_to_seconds(elements[5])
+    time = np.sum(times)
+    max_time = np.max(times)
+    print('time', np.round(time/3600,1), 'hours')
+    print('max time', np.round(max_time/60,1), 'minutes')
 time /= 3
 print(np.round(time/3600), 'CPU hours')
 print(file.read())

@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from matplotlib import markers
 from matplotlib import rcParams
 import scipy
 from scipy.optimize import differential_evolution
@@ -30,8 +31,9 @@ except (ImportError, ModuleNotFoundError) as e:
 
 # customized settings
 plot_parameter = {  # 'backend': 'ps',
-    "font.family": "serif",
-    "font.serif": "times",
+    "font.family": "DeJavu Serif",
+    "font.serif": "Times",
+    "mathtext.fontset": "cm",
     "font.size": 16,
     "axes.labelsize": "medium",
     "axes.titlesize": "medium",
@@ -53,7 +55,7 @@ ratio = golden_mean
 inches_per_pt = 1.0 / 72.27  # Convert pt to inches
 fig_width = fig_width_pt * inches_per_pt  # width in inches
 fig_height = fig_width * ratio  # height in inches
-fig_size = [fig_width, fig_height]
+fig_size = [fig_width*2, fig_height]
 fig_size_squared = [fig_width, fig_width]
 rcParams.update({"figure.figsize": fig_size})
 prop_cycle = plt.rcParams['axes.prop_cycle']
@@ -851,15 +853,17 @@ class Search():
         #     plt.show()
         return SNR3.values
 
-    def plotA(self, maxpGBs=None, pGBadded=None, found_sources_in= [], found_sources_not_matched= [], pGB_injected = [], pGB_injected_matched = [], added_label='Injection2', saving_label =None, vertical_lines = [], second_data= None):
-        plt.figure(figsize=fig_size)
-        fig, [ax1, ax2] = plt.subplots(2, 1, sharex=False, figsize=fig_size)
+    def plotA(self, maxpGBs=None, pGBadded=None, found_sources_in= [], found_sources_not_matched= [], pGB_injected = [], pGB_injected_matched = [], chains=[], added_label='Injection2', saving_label =None, vertical_lines = [], second_data= None):
+        # plt.figure(figsize=fig_size)
+        fig, [ax1, ax2, ax3] = plt.subplots(3, 1, sharex=False, figsize=np.array(fig_size)*[1,1.5])
 
         parameter_x = 'Frequency'
         parameter_y = 'Amplitude'
+        parameter_x2 = 'EclipticLongitude'
+        parameter_y2 = 'EclipticLatitude'
                     
         # Af = (Zs - Xs)/np.sqrt(2.0)
-        ax1.plot(self.DAf.f*10**3,np.abs(self.DAf),'k',zorder= 1, linewidth = 2, label = 'Data')
+        ax1.plot(self.DAf.f*10**3,np.abs(self.DAf),'k',zorder= 1, linewidth = 3, label = 'Data')
         # ax1.plot(tdi_fs_long_subtracted.f[range_index],np.abs(tdi_fs_long_subtracted['X'][range_index])**2,'b',zorder= 5)
         if second_data != None:
             a,Xs = xr.align(self.dataX, second_data['X'], join='left',fill_value=0)
@@ -877,7 +881,12 @@ class Search():
             Af = (Zs - Xs)/np.sqrt(2.0)
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
             ax1.plot(Af.f*10**3,np.abs(Af.data), color=colors[j%10], linewidth = 5, alpha = 0.5)
-            ax2.plot(pGB_injected[j][parameter_x]*10**3,pGB_injected[j][parameter_y],'o', color=colors[j%10], markersize=7, alpha = 0.4)
+            ax2.plot(pGB_injected[j][parameter_x]*10**3,pGB_injected[j][parameter_y],'o', color=colors[j%10], markersize=7, alpha = 1, markerfacecolor='None')
+            for k in range(len(pGB_injected[j][parameter_x2].shape)):
+                if pGB_injected[j][parameter_x2][k] < 0:
+                    pGB_injected[j][parameter_x2][k] += 2*np.pi
+            # pGB_injected[j][parameter_x2][pGB_injected[j][parameter_x2] < 0] += 2*np.pi
+            ax3.plot(pGB_injected[j][parameter_x2],pGB_injected[j][parameter_y2],'o', color=colors[j%10], markersize=7, alpha = 1, markerfacecolor='None')
             # ax3.plot(pGB_injected[j]['EclipticLongitude']*10**3,pGB_injected[j]['EclipticLatitude'],'o', color=colors[j%10], markersize=7, alpha = 0.5)
             # ax4.plot(pGB_injected[j]['Inclination']*10**3,pGB_injected[j]['FrequencyDerivative'],'o', color=colors[j%10], markersize=7, alpha = 0.5)
             # ax5.plot(pGB_injected[j]['InitialPhase']*10**3,pGB_injected[j]['Polarization'],'o', color=colors[j%10], markersize=7, alpha = 0.5)
@@ -895,7 +904,11 @@ class Search():
             Af = (Zs - Xs)/np.sqrt(2.0)
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
             ax1.plot(Af.f*10**3,np.abs(Af.data), color=colors[j%10], linewidth = 5, alpha = 0.5)
-            ax2.plot(pGB_injected_matched[j][parameter_x]*10**3,pGB_injected_matched[j][parameter_y],'o', color=colors[j%10], markersize=7, alpha = 0.4)
+            ax2.plot(pGB_injected_matched[j][parameter_x]*10**3,pGB_injected_matched[j][parameter_y],'o', color=colors[j%10], markersize=7, alpha = 1, markerfacecolor='None', label='true')
+            for k in range(len(pGB_injected_matched[j][parameter_x2].shape)):
+                if pGB_injected_matched[j][parameter_x2][k] < 0:
+                    pGB_injected_matched[j][parameter_x2][k] += 2*np.pi
+            ax3.plot(pGB_injected_matched[j][parameter_x2],pGB_injected_matched[j][parameter_y2],'o', color=colors[j%10], markersize=7, alpha = 1, markerfacecolor='None')
             # ax3.plot(pGB_injected_matched[j]['EclipticLongitude']*10**3,pGB_injected_matched[j]['EclipticLatitude'],'o', color=colors[j%10], markersize=7, alpha = 0.5)
         if pGBadded != None:
             Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBadded, oversample=4)
@@ -943,7 +956,7 @@ class Search():
             Af = (Zs - Xs)/np.sqrt(2.0)
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
             ax1.plot(Af.f* 1000, np.abs(Af.data),'--', color= colors[j%10], linewidth = 1.6)
-            ax2.plot(found_sources_in[j][parameter_x]*10**3,found_sources_in[j][parameter_y],'+', color=colors[j%10], markersize=12, linewidth=6)
+            ax2.plot(found_sources_in[j][parameter_x]*10**3,found_sources_in[j][parameter_y],'.', color=colors[j%10], markersize=12, linewidth=6, label='recovered')
         for j in range(len(found_sources_not_matched)):
             Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_not_matched[j], oversample=4)
             index_low = np.searchsorted(Xs.f, self.dataX.f[0])
@@ -953,7 +966,18 @@ class Search():
             Af = (Zs - Xs)/np.sqrt(2.0)
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
             ax1.plot(Af.f* 1000, np.abs(Af.data),'--', color= colors[j%10], linewidth = 1.6)
-            ax2.plot(found_sources_not_matched[j][parameter_x]*10**3,found_sources_not_matched[j][parameter_y],'+', color=colors[j%10], markersize=12, linewidth=6)
+            ax2.plot(found_sources_not_matched[j][parameter_x]*10**3,found_sources_not_matched[j][parameter_y],'.', color=colors[j%10], markersize=12, linewidth=6)
+
+        for j in range(len(chains)):
+            number_of_samples = 1000
+            ax2.plot(chains[j][parameter_x][:number_of_samples], chains[j][parameter_y][:number_of_samples], '.', alpha = 0.01, markersize=2, color=colors[j%10], zorder = -1)
+            chains[j][parameter_x2][chains[j][parameter_x2] < 0] += 2*np.pi
+            # ax3.plot(chains[j][parameter_x2], chains[j][parameter_y2], '.', alpha = 0.01, markersize=2, color=colors[j%10], zorder = -1)
+            mean_x = np.mean(chains[j][parameter_x2])
+            std_x = np.std(chains[j][parameter_x2])
+            mean_y = np.mean(chains[j][parameter_y2])
+            std_y = np.std(chains[j][parameter_y2])
+            ax3.errorbar(mean_x, mean_y, xerr=std_x, yerr=std_y, capsize=6, color=colors[j%10], markersize=10, zorder = 2)
 
         ax1.axvline(self.lower_frequency* 1000, color= 'red', label='Boundaries')
         ax1.axvline(self.upper_frequency* 1000, color= 'red')
@@ -967,23 +991,35 @@ class Search():
             # ax1.axvline((vertical_lines[j]+self.padding)* 1000, color= 'green')
             # ax2.axvline((vertical_lines[j]+self.padding)* 1000, color= 'green')
 
-        plt.xlabel(parameter_x)
+        ax2.set_xlabel(parameter_x)
         if parameter_x == 'Frequency':
-            plt.xlabel(parameter_x+' (mHz)')
-        ax1.set_ylabel('|A|')    
-        ax2.set_ylabel(parameter_y) 
-        ax1.set_yscale('log')  
-        ax2.set_yscale('log')   
+            ax2.set_xlabel(r'$f$ (mHz)')
+        ax3.set_xlabel(r'$\lambda$'+' (rad)')
+        ax3.set_ylabel(r'$\beta$'+' (rad)')
+        ax1.set_ylabel(r'$|A|$')
+        ax2.set_ylabel(r'$\mathcal{A}$')
+        ax1.set_yscale('log')
+        ax2.set_yscale('log')
         # ax1.set_xlim((self.lower_frequency-self.padding)*10**3, (self.upper_frequency+self.padding)*10**3)
         # ax2.set_xlim((self.lower_frequency-self.padding)*10**3, (self.upper_frequency+self.padding)*10**3)
         ax1.set_xlim((vertical_lines[1]-self.padding)*10**3, (vertical_lines[-2]+self.padding)*10**3)
         ax2.set_xlim((vertical_lines[1]-self.padding)*10**3, (vertical_lines[-2]+self.padding)*10**3)
-        ax1.set_ylim(10**-19,None)
+        ax1.set_ylim(10**-19,10**-15)
         # ax2.set_ylim(10**-23,4*10**-23)
         # ax1.set_xlim((self.lower_frequency)*10**3, (self.upper_frequency)*10**3)
         # ax2.set_xlim((self.lower_frequency)*10**3, (self.upper_frequency)*10**3)
         ax1.xaxis.set_major_locator(plt.MaxNLocator(4))
         # ax2.xaxis.set_major_locator(plt.MaxNLocator(4))
+
+        labels_plot = ['data','true', 'recovered']
+        custom_lines1 = [plt.Line2D([0], [0], color='k', lw=2, linestyle='solid'),
+                         plt.Line2D([0], [0], color=colors[0], lw=5, linestyle='solid', alpha=0.5),
+                         plt.Line2D([0], [0], color=colors[0], lw=2, linestyle='dashed')]
+        # custom_lines2 = [markers([0], [0], color=colors[0], lw=2, linestyle='solid'),
+        #                 plt.Line2D([0], [0], color=colors[0], lw=2, linestyle='dashed')]
+        handles, labels = ax2.get_legend_handles_labels()
+        ax2.legend([handles[0], handles[len(pGB_injected_matched)]], [labels[0],labels[len(pGB_injected_matched)]], loc='upper left')
+        ax1.legend(custom_lines1, labels_plot, loc='upper left')
         # plt.legend()
         plt.tight_layout()
         plt.pause(1)
