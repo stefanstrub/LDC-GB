@@ -94,18 +94,6 @@ def median_windows(y, window_size):
         medians[start_index:end_index][outliers] = median
     return medians
 
-def smooth_psd(psd, f):
-    smoothed = median_windows(psd, 30)
-    smoothed[:40] = psd[:40]
-    index_cut = np.searchsorted(f, 0.0008)
-    index_cut_lower = np.searchsorted(f, 3*10**-4)
-    psd_fit = np.ones_like(smoothed)
-    psd_fit_low = scipy.signal.savgol_filter(smoothed, 10, 1)
-    psd_fit_high = scipy.signal.savgol_filter(smoothed, 70, 1)
-    psd_fit[:index_cut] = psd_fit_low[:index_cut] 
-    psd_fit[index_cut:] = psd_fit_high[index_cut:] 
-    psd_fit[:index_cut_lower] = smoothed[:index_cut_lower]
-    return psd_fit, smoothed
 
 def scaletooriginal(previous_max, boundaries, parameters, parameters_log_uniform):
     maxpGB = {}

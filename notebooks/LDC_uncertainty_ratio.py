@@ -2,7 +2,6 @@ from re import A
 # from matplotlib.lines import _LineStyle
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
-from matplotlib.colors import LogNorm
 import matplotlib.font_manager
 import scipy
 from scipy.optimize import differential_evolution
@@ -18,9 +17,6 @@ import sys
 sys.path.append('/cluster/home/sstrub/Repositories/LDC/lib/lib64/python3.8/site-packages/ldc-0.1-py3.8-linux-x86_64.egg')
 import itertools
 from KDEpy import FFTKDE
-import pickle
-
-from scipy import integrate
 
 
 
@@ -28,17 +24,14 @@ from scipy import integrate
 plot_parameter = {  # 'backend': 'ps',
     "font.family" :'DeJavu Serif',
     "font.serif" : ["Computer Modern Serif"],
-    "mathtext.fontset": "cm",
 }
 
 
 # customized settings
 plot_parameter_big = {  # 'backend': 'ps',
     "font.family" :'DeJavu Serif',
-    "font.serif": "Times",
-    # "font.serif" : ["Computer Modern Serif"],
+    "font.serif" : ["Computer Modern Serif"],
     "font.size": 20,
-    "mathtext.fontset": "cm",
     "axes.labelsize": "medium",
     "axes.titlesize": "medium",
     "legend.fontsize": "medium",
@@ -51,7 +44,7 @@ plot_parameter_big = {  # 'backend': 'ps',
 }
 
 # tell matplotlib about your param_plots
-rcParams.update(plot_parameter_big)
+rcParams.update(plot_parameter)
 # set nice figure sizes
 fig_width_pt = 1.5*464.0  # Get this from LaTeX using \showthe\columnwidth
 golden_mean = (np.sqrt(5.0) - 1.0) / 2.0  # Aesthetic ratio
@@ -75,10 +68,13 @@ SAVEPATH = grandparent+"/LDC/Radler/LDC1-4_evaluation/"
 SAVEPATH_sangria = grandparent+"/LDC/Sangria/evaluation/"
 SAVEPATH_sangria = grandparent+"/LDC/pictures/Sangria/"
 
-save_name2 = 'Sangria_12m'
-save_name4 = 'Radler_6m'
-save_name3 = 'Radler_12m'
-save_name1 = 'Radler_24m'
+save_name3 = 'Sangria_1_dynamic_noise'
+save_name4 = 'LDC1-4_2_optimized_second'
+# save_name3 = 'Radler_1_full'
+save_name2 = 'Radler_1_full'
+save_name1 = 'LDC1-4_half_year'
+# save_name = 'LDC1-4_half_year'
+# save_name = 'Sangria_1_full_cut'
 
 # duration = '3932160'
 # duration = '7864320'
@@ -89,12 +85,9 @@ duration = '31457280'
 
 
 save_names = [save_name1, save_name2, save_name3, save_name4]
-SAVEPATHS = [SAVEPATH,SAVEPATH_sangria,SAVEPATH,SAVEPATH]
+SAVEPATHS = [SAVEPATH,SAVEPATH,SAVEPATH_sangria,SAVEPATH]
 
-# data_set = 1
-chain_paths = []
-for data_set in range(4):
-    chain_paths.append(SAVEPATHS[data_set] + 'Chains_gpu_partial07_'+save_names[data_set]+'/')
+chain_path = SAVEPATH_sangria + 'Chains_gpu_data_noise_smooth/'
 
 Tobs = int(duration)
 
@@ -118,18 +111,16 @@ parameters = [
     "Inclination"
 ]
 
-labels = {'EclipticLongitude': r'$\lambda$'+' (rad)', 'EclipticLatitude': r'$\beta$'+' (rad)','Frequency': r'$f / f_\mathrm{true}$','FrequencyDerivative': r'$\dot{f}$ $ ($Hz/s$)$','Inclination': r'$\iota$'+' (rad)','Amplitude': r'$ \mathcal{A}$', 'Polarization': r'$\psi$'+' (rad)', 'InitialPhase': r'$\phi_0$'+' (rad)'}
-
 end_string = '_SNR_scaled_03_injected_snr5'
 # end_string = 'correlation'
 def load_files(save_path, save_name):
-    found_sources_matched_flat_df = pd.read_pickle(save_path+'/found_sources_matched_' +save_name+end_string+'_df')
-    found_sources_not_matched_flat_df = pd.read_pickle(save_path+'found_sources_not_matched_' +save_name+end_string+'_df')
-    pGB_injected_matched_flat_df = pd.read_pickle(save_path+'/injected_matched_windows_' +save_name+end_string+'_df')
-    pGB_injected_not_matched_flat_df = pd.read_pickle(save_path+'/injected_not_matched_windows_' +save_name+end_string+'_df')
-    match_list = np.load(save_path+'match_list_' +save_name+end_string+'.npy', allow_pickle=True)
-    pGB_best_list = np.load(save_path+'pGB_best_list_' +save_name+end_string+'.npy', allow_pickle=True)
-    match_best_list = np.load(save_path+'match_best_list_' +save_name+end_string+'.npy', allow_pickle=True)
+    found_sources_matched_flat_df = pd.read_pickle(save_path+'/found_sources_matched' +save_name+end_string+'_df')
+    found_sources_not_matched_flat_df = pd.read_pickle(save_path+'found_sources_not_matched' +save_name+end_string+'_df')
+    pGB_injected_matched_flat_df = pd.read_pickle(save_path+'/injected_matched_windows' +save_name+end_string+'_df')
+    pGB_injected_not_matched_flat_df = pd.read_pickle(save_path+'/injected_not_matched_windows' +save_name+end_string+'_df')
+    match_list = np.load(save_path+'match_list' +save_name+end_string+'.npy', allow_pickle=True)
+    pGB_best_list = np.load(save_path+'pGB_best_list' +save_name+end_string+'.npy', allow_pickle=True)
+    match_best_list = np.load(save_path+'match_best_list' +save_name+end_string+'.npy', allow_pickle=True)
 
     pGB_best_list_flat = []
     for i in range(len(pGB_best_list)):
@@ -398,11 +389,12 @@ def check_if_in_confidence_region(parameter_x, parameter_y):
     return in_contour
 
 
-# frequencies_in_folder = []
-# for filename in onlyfiles:
-#     frequencies_in_folder.append(float(filename[9:filename.find('pHz')])/10**12)
-# frequencies_in_folder = np.array(frequencies_in_folder)
-# frequencies_in_folder = np.sort(frequencies_in_folder)
+onlyfiles = [f for f in os.listdir(chain_path) if os.path.isfile(os.path.join(chain_path, f))]
+frequencies_in_folder = []
+for filename in onlyfiles:
+    frequencies_in_folder.append(float(filename[9:filename.find('nHz')])/10**9)
+frequencies_in_folder = np.array(frequencies_in_folder)
+frequencies_in_folder = np.sort(frequencies_in_folder)
 
 
 in_contour_f_fd_list = []
@@ -411,8 +403,6 @@ in_contour_sky_list = []
 in_contour_amp_inclination_list = []
 in_contour_list = []
 in_contour = {}
-std = {}
-mean = {}
 for parameter_x, parameter_y in itertools.combinations(parameters, 2):
     in_contour[parameter_x,parameter_y] = []
 
@@ -420,233 +410,10 @@ for parameter_x in parameters:
     in_contour[parameter_x,parameter_x] = []
 for parameter in parameters:
     in_contour[parameter] = []
-    mean[parameter] = []
-    std[parameter] = []
 
 confidence_threshold = 0.4
 
-# samples = np.random.normal(0.8, 0.01, 1000)
-# std = np.std(samples)
-# mean = np.mean(samples)
-# print(mean, std)
-# print(np.arcsin(mean), np.arcsin(std))
-# samples_arc = np.arcsin(samples)
-# std_arc = np.std(samples_arc)
-# mean_arc = np.mean(samples_arc)
-# print(mean_arc, std_arc)
-
-
-
-
-# print(np.sin(mean), np.sin(std))
-
-# for index, filename in enumerate(onlyfiles):
-#     if index % int(len(onlyfiles)/10) == 0:
-#         print(np.round(index/len(onlyfiles),2))
-#     df = pd.read_csv(chain_path+filename)
-#     for parameter in parameters:
-#         mean[parameter].append(np.mean(df[parameter]))
-#         std[parameter].append(np.std(df[parameter]))
-
-# found_sources_list = []
-# mean_list = []
-# std_list = []
-
-# for data_set in range(len(save_names)):
-#     onlyfiles = [f for f in os.listdir(chain_paths[data_set]) if os.path.isfile(os.path.join(chain_paths[data_set], f))]
-#     found_sources = pd.concat([found_sources_matched_list[data_set], found_sources_not_matched_list[data_set]])
-#     found_sources = found_sources.sort_values(by=['Frequency'])
-#     found_sources = found_sources.reset_index()
-#     std = {}
-#     mean = {}
-#     for parameter in parameters:
-#         mean[parameter] = []
-#         std[parameter] = []
-#     for index in range(len(onlyfiles)):
-#         # if index > 46:
-#         #     continue
-#         # index_of_signal = np.searchsorted(found_sources['Frequency'], frequencies_in_folder[index])
-#         # if index_of_signal == len(onlyfiles): 
-#         #     index_of_signal = index_of_signal-1
-#         # if index_of_signal < len(onlyfiles)-1: 
-#         #     if abs(found_sources['Frequency'][index_of_signal]-frequencies_in_folder[index]) > abs(found_sources['Frequency'][index_of_signal+1]-frequencies_in_folder[index]):
-#         #         index_of_signal = index_of_signal+1
-#         # if index_of_signal != 0: 
-#         #     if abs(found_sources['Frequency'][index_of_signal]-frequencies_in_folder[index]) > abs(found_sources['Frequency'][index_of_signal-1]-frequencies_in_folder[index]):
-#         #         index_of_signal = index_of_signal-1
-#         index_of_signal = index
-#         # index_of_signal = 4804
-#         # index_of_signal = 502
-#         # index_of_signal = 9
-#         if index % int(len(onlyfiles)/10) == 0:
-#             print(np.round(index/len(onlyfiles),2))
-#         # print('frequency'+str(int(np.round(found_sources['Frequency'][index_of_signal]*10**9)))+'Sangria_1_full_cut.csv')
-#         try:
-#             df = pd.read_csv(chain_paths[data_set]+'frequency'+str(int(np.round(found_sources['Frequency'][index_of_signal]*10**12)))+'pHz'+ save_names[data_set] +'.csv')
-#         except:
-#             pass
-        
-#         df['Frequency'] *= 10**-3
-#         df['EclipticLatitude'] = np.sin(df['EclipticLatitude'])
-#         for parameter in parameters:
-#             mean[parameter].append(np.mean(df[parameter]))
-#             std[parameter].append(np.std(df[parameter]))
-#     found_sources_list.append(found_sources)
-#     mean_list.append(mean)
-#     std_list.append(std)
-
-
-# pickle.dump(mean_list, open(SAVEPATH+'/mean_list' +save_name+end_string+'.npy', "wb"))
-# pickle.dump(std_list, open(SAVEPATH+'/std_list' +save_name+end_string+'.npy', "wb"))
-# pickle.dump(found_sources_list, open(SAVEPATH+'/found_sources_list' +save_name+end_string+'.npy', "wb"))
-
-mean_list = pickle.load(open(SAVEPATH+'/mean_list' +save_name+end_string+'.npy', "rb"))
-std_list = pickle.load(open(SAVEPATH+'/std_list' +save_name+end_string+'.npy', "rb"))
-found_sources_list = pickle.load(open(SAVEPATH+'/found_sources_list' +save_name+end_string+'.npy', "rb"))
-
-
-for data_set in range(len(save_names)):
-    for i in range(len(mean_list[data_set]['EclipticLongitude'])):
-        if mean_list[data_set]['EclipticLongitude'][i] < 0:
-            mean_list[data_set]['EclipticLongitude'][i] += 2*np.pi
-
-
-def angular_distance(ra1, dec1, ra2, dec2):
-    return np.arccos(np.sin(dec1)*np.sin(dec2) + np.cos(dec1)*np.cos(dec2)*np.cos(ra1-ra2))
-
-
-def f(x, y):
-    return np.abs(np.sin(x))
-
-
-prop_cycle = plt.rcParams['axes.prop_cycle']
-colors = prop_cycle.by_key()['color']
-blue = deepcopy(colors[0])
-colors[0] = deepcopy(colors[1])
-colors[1] = deepcopy(blue)
-colors[2] = '#00008B' 
-# colors[3] = '#BB5500' 
-
-linestyle = ['solid', 'dashed', 'solid', 'solid']
-# labels_plot = ['ETH 1 yr', 'MM 1 yr', 'ETH 0.5 yr', 'MM 0.5 yr']
-# labels_plot = ['LDC1 0.5 yr', 'LDC1 1 yr', 'LDC2 1 yr', 'LDC1 2 yr']
-# labels_plot = ['LDC1 2 yr', 'LDC2 1 yr', 'LDC1 1 yr', 'LDC1 0.5 yr']
-labels_plot = ['Radler 2 yr', 'Sangria 1 yr', 'Radler 1 yr', 'Radler 0.5 yr']
-line_width = 3
-custom_lines = [plt.Line2D([0], [0], color=colors[0], lw=line_width, linestyle=linestyle[0]),
-                plt.Line2D([0], [0], color=colors[1], lw=line_width, linestyle=linestyle[1]),
-                plt.Line2D([0], [0], color=colors[2], lw=line_width, linestyle=linestyle[2]),
-                plt.Line2D([0], [0], color=colors[3], lw=line_width, linestyle=linestyle[3])]
-
-
-line_width = 3
-data_set = 2
-target_frequency = 0.004169906
-index = np.searchsorted(found_sources_list[data_set]['Frequency'], target_frequency)
-found_sources_list[data_set]['Frequency'][index]
-if abs(found_sources_list[data_set]['Frequency'][index]-target_frequency) > abs(found_sources_list[data_set]['Frequency'][index-1]-target_frequency):
-    index = index-1
-    
-print(mean_list[data_set]['Frequency'][index], mean_list[data_set]['EclipticLatitude'][index], mean_list[data_set]['EclipticLongitude'][index])
-print(mean_list[data_set]['EclipticLatitude'][index]-std_list[data_set]['EclipticLatitude'][index],mean_list[data_set]['EclipticLatitude'][index]+std_list[data_set]['EclipticLatitude'][index])
-print(mean_list[data_set]['EclipticLongitude'][index]-std_list[data_set]['EclipticLongitude'][index],mean_list[data_set]['EclipticLongitude'][index]+std_list[data_set]['EclipticLongitude'][index])
-
-# area_list = []
-# for data_set in range(len(save_names)):
-#     area = []
-#     for i in range(len(mean_list[data_set]['EclipticLongitude'])):
-#         if i % int(len(mean_list[data_set]['EclipticLongitude'])/10) == 0:
-#             print(np.round(i/len(mean_list[data_set]['EclipticLongitude']),2))
-#         area.append(integrate.nquad(f, [[np.arcsin(mean_list[data_set]['EclipticLatitude'][i]-std_list[data_set]['EclipticLatitude'][i]), np.arcsin(mean_list[data_set]['EclipticLatitude'][i]+std_list[data_set]['EclipticLatitude'][i])],
-#                                          [mean_list[data_set]['EclipticLatitude'][i]-std_list[data_set]['EclipticLatitude'][i], mean_list[data_set]['EclipticLatitude'][i]+std_list[data_set]['EclipticLatitude'][i]]],
-#                                         ))
-#     area_list.append(area)
-# pickle.dump(area_list, open(SAVEPATH+'/area_list' +save_name+end_string+'.npy', "wb"))
-
-area_list = pickle.load(open(SAVEPATH+'/area_list' +save_name+end_string+'.npy', "rb"))
-
-parameter = 'EclipticLongitude'
-parameter2 = 'EclipticLatitude'
-fig = plt.figure(figsize=fig_size)
-
-for data_set in range(len(save_names)):
-    plt.loglog(found_sources_list[data_set]['Amplitude'], std_list[data_set][parameter],  '.', label=labels_plot[data_set])
-plt.xlabel('Amplitude')
-plt.ylabel('Standard deviation ' +parameter)
-plt.tight_layout()
-plt.show()
-
-
-for data_set in range(len(save_names)):
-    for parameter in parameters:
-        std_list[data_set][parameter] = np.array(std_list[data_set][parameter])
-        mean_list[data_set][parameter] = np.array(mean_list[data_set][parameter])
-
-
-for data_set in range(len(save_names)):
-    std_list[data_set]['EclipticLatitude_no_sin'] = (np.arcsin(std_list[data_set]['EclipticLatitude']+ mean_list[data_set]['EclipticLatitude']) - np.arcsin(mean_list[data_set]['EclipticLatitude'])) * 2
-# parameter = 'EclipticLongitude'
-
-
-for data_set in range(len(save_names)):
-    std_list[data_set]['angular_distance'] = angular_distance(mean_list[data_set]['EclipticLongitude']-std_list[data_set]['EclipticLongitude'], np.arcsin(mean_list[data_set]['EclipticLatitude']-std_list[data_set]['EclipticLatitude']), mean_list[data_set]['EclipticLongitude']+std_list[data_set]['EclipticLongitude'], np.arcsin(mean_list[data_set]['EclipticLatitude']+std_list[data_set]['EclipticLatitude']))
-
-
-for data_set in range(len(save_names)):
-    std_list[data_set]['angular_distance_latitude'] = angular_distance(mean_list[data_set]['EclipticLongitude'], np.arcsin(mean_list[data_set]['EclipticLatitude']-std_list[data_set]['EclipticLatitude']), mean_list[data_set]['EclipticLongitude'], np.arcsin(mean_list[data_set]['EclipticLatitude']+std_list[data_set]['EclipticLatitude']))
-
-
-for data_set in range(len(save_names)):
-    std_list[data_set]['angular_distance_longitude'] = angular_distance(mean_list[data_set]['EclipticLongitude']-std_list[data_set]['EclipticLongitude'], np.arcsin(mean_list[data_set]['EclipticLatitude']), mean_list[data_set]['EclipticLongitude']+std_list[data_set]['EclipticLongitude'], np.arcsin(mean_list[data_set]['EclipticLatitude']))
-
-# parameter = 'EclipticLatitude_no_sin'
-parameter = 'angular_distance_latitude'
-n_bins = 30
-fig = plt.figure(figsize=fig_size)
-
-for data_set in range(len(save_names)):
-    plt.hist(std_list[data_set][parameter] * 180/np.pi, bins=np.logspace(-2,2, n_bins),  density=False, histtype='step')
-plt.xscale('log')
-plt.xlabel(parameter)
-plt.savefig(SAVEPATH+'/Evaluation/'+parameter+'std_histogram'+save_names[data_set]+end_string)
-plt.tight_layout()
-plt.show()
-
-# parameter = 'EclipticLongitude'
-parameter = 'EclipticLatitude'
-n_bins = 30
-fig = plt.figure(figsize=fig_size)
-for data_set in range(len(save_names)):
-    plt.hist(np.array(area_list[data_set])[:,0]*(180/np.pi)**2, bins=np.logspace(-3,3, n_bins), label=labels_plot[data_set], color=colors[data_set],  linestyle=linestyle[data_set], density=False, histtype='step', linewidth=line_width)
-plt.xscale('log')
-plt.xlim(10**-3,10**3)
-plt.xlabel('Angular confidence area (deg$^2$)')
-plt.ylabel('Count')
-plt.grid(True)
-plt.legend(custom_lines, labels_plot, loc='upper left')
-plt.tight_layout()
-plt.savefig(SAVEPATH+'/Evaluation/confidence_area_std_histogram'+save_names[data_set]+end_string)
-plt.show()
-
-X = found_sources['Frequency']
-# mean['Frequency']
-Y = found_sources['Amplitude']
-Z = np.array(std[parameter])# * (180/np.pi)
-
-fig, ax = plt.subplots(1,1, figsize=fig_size)
-im = ax.scatter(X,Y,c=Z, norm= LogNorm(),  s=3)
-# fig.colorbar(im, ax=ax, label='std ' + labels[parameter])
-fig.colorbar(im, ax=ax, label='std ' + labels[parameter])
-# ax.set_xlim(0,2*np.pi)
-# ax.set_ylim(-np.pi/2,np.pi/2)
-ax.set_xscale('log')
-ax.set_yscale('log')
-ax.set_xlabel('$f$')
-ax.set_ylabel(labels['Amplitude'])
-plt.savefig(SAVEPATH+'/Evaluation/'+parameter+'std'+save_names[data_set]+end_string)
-plt.show()
-
-
+index = 6
 for index in range(len(onlyfiles)):
     # if index > 46:
     #     continue
@@ -663,7 +430,7 @@ for index in range(len(onlyfiles)):
         print(np.round(index/len(onlyfiles),2))
     # print('frequency'+str(int(np.round(found_sources_matched_list[2]['Frequency'][index_of_signal]*10**9)))+'Sangria_1_full_cut.csv')
     try:
-        df = pd.read_csv(chain_path+'frequency'+str(int(np.round(found_sources_matched_list[2]['Frequency'][index_of_signal]*10**12)))+'pHzSangria_1year_dynamic_noise.csv')
+        df = pd.read_csv(chain_path+'frequency'+str(int(np.round(found_sources_matched_list[2]['Frequency'][index_of_signal]*10**9)))+'nHzSangria_1year_dynamic_noise.csv')
     except:
         pass
     injected_parameters = pGB_injected_matched_list[2]
@@ -672,16 +439,14 @@ for index in range(len(onlyfiles)):
 
     df['Frequency'] *= 10**-3
 
-
-    # for parameter_x, parameter_y in itertools.combinations(parameters, 2):
-    #     in_contour[parameter_x,parameter_y].append(check_if_in_confidence_region(parameter_x, parameter_y))
+    for parameter_x, parameter_y in itertools.combinations(parameters, 2):
+        in_contour[parameter_x,parameter_y].append(check_if_in_confidence_region(parameter_x, parameter_y))
     # for parameter_x, parameter_y in itertools.combinations(parameters, 2):
     #     in_contour[parameter_x,parameter_y].append(check_if_in_confidence_region_2D(parameter_x, parameter_y))
     # for parameter_x in parameters:
     #     in_contour[parameter_x,parameter_x].append(check_if_in_confidence_region(parameter_x, parameter_x))
-    # for parameter in parameters:
-    #     in_contour[parameter].append(check_if_in_confidence_region_1D_kde(parameter))
-        
+    for parameter in parameters:
+        in_contour[parameter].append(check_if_in_confidence_region_1D_kde(parameter))
     # parameter_x = 'Frequency'
     # parameter_y = 'FrequencyDerivative'
     # in_contour[parameter_x,parameter_y].append(check_if_in_confidence_region(parameter_x, parameter_y))
@@ -699,8 +464,6 @@ for index in range(len(onlyfiles)):
     #     in_contour_list.append(True)
     # else:
     #     in_contour_list.append(False)
-
-
 
 print('confidence region', confidence_threshold)
 for parameter_x, parameter_y in itertools.combinations(parameters, 2):

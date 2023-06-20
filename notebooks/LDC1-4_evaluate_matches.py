@@ -6,6 +6,7 @@ from matplotlib.colors import LogNorm
 import matplotlib.font_manager
 import scipy
 from scipy.optimize import differential_evolution
+from scipy.interpolate import InterpolatedUnivariateSpline as spline
 import numpy as np
 import xarray as xr
 import time
@@ -129,8 +130,17 @@ end_string = '_SNR_scaled_03_injected_snr5'
 # end_string = 'correlation'
 def load_files(save_path, save_name):
     found_sources_flat_df = pd.read_pickle(save_path+'/found_sources_' +save_name+end_string+'_df')
+    for i in range(len(found_sources_flat_df)):
+        if found_sources_flat_df['EclipticLongitude'][i] < 0:
+            found_sources_flat_df['EclipticLongitude'][i] += 2*np.pi
     found_sources_matched_flat_df = pd.read_pickle(save_path+'/found_sources_matched_' +save_name+end_string+'_df')
+    for i in range(len(found_sources_matched_flat_df)):
+        if found_sources_matched_flat_df['EclipticLongitude'][i] < 0:
+            found_sources_matched_flat_df['EclipticLongitude'][i] += 2*np.pi
     found_sources_not_matched_flat_df = pd.read_pickle(save_path+'/found_sources_not_matched_' +save_name+end_string+'_df')
+    for i in range(len(found_sources_not_matched_flat_df)):
+        if found_sources_not_matched_flat_df['EclipticLongitude'][i] < 0:
+            found_sources_not_matched_flat_df['EclipticLongitude'][i] += 2*np.pi
     pGB_injected_matched_flat_df = pd.read_pickle(save_path+'/injected_matched_windows_' +save_name+end_string+'_df')
     pGB_injected_not_matched_flat_df = pd.read_pickle(save_path+'/injected_not_matched_windows_' +save_name+end_string+'_df')
     match_list = np.load(save_path+'match_list_' +save_name+end_string+'.npy', allow_pickle=True)
@@ -192,9 +202,45 @@ f = np.logspace(np.log10(0.0003), np.log10(0.1), 1000)
 ldc_noise = AnalyticNoise(f, model="sangria", wd=1)
 SAa = ldc_noise.psd(f, option='A')
 
-noise_model = 'sangria'
+if Radler:
+    noise_model = "SciRDv1"
+else:
+    noise_model = "sangria"
 Nmodel = get_noise_model(noise_model, f)
 SA = Nmodel.psd(freq=f, option="A")
+
+data_set = 0
+noise_fn = SAVEPATHS[data_set]+'ETH_'+save_names[data_set]+'_noise.csv'
+psd = pd.read_csv(noise_fn, delimiter=",")  
+SA = spline(psd['f'], psd['A'])(f)
+
+#### plot amplitude - frequency
+markersize = 3
+alpha = 0.4
+save_name = save_names[data_set]
+# parameter_to_plot = 'IntrinsicSNR'
+parameter_x = 'Frequency'
+parameter_y = 'Amplitude'
+fig = plt.figure(figsize=fig_size)
+# plt.plot(pGB_injectced_flat_df['Frequency']*10**3,pGB_injected_flat_df[parameter_y], '.', color= colors[0], label = 'Injected', markersize= markersize, alpha = alpha)
+# plt.plot(pGB_injected_matched_flat_df['Frequency']*10**3,pGB_injected_matched_flat_df[parameter_y], '.', color= colors[1], label = 'Injected matched', markersize= markersize, alpha = alpha)
+# plt.plot(pGB_injected_flat_df_high_SNR['Frequency']*10**3,pGB_injected_flat_df_high_SNR[parameter_y],'.', color= colors[1], markersize= markersize, label = 'Injected SNR > 10', alpha = alpha)
+plt.plot(found_sources_matched_list[data_set][parameter_x],found_sources_matched_list[data_set][parameter_y],'g.', label = r'$\tilde\theta_{\mathrm{recovered, } \delta < 0.3}$', markersize= markersize, alpha = alpha, zorder = 5)
+plt.plot(found_sources_not_matched_list[data_set][parameter_x],found_sources_not_matched_list[data_set][parameter_y],'o',color= 'blue',  markerfacecolor='None', markersize= markersize, label = r'$\tilde\theta_{\mathrm{recovered, } \delta > 0.3}$', alpha = alpha)
+plt.plot(pGB_injected_not_matched_list[data_set][parameter_x],pGB_injected_not_matched_list[data_set][parameter_y], '+', color = 'r', label = r'$\tilde\theta_{\mathrm{injected, } \delta > 0.3}$', markersize= markersize, alpha = alpha, zorder = 1)
+# plt.plot(f,np.sqrt(SA), color = 'black', label = 'Sangria', linewidth=2)
+plt.yscale('log')
+plt.xscale('log')
+plt.xlabel('$f$ (Hz)')
+plt.xlim(0.0003,0.03)
+plt.ylim(3*10**-24,None)
+if parameter_y == 'IntrinsicSNR':
+    plt.ylabel('Intrinsic SNR')
+else:
+    plt.ylabel(labels[parameter_y])    
+plt.legend(markerscale=4, loc = 'upper right')
+plt.savefig(SAVEPATH+'/Evaluation/'+parameter_y+save_name+'injected_not_matched_found_matched_found_not_matched'+end_string,dpi=300,bbox_inches='tight')
+plt.show()
 
 #### plot amplitude - frequency
 markersize = 3
@@ -202,26 +248,29 @@ alpha = 0.4
 data_set = 0
 save_name = save_names[data_set]
 # parameter_to_plot = 'IntrinsicSNR'
-parameter_to_plot = 'Amplitude'
+parameter_x = 'EclipticLongitude'
+parameter_y = 'EclipticLatitude'
 fig = plt.figure(figsize=fig_size)
-# plt.plot(pGB_injectced_flat_df['Frequency']*10**3,pGB_injected_flat_df[parameter_to_plot], '.', color= colors[0], label = 'Injected', markersize= markersize, alpha = alpha)
-# plt.plot(pGB_injected_matched_flat_df['Frequency']*10**3,pGB_injected_matched_flat_df[parameter_to_plot], '.', color= colors[1], label = 'Injected matched', markersize= markersize, alpha = alpha)
-# plt.plot(pGB_injected_flat_df_high_SNR['Frequency']*10**3,pGB_injected_flat_df_high_SNR[parameter_to_plot],'.', color= colors[1], markersize= markersize, label = 'Injected SNR > 10', alpha = alpha)
-plt.plot(found_sources_matched_list[data_set]['Frequency'],found_sources_matched_list[data_set][parameter_to_plot],'g.', label = r'$\tilde\theta_{\mathrm{recovered, } \delta < 0.3}$', markersize= markersize, alpha = alpha, zorder = 5)
-plt.plot(found_sources_not_matched_list[data_set]['Frequency'],found_sources_not_matched_list[data_set][parameter_to_plot],'o',color= 'blue',  markerfacecolor='None', markersize= markersize, label = r'$\tilde\theta_{\mathrm{recovered, } \delta > 0.3}$', alpha = alpha)
-plt.plot(pGB_injected_not_matched_list[data_set]['Frequency'],pGB_injected_not_matched_list[data_set][parameter_to_plot], '+', color = 'r', label = r'$\tilde\theta_{\mathrm{injected, } \delta > 0.3}$', markersize= markersize, alpha = alpha, zorder = 1)
+# plt.plot(pGB_injectced_flat_df['Frequency']*10**3,pGB_injected_flat_df[parameter_y], '.', color= colors[0], label = 'Injected', markersize= markersize, alpha = alpha)
+# plt.plot(pGB_injected_matched_flat_df['Frequency']*10**3,pGB_injected_matched_flat_df[parameter_y], '.', color= colors[1], label = 'Injected matched', markersize= markersize, alpha = alpha)
+# plt.plot(pGB_injected_flat_df_high_SNR['Frequency']*10**3,pGB_injected_flat_df_high_SNR[parameter_y],'.', color= colors[1], markersize= markersize, label = 'Injected SNR > 10', alpha = alpha)
+plt.plot(found_sources_matched_list[data_set][parameter_x],found_sources_matched_list[data_set][parameter_y],'g.', label = r'$\tilde\theta_{\mathrm{recovered, } \delta < 0.3}$', markersize= markersize, alpha = alpha, zorder = 5)
+plt.plot(found_sources_not_matched_list[data_set][parameter_x],found_sources_not_matched_list[data_set][parameter_y],'o',color= 'blue',  markerfacecolor='None', markersize= markersize, label = r'$\tilde\theta_{\mathrm{recovered, } \delta > 0.3}$', alpha = alpha)
+plt.plot(pGB_injected_not_matched_list[data_set][parameter_x],pGB_injected_not_matched_list[data_set][parameter_y], '+', color = 'r', label = r'$\tilde\theta_{\mathrm{injected, } \delta > 0.3}$', markersize= markersize, alpha = alpha, zorder = 1)
 # plt.plot(f,SA*10**20, color = 'black', label = 'Sangria', linewidth=2)
-plt.yscale('log')
-plt.xscale('log')
-plt.xlabel('$f$ (Hz)')
-plt.xlim(0.0003,0.1)
-plt.ylim(3*10**-24,None)
-if parameter_to_plot == 'IntrinsicSNR':
+# plt.yscale('log')
+# plt.xscale('log')
+# plt.xlabel('$f$ (Hz)')
+plt.xlabel(labels[parameter_x])
+plt.xlim(0,2*np.pi)
+plt.ylim(-np.pi/2,np.pi/2)
+if parameter_y == 'IntrinsicSNR':
     plt.ylabel('Intrinsic SNR')
 else:
-    plt.ylabel(labels[parameter_to_plot])    
-plt.legend(markerscale=4, loc = 'upper right')
-plt.savefig(SAVEPATH+'/Evaluation/'+parameter_to_plot+save_name+'injected_not_matched_found_matched_found_not_matched'+end_string,dpi=300,bbox_inches='tight')
+    plt.ylabel(labels[parameter_y])    
+# plt.legend(markerscale=4, loc = 'upper right')
+plt.legend(markerscale=4, loc = 'lower left')
+plt.savefig(SAVEPATH+'/Evaluation/'+parameter_x+parameter_y+save_name+'injected_not_matched_found_matched_found_not_matched'+end_string,dpi=300,bbox_inches='tight')
 plt.show()
 
 
@@ -266,16 +315,6 @@ parameter_y = 'EclipticLatitude'
 fig = plt.figure(figsize=fig_size)
 plt.plot(found_sources_list[data_set][parameter_x],found_sources_list[data_set][parameter_y],'.', markersize= markersize, alpha = alpha, zorder = 5)
 plt.show()
-
-N = 100
-X, Y = np.mgrid[-3:3:complex(0, N), -2:2:complex(0, N)]
-
-# A low hump with a spike coming out of the top right.  Needs to have
-# z/colour axis on a log scale, so we see both hump and spike. A linear
-# scale only shows the spike.
-Z1 = np.exp(-X**2 - Y**2)
-Z2 = np.exp(-(X * 10)**2 - (Y * 10)**2)
-Z = Z1 + 50 * Z2
 
 X = found_sources_list[data_set][parameter_x]
 Y = found_sources_list[data_set][parameter_y]
@@ -589,7 +628,7 @@ for ax, parameter in zip(axs.flat, parameter_order):
         ax.set_xlim(10**-19,10**-13)
     if parameter == 'Frequency':
         ax.set_xscale('log')
-        ax.set_xlim(10**-8,10**-3.5)
+        ax.set_xlim(10**-8,10**-4)
         # ax.ylim(0,10**3)
         ax.set_xlabel(r'$\Delta f / f_{true}$')
     if parameter in [ 'InitialPhase', 'Polarization']:
@@ -1009,8 +1048,8 @@ ax1.plot(sun['GalactocentricX'],sun['GalactocentricY'],'.',c='red', markersize=4
 ax1.set_xlabel('Galactocentric X [kpc]')
 ax1.set_ylabel('Galactocentric Y [kpc]')
 fig.colorbar(im, ax=ax1, label=r'Injected GB density $[1/ \mathrm{kpc}^2]$')
-plt.savefig(SAVEPATH+'/injected_galactocentric_2D_'+save_names[data_set])
 plt.legend()
+plt.savefig(SAVEPATH+'/injected_galactocentric_2D_'+save_names[data_set])
 plt.show()
 
 
@@ -1031,8 +1070,8 @@ ax1.plot(sun['GalactocentricX'],sun['GalactocentricY'],'.',c='red', markersize=4
 ax1.set_xlabel('Galactocentric X [kpc]')
 ax1.set_ylabel('Galactocentric Y [kpc]')
 fig.colorbar(im, ax=ax1, label=r'Recovered GB density $[1/ \mathrm{kpc}^2]$')
-plt.savefig(SAVEPATH+'/recovered_galactocentric_2D_'+save_names[data_set])
 plt.legend()
+plt.savefig(SAVEPATH+'/recovered_galactocentric_2D_'+save_names[data_set])
 plt.show()
 
 fig = plt.figure()
@@ -1050,9 +1089,10 @@ plt.show()
 
 
 ##### plot galactocentric coordinates 3d
+rcParams['axes.labelpad'] = 20
 markersize = 5
 alpha = 0.5
-fig = plt.figure()
+fig = plt.figure(figsize=[7,7])
 ax = plt.axes(projection='3d')
 # postitive_fd_mask = found_sources_matched_positive_fd_list[data_set]['FrequencyDerivative'] >= 0
 # ax.scatter(found_sources_matched_positive_fd_list[data_set]['GalactocentricX'],found_sources_matched_positive_fd_list[data_set]['GalactocentricY'],found_sources_matched_positive_fd_list[data_set]['GalactocentricZ'],marker='.')
@@ -1064,15 +1104,17 @@ ax.plot(pGB_injected_matched_positive_fd_list[data_set]['GalactocentricX'],pGB_i
 # ax.plot(pGB_injected_not_matched_list[data_set]['GalacticLatitude'][postitive_fd_mask],pGB_injected_not_matched_list[data_set]['Distance'][postitive_fd_mask],'+', label = 'not matched', color = 'r', markersize=2, zorder= 1)
 # postitive_fd_mask = pGB_injected_flat_highSNR_df['FrequencyDerivative'] >= 0
 # ax.plot(pGB_injected_flat_highSNR_df['GalacticLatitude'][postitive_fd_mask],pGB_injected_flat_highSNR_df['Distance'][postitive_fd_mask],'+', label = 'injected SNR>10', color = 'r', markersize=2, zorder= 4)
-plt.plot(sun['GalactocentricX'],sun['GalactocentricY'],'.',c='red', markersize=4, alpha=1, zorder = 2,  label='sun')
+plt.plot(sun['GalactocentricX'],sun['GalactocentricY'],'.',c='red', markersize=4, alpha=1, zorder = 2,  label='Sun')
 ax.set_xlabel('X [kpc]')
 ax.set_ylabel('Y [kpc]')
 ax.set_zlabel('Z [kpc]')
 plt.tight_layout()
+ax.set_zlim(-1,1)
+start, end = ax.get_zlim()
+ax.zaxis.set_ticks(np.arange(start, end+0.5, 0.5))
 ax.set_xlim(-20,20)
 ax.set_ylim(-20,20)
-ax.set_zlim(-1,1)
-# plt.legend(markerscale=4, loc = 'upper right')
+plt.legend(loc = 'upper right')
 plt.savefig(SAVEPATH+'/galactocentric_3D_'+save_names[data_set])
 plt.show()
 

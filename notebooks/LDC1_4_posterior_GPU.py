@@ -3268,6 +3268,21 @@ def get_noise_from_frequency_domain(tdi_fs, number_of_windows=100):
     f, psdT =  scipy.signal.welch(tdi_ts["T"], fs=1.0/dt, nperseg=len(tdi_ts["X"])/number_of_windows)
     return f, psdA, psdE, psdT
 
+
+def smooth_psd(psd, f):
+    smoothed = median_windows(psd, 30)
+    smoothed[:40] = psd[:40]
+    index_cut = np.searchsorted(f, 0.0008)  # 0.0008 for 1,2 years
+    index_cut_lower = np.searchsorted(f, 3*10**-4)
+    psd_fit = np.ones_like(smoothed)
+    psd_fit_low = scipy.signal.savgol_filter(smoothed, 10, 1)
+    psd_fit_high = scipy.signal.savgol_filter(smoothed, 70, 1) # 70 for 1,2 years
+    psd_fit[:index_cut] = psd_fit_low[:index_cut] 
+    psd_fit[index_cut:] = psd_fit_high[index_cut:] 
+    psd_fit[:index_cut_lower] = smoothed[:index_cut_lower]
+    return psd_fit, smoothed
+
+
 number_of_windows = 500
 start = time.time()
 f, psdA, psdE, psdT = get_noise_from_frequency_domain(tdi_fs, number_of_windows=number_of_windows)
@@ -3283,6 +3298,7 @@ f_partial_residual, psdA_partial, psdE_partial, psdT_partial = get_noise_from_fr
 
 
 f_res, psdA_residual, psdE_residual, psdT_residual = get_noise_from_frequency_domain(tdi_fs_residual, number_of_windows=number_of_windows)
+psdA_welch = deepcopy(psdA_residual)
 # psdA_residual = np.interp(tdi_fs.f, f_res, psdA_residual)
 # psdE_residual = np.interp(tdi_fs.f, f_res, psdE_residual)
 # psdT_residual = np.interp(tdi_fs.f, f_res, psdT_residual)
@@ -3319,9 +3335,9 @@ psdA_partial, smoothedA = smooth_psd(psdA_partial, f_partial_residual)
 psdE_partial, smoothedE = smooth_psd(psdE_partial, f_partial_residual)
 psdT_partial, smoothedT = smooth_psd(psdT_partial, f_partial_residual)
 
-psdA_fit, smoothedA = smooth_psd(psdA_residual, f_res)
-psdE_fit, smoothedE = smooth_psd(psdE_residual, f_res)
-psdT_fit, smoothedT = smooth_psd(psdT_residual, f_res)
+psdA_residual, smoothedA = smooth_psd(psdA_residual, f_res)
+psdE_residual, smoothedE = smooth_psd(psdE_residual, f_res)
+psdT_residual, smoothedT = smooth_psd(psdT_residual, f_res)
 
 # psdA_fit = smooth_psd(noise_means, frequencies_means)
 
@@ -3333,9 +3349,9 @@ psdA_partial = scipy.interpolate.InterpolatedUnivariateSpline(f_partial_residual
 psdE_partial = scipy.interpolate.InterpolatedUnivariateSpline(f_partial_residual, psdE_partial)(tdi_fs.f)
 psdT_partial = scipy.interpolate.InterpolatedUnivariateSpline(f_partial_residual, psdT_partial)(tdi_fs.f)
 
-psdA_fit = scipy.interpolate.InterpolatedUnivariateSpline(f_res, psdA_fit)(tdi_fs.f)
-psdE_fit = scipy.interpolate.InterpolatedUnivariateSpline(f_res, psdE_fit)(tdi_fs.f)
-psdT_fit = scipy.interpolate.InterpolatedUnivariateSpline(f_res, psdT_fit)(tdi_fs.f)
+psdA_residual = scipy.interpolate.InterpolatedUnivariateSpline(f_res, psdA_residual)(tdi_fs.f)
+psdE_residual = scipy.interpolate.InterpolatedUnivariateSpline(f_res, psdE_residual)(tdi_fs.f)
+psdT_residual = scipy.interpolate.InterpolatedUnivariateSpline(f_res, psdT_residual)(tdi_fs.f)
 
 
 # t = np.linspace(f_res[8], f_res[-2], 50)
@@ -3377,15 +3393,15 @@ plt.figure()
 plt.loglog(tdi_fs.f, np.abs(tdi_fs['A']/dt)**2 /(fs*len(tdi_ts['X']))*2 ,color='grey', zorder =0, label=r'PSD $d$')     
 plt.loglog(tdi_fs.f, np.abs(tdi_fs_residual['A']/dt)**2 /(fs*len(tdi_ts['X']))*2 ,color='darkgrey', zorder =1, label=r'PSD $d_\mathrm{residual}$')  
 plt.loglog(tdi_fs.f, psdA_partial, zorder=4.5, label=r'$S_{A \mathrm{,partial}}$', linewidth=3)   
-plt.loglog(f_res, psdA_residual, label=r'$S_{A \mathrm{,welch}}$', linewidth = 3)  
+plt.loglog(f_res, psdA_welch, label=r'$S_{A \mathrm{,welch}}$', linewidth = 3)  
 # plt.loglog(f_partial_residual1, psdA_residual1, label='welch2', linewidth = 3)  
 # plt.loglog(f_res, psdA_partial)   
 # plt.loglog(f_res, smoothed_A)     
 # plt.loglog(tdi_fs.f, spline(tdi_fs.f))
-# plt.loglog(frequencies_means, psd_fit, zorder=5)    
+# plt.loglog(frequencies_means, psd_residual, zorder=5)    
 # plt.loglog(f_res[1:], SA, zorder=5)   
 plt.loglog(f_res, smoothedA, zorder=4, label=r'$S_{A \mathrm{,median}}$')   
-plt.loglog(tdi_fs.f, psdA_fit, zorder=5, label=r'$S_{A \mathrm{,residual}}$', linewidth=3)   
+plt.loglog(tdi_fs.f, psdA_residual, zorder=5, label=r'$S_{A \mathrm{,residual}}$', linewidth=3)   
 # plt.loglog(f_res[1:], SAa, 'k--', zorder=5, label='instrument')   
 plt.loglog(f_res[1:], SA, 'k--', zorder=5, label=r'$S_{A \mathrm{,instrument}}$')   
 # plt.loglog(tdi_fs.f, noise_means, zorder=3)   
@@ -3413,9 +3429,9 @@ noise_residual = {'A': psdA_residual, 'E': psdE_residual, 'T': psdT_residual}
 # noise_partial_residual = {'A': psdA_partial_residual, 'E': psdE_partial_residual, 'T': psdT_partial_residual}
 noise = noise_fit
 
-# noise['f'] = tdi_fs.f
-# noise_df = pd.DataFrame(noise)
-# noise_df.to_csv(SAVEPATH+'ETH_sangria_noise.csv')
+noise_residual['f'] = tdi_fs.f
+noise_df = pd.DataFrame(noise_residual)
+noise_df.to_csv(SAVEPATH+'ETH_'+save_name+'_noise.csv')
 
 # search1 = Search(tdi_fs_residual,Tobs, lower_frequency, upper_frequency, noise=noise)
 
