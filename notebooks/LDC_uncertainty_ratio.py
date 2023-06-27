@@ -68,13 +68,11 @@ SAVEPATH = grandparent+"/LDC/Radler/LDC1-4_evaluation/"
 SAVEPATH_sangria = grandparent+"/LDC/Sangria/evaluation/"
 SAVEPATH_sangria = grandparent+"/LDC/pictures/Sangria/"
 
-save_name3 = 'Sangria_1_dynamic_noise'
-save_name4 = 'LDC1-4_2_optimized_second'
-# save_name3 = 'Radler_1_full'
-save_name2 = 'Radler_1_full'
-save_name1 = 'LDC1-4_half_year'
-# save_name = 'LDC1-4_half_year'
-# save_name = 'Sangria_1_full_cut'
+save_name2 = 'Sangria_12m'
+save_name4 = 'Radler_6m'
+save_name3 = 'Radler_12m'
+save_name1 = 'Radler_24m'
+
 
 # duration = '3932160'
 # duration = '7864320'
@@ -85,11 +83,12 @@ duration = '31457280'
 
 
 save_names = [save_name1, save_name2, save_name3, save_name4]
-SAVEPATHS = [SAVEPATH,SAVEPATH,SAVEPATH_sangria,SAVEPATH]
+SAVEPATHS = [SAVEPATH,SAVEPATH_sangria,SAVEPATH,SAVEPATH]
 
-chain_path = SAVEPATH_sangria + 'Chains_gpu_data_noise_smooth/'
-
-Tobs = int(duration)
+# data_set = 1
+chain_paths = []
+for data_set in range(4):
+    chain_paths.append(SAVEPATHS[data_set] + 'Chains_gpu_partial07_'+save_names[data_set]+'/')
 
 parameters = [
     "Amplitude",
@@ -111,16 +110,18 @@ parameters = [
     "Inclination"
 ]
 
+labels = {'EclipticLongitude': r'$\lambda$'+' (rad)', 'EclipticLatitude': r'$\beta$'+' (rad)','Frequency': r'$f / f_\mathrm{true}$','FrequencyDerivative': r'$\dot{f}$ $ ($Hz/s$)$','Inclination': r'$\iota$'+' (rad)','Amplitude': r'$ \mathcal{A}$', 'Polarization': r'$\psi$'+' (rad)', 'InitialPhase': r'$\phi_0$'+' (rad)'}
+
 end_string = '_SNR_scaled_03_injected_snr5'
 # end_string = 'correlation'
 def load_files(save_path, save_name):
-    found_sources_matched_flat_df = pd.read_pickle(save_path+'/found_sources_matched' +save_name+end_string+'_df')
-    found_sources_not_matched_flat_df = pd.read_pickle(save_path+'found_sources_not_matched' +save_name+end_string+'_df')
-    pGB_injected_matched_flat_df = pd.read_pickle(save_path+'/injected_matched_windows' +save_name+end_string+'_df')
-    pGB_injected_not_matched_flat_df = pd.read_pickle(save_path+'/injected_not_matched_windows' +save_name+end_string+'_df')
-    match_list = np.load(save_path+'match_list' +save_name+end_string+'.npy', allow_pickle=True)
-    pGB_best_list = np.load(save_path+'pGB_best_list' +save_name+end_string+'.npy', allow_pickle=True)
-    match_best_list = np.load(save_path+'match_best_list' +save_name+end_string+'.npy', allow_pickle=True)
+    found_sources_matched_flat_df = pd.read_pickle(save_path+'/found_sources_matched_' +save_name+end_string+'_df')
+    found_sources_not_matched_flat_df = pd.read_pickle(save_path+'found_sources_not_matched_' +save_name+end_string+'_df')
+    pGB_injected_matched_flat_df = pd.read_pickle(save_path+'/injected_matched_windows_' +save_name+end_string+'_df')
+    pGB_injected_not_matched_flat_df = pd.read_pickle(save_path+'/injected_not_matched_windows_' +save_name+end_string+'_df')
+    match_list = np.load(save_path+'match_list_' +save_name+end_string+'.npy', allow_pickle=True)
+    pGB_best_list = np.load(save_path+'pGB_best_list_' +save_name+end_string+'.npy', allow_pickle=True)
+    match_best_list = np.load(save_path+'match_best_list_' +save_name+end_string+'.npy', allow_pickle=True)
 
     pGB_best_list_flat = []
     for i in range(len(pGB_best_list)):
@@ -189,7 +190,7 @@ def check_if_in_confidence_region_1D_kde(parameter_x):
     contour = np.zeros_like(pdf)
     for i in range(largest_index_in_contour):
         contour[hist_indexes_sorted[0][i]] = 1
-    true_parameter = pGB_injected_matched_list[2][parameter_x][index_of_signal]
+    true_parameter = pGB_injected_matched_list[data_set][parameter_x][index_of_signal]
     index_true = np.searchsorted(x, normalize(true_parameter, min_x, max_x))
 
     if index_true > len(pdf)-1:
@@ -232,7 +233,7 @@ def check_if_in_confidence_region_1D(parameter_x):
     contour = np.zeros_like(hist)
     for i in range(largest_index_in_contour):
         contour[hist_indexes_sorted[0][i]] = 1
-    true_parameter = pGB_injected_matched_list[2][parameter_x][index_of_signal]
+    true_parameter = pGB_injected_matched_list[data_set][parameter_x][index_of_signal]
     index_true = np.searchsorted(hist_axis, true_parameter)
 
     if index_true > len(hist)-1:
@@ -274,9 +275,9 @@ def check_if_in_confidence_region_2D(parameter_x, parameter_y):
     contour = np.zeros_like(hist)
     for i in range(largest_index_in_contour):
         contour[hist_indexes_sorted[0][i],hist_indexes_sorted[1][i]] = 1
-    true_parameter_x = pGB_injected_matched_list[2][parameter_x][index_of_signal]
-    true_parameter_y = pGB_injected_matched_list[2][parameter_y][index_of_signal]
-    index_true = [np.searchsorted(hist_values_axes[1], true_parameter_x), np.searchsorted(hist_values_axes[2], true_parameter_y)]
+    true_parameter_x = pGB_injected_matched_list[data_set][parameter_x][index_of_signal]
+    true_parameter_y = pGB_injected_matched_list[data_set][parameter_y][index_of_signal]
+    index_true = [np.searchsorted(hist_values_axes[1], true_parameter_x), np.searchsorted(hist_values_axes[data_set], true_parameter_y)]
 
     if index_true[0] > len(hist)-1:
         index_true[0] -= 1
@@ -365,8 +366,8 @@ def check_if_in_confidence_region(parameter_x, parameter_y):
     contour = np.zeros_like(mypdf)
     for i in range(largest_index_in_contour):
         contour[mypdf_indexes_sorted[0][i],mypdf_indexes_sorted[1][i]] = 1
-    x_normalized = normalize(pGB_injected_matched_list[2][parameter_x][index_of_signal], min_x, max_x)
-    y_normalized = normalize(pGB_injected_matched_list[2][parameter_y][index_of_signal], min_y, max_y)
+    x_normalized = normalize(pGB_injected_matched_list[data_set][parameter_x][index_of_signal], min_x, max_x)
+    y_normalized = normalize(pGB_injected_matched_list[data_set][parameter_y][index_of_signal], min_y, max_y)
     index_true = [np.searchsorted(x, x_normalized), np.searchsorted(x, y_normalized)]
     if index_true[0] > grid_points-1:
         index_true[0] -= 1
@@ -411,16 +412,17 @@ for parameter_x in parameters:
 for parameter in parameters:
     in_contour[parameter] = []
 
-confidence_threshold = 0.4
+confidence_threshold = 0.68
 
 index = 6
+data_set = 2
 for index in range(len(onlyfiles)):
     # if index > 46:
     #     continue
-    index_of_signal = np.searchsorted(found_sources_matched_list[2]['Frequency'], frequencies_in_folder[index])
-    if abs(found_sources_matched_list[2]['Frequency'][index_of_signal]-frequencies_in_folder[index]) > abs(found_sources_matched_list[2]['Frequency'][index_of_signal+1]-frequencies_in_folder[index]):
+    index_of_signal = np.searchsorted(found_sources_matched_list[data_set]['Frequency'], frequencies_in_folder[index])
+    if abs(found_sources_matched_list[data_set]['Frequency'][index_of_signal]-frequencies_in_folder[index]) > abs(found_sources_matched_list[data_set]['Frequency'][index_of_signal+1]-frequencies_in_folder[index]):
         index_of_signal = index_of_signal+1
-    elif abs(found_sources_matched_list[2]['Frequency'][index_of_signal]-frequencies_in_folder[index]) > abs(found_sources_matched_list[2]['Frequency'][index_of_signal-1]-frequencies_in_folder[index]):
+    elif abs(found_sources_matched_list[data_set]['Frequency'][index_of_signal]-frequencies_in_folder[index]) > abs(found_sources_matched_list[data_set]['Frequency'][index_of_signal-1]-frequencies_in_folder[index]):
         index_of_signal = index_of_signal-1
 
     # index_of_signal = 4804
@@ -428,12 +430,12 @@ for index in range(len(onlyfiles)):
     # index_of_signal = 9
     if index % int(len(onlyfiles)/10) == 0:
         print(np.round(index/len(onlyfiles),2))
-    # print('frequency'+str(int(np.round(found_sources_matched_list[2]['Frequency'][index_of_signal]*10**9)))+'Sangria_1_full_cut.csv')
+    # print('frequency'+str(int(np.round(found_sources_matched_list[data_set]['Frequency'][index_of_signal]*10**9)))+'Sangria_1_full_cut.csv')
     try:
-        df = pd.read_csv(chain_path+'frequency'+str(int(np.round(found_sources_matched_list[2]['Frequency'][index_of_signal]*10**9)))+'nHzSangria_1year_dynamic_noise.csv')
+        df = pd.read_csv(chain_path+'frequency'+str(int(np.round(found_sources_matched_list[data_set]['Frequency'][index_of_signal]*10**9)))+'nHzSangria_1year_dynamic_noise.csv')
     except:
         pass
-    injected_parameters = pGB_injected_matched_list[2]
+    injected_parameters = pGB_injected_matched_list[data_set]
     if injected_parameters['EclipticLongitude'][index_of_signal] > np.pi:
         injected_parameters.loc[index_of_signal, 'EclipticLongitude'] -= 2*np.pi
 

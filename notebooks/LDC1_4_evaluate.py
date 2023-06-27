@@ -1413,9 +1413,9 @@ for i in range(len(frequencies_search)):
     found_extended = np.concatenate(found_sources_matched[i:i+number_of_windows])
     found_not_matched_extended = np.concatenate(found_sources_not_matched[i:i+number_of_windows])
 
-    chains = []
-    for j in range(len(found_extended)):
-        chains.append(pd.read_csv(SAVEPATH+'Chains_gpu/frequency'+str(int(np.round(found_extended[j]['Frequency']*10**12)))+'pHz'+save_name+'.csv'))
+    # chains = []
+    # for j in range(len(found_extended)):
+    #     chains.append(pd.read_csv(SAVEPATH+'Chains_gpu/frequency'+str(int(np.round(found_extended[j]['Frequency']*10**12)))+'pHz'+save_name+'.csv'))
         
 
 
@@ -1441,7 +1441,7 @@ for i in range(len(frequencies_search)):
     if len(pGB_injected_dict_list) > 20:
         search1.plot(found_sources_in=found_extended, found_sources_not_matched = found_not_matched_extended, pGB_injected= pGB_injected_dict_list[:20],  pGB_injected_matched= matched_extended, vertical_lines= vertical_lines, saving_label =save_name_path) 
     else:
-        search1.plotA(found_sources_in=found_extended, found_sources_not_matched = found_not_matched_extended, pGB_injected= pGB_injected_dict_list,  pGB_injected_matched= matched_extended, chains=chains, vertical_lines= vertical_lines, saving_label =save_name_path) 
+        search1.plotA(found_sources_in=found_extended, found_sources_not_matched = found_not_matched_extended, pGB_injected= pGB_injected_dict_list,  pGB_injected_matched= matched_extended, vertical_lines= vertical_lines, saving_label =save_name_path) 
         # search1.plot(found_sources_in=found_sources_mp_best[i], pGB_injected=pGB_injected[i][:10], pGB_injected_matched= matched_extended, saving_label =SAVEPATH+'/strain added'+ str(int(np.round(frequencies_search[i][0]*10**8))) +save_name+'in.png') 
 
 print(correlation_match(pGB_injected_dict_list[0],found_not_matched_extended[0]))
