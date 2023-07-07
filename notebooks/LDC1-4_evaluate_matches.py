@@ -1120,7 +1120,7 @@ plt.savefig(SAVEPATH+'/galactocentric_3D_'+save_names[data_set])
 plt.show()
 
 ##### plot galactocentric coordinates 3d
-rcParams['axes.labelpad'] = 20
+rcParams['axes.labelpad'] = 10
 markersize = 5
 alpha = 0.5
 fig = plt.figure(figsize=[9,9])
@@ -1151,13 +1151,13 @@ plt.savefig(SAVEPATH+'/galactocentric_3D_'+save_names[data_set])
 plt.show()
 
 
-fig = plt.figure(figsize=[9,9])
+
 # generate some points of a 3D Gaussian
-# num_signals = -1
+# num_signals = 1000
 # points = np.array([pGB_injected_matched_positive_fd_list[data_set]['GalactocentricX'][:num_signals],pGB_injected_matched_positive_fd_list[data_set]['GalactocentricY'][:num_signals],pGB_injected_matched_positive_fd_list[data_set]['GalactocentricZ'][:num_signals]])
 points = np.array([pGB_injected_matched_positive_fd_list[data_set]['GalactocentricX'],pGB_injected_matched_positive_fd_list[data_set]['GalactocentricY'],pGB_injected_matched_positive_fd_list[data_set]['GalactocentricZ']])
 
-space_limit = 10
+space_limit = 15
 # do kernel density estimation to get smooth estimate of distribution
 # make grid of points
 x, y, z = np.mgrid[-space_limit:space_limit:100j, -space_limit:space_limit:100j, -space_limit:space_limit:100j]
@@ -1167,6 +1167,7 @@ density = np.reshape(kernel(positions).T, x.shape)
 
 # now density is 100x100x100 ndarray
 
+fig = plt.figure(figsize=[9,9])
 # plot points
 point_limit = 15
 ax = plt.subplot(projection='3d')
@@ -1179,27 +1180,29 @@ points_reduced_part = points_reduced_part[:,points_reduced_part[1,:] < point_lim
 points_reduced_part = points_reduced_part[:,points_reduced_part[2,:] > -point_limit]
 points_reduced_part = points_reduced_part[:,points_reduced_part[2,:] < point_limit]
 
-ax.plot(points_reduced_part[0], points_reduced_part[1], points_reduced_part[2], '.', markersize=0.5, zorder=10)
+ax.plot(points[0], points[1], points[2], '.', markersize=0.5, zorder=10)
+# ax.plot(points_reduced_part[0], points_reduced_part[1], points_reduced_part[2], '.', markersize=0.5, zorder=10)
 plt.plot(sun['GalactocentricX'],sun['GalactocentricY'],'.',c='red', markersize=6, alpha=1, zorder =11,  label='Sun')
 ax.set_xlabel('Galactocentric X [kpc]')
 ax.set_ylabel('Galactocentric Y [kpc]')
 ax.set_zlabel('Galactocentric Z [kpc]')
 
+levels = [0.1,0.3,0.5,0.7,0.9,1]
 # plot projection of density onto x-axis
 plotdat = np.sum(density, axis=0)
 plotdat = plotdat / np.max(plotdat)
 ploty, plotz = np.mgrid[-space_limit:space_limit:100j, -space_limit:space_limit:100j]
-ax.contour(plotdat, ploty, plotz, offset=space_limit, zdir='x')
+ax.contour(plotdat, ploty, plotz, levels, offset=space_limit, zdir='x')
 # plot projection of density onto y-axis
 plotdat = np.sum(density, axis=1)
 plotdat = plotdat / np.max(plotdat)
 plotx, plotz = np.mgrid[-space_limit:space_limit:100j, -space_limit:space_limit:100j]
-ax.contour(plotx, plotdat, plotz, offset=space_limit, zdir='y')
+ax.contour(plotx, plotdat, plotz, levels, offset=space_limit, zdir='y')
 # plot projection of density onto z-axis
 plotdat = np.sum(density, axis=2)
 plotdat = plotdat / np.max(plotdat)
 plotx, ploty = np.mgrid[-space_limit:space_limit:100j, -space_limit:space_limit:100j]
-ax.contour(plotx, ploty, plotdat, offset=-space_limit, zdir='z')
+ax.contour(plotx, ploty, plotdat, levels, offset=-space_limit, zdir='z')
 
 ax.set_xlim((-space_limit, space_limit))
 ax.set_ylim((-space_limit, space_limit))
