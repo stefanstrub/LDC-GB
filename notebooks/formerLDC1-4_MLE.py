@@ -1,18 +1,3 @@
-#%%
-import matplotlib.pyplot as plt
-from matplotlib import rcParams
-import scipy
-from scipy.optimize import differential_evolution
-import numpy as np
-import xarray as xr
-import time
-from copy import deepcopy
-import multiprocessing as mp
-import pandas as pd
-import os
-import h5py
-import sys
-sys.path.append('/cluster/home/sstrub/Repositories/LDC/lib/lib64/python3.8/site-packages/ldc-0.1-py3.8-linux-x86_64.egg')
 
 from ldc.lisa.noise import get_noise_model
 from ldc.common.series import TimeSeries, window
