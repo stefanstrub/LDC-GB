@@ -85,7 +85,7 @@ grandparent = os.path.dirname(parent)
 
 Radler = True
 version = '2'
-reduction = 1
+reduction = 4
 
 if Radler:
     DATAPATH = grandparent+"/LDC/Radler/data/"
@@ -291,7 +291,7 @@ start_index = np.searchsorted(np.asarray(frequencies_odd)[:,0], 0.0040489)-1
 
 save_name = 'Sangria_1_full_cut'
 # save_name = 'Sangria_12m'
-save_name = 'Radler_24m'
+save_name = 'Radler_6m'
 # save_name = 'Radler_half_even_dynamic_noise'
 # save_name = 'LDC1-4_2_optimized_second' ### ETH submission
 # save_name = 'Montana'
@@ -706,7 +706,7 @@ else:
     #     pGB_injected[i] = pGB_injected[i].to_records()
 
 
-get_pGB_injected = False
+get_pGB_injected = True
 if get_pGB_injected:
     ### get injected on desired windows
     pGB_injected_flat = np.concatenate(pGB_injected)
@@ -932,21 +932,21 @@ def match_function(found_sources_in, pGB_injected_not_matched, found_sources_not
             for parameter in parameters:
                 pGB_injected_dict[parameter] = pGB_injected_not_matched[k][parameter]
             # correlation = l2_norm_match(pGB_injected_dict,found_dict)
-            # correlation = correlation_match(pGB_injected_dict,found_dict)
-            SNR_scaled = SNR_match_scaled(pGB_injected_dict,found_dict)
+            correlation = correlation_match(pGB_injected_dict,found_dict)
+            # SNR_scaled = SNR_match_scaled(pGB_injected_dict,found_dict)
             # correlation, amplitude_factor, cross_correlation = SNR_match_amplitude_condsiered(pGB_injected_dict,found_dict)
-            match_list_one_found_signal.append(SNR_scaled)
+            match_list_one_found_signal.append(correlation)
             if k > 39:
                 break
         if 0 == len(match_list_one_found_signal):
             break
         try:
             # best_index = np.nanargmax(match_list_one_found_signal)
-            best_index = np.nanargmin(match_list_one_found_signal)
+            best_index = np.nanargmax(match_list_one_found_signal)
         except:
             print('all NAN:', match_list_one_found_signal, found_sources_in[0], pGB_injected_not_matched, found_sources_in)
             break
-        if match_list_one_found_signal[best_index] < 0.3:
+        if match_list_one_found_signal[best_index] > 0.9:
             found_match = True
         if found_match:
             pGB_injected_matched.append(pGB_injected_not_matched[best_index])
@@ -958,7 +958,7 @@ def match_function(found_sources_in, pGB_injected_not_matched, found_sources_not
         match_best_list.append(found_sources_in[j])
     return found_sources_in, pGB_injected_not_matched, match_list, pGB_best_list, match_best_list, found_sources_not_matched, pGB_injected_matched, found_sources_matched
 
-do_match_parallelized = False
+do_match_parallelized = True
 if do_match_parallelized:
     pGB_injected_matched = []
     found_sources_matched = []
@@ -1129,8 +1129,8 @@ if do_match_sequential:
 #         found_sources_not_matched[i][j]['IntrinsicSNR'] = search1.intrinsic_SNR([pGB_dict])     
 
 
-end_string = '_SNR_scaled_03_injected_snr'+str(injected_SNR)
-# end_string = '_correlation_08_injected_snr'+str(injected_SNR)
+# end_string = '_SNR_scaled_03_injected_snr'+str(injected_SNR)
+end_string = '_correlation_09_injected_snr'+str(injected_SNR)
 # end_string = ''
 
 try:
