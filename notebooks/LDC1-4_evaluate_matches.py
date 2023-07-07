@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from matplotlib.colors import LogNorm
 import matplotlib.font_manager
-import scipy
+import scipy as sp
 from scipy.optimize import differential_evolution
 from scipy.interpolate import InterpolatedUnivariateSpline as spline
 import numpy as np
@@ -126,7 +126,7 @@ labels = {'EclipticLongitude': r'$\lambda$'+' (rad)', 'EclipticLatitude': r'$\be
 
 
 end_string = '_SNR_scaled_03_injected_snr5'
-# end_string = '_correlation_08_injected_snr7'
+# end_string = '_correlation_09_injected_snr5'
 # end_string = 'correlation'
 def load_files(save_path, save_name):
     found_sources_flat_df = pd.read_pickle(save_path+'/found_sources_' +save_name+end_string+'_df')
@@ -1092,31 +1092,126 @@ plt.show()
 rcParams['axes.labelpad'] = 20
 markersize = 5
 alpha = 0.5
-fig = plt.figure(figsize=[7,7])
+fig = plt.figure(figsize=[9,9])
 ax = plt.axes(projection='3d')
 # postitive_fd_mask = found_sources_matched_positive_fd_list[data_set]['FrequencyDerivative'] >= 0
 # ax.scatter(found_sources_matched_positive_fd_list[data_set]['GalactocentricX'],found_sources_matched_positive_fd_list[data_set]['GalactocentricY'],found_sources_matched_positive_fd_list[data_set]['GalactocentricZ'],marker='.')
 # postitive_fd_mask = found_sources_not_matched_list[data_set]['FrequencyDerivative'] >= 0
 # ax.plot(found_sources_not_matched_list[data_set]['GalacticLatitude'][postitive_fd_mask],found_sources_not_matched_list[data_set]['Distance'][postitive_fd_mask],'r.', label = 'Injected', markersize= 1, zorder=1)
 # postitive_fd_mask = pGB_injected_matched_list[data_set]['FrequencyDerivative'] >= 0
-ax.plot(pGB_injected_matched_positive_fd_list[data_set]['GalactocentricX'],pGB_injected_matched_positive_fd_list[data_set]['GalactocentricY'],pGB_injected_matched_positive_fd_list[data_set]['GalactocentricZ'], '.', markersize=1)
+ax.plot(pGB_injected_matched_positive_fd_list[data_set]['GalactocentricX'],pGB_injected_matched_positive_fd_list[data_set]['GalactocentricY'],pGB_injected_matched_positive_fd_list[data_set]['GalactocentricZ'], '.', markersize=0.5)
 # postitive_fd_mask = pGB_injected_not_matched_list[data_set]['FrequencyDerivative'] >= 0
 # ax.plot(pGB_injected_not_matched_list[data_set]['GalacticLatitude'][postitive_fd_mask],pGB_injected_not_matched_list[data_set]['Distance'][postitive_fd_mask],'+', label = 'not matched', color = 'r', markersize=2, zorder= 1)
 # postitive_fd_mask = pGB_injected_flat_highSNR_df['FrequencyDerivative'] >= 0
 # ax.plot(pGB_injected_flat_highSNR_df['GalacticLatitude'][postitive_fd_mask],pGB_injected_flat_highSNR_df['Distance'][postitive_fd_mask],'+', label = 'injected SNR>10', color = 'r', markersize=2, zorder= 4)
-plt.plot(sun['GalactocentricX'],sun['GalactocentricY'],'.',c='red', markersize=4, alpha=1, zorder = 2,  label='Sun')
+plt.plot(sun['GalactocentricX'],sun['GalactocentricY'],'.',c='red', markersize=6, alpha=1, zorder = 2,  label='Sun')
 ax.set_xlabel('X [kpc]')
 ax.set_ylabel('Y [kpc]')
 ax.set_zlabel('Z [kpc]')
-plt.tight_layout()
-ax.set_zlim(-1,1)
-start, end = ax.get_zlim()
-ax.zaxis.set_ticks(np.arange(start, end+0.5, 0.5))
-ax.set_xlim(-20,20)
-ax.set_ylim(-20,20)
+# ax.set_zlim(-1,1)
+# start, end = ax.get_zlim()
+# ax.zaxis.set_ticks(np.arange(start, end+0.5, 0.5))
+ax.set_zlim(-15,15)
+ax.set_xlim(-15,15)
+ax.set_ylim(-15,15)
 plt.legend(loc = 'upper right')
+plt.tight_layout()
+plt.savefig(SAVEPATH+'/galactocentric_3D_'+save_names[data_set])
+plt.show()
+
+##### plot galactocentric coordinates 3d
+rcParams['axes.labelpad'] = 20
+markersize = 5
+alpha = 0.5
+fig = plt.figure(figsize=[9,9])
+ax = plt.axes(projection='3d')
+# postitive_fd_mask = found_sources_matched_positive_fd_list[data_set]['FrequencyDerivative'] >= 0
+# ax.scatter(found_sources_matched_positive_fd_list[data_set]['GalactocentricX'],found_sources_matched_positive_fd_list[data_set]['GalactocentricY'],found_sources_matched_positive_fd_list[data_set]['GalactocentricZ'],marker='.')
+# postitive_fd_mask = found_sources_not_matched_list[data_set]['FrequencyDerivative'] >= 0
+# ax.plot(found_sources_not_matched_list[data_set]['GalacticLatitude'][postitive_fd_mask],found_sources_not_matched_list[data_set]['Distance'][postitive_fd_mask],'r.', label = 'Injected', markersize= 1, zorder=1)
+# postitive_fd_mask = pGB_injected_matched_list[data_set]['FrequencyDerivative'] >= 0
+ax.plot(pGB_injected_matched_positive_fd_list[data_set]['GalactocentricX'],pGB_injected_matched_positive_fd_list[data_set]['GalactocentricY'],pGB_injected_matched_positive_fd_list[data_set]['GalactocentricZ'], '.', markersize=0.5)
+# postitive_fd_mask = pGB_injected_not_matched_list[data_set]['FrequencyDerivative'] >= 0
+# ax.plot(pGB_injected_not_matched_list[data_set]['GalacticLatitude'][postitive_fd_mask],pGB_injected_not_matched_list[data_set]['Distance'][postitive_fd_mask],'+', label = 'not matched', color = 'r', markersize=2, zorder= 1)
+# postitive_fd_mask = pGB_injected_flat_highSNR_df['FrequencyDerivative'] >= 0
+# ax.plot(pGB_injected_flat_highSNR_df['GalacticLatitude'][postitive_fd_mask],pGB_injected_flat_highSNR_df['Distance'][postitive_fd_mask],'+', label = 'injected SNR>10', color = 'r', markersize=2, zorder= 4)
+plt.plot(sun['GalactocentricX'],sun['GalactocentricY'],'.',c='red', markersize=6, alpha=1, zorder = 2,  label='Sun')
+ax.set_xlabel('X [kpc]')
+ax.set_ylabel('Y [kpc]')
+ax.set_zlabel('Z [kpc]')
+# ax.set_zlim(-1,1)
+# start, end = ax.get_zlim()
+# ax.zaxis.set_ticks(np.arange(start, end+0.5, 0.5))
+ax.set_zlim(-15,15)
+ax.set_xlim(-15,15)
+ax.set_ylim(-15,15)
+plt.legend(loc = 'upper right')
+plt.tight_layout()
 plt.savefig(SAVEPATH+'/galactocentric_3D_'+save_names[data_set])
 plt.show()
 
 
-print('end')
+fig = plt.figure(figsize=[9,9])
+# generate some points of a 3D Gaussian
+# num_signals = -1
+# points = np.array([pGB_injected_matched_positive_fd_list[data_set]['GalactocentricX'][:num_signals],pGB_injected_matched_positive_fd_list[data_set]['GalactocentricY'][:num_signals],pGB_injected_matched_positive_fd_list[data_set]['GalactocentricZ'][:num_signals]])
+points = np.array([pGB_injected_matched_positive_fd_list[data_set]['GalactocentricX'],pGB_injected_matched_positive_fd_list[data_set]['GalactocentricY'],pGB_injected_matched_positive_fd_list[data_set]['GalactocentricZ']])
+
+space_limit = 10
+# do kernel density estimation to get smooth estimate of distribution
+# make grid of points
+x, y, z = np.mgrid[-space_limit:space_limit:100j, -space_limit:space_limit:100j, -space_limit:space_limit:100j]
+kernel = sp.stats.gaussian_kde(points)
+positions = np.vstack((x.ravel(), y.ravel(), z.ravel()))
+density = np.reshape(kernel(positions).T, x.shape)
+
+# now density is 100x100x100 ndarray
+
+# plot points
+point_limit = 15
+ax = plt.subplot(projection='3d')
+# ax.plot(pGB_injected_matched_positive_fd_list[data_set]['GalactocentricX'],pGB_injected_matched_positive_fd_list[data_set]['GalactocentricY'],pGB_injected_matched_positive_fd_list[data_set]['GalactocentricZ'], '.', markersize=0.5)
+maskx = points[0,:] > -point_limit
+points_reduced_part = points[:,points[0,:] > -point_limit]
+points_reduced_part = points_reduced_part[:,points_reduced_part[0,:] < point_limit]
+points_reduced_part = points_reduced_part[:,points_reduced_part[1,:] > -point_limit]
+points_reduced_part = points_reduced_part[:,points_reduced_part[1,:] < point_limit]
+points_reduced_part = points_reduced_part[:,points_reduced_part[2,:] > -point_limit]
+points_reduced_part = points_reduced_part[:,points_reduced_part[2,:] < point_limit]
+
+ax.plot(points_reduced_part[0], points_reduced_part[1], points_reduced_part[2], '.', markersize=0.5, zorder=10)
+plt.plot(sun['GalactocentricX'],sun['GalactocentricY'],'.',c='red', markersize=6, alpha=1, zorder =11,  label='Sun')
+ax.set_xlabel('Galactocentric X [kpc]')
+ax.set_ylabel('Galactocentric Y [kpc]')
+ax.set_zlabel('Galactocentric Z [kpc]')
+
+# plot projection of density onto x-axis
+plotdat = np.sum(density, axis=0)
+plotdat = plotdat / np.max(plotdat)
+ploty, plotz = np.mgrid[-space_limit:space_limit:100j, -space_limit:space_limit:100j]
+ax.contour(plotdat, ploty, plotz, offset=space_limit, zdir='x')
+# plot projection of density onto y-axis
+plotdat = np.sum(density, axis=1)
+plotdat = plotdat / np.max(plotdat)
+plotx, plotz = np.mgrid[-space_limit:space_limit:100j, -space_limit:space_limit:100j]
+ax.contour(plotx, plotdat, plotz, offset=space_limit, zdir='y')
+# plot projection of density onto z-axis
+plotdat = np.sum(density, axis=2)
+plotdat = plotdat / np.max(plotdat)
+plotx, ploty = np.mgrid[-space_limit:space_limit:100j, -space_limit:space_limit:100j]
+ax.contour(plotx, ploty, plotdat, offset=-space_limit, zdir='z')
+
+ax.set_xlim((-space_limit, space_limit))
+ax.set_ylim((-space_limit, space_limit))
+ax.set_zlim((-space_limit, space_limit))
+
+start, end = ax.get_xlim()
+ax.xaxis.set_ticks(np.arange(start, end+5, 5))
+start, end = ax.get_ylim()
+ax.yaxis.set_ticks(np.arange(start, end+5, 5))
+start, end = ax.get_zlim()
+ax.zaxis.set_ticks(np.arange(start, end+5, 5))
+
+plt.tight_layout()
+plt.savefig(SAVEPATH+'/galactocentric_3D_contour_'+save_names[data_set])
+plt.show()
