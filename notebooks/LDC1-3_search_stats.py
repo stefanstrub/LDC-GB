@@ -376,9 +376,9 @@ class Search():
         f_0 = fmin
         f_transfer = 19.1*10**-3
         snr = 7
-        amplitude_lower = 2*snr/(Tobs * np.sin(f_0/ f_transfer)/self.SA[0])**0.5
+        amplitude_lower = 2*snr/(Tobs * np.sin(f_0/ f_transfer)**2/self.SA[0])**0.5
         snr = 2000
-        amplitude_upper = 2*snr/(Tobs * np.sin(f_0/ f_transfer)/self.SA[0])**0.5
+        amplitude_upper = 2*snr/(Tobs * np.sin(f_0/ f_transfer)**2/self.SA[0])**0.5
         amplitude = [amplitude_lower, amplitude_upper]
         # print('lower frequency', lower_frequency)
         # print('amplitude boundaries', amplitude)
@@ -1679,7 +1679,7 @@ tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt)) for 
 tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
 
-noise_model = "MRDv1"
+noise_model = "SciRDv1"
 Nmodel = get_noise_model(noise_model, np.logspace(-5, -1, 100))
 
 pGB = {}
@@ -2063,7 +2063,7 @@ for i in range(len(found_sources_in_all)):
         if search1.loglikelihood([pGB_injected[i][0]]) < search1.loglikelihood([found_sources_in_all[i][j]]):
             higherSNR += 1
             higher_loglikelihood += 1    
-    search_results['success rate2'].append(higher_loglikelihood/20)
+            
     search_results['nfe2'].append(int(np.mean(number_of_evaluations[i])))
     print('higherloglikelihood ',higher_loglikelihood, 'number of evaluations', np.mean(number_of_evaluations[i]))
 print('higher loglikelihood ',higherSNR)

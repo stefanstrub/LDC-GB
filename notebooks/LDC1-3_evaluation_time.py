@@ -116,7 +116,7 @@ tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt)) for 
 tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
 
-noise_model = "MRDv1"
+noise_model = "SciRDv1"
 Nmodel = get_noise_model(noise_model, np.logspace(-5, -1, 100))
 
 pGB = {}
@@ -222,7 +222,7 @@ if do_print:
         pGB_injected.append(pGB_injected_window)
 
 # LDC1-3 ####################
-start_training_size = 2000
+start_training_size = 500
 evalutation_times = []
 posterior_calculation_input = []
 for i in range(len(found_sources_in)):
@@ -230,7 +230,7 @@ for i in range(len(found_sources_in)):
     #     break
     for j in range(len(found_sources_in[i])):
         posterior_calculation_input.append((tdi_fs, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j]))
-        chain_save_name = SAVEPATH+'/Chain/frequency'+str(int(np.round(frequencies_search[i][0]*10**9)))+'nHz'+save_name+'fastGB.csv'
+        chain_save_name = SAVEPATH+'/Chain/frequency'+str(int(np.round(frequencies_search[i][0]*10**9)))+'nHz'+save_name+'fastGB_500.csv'
         mcmc_samples, evalutation_time = compute_posterior(tdi_fs, Tobs, frequencies_search[i], found_sources_in[i][j], pGB_injected[i][j], start_training_size, dt, noise_model, parameters, number_of_signals, GB, intrinsic_parameters, chain_save_name)
         evalutation_times.append(evalutation_time)
 
