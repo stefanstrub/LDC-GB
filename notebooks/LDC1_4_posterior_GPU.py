@@ -783,23 +783,6 @@ class Posterior_computer():
         # print('eval time', time.time()-start)
         return observed_pred_mean
     
-    def get_loglikelihood_gpu(self, x):
-        partial_length = 1*10**3
-        # start = time.time()
-        observed_pred_mean = np.zeros(len(x))
-        observed_pred_sk = np.zeros(len(x))
-        for n in range(int(len(x)/partial_length)):
-            observed_pred_sk[n*partial_length:(n+1)*partial_length] = self.gpr.predict(x[(n)*partial_length:(n+1)*partial_length])
-        try:
-            observed_pred_sk[int(len(x)/partial_length)*partial_length:] = self.gpr.predict(x[int(len(x)/partial_length)*partial_length:])
-        except:
-            pass
-        observed_pred_sk = np.asarray(observed_pred_sk)
-        observed_pred_sk = observed_pred_sk.reshape(len(x))
-        observed_pred_mean[:len(x)] = observed_pred_sk[:len(x)]*self.sigma + self.mu
-        # print('eval time', time.time()-start)
-        return observed_pred_mean
-
     def sampler(self, resolution=1000, path_len=0.01, step_size=0.01):
         x0 = np.asarray([0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5])
         samples = hamiltonian_monte_carlo(n_samples=resolution, negative_log_prob=self.logp_func, grad_log_prob=self.dlogp_func, initial_position= x0, path_len=0.1, step_size=0.01)
