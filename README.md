@@ -26,7 +26,7 @@ To install this software for use with NVIDIA GPUs (compute capability >2.0), you
 1) Create a virtual environment. **Note**: There is no available `conda` compiler for Windows. If you want to install for Windows, you will probably need to add libraries and include paths to the `setup.py` file.
 
 ```
-conda create -n ldc-gpu -c conda-forge gcc_linux-64 gxx_linux-64 gsl numpy Cython scipy jupyter ipython h5py matplotlib python=3.9
+conda create -n ldc-gpu -c conda-forge gcc_linux-64 gxx_linux-64 gsl numpy Cython scipy h5py matplotlib python=3.9
 conda activate ldc-gpu
 ```
 
