@@ -796,10 +796,8 @@ class Search():
         ax1.xaxis.set_major_locator(plt.MaxNLocator(4))
         ax2.xaxis.set_major_locator(plt.MaxNLocator(4))
         # plt.legend()
-        plt.pause(1)
         if saving_label != None:
             plt.savefig(saving_label,dpi=300,bbox_inches='tight')
-        plt.pause(1)
         plt.show()
         # print("p true", self.loglikelihood([pGB]), "null hypothesis", self.loglikelihood([null_pGBs]))
 
@@ -1010,10 +1008,8 @@ class Search():
         ax1.legend(custom_lines1, labels_plot, loc='upper left')
         # plt.legend()
         plt.tight_layout()
-        plt.pause(1)
         if saving_label != None:
             plt.savefig(saving_label,dpi=300,bbox_inches='tight')
-        plt.pause(1)
         plt.show()
         # print("p true", self.loglikelihood([pGB]), "null hypothesis", self.loglikelihood([null_pGBs]))
 
