@@ -680,7 +680,7 @@ class Search():
         # self.SE = Nmodel.psd(freq=freq, option="E")
 
     def plot(self, maxpGBs=None, pGBadded=None, second_data = None , found_sources_in= [], found_sources_not_matched= [], pGB_injected = [], pGB_injected_matched = [], added_label='Injection2', saving_label =None, vertical_lines = []):
-        plt.figure(figsize=fig_size)
+        # plt.figure(figsize=fig_size)
         fig, [ax1, ax2] = plt.subplots(2, 1, sharex=True, figsize=fig_size)
         # plt.plot(dataX_training.f*1000,dataX_training.values, label='data')
         # ax1.plot(self.dataX.f * 1000, self.dataX.values.real, label="data", marker="o", zorder=5)
@@ -736,7 +736,7 @@ class Search():
             a,Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)
             Af = (Zs - Xs)/np.sqrt(2.0)
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
-            ax1.plot(Af.f*10**3,Af.data, color=colors[j%10], linewidth = 5, alpha = 0.5)
+            ax1.plot(Af.f*10**3,Af.data, color=colors[j%10], linewidth = 5, alpha = 0.5, label = 'Injection')
             ax2.plot(Ef.f*10**3,np.abs(Ef.data), color=colors[j%10], linewidth = 5, alpha = 0.5)
 
 
@@ -754,17 +754,28 @@ class Search():
         for j in range(len(found_sources_in)):
             Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_in[j], oversample=4)
             index_low = np.searchsorted(Xs.f, self.dataX.f[0])
-            Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
-            Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+            try:
+                if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
+                    index_low = index_low-1
+            except:
+                pass
+            Xs = Xs[index_low : index_low + len(self.dataX)]
+            Ys = Ys[index_low : index_low + len(self.dataY)]
+            Zs = Zs[index_low : index_low + len(self.dataZ)]
+            # Xs = xr.align(self.dataX, Xs, join='inner',fill_value=0)[1]
+            # Ys = xr.align(self.dataX, Ys, join='left',fill_value=0)[1]
+            # Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
             Af = (Zs - Xs)/np.sqrt(2.0)
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
             ax1.plot(Af.f* 1000, Af.data,'--', color= colors[j%10], linewidth = 1.6)
             ax2.plot(Ef.f* 1000, np.abs(Ef.data),'--', color= colors[j%10], linewidth = 1.6)
 
+
         for j in range(len(found_sources_not_matched)):
             Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_not_matched[j], oversample=4)
-            index_low = np.searchsorted(Xs.f, self.dataX.f[0])
+            # index_low = np.searchsorted(Xs.f, self.dataX.f[0])
             Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+            Ys = xr.align(self.dataX, Ys, join='left',fill_value=0)[1]
             Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
             Af = (Zs - Xs)/np.sqrt(2.0)
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
@@ -795,11 +806,11 @@ class Search():
         ax2.set_xlim((self.lower_frequency-self.padding)*10**3, (self.upper_frequency+self.padding)*10**3)
         ax1.xaxis.set_major_locator(plt.MaxNLocator(4))
         ax2.xaxis.set_major_locator(plt.MaxNLocator(4))
+        ax1.legend()
+        ax2.legend()
         # plt.legend()
-        plt.pause(1)
         if saving_label != None:
             plt.savefig(saving_label,dpi=300,bbox_inches='tight')
-        plt.pause(1)
         plt.show()
         # print("p true", self.loglikelihood([pGB]), "null hypothesis", self.loglikelihood([null_pGBs]))
 
@@ -839,6 +850,34 @@ class Search():
         #     ax[2].plot(Af.f, np.abs(self.DTf))
         #     ax[2].plot(Af.f, np.abs(Tf.data))
         #     plt.show()
+        return SNR3.values
+
+    def SNR_scaled(self, pGBs):
+        for i in range(len(pGBs)):
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4)
+            if i == 0:
+                Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+                Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
+                Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+            else:
+                Xs_total += xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+                Ys_total += xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
+                Zs_total += xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+            
+        Af = (Zs_total - Xs_total)/np.sqrt(2.0)
+        Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
+        if self.use_T_component:
+            Tf = (Zs_total + Ys_total + Xs_total)/np.sqrt(3.0)
+            hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2)/self.SA + np.absolute(Tf.data)**2 /self.ST)
+            dd = np.sum((np.absolute(self.DAf)**2 + np.absolute(self.DEf)**2)/self.SA + np.absolute(self.DTf)**2 /self.ST)
+            SNR2 = np.sum( np.real(self.DAf * np.conjugate(Af.data) + self.DEf * np.conjugate(Ef.data))/self.SA + np.real(self.DTf * np.conjugate(Tf.data))/self.ST )
+        else:
+            SNR2 = np.sum( np.real(self.DAf * np.conjugate(Af.data) + self.DEf * np.conjugate(Ef.data))/self.SA )
+            hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2) /self.SA)
+            dd = np.sum((np.absolute(self.DAf)**2 + np.absolute(self.DEf)**2) /self.SA)
+        SNR = 4.0*Xs.df* hh
+        SNR2 = 4.0*Xs.df* SNR2
+        SNR3 = SNR2 / np.sqrt(SNR) / np.sqrt(4.0*Xs.df* dd)
         return SNR3.values
 
     def plotA(self, maxpGBs=None, pGBadded=None, found_sources_in= [], found_sources_not_matched= [], pGB_injected = [], pGB_injected_matched = [], chains=[], added_label='Injection2', saving_label =None, vertical_lines = [], second_data= None):
@@ -1010,10 +1049,189 @@ class Search():
         ax1.legend(custom_lines1, labels_plot, loc='upper left')
         # plt.legend()
         plt.tight_layout()
-        plt.pause(1)
         if saving_label != None:
             plt.savefig(saving_label,dpi=300,bbox_inches='tight')
-        plt.pause(1)
+        plt.show()
+        # print("p true", self.loglikelihood([pGB]), "null hypothesis", self.loglikelihood([null_pGBs]))
+
+
+    def plotAE(self, maxpGBs=None, pGBadded=None, found_sources_in= [], found_sources_not_matched= [], pGB_injected = [], pGB_injected_matched = [], chains=[], added_label='Injection2', saving_label =None, vertical_lines = [], second_data= None):
+        # plt.figure(figsize=fig_size)
+        fig, [ax1, ax2] = plt.subplots(2, 1, sharex=False, figsize=np.array(fig_size)*[1,1.5])
+
+        parameter_x = 'Frequency'
+        parameter_y = 'Amplitude'
+        parameter_x2 = 'EclipticLongitude'
+        parameter_y2 = 'EclipticLatitude'
+                    
+        # Af = (Zs - Xs)/np.sqrt(2.0)
+        ax1.plot(self.DAf.f*10**3,self.DAf,'k',zorder= 1, linewidth = 3, label = 'Data')
+        ax2.plot(self.DEf.f*10**3,self.DEf,'k',zorder= 1, linewidth = 3, label = 'Data')
+        # ax1.plot(tdi_fs_long_subtracted.f[range_index],np.abs(tdi_fs_long_subtracted['X'][range_index])**2,'b',zorder= 5)
+        if second_data != None:
+            a,Xs = xr.align(self.dataX, second_data['X'], join='left',fill_value=0)
+            a,Ys = xr.align(self.dataY, second_data['Y'], join='left',fill_value=0)
+            a,Zs = xr.align(self.dataZ, second_data['Z'], join='left',fill_value=0)
+            Af = (Zs - Xs)/np.sqrt(2.0)
+            Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
+            ax1.plot(Af.f*10**3,Af,'c--',zorder= 1, linewidth = 2, label = 'Data subtracted')
+            ax2.plot(Ef.f*10**3,Ef,'c--',zorder= 1, linewidth = 2, label = 'Data subtracted')
+        for j in range(len( pGB_injected)):
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template= pGB_injected[j], oversample=4)
+            a,Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)
+            a,Ys = xr.align(self.dataY, Ys, join='left',fill_value=0)
+            a,Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)
+            Af = (Zs - Xs)/np.sqrt(2.0)
+            Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
+            ax1.plot(Af.f*10**3,Af.data, color=colors[j%10], linewidth = 5, alpha = 0.5)
+            ax2.plot(Ef.f*10**3,Ef.data, color=colors[j%10], linewidth = 5, alpha = 0.5)
+            # ax2.plot(pGB_injected[j][parameter_x]*10**3,pGB_injected[j][parameter_y],'o', color=colors[j%10], markersize=7, alpha = 1, markerfacecolor='None')
+            for k in range(len(pGB_injected[j][parameter_x2].shape)):
+                if pGB_injected[j][parameter_x2][k] < 0:
+                    pGB_injected[j][parameter_x2][k] += 2*np.pi
+            # pGB_injected[j][parameter_x2][pGB_injected[j][parameter_x2] < 0] += 2*np.pi
+            # ax3.plot(pGB_injected[j][parameter_x2],pGB_injected[j][parameter_y2],'o', color=colors[j%10], markersize=7, alpha = 1, markerfacecolor='None')
+            # ax3.plot(pGB_injected[j]['EclipticLongitude']*10**3,pGB_injected[j]['EclipticLatitude'],'o', color=colors[j%10], markersize=7, alpha = 0.5)
+            # ax4.plot(pGB_injected[j]['Inclination']*10**3,pGB_injected[j]['FrequencyDerivative'],'o', color=colors[j%10], markersize=7, alpha = 0.5)
+            # ax5.plot(pGB_injected[j]['InitialPhase']*10**3,pGB_injected[j]['Polarization'],'o', color=colors[j%10], markersize=7, alpha = 0.5)
+        for j in range(len(pGB_injected_matched)):
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template= pGB_injected_matched[j], oversample=4)
+            index_low = np.searchsorted(Xs.f, self.dataX.f[0])
+            try:
+                if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
+                    index_low = index_low-1
+            except:
+                pass
+            Xs = Xs[index_low : index_low + len(self.dataX)]
+            Ys = Ys[index_low : index_low + len(self.dataY)]
+            Zs = Zs[index_low : index_low + len(self.dataZ)]
+            Af = (Zs - Xs)/np.sqrt(2.0)
+            Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
+            ax1.plot(Af.f*10**3,Af.data, color=colors[j%10], linewidth = 5, alpha = 0.5)
+            ax2.plot(Ef.f*10**3,Ef.data, color=colors[j%10], linewidth = 5, alpha = 0.5)
+            # ax2.plot(pGB_injected_matched[j][parameter_x]*10**3,pGB_injected_matched[j][parameter_y],'o', color=colors[j%10], markersize=7, alpha = 1, markerfacecolor='None', label='true')
+            for k in range(len(pGB_injected_matched[j][parameter_x2].shape)):
+                if pGB_injected_matched[j][parameter_x2][k] < 0:
+                    pGB_injected_matched[j][parameter_x2][k] += 2*np.pi
+            # ax3.plot(pGB_injected_matched[j][parameter_x2],pGB_injected_matched[j][parameter_y2],'o', color=colors[j%10], markersize=7, alpha = 1, markerfacecolor='None')
+            # ax3.plot(pGB_injected_matched[j]['EclipticLongitude']*10**3,pGB_injected_matched[j]['EclipticLatitude'],'o', color=colors[j%10], markersize=7, alpha = 0.5)
+        if pGBadded != None:
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBadded, oversample=4)
+            index_low = np.searchsorted(Xs.f, self.dataX.f[0])
+            Xs = Xs[index_low : index_low + len(self.dataX)]
+            Ys = Ys[index_low : index_low + len(self.dataY)]
+            Zs = Zs[index_low : index_low + len(self.dataZ)]
+            Af = (Zs - Xs)/np.sqrt(2.0)
+            Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
+            ax1.plot(Af.f* 1000, np.abs(Af.data), marker='.', label=added_label)
+            # ax2.plot(Ef.f* 1000, np.abs(Ef.data), marker='.', label=added_label)
+        # for j in range(len(found_sources_in)):
+        #     Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_in[j], oversample=4)
+        #     index_low = np.searchsorted(Xs.f, self.dataX.f[0])
+        #     Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+        #     Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+        #     Af = (Zs - Xs)/np.sqrt(2.0)
+        #     Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
+        #     ax1.plot(Af.f* 1000, np.abs(Af.data),'--', color= colors[j%10], linewidth = 1.6)
+        #     ax2.plot(found_sources_in[j][parameter_x]*10**3,found_sources_in[j][parameter_y],'.', color=colors[j%10], markersize=7)
+        #     # ax2.plot(Ef.f* 1000, np.abs(Ef.data),'--', color= colors[j%10], linewidth = 1.6)
+        # for j in range(len(found_sources_in)):
+        #     Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_in[j], oversample=4)
+        #     index_low = np.searchsorted(Xs.f, self.dataX.f[0])
+        #     if j == 0:
+        #         Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+        #         Ys = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
+        #         Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+        #     # ax2.plot(found_sources_in[j][parameter_x]*10**3,found_sources_in[j][parameter_y],'o', color='grey', markersize=7)
+        #     Af = (Zs - Xs)/np.sqrt(2.0)
+        #     Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
+        #     ax1.plot(Af.f* 1000, np.abs(Af.data),linewidth = 5, alpha = 0.5, color= 'grey')
+        #     # ax2.plot(Ef.f* 1000, np.abs(Ef.data),'--', color= colors[j%10], linewidth = 1.6)
+        for j in range(len(found_sources_in)):
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_in[j], oversample=4)
+            index_low = np.searchsorted(Xs.f, self.dataX.f[0])
+            try:
+                if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
+                    index_low = index_low-1
+            except:
+                pass
+            Xs = Xs[index_low : index_low + len(self.dataX)]
+            Ys = Ys[index_low : index_low + len(self.dataY)]
+            Zs = Zs[index_low : index_low + len(self.dataZ)]
+            Af = (Zs - Xs)/np.sqrt(2.0)
+            Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
+            ax1.plot(Af.f* 1000, Af.data,'--', color= colors[j%10], linewidth = 1.6)
+            ax2.plot(Ef.f* 1000, Ef.data,'--', color= colors[j%10], linewidth = 1.6)
+            # ax2.plot(found_sources_in[j][parameter_x]*10**3,found_sources_in[j][parameter_y],'.', color=colors[j%10], markersize=12, linewidth=6, label='recovered')
+        for j in range(len(found_sources_not_matched)):
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_not_matched[j], oversample=4)
+            index_low = np.searchsorted(Xs.f, self.dataX.f[0])
+            Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
+            Ys = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
+            Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+            Af = (Zs - Xs)/np.sqrt(2.0)
+            Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
+            ax1.plot(Af.f* 1000, Af.data,'--', color= colors[j%10], linewidth = 1.6)
+            ax2.plot(Ef.f* 1000, Ef.data,'--', color= colors[j%10], linewidth = 1.6)
+            # ax2.plot(found_sources_not_matched[j][parameter_x]*10**3,found_sources_not_matched[j][parameter_y],'.', color=colors[j%10], markersize=12, linewidth=6)
+
+        for j in range(len(chains)):
+            number_of_samples = 1000
+            # ax2.plot(chains[j][parameter_x][:number_of_samples], chains[j][parameter_y][:number_of_samples], '.', alpha = 0.01, markersize=2, color=colors[j%10], zorder = -1)
+            chains[j][parameter_x2][chains[j][parameter_x2] < 0] += 2*np.pi
+            # ax3.plot(chains[j][parameter_x2], chains[j][parameter_y2], '.', alpha = 0.01, markersize=2, color=colors[j%10], zorder = -1)
+            mean_x = np.mean(chains[j][parameter_x2])
+            std_x = np.std(chains[j][parameter_x2])
+            mean_y = np.mean(chains[j][parameter_y2])
+            std_y = np.std(chains[j][parameter_y2])
+            # ax3.errorbar(mean_x, mean_y, xerr=std_x, yerr=std_y, capsize=6, color=colors[j%10], markersize=10, zorder = 2)
+
+        # ax1.axvline(self.lower_frequency* 1000, color= 'red', label='Boundaries')
+        # ax1.axvline(self.upper_frequency* 1000, color= 'red')
+        # ax2.axvline(self.lower_frequency* 1000, color= 'red')
+        # ax2.axvline(self.upper_frequency* 1000, color= 'red')
+        # for j in range(len(vertical_lines)):
+        #     ax1.axvline(vertical_lines[j]* 1000, color= 'red')
+        #     ax2.axvline(vertical_lines[j]* 1000, color= 'red')
+            # ax1.axvline((vertical_lines[j]-self.padding)* 1000, color= 'green')
+            # ax2.axvline((vertical_lines[j]-self.padding)* 1000, color= 'green')
+            # ax1.axvline((vertical_lines[j]+self.padding)* 1000, color= 'green')
+            # ax2.axvline((vertical_lines[j]+self.padding)* 1000, color= 'green')
+
+        ax2.set_xlabel(parameter_x)
+        if parameter_x == 'Frequency':
+            ax2.set_xlabel(r'$f$ (mHz)')
+        # ax3.set_xlabel(r'$\lambda$'+' (rad)')
+        # ax3.set_ylabel(r'$\beta$'+' (rad)')
+        ax1.set_ylabel(r'real($A$)')
+        ax2.set_ylabel(r'real($E$)')
+        # ax1.set_yscale('log')
+        # ax2.set_yscale('log')
+        # ax1.set_xlim((self.lower_frequency-self.padding)*10**3, (self.upper_frequency+self.padding)*10**3)
+        # ax2.set_xlim((self.lower_frequency-self.padding)*10**3, (self.upper_frequency+self.padding)*10**3)
+        ax1.set_xlim((vertical_lines[1]-self.padding)*10**3, (vertical_lines[-2]+self.padding)*10**3)
+        ax2.set_xlim((vertical_lines[1]-self.padding)*10**3, (vertical_lines[-2]+self.padding)*10**3)
+        # ax1.set_ylim(10**-19,10**-15)
+        # ax2.set_ylim(10**-19,10**-15)
+        # ax2.set_ylim(10**-23,4*10**-23)
+        # ax1.set_xlim((self.lower_frequency)*10**3, (self.upper_frequency)*10**3)
+        # ax2.set_xlim((self.lower_frequency)*10**3, (self.upper_frequency)*10**3)
+        ax1.xaxis.set_major_locator(plt.MaxNLocator(4))
+        ax2.xaxis.set_major_locator(plt.MaxNLocator(4))
+
+        labels_plot = ['data','injected', 'recovered']
+        custom_lines1 = [plt.Line2D([0], [0], color='k', lw=2, linestyle='solid'),
+                         plt.Line2D([0], [0], color=colors[0], lw=5, linestyle='solid', alpha=0.5),
+                         plt.Line2D([0], [0], color=colors[0], lw=2, linestyle='dashed')]
+        # custom_lines2 = [markers([0], [0], color=colors[0], lw=2, linestyle='solid'),
+        #                 plt.Line2D([0], [0], color=colors[0], lw=2, linestyle='dashed')]
+        handles, labels = ax2.get_legend_handles_labels()
+        # ax2.legend([handles[0], handles[len(pGB_injected_matched)]], [labels[0],labels[len(pGB_injected_matched)]], loc='upper left')
+        ax1.legend(custom_lines1, labels_plot, loc='upper left')
+        # plt.legend()
+        plt.tight_layout()
+        if saving_label != None:
+            plt.savefig(saving_label,dpi=300,bbox_inches='tight')
         plt.show()
         # print("p true", self.loglikelihood([pGB]), "null hypothesis", self.loglikelihood([null_pGBs]))
 
