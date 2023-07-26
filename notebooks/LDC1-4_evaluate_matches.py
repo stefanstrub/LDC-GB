@@ -144,6 +144,7 @@ def load_files(save_path, save_name):
     pGB_injected_matched_flat_df = pd.read_pickle(save_path+'/injected_matched_windows_' +save_name+end_string+'_df')
     pGB_injected_not_matched_flat_df = pd.read_pickle(save_path+'/injected_not_matched_windows_' +save_name+end_string+'_df')
     match_list = np.load(save_path+'match_list_' +save_name+end_string+'.npy', allow_pickle=True)
+    correlation_list = np.load(save_path+'match_list_' +save_name+'_correlation_09_injected_snr5.npy', allow_pickle=True)
     pGB_best_list = np.load(save_path+'pGB_best_list_' +save_name+end_string+'.npy', allow_pickle=True)
     match_best_list = np.load(save_path+'match_best_list_' +save_name+end_string+'.npy', allow_pickle=True)
 
@@ -165,7 +166,7 @@ def load_files(save_path, save_name):
     print(number_of_matched_signals ,'matched signals out of', number_of_found_signals, 'found signals '+save_name)
     print('matched signals/found signals:', np.round(number_of_matched_signals/number_of_found_signals,2))
     print('number of injected signals:', np.round(number_of_injected_signals))
-    return found_sources_flat_df, found_sources_matched_flat_df, found_sources_not_matched_flat_df, pGB_injected_matched_flat_df, pGB_injected_not_matched_flat_df, match_list, pGB_best_list_df, match_best_list_flat_df
+    return found_sources_flat_df, found_sources_matched_flat_df, found_sources_not_matched_flat_df, pGB_injected_matched_flat_df, pGB_injected_not_matched_flat_df, match_list, pGB_best_list_df, match_best_list_flat_df, correlation_list
 
 found_sources_list = []
 found_sources_matched_list = []
@@ -173,18 +174,46 @@ found_sources_not_matched_list = []
 pGB_injected_matched_list = []
 pGB_injected_not_matched_list = []
 match_list = []
+correlation_list = []
 pGB_best_list = []
 match_best_list = []
 for i, save_name in enumerate(save_names):
-    found_sources_flat_df, found_sources_matched_flat_df, found_sources_not_matched_flat_df, pGB_injected_matched_flat_df, pGB_injected_not_matched_flat_df, match, pGB_best, match_best = load_files(SAVEPATHS[i], save_name)
+    found_sources_flat_df, found_sources_matched_flat_df, found_sources_not_matched_flat_df, pGB_injected_matched_flat_df, pGB_injected_not_matched_flat_df, match, pGB_best, match_best, correlation = load_files(SAVEPATHS[i], save_name)
     found_sources_list.append(found_sources_flat_df)
     found_sources_matched_list.append(found_sources_matched_flat_df)
     found_sources_not_matched_list.append(found_sources_not_matched_flat_df)
     pGB_injected_matched_list.append(pGB_injected_matched_flat_df)
     pGB_injected_not_matched_list.append(pGB_injected_not_matched_flat_df)
     match_list.append(match)
+    correlation_list.append(correlation)
     pGB_best_list.append(pGB_best)
     match_best_list.append(match_best)
+
+
+matches_flat = pd.DataFrame(np.concatenate(match_list[1]))
+correlation_flat = pd.DataFrame(np.concatenate(correlation_list[1]))
+sources = match_best_list[1]
+
+good_correlation_filter = correlation_flat[0] > 0.8
+good_correlation = correlation_flat[good_correlation_filter]
+good_matches = matches_flat[good_correlation_filter]
+good_correlation_sources = sources[good_correlation_filter]
+bad_match_filter = good_matches[0] > 1
+bad_matches_good_correlation = good_matches[bad_match_filter]
+bad_matches_good_correlation_sources = good_correlation_sources[bad_match_filter]
+
+
+bad_correlation_filter = correlation_flat[0] < 0.85
+bad_correlation = correlation_flat[bad_correlation_filter]
+bad_correlation_matches = matches_flat[bad_correlation_filter]
+bad_correlation_sources = sources[bad_correlation_filter]
+good_match_filter = bad_correlation_matches[0] < 0.3
+good_matches_bad_correlation = bad_correlation_matches[good_match_filter]
+good_matches_bad_correlation_sources = bad_correlation_sources[good_match_filter]
+
+
+
+
 
 # found_sources_matched_flat_df2, found_sources_not_matched_flat_df2, pGB_injected_matched_flat_df2, pGB_injected_not_matched_flat_df2, match_list2, pGB_best_list2, match_best_list2 = load_files(SAVEPATH, save_name2)
 # found_sources_matched_flat_df3, found_sources_not_matched_flat_df3, pGB_injected_matched_flat_df3, pGB_injected_not_matched_flat_df3, match_list3, pGB_best_list3, match_best_list3 = load_files(SAVEPATH, save_name3)

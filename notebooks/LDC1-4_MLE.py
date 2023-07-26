@@ -1,4 +1,3 @@
-#%%
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 import scipy
@@ -78,31 +77,37 @@ path = os.getcwd()
 parent = os.path.dirname(path)
 # grandparent directory
 grandparent = os.path.dirname(parent)
-Radler = True
-if Radler:
+
+dataset = 'Spritz'
+if dataset == 'Radler':
     DATAPATH = grandparent+"/LDC/Radler/data"
     SAVEPATH = grandparent+"/LDC/pictures/LDC1-4/"
-else:
+elif dataset == 'Sangria':
     DATAPATH = grandparent+"/LDC/Sangria/data"
     SAVEPATH = grandparent+"/LDC/pictures/Sangria/"
+elif dataset == 'Spritz':
+    DATAPATH = grandparent+"/LDC/Spritz/data"
+    SAVEPATH = grandparent+"/LDC/Spritz/evaluation"
 
-if Radler:
-    sangria_fn = DATAPATH + "/LDC1-4_GB_v2.hdf5"
-    # sangria_fn = DATAPATH + "/LDC1-3_VGB_v2_FD_noiseless.hdf5"
-    # sangria_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
-else:
-    sangria_fn = DATAPATH + "/LDC2_sangria_training_v2.h5"
-fid = h5py.File(sangria_fn)
+if dataset == 'Radler':
+    data_fn = DATAPATH + "/LDC1-4_GB_v2.hdf5"
+    # data_fn = DATAPATH + "/LDC1-3_VGB_v2_FD_noiseless.hdf5"
+    # data_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
+elif dataset == 'Sangria':
+    data_fn = DATAPATH + "/LDC2_sangria_training_v2.h5"
+elif dataset == 'Spritz':
+    data_fn = DATAPATH + "/LDC2_spritz_vgb_training_v2.h5"
+fid = h5py.File(data_fn)
 
 reduction = 1
 
 # get TDI 
-if Radler:
+if dataset == 'Radler':
     td = np.array(fid["H5LISA/PreProcess/TDIdata"])
     td = np.rec.fromarrays(list(td.T), names=["t", "X", "Y", "Z"])
     dt = float(np.array(fid['H5LISA/GWSources/GalBinaries']['Cadence']))
     Tobs = float(int(np.array(fid['H5LISA/GWSources/GalBinaries']['ObservationDuration']))/reduction)
-else:
+elif dataset == 'Sangria':
     td = fid["obs/tdi"][()]
     td = np.rec.fromarrays(list(td.T), names=["t", "X", "Y", "Z"])
     td = td['t']
@@ -112,38 +117,32 @@ else:
     # cat_mbhb = fid["sky/mbhb/cat"]
     td_mbhb  = np.rec.fromarrays(list(td_mbhb .T), names=["t", "X", "Y", "Z"])
     td_mbhb  = td_mbhb ['t']
-    # tdi_ts_mbhb = dict([(k, TimeSeries(td_mbhb[k][:int(len(td_mbhb[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
-    # tdi_fs_mbhb = xr.Dataset(dict([(k, tdi_ts_mbhb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
-
-    # td_dgb = fid["sky/dgb/tdi"][()]
-    # cat_dgb = fid["sky/dgb/cat"]
-    # td_dgb  = np.rec.fromarrays(list(td_dgb .T), names=["t", "X", "Y", "Z"])
-    # td_dgb  = td_dgb ['t']
-    # tdi_ts_dgb = dict([(k, TimeSeries(td_dgb[k][:int(len(td_dgb[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
-    # tdi_fs_dgb = xr.Dataset(dict([(k, tdi_ts_dgb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
-
-    # td_igb = fid["sky/igb/tdi"][()]
-    # cat_igb = fid["sky/igb/cat"]
-    # td_igb  = np.rec.fromarrays(list(td_igb .T), names=["t", "X", "Y", "Z"])
-    # td_igb  = td_igb ['t']
-    # tdi_ts_igb = dict([(k, TimeSeries(td_igb[k][:int(len(td_igb[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
-    # tdi_fs_igb = xr.Dataset(dict([(k, tdi_ts_igb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
-
-    # td_vgb = fid["sky/vgb/tdi"][()]
-    # cat_vgb = fid["sky/vgb/cat"]
-    # td_vgb  = np.rec.fromarrays(list(td_vgb .T), names=["t", "X", "Y", "Z"])
-    # td_vgb  = td_vgb ['t']
-    # tdi_ts_vgb = dict([(k, TimeSeries(td_vgb[k][:int(len(td_vgb[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
-    # tdi_fs_vgb = xr.Dataset(dict([(k, tdi_ts_vgb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 
     Tobs = float(int(np.array(fid['obs/config/t_max']))/reduction)
     for k in ["X", "Y", "Z"]:
         td[k] = td[k] - td_mbhb[k]
 
+elif dataset == 'Spritz':
+    names = fid["sky/cat"].dtype.names
+    cat_vgb = dict(zip(names, [fid["sky/cat"][name] for name in names]))
+    # print(cat_vgb)
+    td = fid["obs/tdi"][()]
+    td = np.rec.fromarrays(list(td.T), names=["t", "X", "Y", "Z"])
+    td = td['t']
+    dt = td["t"][1]-td["t"][0]
+    Tobs = float(td['t'][-1]/reduction)
+
 # Build timeseries and frequencyseries object for X,Y,Z
 tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt, t0=td.t[0])) for k in ["X", "Y", "Z"]])
 tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
+
+if dataset == 'Spritz':
+    for k in ["X", "Y", "Z"]:
+        gaps = np.isnan(tdi_ts[k])
+        tdi_ts[k][gaps] = 0
+
+
 
 pGBadded20 = {}
 pGBadded20['Amplitude'] = 5e-21
@@ -534,7 +533,7 @@ frequencies_odd = []
 # search_range = [0.0039935, 0.0039965]
 f_Nyquist = 1/dt/2
 search_range = [0.0003, f_Nyquist]
-if Radler:
+if dataset == 'Radler':
     search_range = [0.0003, 0.0319]
 search_range = [0.0001, 0.11]
 # search_range = [0.0019935, 0.0020135]
@@ -574,7 +573,8 @@ plt.savefig(SAVEPATH+'bandwidth.png')
 
 
 # save_name = 'Sangria_12m_even'
-save_name = 'Radler_24m_even'
+# save_name = 'Radler_24m_even'
+save_name = dataset + '_12m_eventest'
 # for i in range(65):
 frequencies_search = frequencies_even
 frequencies_search_full = deepcopy(frequencies_search)
@@ -617,7 +617,7 @@ print('search range '+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(n
 #             frequencies_search_reduced.append(frequencies_search_full[i])
 # frequencies_search = frequencies_search_reduced
 
-do_subtract = True
+do_subtract = False
 if do_subtract:
     start = time.time()
     # save_name_previous = 'found_sourcesRadler_half_odd_dynamic_noise'
@@ -665,7 +665,7 @@ if do_subtract:
         
     tdi_fs = deepcopy(tdi_fs_subtracted)
 
-do_not_search_unchanged_even_windows = True
+do_not_search_unchanged_even_windows = False
 if do_not_search_unchanged_even_windows:
     frequencies_search_reduced = []
 
@@ -699,7 +699,7 @@ if do_not_search_unchanged_even_windows:
     frequencies_search = frequencies_search_reduced
 
 found_sources_sorted = []
-use_initial_guess = True
+use_initial_guess = False
 if use_initial_guess:
     # save_name_found_sources_previous = 'found_sources397769to400619LDC1-4_4mHz_half_year_even10'
     # save_name_found_sources_previous = 'found_sources397919to400770LDC1-4_4mHz_half_year_odd'
