@@ -134,32 +134,51 @@ path = os.getcwd()
 parent = os.path.dirname(path)
 # grandparent directory
 grandparent = os.path.dirname(parent)
-Radler = True
-if Radler:
+
+dataset = 'Radler'
+VGB = True
+add_gaps_and_glitches = True
+fill_gaps = True
+if dataset == 'Radler':
     DATAPATH = grandparent+"/LDC/Radler/data"
     SAVEPATH = grandparent+"/LDC/pictures/LDC1-4/"
-    SAVEPATH = grandparent+"/LDC/Radler/LDC1-4_evaluation/"
-else:
+elif dataset == 'Sangria':
     DATAPATH = grandparent+"/LDC/Sangria/data"
     SAVEPATH = grandparent+"/LDC/pictures/Sangria/"
+elif dataset == 'Spritz':
+    DATAPATH = grandparent+"/LDC/Spritz/data"
+    SAVEPATH = grandparent+"/LDC/Spritz/evaluation"
 
-if Radler:
-    sangria_fn = DATAPATH + "/LDC1-4_GB_v2.hdf5"
-    # sangria_fn = DATAPATH + "/LDC1-3_VGB_v2_FD_noiseless.hdf5"
-    # sangria_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
-else:
-    sangria_fn = DATAPATH + "/LDC2_sangria_training_v2.h5"
-fid = h5py.File(sangria_fn)
+if dataset == 'Radler':
+    data_fn = DATAPATH + "/LDC1-4_GB_v2.hdf5"
+    # data_fn = DATAPATH + "/LDC1-3_VGB_v2_FD_noiseless.hdf5"
+    if VGB:
+        data_fn = DATAPATH + "/LDC1-3_VGB_v2.hdf5"
+elif dataset == 'Sangria':
+    data_fn = DATAPATH + "/LDC2_sangria_training_v2.h5"
+elif dataset == 'Spritz':
+    data_fn = DATAPATH + "/LDC2_spritz_vgb_training_v2.h5"
+fid = h5py.File(data_fn)
 
 reduction = 1
 
 # get TDI 
-if Radler:
+if dataset == 'Radler':
     td = np.array(fid["H5LISA/PreProcess/TDIdata"])
     td = np.rec.fromarrays(list(td.T), names=["t", "X", "Y", "Z"])
     dt = float(np.array(fid['H5LISA/GWSources/GalBinaries']['Cadence']))
     Tobs = float(int(np.array(fid['H5LISA/GWSources/GalBinaries']['ObservationDuration']))/reduction)
-else:
+    names = np.array(fid['H5LISA/GWSources/GalBinaries'])
+    params = [fid['H5LISA/GWSources/GalBinaries'][k] for k in names]
+    reduced_names = []
+    i = 0
+    for p in params:
+        i += 1
+        if p.shape:
+            reduced_names.append(names[i-1])
+    params = [np.array(p) for p in params if p.shape]
+    cat = np.rec.fromarrays(params, names=list(reduced_names))
+elif dataset == 'Sangria':
     td = fid["obs/tdi"][()]
     td = np.rec.fromarrays(list(td.T), names=["t", "X", "Y", "Z"])
     td = td['t']
@@ -169,39 +188,118 @@ else:
     # cat_mbhb = fid["sky/mbhb/cat"]
     td_mbhb  = np.rec.fromarrays(list(td_mbhb .T), names=["t", "X", "Y", "Z"])
     td_mbhb  = td_mbhb ['t']
-    # tdi_ts_mbhb = dict([(k, TimeSeries(td_mbhb[k][:int(len(td_mbhb[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
-    # tdi_fs_mbhb = xr.Dataset(dict([(k, tdi_ts_mbhb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
-
-    # td_dgb = fid["sky/dgb/tdi"][()]
-    # cat_dgb = fid["sky/dgb/cat"]
-    # td_dgb  = np.rec.fromarrays(list(td_dgb .T), names=["t", "X", "Y", "Z"])
-    # td_dgb  = td_dgb ['t']
-    # tdi_ts_dgb = dict([(k, TimeSeries(td_dgb[k][:int(len(td_dgb[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
-    # tdi_fs_dgb = xr.Dataset(dict([(k, tdi_ts_dgb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
-
-    # td_igb = fid["sky/igb/tdi"][()]
-    # cat_igb = fid["sky/igb/cat"]
-    # td_igb  = np.rec.fromarrays(list(td_igb .T), names=["t", "X", "Y", "Z"])
-    # td_igb  = td_igb ['t']
-    # tdi_ts_igb = dict([(k, TimeSeries(td_igb[k][:int(len(td_igb[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
-    # tdi_fs_igb = xr.Dataset(dict([(k, tdi_ts_igb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
-
-    # td_vgb = fid["sky/vgb/tdi"][()]
-    # cat_vgb = fid["sky/vgb/cat"]
-    # td_vgb  = np.rec.fromarrays(list(td_vgb .T), names=["t", "X", "Y", "Z"])
-    # td_vgb  = td_vgb ['t']
-    # tdi_ts_vgb = dict([(k, TimeSeries(td_vgb[k][:int(len(td_vgb[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
-    # tdi_fs_vgb = xr.Dataset(dict([(k, tdi_ts_vgb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 
     Tobs = float(int(np.array(fid['obs/config/t_max']))/reduction)
     for k in ["X", "Y", "Z"]:
         td[k] = td[k] - td_mbhb[k]
 
+elif dataset == 'Spritz':
+    names = fid["sky/cat"].dtype.names
+    cat_vgb = dict(zip(names, [fid["sky/cat"][name] for name in names]))
+    # print(cat_vgb)
+    td = fid["obs/tdi"][()]
+    td = np.rec.fromarrays(list(td.T), names=["t", "X", "Y", "Z"])
+    td = td['t']
+    dt = td["t"][1]-td["t"][0]
+    Tobs = float(td['t'][-1]/reduction)
 
 # Build timeseries and frequencyseries object for X,Y,Z
 tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt, t0=td.t[0])) for k in ["X", "Y", "Z"]])
-tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+# tdi_ts_o = deepcopy(tdi_ts)
+# tdi_fs_o = xr.Dataset(dict([(k, tdi_ts_o[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
+
+
+if add_gaps_and_glitches:
+    DATAPATH_spritz = grandparent+"/LDC/Spritz/data"
+    data_fn_spritz = DATAPATH_spritz + "/LDC2_spritz_vgb_training_v2.h5"
+    fid_spritz = h5py.File(data_fn_spritz)
+
+    td_obs = fid_spritz["obs/tdi"][()]
+    td_obs = np.rec.fromarrays(list(td_obs.T), names=["t", "X", "Y", "Z"])
+    td_obs = td_obs['t']
+    td_clean = fid_spritz["clean/tdi"][()]
+    td_clean = np.rec.fromarrays(list(td_clean.T), names=["t", "X", "Y", "Z"])
+    td_clean = td_clean['t']
+    td_galaxy = fid_spritz["gal/tdi"][()]
+    td_galaxy = np.rec.fromarrays(list(td_galaxy.T), names=["t", "X", "Y", "Z"])
+    td_galaxy = td_galaxy['t']
+
+    tdi = fid_spritz["obs/tdi"][()].squeeze()
+    tdi_nf = fid_spritz["noisefree/tdi"][()].squeeze()
+    dt_spritz = tdi['t'][1]-tdi['t'][0]
+
+    # Build timeseries and frequencyseries object for X,Y,Z
+    tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt, t0=td.t[0])) for k in ["X", "Y", "Z"]])
+    tdi_ts_obs = dict([(k, TimeSeries(td_obs[k][:int(len(td_obs[k][:])/reduction)], dt=dt_spritz, t0=td_obs.t[0])) for k in ["X", "Y", "Z"]])
+    tdi_ts_clean = dict([(k, TimeSeries(td_clean[k][:int(len(td_clean[k][:])/reduction)], dt=dt_spritz, t0=td_clean.t[0])) for k in ["X", "Y", "Z"]])
+    tdi_ts_galaxy = dict([(k, TimeSeries(td_galaxy[k][:int(len(td_galaxy[k][:])/reduction)], dt=dt_spritz, t0=td_galaxy.t[0])) for k in ["X", "Y", "Z"]])
+
+    tdi_ts_glitches = deepcopy(tdi_ts_obs)
+    for k in ["X", "Y", "Z"]:
+        tdi_ts_glitches[k].values = tdi_ts_obs[k].values - tdi_ts_clean[k].values - tdi_ts_galaxy[k].values
+
+    ## add glitches to tdi
+    tdi_ts_with_glitches = deepcopy(tdi_ts)
+    if dataset != 'Spritz':
+        for k in ["X", "Y", "Z"]:
+            tdi_ts_with_glitches[k].values = tdi_ts[k].values + tdi_ts_glitches[k].values[:len(tdi_ts[k].values)]
+    tdi_ts = deepcopy(tdi_ts_with_glitches)
+
+if fill_gaps:
+    gaps = {}
+    for k in ["X", "Y", "Z"]:
+        gap = np.isnan(tdi_ts_with_glitches[k])
+        tdi_ts_with_glitches[k][gap] = 0
+        gaps[k] = tdi_ts_with_glitches[k] == 0
+        # gaps = np.isnan(tdi_ts_with_glitches[k])
+        tdi_ts_with_glitches[k][gaps[k]] = 0
+
+        mad = scipy.stats.median_abs_deviation(tdi_ts_with_glitches[k])
+        peaks, properties = scipy.signal.find_peaks(np.abs(tdi_ts_with_glitches[k]), height=10*mad, threshold=None, distance=1)
+        # Turning glitches into gaps
+        for pk in peaks:
+            tdi_ts_with_glitches[k][pk-10:pk+10] = 0.0
+
+        mad = scipy.stats.median_abs_deviation(tdi_ts_with_glitches[k])
+        peaks, properties = scipy.signal.find_peaks(np.abs(tdi_ts_with_glitches[k]), height=10*mad, threshold=None, distance=1)
+        # Turning glitches into gaps
+        for pk in peaks:
+            tdi_ts_with_glitches[k][pk-10:pk+10] = 0.0
+
+        mad = scipy.stats.median_abs_deviation(tdi_ts_with_glitches[k])
+        peaks, properties = scipy.signal.find_peaks(np.abs(tdi_ts_with_glitches[k]), height=10*mad, threshold=None, distance=1)
+        # Turning glitches into gaps
+        for pk in peaks:
+            tdi_ts_with_glitches[k][pk-10:pk+10] = 0.0
+
+
+    for k in ["X", "Y", "Z"]:
+        tdi_ts_with_glitches[k][:300] = 0
+
+
+
+    for k in ["X", "Y", "Z"]:
+        groups = []
+        gaps = tdi_ts_with_glitches[k] == 0
+        gaps = tdi_ts_with_glitches[k][gaps]
+        start_points = []
+        if gaps.t[0].values == tdi_ts_with_glitches[k].t[0].values:
+            start_points = [0]
+        differences = gaps.t[1:].values - gaps.t[:-1].values
+        jumps = differences > 15
+        end_points = list(gaps[:-1][jumps].t.values) + list([gaps.t[-1].values])
+        start_points = list(start_points) + list(gaps[1:][jumps].t.values)
+
+        for i in range(len(start_points)):
+            index_start = int((start_points[i]-tdi_ts_with_glitches[k].t[0].values)/dt)
+            index_end = int((end_points[i]-tdi_ts_with_glitches[k].t[0])/dt)
+            length_gap = len(tdi_ts_with_glitches[k][index_start:index_end])+1
+            tdi_ts_with_glitches[k][index_start:index_start+length_gap] = tdi_ts_with_glitches[k][index_end+1:index_end+1+length_gap].values
+    tdi_ts = deepcopy(tdi_ts_with_glitches)
+
+
+tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 
 
 pGBadded20 = {}
@@ -375,6 +473,7 @@ frequencies_odd = frequencies[1::2]
 # save_name = 'not_anticorrelatedLDC1-4_2_optimized_second'
 save_name = 'Sangria_12m'
 save_name = 'Radler_24m'
+save_name = dataset + '_VGB_gaps'
 # save_name = 'Sangria_1_dynamic_noise'
 # save_name = 'not_anticorrelatedRadler_half_dynamic_noise'
 # for i in range(65):
@@ -408,6 +507,12 @@ while frequencies_search[-1][1] + (frequencies_search[-1][1] - frequencies_searc
     frequencies_search = frequencies_search[:-1]
 # frequencies_search = frequencies_search[70:80]
 # frequencies_search = frequencies_search[25:]
+
+if dataset == 'Radler' and VGB:
+    frequencies_search = []
+    for i in range(len(cat)):
+        start_index = np.searchsorted(np.asarray(frequencies)[:,0], cat[i]['Frequency'])-1
+        frequencies_search.append(frequencies[start_index])
 
 
 do_print = False
@@ -1257,7 +1362,7 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true = [], number_o
     # print('GPU memory free', get_gpu_memory())
     # mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, temperature= 10)
     temperature = [15, 10, 5, 3, 2, 1]
-    resolution = [10**4, 10**4, 10**4, 10**4, 10**4, 10**4]
+    resolution = [10**4, 10**4, 10**4, 10**4, 10**4, 10**6]
     posterior_round = 0
     mcmc_samples = posterior1.calculate_posterior(resolution = resolution[posterior_round], temperature= temperature[posterior_round])
     posterior_round += 1
@@ -1279,7 +1384,7 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true = [], number_o
     # posterior1.plot_corner(mcmc_samples_final, pGB_true, save_figure= True)
     print('time to compute posterior: ', time.time()-start)
     start = time.time()
-    posterior1.plot_corner(mcmc_samples_final, pGB_true, save_figure= False, save_chain= True, number_of_signal = 0, parameter_titles = False)
+    posterior1.plot_corner(mcmc_samples_final, pGB_true, save_figure= True, save_chain= True, number_of_signal = 0, parameter_titles = False)
     # kde_samples, probability = posterior1.get_samples(resolution = 1*10**4, proposal= mcmc_samples)
 
     # plt.figure()
@@ -1293,15 +1398,25 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true = [], number_o
 
 print('GPU memory free', get_gpu_memory())
 
-SAVEPATH_sangria = grandparent+"/LDC/pictures/Sangria/"
-end_string = '_SNR_scaled_03_injected_snr5'
+# SAVEPATH_sangria = grandparent+"/LDC/pictures/Sangria/"
+# end_string = '_SNR_scaled_03_injected_snr5'
 # found_sources = np.load(SAVEPATH+'/found_sources_matched' +save_name+end_string+'.npy', allow_pickle=True)
 # found_sources_not_matched = np.load(SAVEPATH+'/found_sources_not_matched' +save_name+'.npy', allow_pickle=True)
 # pGB_injected_not_matched = np.load(SAVEPATH+'/injected_not_matched_windows' +save_name+'.npy', allow_pickle=True)
 # pGB_injected_matched = np.load(SAVEPATH+'/injected_matched_windows' +save_name+'.npy', allow_pickle=True)
 
-# found_sources_mp = np.load(SAVEPATH+'/found_sourcesSangria_1_full.npy', allow_pickle=True)
-found_sources_in_flat = np.load(SAVEPATH+'found_sources_' +save_name+'_flat.npy', allow_pickle = True)
+found_sources = np.load(SAVEPATH+'/found_sources_'+save_name+'.npy', allow_pickle=True)
+found_sources_in_flat = []
+# for i in range(len(found_sources)):
+#     for j in range(len(found_sources[i])):
+#         found_sources_in_flat.append(found_sources[i][j])
+for i in range(len(found_sources)):
+    for j in range(len(found_sources[i][3])):
+        found_sources_in_flat.append(found_sources[i][3][j])
+pickle.dump(found_sources_in_flat, open(SAVEPATH+'found_sources_' +save_name+'_flat.pkl', 'wb'))
+
+found_sources_in_flat = pickle.load(open(SAVEPATH+'found_sources_' +save_name+'_flat.pkl', 'rb'))
+# found_sources_in_flat = np.load(SAVEPATH+'found_sources_' +save_name+'_flat.npy', allow_pickle = True)
 
 
 amp = 1e-22  # amplitude
@@ -1354,14 +1469,6 @@ indexes = np.logical_and(tdi_fs_added.f >= Af.f.values[0], tdi_fs_added.f <= Af.
 # plt.xlim(f0 - window_length, f0 + window_length)
 # plt.show()
 
-
-# found_sources_in_flat = []
-# for i in range(len(found_sources)):
-#     for j in range(len(found_sources[i])):
-#         found_sources_in_flat.append(found_sources[i][j])
-# for i in range(len(found_sources)):
-#     for j in range(len(found_sources[i][3])):
-#         found_sources_in_flat.append(found_sources[i][3][j])
 found_sources_in_flat = np.asarray(found_sources_in_flat)
 found_sources_in_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_in_flat]) for attribute in found_sources_in_flat[0].keys()}
 found_sources_in_flat_df = pd.DataFrame(found_sources_in_flat_array)
@@ -1550,9 +1657,9 @@ fs = 1/dt
 N = len(tdi_ts['X'])
 tdi_fsX = np.fft.rfft(tdi_ts['X'].data)[0:N//2+1]/fs
 
-if Radler:
+if dataset == 'Radler':
     noise_model = "SciRDv1"
-else:
+if dataset == 'Sangria':
     noise_model = "sangria"
 Nmodel = get_noise_model(noise_model, f_res[1:])
 Sn = Nmodel.psd(freq=f_res[1:], option="X")
@@ -1620,8 +1727,8 @@ noise_df.to_csv(SAVEPATH+'ETH_'+save_name+'_noise.csv')
 whitened_data = np.abs(tdi_fs_residual['A']/dt)**2 /(fs*len(tdi_ts['X']))*2 / noise['A']/dt
 whitened_data = tdi_fs_residual['A']*2/dt / np.sqrt(noise['A']*fs*len(tdi_ts['X']))
 
-psdA_residual_interpol = scipy.interpolate.InterpolatedUnivariateSpline(f_res, psdA_residual)(tdi_fs.f)
-whitened_data = tdi_fs_residual['A']*2/dt / np.sqrt(psdA_residual_interpol*fs*len(tdi_ts['X']))
+# psdA_residual_interpol = scipy.interpolate.InterpolatedUnivariateSpline(f_res, psdA_residual)(tdi_fs.f)
+whitened_data = tdi_fs_residual['A']*2/dt / np.sqrt(psdA_residual*fs*len(tdi_ts['X']))
 # whitened_data = search1.DAf_full_f / np.real(search1.DAf_full_f)
 
 lower_index = np.searchsorted(tdi_fs['X'].f, 0.0003)
@@ -1691,7 +1798,6 @@ for i in range(len(found_sources_in)):
             tdi_fs_added[k].data[index_low:index_high] = tdi_fs_added[k].data[index_low:index_high] + source_added[k].data
             # tdi_fs_added_part[k].data[index_low:index_high] = tdi_fs_added_part[k].data[index_low:index_high] - source_added[k].data * 1
 
-
         plot_addition = False
         if plot_addition:
             # pGB_true = []
@@ -1709,7 +1815,7 @@ for i in range(len(found_sources_in)):
 
         number_of_signals += 1
         frequencies_found.append(found_sources_in[i][j]['Frequency'])
-        compute_posterior(tdi_fs_added, Tobs, frequencies_search[i], found_sources_in[i][j], pGBadded20, noise=noise)#, pGB_injected_matched[i][j].to_dict())
+        compute_posterior(tdi_fs_added, Tobs, frequencies_search[i], found_sources_in[i][j], cat[i], noise=noise)#, pGB_injected_matched[i][j].to_dict())
         print('time for one signal posterior', time.time() - start)
 print('time to search ', number_of_signals, 'signals: ', time.time()-start_all, (time.time()-start_all)/number_of_signals, 's per signal')
 start = time.time()

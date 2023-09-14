@@ -142,6 +142,9 @@ elif dataset == 'Spritz':
         for parameter in parameters:
             cat[i][parameter] = cat_vgb[parameter][i][0]
 
+    # for i in range(len(cat_vgb['Frequency'])):
+    #     cat[i]['InitialPhase'] *= -1
+
     # print(cat_vgb)
     td = fid["obs/tdi"][()]
     td = np.rec.fromarrays(list(td.T), names=["t", "X", "Y", "Z"])
@@ -244,13 +247,13 @@ Xs, Ys, Zs = GB.get_fd_tdixyz(template=cat[i], oversample=4)
 Af = (Zs - Xs)/np.sqrt(2.0)
 Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)   
 plt.figure()
-plt.loglog(Xs.f*1000,np.abs(Xs.values))
-# plt.loglog(tdi_fs['X'].f.values*1000,np.abs(tdi_fs['X'].values))
-plt.loglog(tdi_fs_clean['X'].f.values*1000,np.abs(tdi_fs_clean['X'].values))
-plt.loglog(tdi_fs_noisefree['X'].f.values*1000,np.abs(tdi_fs_noisefree['X'].values))
-plt.loglog(tdi_fs_sky['X'].f.values*1000,np.abs(tdi_fs_sky['X'].values))
-# plt.xlim(lower_frequency*1000,upper_frequency*1000)
-# plt.plot(Ef.f*1000,Ef.values)
+plt.semilogx(Xs.f*1000,np.real(Xs.values)/2.5)
+plt.semilogx(tdi_fs['X'].f.values*1000,np.real(tdi_fs['X'].values))
+plt.semilogx(tdi_fs_clean['X'].f.values*1000,np.real(tdi_fs_clean['X'].values))
+plt.semilogx(tdi_fs_noisefree['X'].f.values*1000,np.real(tdi_fs_noisefree['X'].values))
+plt.semilogx(tdi_fs_sky['X'].f.values*1000,np.real(tdi_fs_sky['X'].values))
+plt.xlim(lower_frequency*1000,upper_frequency*1000)
+# plt.semilogx(Ef.f*1000,Ef.values)
 plt.show()
 
 start = 200
