@@ -10,14 +10,14 @@ path = os.getcwd()
 parent = os.path.dirname(path)
 # grandparent directory
 grandparent = os.path.dirname(parent)
-folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/found_signals"
-# folderpath_parent = grandparent+"/LDC/pictures/Sangria/found_signals"
-folderpath_save = grandparent+"/LDC/pictures/LDC1-4"
-# folderpath_save = grandparent+"/LDC/pictures/Sangria"
+# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/found_signals"
+folderpath_parent = grandparent+"/LDC/pictures/Sangria/found_signals"
+# folderpath_save = grandparent+"/LDC/pictures/LDC1-4"
+folderpath_save = grandparent+"/LDC/pictures/Sangria"
 
-name = '_24m_even'
+name = '_12m'
 save_name = 'Radler' + name
-# save_name = 'Sangria' + name
+save_name = 'Sangria' + name
 folderpath = folderpath_parent + name
 onlyfiles = [f for f in listdir(folderpath) if isfile(join(folderpath, f))]
 found_sources_mp_even_unsorted = []
@@ -43,7 +43,7 @@ sorted_indexes = np.argsort(frequencies)
 found_sources_mp = []
 for i in range(len(sorted_indexes)):
     found_sources_mp.append(found_sources_mp_even_unsorted[sorted_indexes[i]])
-
+# del found_sources_mp[1430]
 try:
     time = 0
     times = []
@@ -56,4 +56,6 @@ try:
 except:
     print('no time')
 
-np.save(folderpath_save+'/found_sources_' +save_name+'.npy', found_sources_mp)
+
+pickle.dump(found_sources_mp, open(folderpath_save+'/found_sources_' +save_name+'.npy', 'wb'))
+# np.save(folderpath_save+'/found_sources_' +save_name+'.npy', found_sources_mp)

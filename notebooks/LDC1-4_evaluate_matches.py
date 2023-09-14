@@ -193,6 +193,11 @@ for i, save_name in enumerate(save_names):
 matches_flat = pd.DataFrame(np.concatenate(match_list[1]))
 correlation_flat = pd.DataFrame(np.concatenate(correlation_list[1]))
 sources = match_best_list[1]
+pGB_best = pGB_best_list[1]
+
+for i in range(len(sources)):
+    if sources.iloc[i]['EclipticLongitude'] < 0:
+        sources.iloc[i]['EclipticLongitude'] += 2*np.pi
 
 good_correlation_filter = correlation_flat[0] > 0.8
 good_correlation = correlation_flat[good_correlation_filter]
@@ -200,8 +205,26 @@ good_matches = matches_flat[good_correlation_filter]
 good_correlation_sources = sources[good_correlation_filter]
 bad_match_filter = good_matches[0] > 1
 bad_matches_good_correlation = good_matches[bad_match_filter]
+good_correlation_bad_matches = good_correlation[bad_match_filter]
 bad_matches_good_correlation_sources = good_correlation_sources[bad_match_filter]
 
+
+index = 298
+index = 721
+index = 2307
+for parameter in parameters:
+    print(parameter)
+    
+for parameter in parameters:
+    if parameter in ['Frequency']:
+        print(np.format_float_scientific(sources.loc[index][parameter],6))
+    else:
+        print(np.format_float_scientific(sources.loc[index][parameter],3))
+for parameter in parameters:
+    if parameter in ['Frequency']:
+        print(np.format_float_scientific(pGB_best.loc[index][parameter],6))
+    else:
+        print(np.format_float_scientific(pGB_best.loc[index][parameter],3))
 
 bad_correlation_filter = correlation_flat[0] < 0.85
 bad_correlation = correlation_flat[bad_correlation_filter]
@@ -209,10 +232,11 @@ bad_correlation_matches = matches_flat[bad_correlation_filter]
 bad_correlation_sources = sources[bad_correlation_filter]
 good_match_filter = bad_correlation_matches[0] < 0.3
 good_matches_bad_correlation = bad_correlation_matches[good_match_filter]
+bad_correlation_good_matches = bad_correlation[good_match_filter]
 good_matches_bad_correlation_sources = bad_correlation_sources[good_match_filter]
 
 
-
+loud = pGB_injected_not_matched_list[1][pGB_injected_not_matched_list[1]['IntrinsicSNR'] > 15]
 
 
 # found_sources_matched_flat_df2, found_sources_not_matched_flat_df2, pGB_injected_matched_flat_df2, pGB_injected_not_matched_flat_df2, match_list2, pGB_best_list2, match_best_list2 = load_files(SAVEPATH, save_name2)
