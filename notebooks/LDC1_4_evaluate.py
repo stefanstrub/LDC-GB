@@ -527,7 +527,7 @@ except:
 
     np.save(SAVEPATH+'found_sources_' +save_name+'_flat.npy', np.asarray(found_sources_in_flat))
 
-sort_found = False
+sort_found = True
 if sort_found:
     found_sources_in_flat_frequency = []
     for i in range(len(found_sources_in_flat)):
@@ -544,7 +544,6 @@ if sort_found:
     found_sources_in = []
     for i in range(len(frequencies_search)):
         found_sources_in.append(found_sources_in_flat_df[(found_sources_in_flat_df['Frequency'] > frequencies_search[i][0]) & (found_sources_in_flat_df['Frequency'] < frequencies_search[i][1])].to_dict(orient='records'))
-
 
     new_dt = np.dtype(cat_sorted.dtype.descr + [('IntrinsicSNR','<f8')])
     cat_sorted_SNR = np.zeros(cat_sorted.shape, dtype=cat_sorted.dtype.descr + [('IntrinsicSNR','<f8')])
@@ -592,7 +591,6 @@ def get_SNR(pGB_injected, lower_frequency, upper_frequency):
 
 try:
     # found_sources_in = np.load(SAVEPATH+'/found_sources_in_SNR_'+save_name+'.npy', allow_pickle= True)
-    
     fn = SAVEPATH+'/found_sources_in_SNR_'+save_name+'.pkl'
     found_sources_in = pickle.load(open(fn, 'rb'))
 
@@ -811,14 +809,15 @@ try:
     fn = SAVEPATH+'/found_sources_not_anticorrelated_'+save_name+'.pkl'
     found_sources_in = pickle.load(open(fn, 'rb'))
 except:
-    found_sources_anitcorrelate = []
+    threshold_overlap = -0.7
+    found_sources_anitcorrelated = []
     found_sources_not_anitcorrelated = deepcopy(found_sources_in)
     number_of_matched_signals = 0
     correlation_list = []
     start = time.time()
     percentage = 0
     for i in range(len(found_sources_in)):
-        found_sources_anitcorrelate.append([])
+        found_sources_anitcorrelated.append([])
         # if i > 100:
         #     continue
         try:
@@ -829,25 +828,38 @@ except:
             pass
         for j in range(len(found_sources_in[i])):
             found_match = False
+            found_match_max = False
             correlation_list_of_one_signal = []
             for k in range(len(found_sources_in[i])):
-                pGB_injected_dict = {}
+                if k == j:
+                    continue
+                found_second_dict = {}
                 found_dict = {}
                 for parameter in parameters:
-                    pGB_injected_dict[parameter] = found_sources_in[i][k][parameter]
+                    found_second_dict[parameter] = found_sources_in[i][k][parameter]
                     found_dict[parameter] = found_sources_in[i][j][parameter]
-                correlation = correlation_match(pGB_injected_dict,found_dict)
+                correlation = correlation_match(found_second_dict,found_dict)
                 correlation_list_of_one_signal.append(correlation)
                 if k > 19:
                     print('k')
                     break
             if 0 == len(correlation_list_of_one_signal):
                 break
-            max_index = np.argmin(correlation_list_of_one_signal)
-            if correlation_list_of_one_signal[max_index] < -0.90:
+            min_index = np.argmin(correlation_list_of_one_signal)
+            if correlation_list_of_one_signal[min_index] < -0.7:
                 found_match = True
             if found_match:
-                found_sources_anitcorrelate[-1].append(found_sources_in[i][j])
+                found_sources_anitcorrelated[-1].append(found_sources_in[i][j])
+                correlation_list.append(correlation_list_of_one_signal[min_index])
+                found_sources_not_anitcorrelated[i][j] = None
+                found_sources_not_anitcorrelated[i][min_index] = None
+                number_of_matched_signals += 1
+
+            max_index = np.argmax(correlation_list_of_one_signal)
+            if correlation_list_of_one_signal[max_index] > 0.9:
+                found_match_max = True
+            if found_match_max:
+                found_sources_anitcorrelated[-1].append(found_sources_in[i][j])
                 correlation_list.append(correlation_list_of_one_signal[max_index])
                 found_sources_not_anitcorrelated[i][j] = None
                 found_sources_not_anitcorrelated[i][max_index] = None
@@ -856,22 +868,29 @@ except:
     for i in range(len(found_sources_not_anitcorrelated)):
         found_sources_not_anitcorrelated[i] = list(filter(None, found_sources_not_anitcorrelated[i]))
     found_sources_not_anitcorrelated_flat = np.concatenate(found_sources_not_anitcorrelated)
-    found_sources_anitcorrelate_flat = np.concatenate(found_sources_anitcorrelate)
+    found_sources_anticorrelated_flat = np.concatenate(found_sources_anitcorrelated)
+
+    # index = np.searchsorted(found_sources_in_flat_frequency, 0.003688)
+    # index_low = np.searchsorted(pGB_injected_flat['Frequency'], 0.003688)
+    # index_frequencies = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003688)
+    # pGB_injected_flat[index_low]
+    # found_sources_in_flat[index]
+    # corr = correlation_match(found_sources_in_flat[index-2],found_sources_in_flat[index-1])
 
     found_sources_not_anitcorrelated2 = deepcopy(found_sources_in)
     correlation_list2 = []
-    for i in range(int(len(found_sources_anitcorrelate_flat)/2)):
-        index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0], found_sources_anitcorrelate_flat[i*2]['Frequency'])-1
+    for i in range(int(len(found_sources_anticorrelated_flat)/2)):
+        index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0], found_sources_anticorrelated_flat[i*2]['Frequency'])-1
         for j in range(len(found_sources_in[index_of_interest_to_plot])):
             found_match = False
             correlation_list_of_one_signal = []
             for k in range(len(found_sources_in[index_of_interest_to_plot])):
-                pGB_injected_dict = {}
+                found_second_dict = {}
                 found_dict = {}
                 for parameter in parameters:
-                    pGB_injected_dict[parameter] = found_sources_in[index_of_interest_to_plot][k][parameter]
+                    found_second_dict[parameter] = found_sources_in[index_of_interest_to_plot][k][parameter]
                     found_dict[parameter] = found_sources_in[index_of_interest_to_plot][j][parameter]
-                correlation = correlation_match(pGB_injected_dict,found_dict)
+                correlation = correlation_match(found_second_dict,found_dict)
                 correlation_list_of_one_signal.append(correlation)
                 if k > 19:
                     print('k')
@@ -879,7 +898,7 @@ except:
             if 0 == len(correlation_list_of_one_signal):
                 break
             max_index = np.argmin(correlation_list_of_one_signal)
-            if correlation_list_of_one_signal[max_index] < -0.97:
+            if correlation_list_of_one_signal[max_index] < threshold_overlap:
                 found_match = True
             if found_match:
                 print('found anti',index_of_interest_to_plot,j,max_index)
@@ -890,10 +909,10 @@ except:
         found_sources_not_anitcorrelated2[i] = list(filter(None, found_sources_not_anitcorrelated2[i]))
 
     ## determine index of a specific frequency
-    for j in range(int(len(found_sources_anitcorrelate_flat)/2)):
+    for j in range(int(len(found_sources_anticorrelated_flat)/2)):
         # if j != 0:
         #     continue
-        index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0], found_sources_anitcorrelate_flat[j*2]['Frequency'])-1
+        index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0], found_sources_anticorrelated_flat[j*2]['Frequency'])-1
         #### plot strains
         # for i in range(len(frequencies_search)):
         #     if i != index_of_interest_to_plot:
@@ -910,10 +929,14 @@ except:
     for i in range(len(found_sources_not_anitcorrelated2)):
         found_sources_not_anitcorrelated2_array.append(np.asarray(found_sources_not_anitcorrelated2[i]))
 
-    fn = SAVEPATH+'/found_sources_not_anticorrelated_'+save_name+'.pkl'
-    pickle.dump(found_sources_in, open(fn, "wb"))
+    found_sources_anticorrelated_flat2 = found_sources_anticorrelated_flat[np.array(correlation_list) < threshold_overlap]
+
     # np.save(SAVEPATH+'/found_sources_not_anticorrelated_'+save_name+'.npy', found_sources_not_anitcorrelated2)
     found_sources_in = found_sources_not_anitcorrelated2
+    fn = SAVEPATH+'/found_sources_not_anticorrelated_'+save_name+'.pkl'
+    pickle.dump(found_sources_in, open(fn, "wb"))
+    fn = SAVEPATH+'/found_sources_anticorrelated_'+save_name+'.pkl'
+    pickle.dump(found_sources_anticorrelated_flat2, open(fn, "wb"))
 
 found_sources_in_flat = np.concatenate(found_sources_in)
 
@@ -1164,7 +1187,7 @@ if do_match_sequential:
 #         found_sources_not_matched[i][j]['IntrinsicSNR'] = search1.intrinsic_SNR([pGB_dict])     
 
 
-end_string = '_SNR_not_scaled_03_injected_snr'+str(injected_SNR)
+end_string = '_SNR_scaled_03_injected_snr'+str(injected_SNR)
 # end_string = '_correlation_09_injected_snr'+str(injected_SNR)
 # end_string = ''
 
@@ -1318,11 +1341,12 @@ found_sources_in = deepcopy(found_sources_in_SNR_sorted)
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.005208333333333333)+3
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.0008748)-1
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.002114)-3
-index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.003302)-3
+index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.001149978)
+# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.003302)-3
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.002026)-2
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.00399)+99
 #plot strains
-number_of_windows = 4
+number_of_windows = 3
 for i in range(len(frequencies_search)):
     if i != index_of_interest_to_plot:
         continue
