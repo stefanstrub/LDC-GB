@@ -399,7 +399,7 @@ def moving_average(a, n=3) :
     return ret[n - 1:] / n
 
 class Search():
-    def __init__(self,tdi_fs,Tobs, lower_frequency, upper_frequency, noise_model =  "SciRDv1", recombination=0.75, dt=None, update_noise=False, noise=None, gb_gpu=None,
+    def __init__(self,tdi_fs,Tobs, lower_frequency, upper_frequency, noise_model =  "SciRDv1", recombination=0.75, dt=None, update_noise=False, noise=None, gb_gpu=None, tdi2=False, t_start=0,
     parameters = [
     "Amplitude",
     "EclipticLatitude",
@@ -417,6 +417,8 @@ class Search():
         self.parameters_log_uniform = parameters_log_uniform
         self.N_samples = (len(tdi_fs['X'].f)-1)*2
         self.tdi_fs = tdi_fs
+        self.tdi2 = tdi2
+        self.t_start = t_start
         self.Tobs = Tobs
         self.gb_gpu = gb_gpu
         if dt is None:
@@ -581,7 +583,7 @@ class Search():
         # self.pGBs = {'Amplitude': 4.0900673126042746e-22, 'EclipticLatitude': 0.8718477251317046, 'EclipticLongitude': 0.48599945403230693, 'Frequency': 0.003995220986111426, 'FrequencyDerivative': 1.0985841703423861e-16, 'Inclination': 1.0262955111380103, 'InitialPhase': 5.453865686076588, 'Polarization': 1.089057196561609}
 
         # cutoff_ratio = 1000
-        # Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=self.pGBs, oversample=4)
+        # Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=self.pGBs, oversample=4, tdi2=self.tdi2)
         # psd_signal = np.abs(Xs.values) ** 2 + np.abs(Ys.values) ** 2 + np.abs(Zs.values) ** 2
         # highSNR = psd_signal > np.max(psd_signal) / cutoff_ratio
         # lowerindex = np.where(highSNR)[0][0] - 30
@@ -609,7 +611,7 @@ class Search():
 
     def update_noise(self, pGB=None):
         if pGB != None:
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGB, oversample=4)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGB, oversample=4, tdi2=self.tdi2)
             Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
             Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
             Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
@@ -685,13 +687,13 @@ class Search():
         # plt.plot(dataX_training.f*1000,dataX_training.values, label='data')
         # ax1.plot(self.dataX.f * 1000, self.dataX.values.real, label="data", marker="o", zorder=5)
 
-        # Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=self.pGB, oversample=4)
+        # Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=self.pGB, oversample=4, tdi2=self.tdi2)
         # index_low = np.searchsorted(Xs.f, self.dataX.f[0])
         # Xs = Xs[index_low : index_low + len(self.dataX)]
         # Ys = Ys[index_low : index_low + len(self.dataY)]
         # Zs = Zs[index_low : index_low + len(self.dataZ)]
 
-        # Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=self.pGB, oversample=8)
+        # Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=self.pGB, oversample=8, tdi2=self.tdi2)
         # index_low = np.searchsorted(Xs.f, self.dataX.f[0])
         # Xs = Xs[index_low : index_low + len(self.dataX)]
         # Ys = Ys[index_low : index_low + len(self.dataY)]
@@ -720,7 +722,7 @@ class Search():
             ax2.plot(Ef.f*10**3,np.abs(Ef),'k--',zorder= 1, linewidth = 2, label = 'Data subtracted')
 
         for j in range(len( pGB_injected)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template= pGB_injected[j], oversample=4)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template= pGB_injected[j], oversample=4, tdi2=self.tdi2)
             a,Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)
             a,Ys = xr.align(self.dataY, Ys, join='left',fill_value=0)
             a,Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)
@@ -730,7 +732,7 @@ class Search():
             ax2.plot(Ef.f*10**3,np.abs(Ef.data), color='grey', linewidth = 5, alpha = 0.5)
 
         for j in range(len(pGB_injected_matched)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template= pGB_injected_matched[j], oversample=4)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template= pGB_injected_matched[j], oversample=4, tdi2=self.tdi2)
             a,Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)
             a,Ys = xr.align(self.dataY, Ys, join='left',fill_value=0)
             a,Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)
@@ -741,7 +743,7 @@ class Search():
 
 
         if pGBadded != None:
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBadded, oversample=4)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBadded, oversample=4, tdi2=self.tdi2)
             index_low = np.searchsorted(Xs.f, self.dataX.f[0])
             Xs = Xs[index_low : index_low + len(self.dataX)]
             Ys = Ys[index_low : index_low + len(self.dataY)]
@@ -752,7 +754,7 @@ class Search():
             ax2.plot(Ef.f* 1000, np.abs(Ef.data), marker='.', label=added_label)
 
         for j in range(len(found_sources_in)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_in[j], oversample=4)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_in[j], oversample=4, tdi2=self.tdi2)
             index_low = np.searchsorted(Xs.f, self.dataX.f[0])
             try:
                 if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
@@ -772,7 +774,7 @@ class Search():
 
 
         for j in range(len(found_sources_not_matched)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_not_matched[j], oversample=4)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_not_matched[j], oversample=4, tdi2=self.tdi2)
             # index_low = np.searchsorted(Xs.f, self.dataX.f[0])
             Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
             Ys = xr.align(self.dataX, Ys, join='left',fill_value=0)[1]
@@ -817,7 +819,7 @@ class Search():
 
     def SNR(self, pGBs):
         for i in range(len(pGBs)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, tdi2=self.tdi2)
             if i == 0:
                 Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
                 Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
@@ -854,7 +856,7 @@ class Search():
 
     def SNR_scaled(self, pGBs):
         for i in range(len(pGBs)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, tdi2=self.tdi2)
             if i == 0:
                 Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
                 Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
@@ -901,7 +903,7 @@ class Search():
             ax1.plot(Af.f*10**3,Af,'c--',zorder= 1, linewidth = 2, label = 'Data subtracted')
             ax2.plot(Ef.f*10**3,np.abs(Ef),'c--',zorder= 1, linewidth = 2, label = 'Data subtracted')
         for j in range(len( pGB_injected)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template= pGB_injected[j], oversample=4)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template= pGB_injected[j], oversample=4, tdi2=self.tdi2)
             a,Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)
             a,Ys = xr.align(self.dataY, Ys, join='left',fill_value=0)
             a,Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)
@@ -918,7 +920,7 @@ class Search():
             # ax4.plot(pGB_injected[j]['Inclination']*10**3,pGB_injected[j]['FrequencyDerivative'],'o', color=colors[j%10], markersize=7, alpha = 0.5)
             # ax5.plot(pGB_injected[j]['InitialPhase']*10**3,pGB_injected[j]['Polarization'],'o', color=colors[j%10], markersize=7, alpha = 0.5)
         for j in range(len(pGB_injected_matched)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template= pGB_injected_matched[j], oversample=4)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template= pGB_injected_matched[j], oversample=4, tdi2=self.tdi2)
             index_low = np.searchsorted(Xs.f, self.dataX.f[0])
             try:
                 if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
@@ -938,7 +940,7 @@ class Search():
             ax3.plot(pGB_injected_matched[j][parameter_x2],pGB_injected_matched[j][parameter_y2],'o', color=colors[j%10], markersize=7, alpha = 1, markerfacecolor='None')
             # ax3.plot(pGB_injected_matched[j]['EclipticLongitude']*10**3,pGB_injected_matched[j]['EclipticLatitude'],'o', color=colors[j%10], markersize=7, alpha = 0.5)
         if pGBadded != None:
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBadded, oversample=4)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBadded, oversample=4, tdi2=self.tdi2)
             index_low = np.searchsorted(Xs.f, self.dataX.f[0])
             Xs = Xs[index_low : index_low + len(self.dataX)]
             Ys = Ys[index_low : index_low + len(self.dataY)]
@@ -948,7 +950,7 @@ class Search():
             ax1.plot(Af.f* 1000, np.abs(Af.data), marker='.', label=added_label)
             # ax2.plot(Ef.f* 1000, np.abs(Ef.data), marker='.', label=added_label)
         # for j in range(len(found_sources_in)):
-        #     Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_in[j], oversample=4)
+        #     Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_in[j], oversample=4, tdi2=self.tdi2)
         #     index_low = np.searchsorted(Xs.f, self.dataX.f[0])
         #     Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
         #     Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
@@ -958,7 +960,7 @@ class Search():
         #     ax2.plot(found_sources_in[j][parameter_x]*10**3,found_sources_in[j][parameter_y],'.', color=colors[j%10], markersize=7)
         #     # ax2.plot(Ef.f* 1000, np.abs(Ef.data),'--', color= colors[j%10], linewidth = 1.6)
         # for j in range(len(found_sources_in)):
-        #     Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_in[j], oversample=4)
+        #     Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_in[j], oversample=4, tdi2=self.tdi2)
         #     index_low = np.searchsorted(Xs.f, self.dataX.f[0])
         #     if j == 0:
         #         Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
@@ -970,7 +972,7 @@ class Search():
         #     ax1.plot(Af.f* 1000, np.abs(Af.data),linewidth = 5, alpha = 0.5, color= 'grey')
         #     # ax2.plot(Ef.f* 1000, np.abs(Ef.data),'--', color= colors[j%10], linewidth = 1.6)
         for j in range(len(found_sources_in)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_in[j], oversample=4)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_in[j], oversample=4, tdi2=self.tdi2)
             index_low = np.searchsorted(Xs.f, self.dataX.f[0])
             try:
                 if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
@@ -985,7 +987,7 @@ class Search():
             ax1.plot(Af.f* 1000, np.abs(Af.data),'--', color= colors[j%10], linewidth = 1.6)
             ax2.plot(found_sources_in[j][parameter_x]*10**3,found_sources_in[j][parameter_y],'.', color=colors[j%10], markersize=12, linewidth=6, label='recovered')
         for j in range(len(found_sources_not_matched)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_not_matched[j], oversample=4)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_not_matched[j], oversample=4, tdi2=self.tdi2)
             index_low = np.searchsorted(Xs.f, self.dataX.f[0])
             Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
             Ys = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
@@ -1077,7 +1079,7 @@ class Search():
             ax1.plot(Af.f*10**3,Af,'c--',zorder= 1, linewidth = 2, label = 'Data subtracted')
             ax2.plot(Ef.f*10**3,Ef,'c--',zorder= 1, linewidth = 2, label = 'Data subtracted')
         for j in range(len( pGB_injected)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template= pGB_injected[j], oversample=4)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template= pGB_injected[j], oversample=4, tdi2=self.tdi2)
             a,Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)
             a,Ys = xr.align(self.dataY, Ys, join='left',fill_value=0)
             a,Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)
@@ -1095,7 +1097,7 @@ class Search():
             # ax4.plot(pGB_injected[j]['Inclination']*10**3,pGB_injected[j]['FrequencyDerivative'],'o', color=colors[j%10], markersize=7, alpha = 0.5)
             # ax5.plot(pGB_injected[j]['InitialPhase']*10**3,pGB_injected[j]['Polarization'],'o', color=colors[j%10], markersize=7, alpha = 0.5)
         for j in range(len(pGB_injected_matched)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template= pGB_injected_matched[j], oversample=4)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template= pGB_injected_matched[j], oversample=4, tdi2=self.tdi2)
             index_low = np.searchsorted(Xs.f, self.dataX.f[0])
             try:
                 if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
@@ -1116,7 +1118,7 @@ class Search():
             # ax3.plot(pGB_injected_matched[j][parameter_x2],pGB_injected_matched[j][parameter_y2],'o', color=colors[j%10], markersize=7, alpha = 1, markerfacecolor='None')
             # ax3.plot(pGB_injected_matched[j]['EclipticLongitude']*10**3,pGB_injected_matched[j]['EclipticLatitude'],'o', color=colors[j%10], markersize=7, alpha = 0.5)
         if pGBadded != None:
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBadded, oversample=4)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBadded, oversample=4, tdi2=self.tdi2)
             index_low = np.searchsorted(Xs.f, self.dataX.f[0])
             Xs = Xs[index_low : index_low + len(self.dataX)]
             Ys = Ys[index_low : index_low + len(self.dataY)]
@@ -1126,7 +1128,7 @@ class Search():
             ax1.plot(Af.f* 1000, np.abs(Af.data), marker='.', label=added_label)
             # ax2.plot(Ef.f* 1000, np.abs(Ef.data), marker='.', label=added_label)
         # for j in range(len(found_sources_in)):
-        #     Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_in[j], oversample=4)
+        #     Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_in[j], oversample=4, tdi2=self.tdi2)
         #     index_low = np.searchsorted(Xs.f, self.dataX.f[0])
         #     Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
         #     Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
@@ -1136,7 +1138,7 @@ class Search():
         #     ax2.plot(found_sources_in[j][parameter_x]*10**3,found_sources_in[j][parameter_y],'.', color=colors[j%10], markersize=7)
         #     # ax2.plot(Ef.f* 1000, np.abs(Ef.data),'--', color= colors[j%10], linewidth = 1.6)
         # for j in range(len(found_sources_in)):
-        #     Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_in[j], oversample=4)
+        #     Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_in[j], oversample=4, tdi2=self.tdi2)
         #     index_low = np.searchsorted(Xs.f, self.dataX.f[0])
         #     if j == 0:
         #         Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
@@ -1148,7 +1150,7 @@ class Search():
         #     ax1.plot(Af.f* 1000, np.abs(Af.data),linewidth = 5, alpha = 0.5, color= 'grey')
         #     # ax2.plot(Ef.f* 1000, np.abs(Ef.data),'--', color= colors[j%10], linewidth = 1.6)
         for j in range(len(found_sources_in)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_in[j], oversample=4)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_in[j], oversample=4, tdi2=self.tdi2)
             index_low = np.searchsorted(Xs.f, self.dataX.f[0])
             try:
                 if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
@@ -1164,7 +1166,7 @@ class Search():
             ax2.plot(Ef.f* 1000, Ef.data,'--', color= colors[j%10], linewidth = 1.6)
             # ax2.plot(found_sources_in[j][parameter_x]*10**3,found_sources_in[j][parameter_y],'.', color=colors[j%10], markersize=12, linewidth=6, label='recovered')
         for j in range(len(found_sources_not_matched)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_not_matched[j], oversample=4)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_not_matched[j], oversample=4, tdi2=self.tdi2)
             index_low = np.searchsorted(Xs.f, self.dataX.f[0])
             Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
             Ys = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
@@ -1247,16 +1249,16 @@ class Search():
         if len(parameters.shape) == 2:
             parameters = np.array([parameters])
         for n in range(int(full_length/partial_length)):
-            like[n*partial_length:(n+1)*partial_length] = self.gb_gpu.get_ll(parameters[:,:,(n)*partial_length:(n+1)*partial_length], self.data_GPU, self.PSD_GPU, N=N, oversample=4, dt=self.dt, T=self.Tobs, start_freq_ind=start_freq_ind)
+            like[n*partial_length:(n+1)*partial_length] = self.gb_gpu.get_ll(parameters[:,:,(n)*partial_length:(n+1)*partial_length], self.data_GPU, self.PSD_GPU, N=N, oversample=4, dt=self.dt, T=self.Tobs, start_freq_ind=start_freq_ind, tdi2=self.tdi2, t_start=self.t_start)
         try:
-            like[int(full_length/partial_length)*partial_length:] = self.gb_gpu.get_ll(parameters[:,:,int(full_length/partial_length)*partial_length:], self.data_GPU, self.PSD_GPU, N=N, oversample=4, dt=self.dt, T=self.Tobs, start_freq_ind=start_freq_ind)
+            like[int(full_length/partial_length)*partial_length:] = self.gb_gpu.get_ll(parameters[:,:,int(full_length/partial_length)*partial_length:], self.data_GPU, self.PSD_GPU, N=N, oversample=4, dt=self.dt, T=self.Tobs, start_freq_ind=start_freq_ind, tdi2=self.tdi2)
         except:
             pass
         return like
 
     def loglikelihood(self, pGBs):
         for i in range(len(pGBs)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, tdi2=self.tdi2)
             if i == 0:
                 Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
                 Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
@@ -1291,7 +1293,7 @@ class Search():
 
     def intrinsic_SNR(self, pGBs):
         for i in range(len(pGBs)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, tdi2=self.tdi2)
             if i == 0:
                 Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
                 Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
@@ -1528,7 +1530,7 @@ class Search():
 
     def calculate_Amplitude(self, pGBs):
         for i in range(len(pGBs)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, tdi2=self.tdi2)
             if i == 0:
                 Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
                 Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
@@ -1691,7 +1693,7 @@ class Search():
                 maxpGB01_changed[parameter] = pGB_low
                 maxpGB_changed = scaletooriginalparameter(maxpGB01_changed,self.boundaries, self.parameters, self.parameters_log_uniform)
                 # print(maxpGB_changed)
-                Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=maxpGB_changed, oversample=4)
+                Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=maxpGB_changed, oversample=4, tdi2=self.tdi2)
                 index_low = np.searchsorted(Xs.f, self.dataX.f[0])
                 Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
                 Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
@@ -1701,7 +1703,7 @@ class Search():
 
                 maxpGB01_changed[parameter] = pGB_high
                 maxpGB_changed = scaletooriginalparameter(maxpGB01_changed,self.boundaries, self.parameters, self.parameters_log_uniform)
-                Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=maxpGB_changed, oversample=4)
+                Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=maxpGB_changed, oversample=4, tdi2=self.tdi2)
                 index_low = np.searchsorted(Xs.f, self.dataX.f[0])
                 Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
                 Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]

@@ -289,9 +289,11 @@ frequencies_odd = frequencies[1::2]
 
 start_index = np.searchsorted(np.asarray(frequencies_odd)[:,0], 0.0040489)-1
 
-save_name = 'Sangria_1_full_cut'
-save_name = 'Sangria_12m'
-# save_name = 'Radler_12m'
+# save_name = 'Sangria_1_full_cut'
+save_name = 'Sangria_12m_filled_anticorrelated'
+# save_name = 'Radler_24m'
+# save_name = 'Radler_24m_filled_anticorrelated'
+# save_name = 'Radler_24m_redone'
 # save_name = 'Radler_half_even_dynamic_noise'
 # save_name = 'LDC1-4_2_optimized_second' ### ETH submission
 # save_name = 'Montana'
@@ -505,10 +507,10 @@ def SNR_match_amplitude_condsiered(pGB_injected, pGB_found):
     return SNR3.values, amplitude_factor, SNR2 / (np.sqrt(SNR)*np.sqrt(scalar_ss))
 
 try:
-    found_sources_in_flat = np.load(SAVEPATH+'found_sources_' +save_name+'_flat.npy', allow_pickle = True)
+    found_sources_in_flat = np.load(SAVEPATH+'found_sources_' +save_name+'_flat.pkl', allow_pickle = True)
 except:
-    # found_sources_in_flat = np.load(SAVEPATH+'found_sources' +save_name+'.npy', allow_pickle = True)
-    found_sources_mp = np.load(SAVEPATH+'found_sources_' +save_name+'.npy', allow_pickle = True)
+    found_sources_mp = np.load(SAVEPATH+'found_sources_' +save_name+'.pkl', allow_pickle = True)
+    # found_sources_mp = np.load(SAVEPATH+'found_sources_' +save_name+'.npy', allow_pickle = True)
 
     # found_sources_mp_best = []
     # found_sources_mp_all = []
@@ -525,9 +527,9 @@ except:
             found_sources_in_flat.append(found_sources_mp[i][3][j])
     found_sources_in_flat = np.asarray(found_sources_in_flat)
 
-    np.save(SAVEPATH+'found_sources_' +save_name+'_flat.npy', np.asarray(found_sources_in_flat))
+    np.save(SAVEPATH+'found_sources_' +save_name+'_flat.pkl', np.asarray(found_sources_in_flat))
 
-sort_found = True
+sort_found = False
 if sort_found:
     found_sources_in_flat_frequency = []
     for i in range(len(found_sources_in_flat)):
@@ -538,7 +540,7 @@ if sort_found:
     found_sources_in_flat_frequency = found_sources_in_flat_frequency[indexes_in]
     found_sources_in_flat = found_sources_in_flat[indexes_in]
 
-    found_sources_in_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_in_flat]) for attribute in found_sources_in_flat[0].keys()}
+    found_sources_in_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_in_flat]) for attribute in parameters}
     found_sources_in_flat_df = pd.DataFrame(found_sources_in_flat_array)
     found_sources_in_flat_df = found_sources_in_flat_df.sort_values('Frequency')
     found_sources_in = []
@@ -576,7 +578,7 @@ if sort_found:
 def get_SNR(pGB_injected, lower_frequency, upper_frequency):
     search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency, update_noise=False)
     intrinsic_SNR_injected = []
-    print(lower_frequency)
+    # print(lower_frequency)
     for i in range(len(pGB_injected)):
         pGB_injected_dict = {}
         for parameter in parameters:
@@ -1016,7 +1018,7 @@ def match_function(found_sources_in, pGB_injected_not_matched, found_sources_not
         match_best_list.append(found_sources_in[j])
     return found_sources_in, pGB_injected_not_matched, match_list, pGB_best_list, match_best_list, found_sources_not_matched, pGB_injected_matched, found_sources_matched
 
-do_match_parallelized = True
+do_match_parallelized = False
 if do_match_parallelized:
     pGB_injected_matched = []
     found_sources_matched = []
@@ -1245,7 +1247,6 @@ print('sensitivity = matched signals/injected signals:', np.round(number_of_matc
 print('number_of_injected_signals_SNR_high:', np.round(number_of_injected_signals_SNR_high,2))
 print('matched signals/found signals:', np.round(number_of_matched_signals/number_of_found_signals,2))
 
-
 if version == '1':
     for i in range(len(found_sources_matched)):
         for j in range(len(found_sources_matched[i])):
@@ -1262,7 +1263,6 @@ if version == '1':
             a = deepcopy(pGB_injected_matched[i][j])
             a['InitialPhase'] = -(a['InitialPhase'])
             pGB_injected_matched[i][j] = deepcopy(a)
-
 
 found_sources_in_flat = np.concatenate(found_sources_in)
 found_sources_in_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_in_flat]) for attribute in found_sources_in_flat[0].keys()}
@@ -1342,6 +1342,10 @@ found_sources_in = deepcopy(found_sources_in_SNR_sorted)
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.0008748)-1
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.002114)-3
 index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.001149978)
+index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.00371719)-2
+index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.0236)-1
+index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.0214)-1
+# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.00360246099898)-2
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.003302)-3
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.002026)-2
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.00399)+99
@@ -1391,6 +1395,8 @@ for i in range(len(frequencies_search)):
     else:
         search1.plotAE(found_sources_in=found_extended, found_sources_not_matched = found_not_matched_extended, pGB_injected= pGB_injected_dict_list,  pGB_injected_matched= matched_extended, vertical_lines= vertical_lines, saving_label =save_name_path) 
         # search1.plot(found_sources_in=found_sources_mp_best[i], pGB_injected=pGB_injected[i][:10], pGB_injected_matched= matched_extended, saving_label =SAVEPATH+'/strain added'+ str(int(np.round(frequencies_search[i][0]*10**8))) +save_name+'in.png') 
+
+
 
 print(correlation_match(pGB_injected_dict_list[0],found_not_matched_extended[0]))
 print(search1.SNR([pGB_injected_dict_list[0]]))

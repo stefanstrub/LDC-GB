@@ -86,7 +86,7 @@ else:
 
 SAVEPATH_sangria = grandparent+"/LDC/pictures/Sangria/"
 save_name2 = 'Sangria_1year_dynamic_noise'
-save_name2 = 'Sangria_12m'
+save_name2 = 'Sangria_12m_filled_anticorrelated'
 # save_name3 = 'Sangria_1'
 # save_name3 = 'LDC1-4_2_optimized_second'
 # save_name2 = 'Radler_1_full'
@@ -94,7 +94,7 @@ save_name2 = 'Sangria_12m'
 # save_name0 = 'LDC1-4_half_year'
 save_name4 = 'Radler_6m'
 save_name3 = 'Radler_12m'
-save_name1 = 'Radler_24m'
+save_name1 = 'Radler_24m_redone'
 # save_name = 'LDC1-4_half_year'
 # save_name = 'Sangria_1_full_cut'
 
@@ -124,12 +124,11 @@ parameters = [
 
 labels = {'EclipticLongitude': r'$\lambda$'+' (rad)', 'EclipticLatitude': r'$\beta$'+' (rad)','Frequency': r'$f / f_\mathrm{true}$','FrequencyDerivative': r'$\dot{f}$ $ ($Hz/s$)$','Inclination': r'$\iota$'+' (rad)','Amplitude': r'$ \mathcal{A}$', 'Polarization': r'$\psi$'+' (rad)', 'InitialPhase': r'$\phi_0$'+' (rad)'}
 
-
 end_string = '_SNR_scaled_03_injected_snr5'
 # end_string = '_correlation_09_injected_snr5'
 # end_string = 'correlation'
 def load_files(save_path, save_name):
-    found_sources_flat_df = pd.read_pickle(save_path+'/found_sources_' +save_name+end_string+'_df')
+    found_sources_flat_df = pd.read_pickle(save_path+'found_sources_' +save_name+end_string+'_df')
     for i in range(len(found_sources_flat_df)):
         if found_sources_flat_df['EclipticLongitude'][i] < 0:
             found_sources_flat_df['EclipticLongitude'][i] += 2*np.pi
@@ -189,12 +188,29 @@ for i, save_name in enumerate(save_names):
     pGB_best_list.append(pGB_best)
     match_best_list.append(match_best)
 
+### many-to-one matching
+# for i in range(len(save_names)):
+#     for correlation_threshold in [0.5, 0.7, 0.85]:
+#         matches_flat = pd.DataFrame(np.concatenate(match_list[i]))
+#         correlation_flat = pd.DataFrame(np.concatenate(correlation_list[i]))
+#         sources = match_best_list[i]
+#         pGB_best = pGB_best_list[i]
+#         good_correlation_filter = correlation_flat[0] > correlation_threshold
+        
+#         pGB_best = pGB_best[good_correlation_filter]
+#         sources = sources[good_correlation_filter]
+#         correlation_flat = correlation_flat[good_correlation_filter]
+#         duplicates = pGB_best.duplicated(keep=False)
+#         pGB_duplicates = pGB_best[duplicates]
+#         correlation_flat_duplicates = correlation_flat[duplicates]
+#         print(pGB_duplicates)
+#         print(len(correlation_flat_duplicates), correlation_threshold, save_names[i])
 
-matches_flat = pd.DataFrame(np.concatenate(match_list[1]))
-correlation_flat = pd.DataFrame(np.concatenate(correlation_list[1]))
-sources = match_best_list[1]
-pGB_best = pGB_best_list[1]
-
+i = 1
+matches_flat = pd.DataFrame(np.concatenate(match_list[i]))
+correlation_flat = pd.DataFrame(np.concatenate(correlation_list[i]))
+sources = match_best_list[i]
+pGB_best = pGB_best_list[i]
 for i in range(len(sources)):
     if sources.iloc[i]['EclipticLongitude'] < 0:
         sources.iloc[i]['EclipticLongitude'] += 2*np.pi
@@ -205,7 +221,7 @@ good_matches = matches_flat[good_correlation_filter]
 good_correlation_sources = sources[good_correlation_filter]
 bad_match_filter = good_matches[0] > 1
 bad_matches_good_correlation = good_matches[bad_match_filter]
-good_correlation_bad_matches = good_correlation[bad_match_filter]
+# good_correlation_bad_matches = good_correlation[bad_match_filter]
 bad_matches_good_correlation_sources = good_correlation_sources[bad_match_filter]
 
 
@@ -226,17 +242,17 @@ for parameter in parameters:
     else:
         print(np.format_float_scientific(pGB_best.loc[index][parameter],3))
 
-bad_correlation_filter = correlation_flat[0] < 0.85
-bad_correlation = correlation_flat[bad_correlation_filter]
-bad_correlation_matches = matches_flat[bad_correlation_filter]
-bad_correlation_sources = sources[bad_correlation_filter]
-good_match_filter = bad_correlation_matches[0] < 0.3
-good_matches_bad_correlation = bad_correlation_matches[good_match_filter]
-bad_correlation_good_matches = bad_correlation[good_match_filter]
-good_matches_bad_correlation_sources = bad_correlation_sources[good_match_filter]
+# bad_correlation_filter = correlation_flat[0] < 0.9
+# bad_correlation = correlation_flat[bad_correlation_filter]
+# bad_correlation_matches = matches_flat[bad_correlation_filter]
+# bad_correlation_sources = sources[bad_correlation_filter]
+# good_match_filter = bad_correlation_matches[0] < 0.3
+# good_matches_bad_correlation = bad_correlation_matches[good_match_filter]
+# # bad_correlation_good_matches = bad_correlation[good_match_filter]
+# good_matches_bad_correlation_sources = bad_correlation_sources[good_match_filter]
 
 
-loud = pGB_injected_not_matched_list[1][pGB_injected_not_matched_list[1]['IntrinsicSNR'] > 15]
+# loud = pGB_injected_not_matched_list[1][pGB_injected_not_matched_list[1]['IntrinsicSNR'] > 15]
 
 
 # found_sources_matched_flat_df2, found_sources_not_matched_flat_df2, pGB_injected_matched_flat_df2, pGB_injected_not_matched_flat_df2, match_list2, pGB_best_list2, match_best_list2 = load_files(SAVEPATH, save_name2)
@@ -269,7 +285,7 @@ SA = spline(psd['f'], psd['A'])(f)
 
 #### plot amplitude - frequency
 markersize = 3
-alpha = 0.4
+alpha = 0.6
 save_name = save_names[data_set]
 # parameter_to_plot = 'IntrinsicSNR'
 parameter_x = 'Frequency'
@@ -278,9 +294,9 @@ fig = plt.figure(figsize=fig_size)
 # plt.plot(pGB_injectced_flat_df['Frequency']*10**3,pGB_injected_flat_df[parameter_y], '.', color= colors[0], label = 'Injected', markersize= markersize, alpha = alpha)
 # plt.plot(pGB_injected_matched_flat_df['Frequency']*10**3,pGB_injected_matched_flat_df[parameter_y], '.', color= colors[1], label = 'Injected matched', markersize= markersize, alpha = alpha)
 # plt.plot(pGB_injected_flat_df_high_SNR['Frequency']*10**3,pGB_injected_flat_df_high_SNR[parameter_y],'.', color= colors[1], markersize= markersize, label = 'Injected SNR > 10', alpha = alpha)
-plt.plot(found_sources_matched_list[data_set][parameter_x],found_sources_matched_list[data_set][parameter_y],'g.', label = r'$\tilde\theta_{\mathrm{recovered, } \delta < 0.3}$', markersize= markersize, alpha = alpha, zorder = 5)
-plt.plot(found_sources_not_matched_list[data_set][parameter_x],found_sources_not_matched_list[data_set][parameter_y],'o',color= 'blue',  markerfacecolor='None', markersize= markersize, label = r'$\tilde\theta_{\mathrm{recovered, } \delta > 0.3}$', alpha = alpha)
-plt.plot(pGB_injected_not_matched_list[data_set][parameter_x],pGB_injected_not_matched_list[data_set][parameter_y], '+', color = 'r', label = r'$\tilde\theta_{\mathrm{injected, } \delta > 0.3}$', markersize= markersize, alpha = alpha, zorder = 1)
+plt.plot(found_sources_matched_list[data_set][parameter_x],found_sources_matched_list[data_set][parameter_y],'.', label = r'$\tilde\theta_{\mathrm{recovered, } \delta < 0.3}$', markersize= markersize, alpha = alpha, zorder = 5)
+plt.plot(found_sources_not_matched_list[data_set][parameter_x],found_sources_not_matched_list[data_set][parameter_y],'o',  markerfacecolor='None', markersize= markersize, label = r'$\tilde\theta_{\mathrm{recovered, } \delta > 0.3}$', alpha = alpha)
+plt.plot(pGB_injected_not_matched_list[data_set][parameter_x],pGB_injected_not_matched_list[data_set][parameter_y], '+', label = r'$\tilde\theta_{\mathrm{injected, } \delta > 0.3}$', markersize= markersize, alpha = alpha, zorder = 1)
 # plt.plot(f,np.sqrt(SA), color = 'black', label = 'Sangria', linewidth=2)
 plt.yscale('log')
 plt.xscale('log')
@@ -297,7 +313,6 @@ plt.show()
 
 #### plot amplitude - frequency
 markersize = 3
-alpha = 0.4
 data_set = 0
 save_name = save_names[data_set]
 # parameter_to_plot = 'IntrinsicSNR'
@@ -307,9 +322,9 @@ fig = plt.figure(figsize=fig_size)
 # plt.plot(pGB_injectced_flat_df['Frequency']*10**3,pGB_injected_flat_df[parameter_y], '.', color= colors[0], label = 'Injected', markersize= markersize, alpha = alpha)
 # plt.plot(pGB_injected_matched_flat_df['Frequency']*10**3,pGB_injected_matched_flat_df[parameter_y], '.', color= colors[1], label = 'Injected matched', markersize= markersize, alpha = alpha)
 # plt.plot(pGB_injected_flat_df_high_SNR['Frequency']*10**3,pGB_injected_flat_df_high_SNR[parameter_y],'.', color= colors[1], markersize= markersize, label = 'Injected SNR > 10', alpha = alpha)
-plt.plot(found_sources_matched_list[data_set][parameter_x],found_sources_matched_list[data_set][parameter_y],'g.', label = r'$\tilde\theta_{\mathrm{recovered, } \delta < 0.3}$', markersize= markersize, alpha = alpha, zorder = 5)
-plt.plot(found_sources_not_matched_list[data_set][parameter_x],found_sources_not_matched_list[data_set][parameter_y],'o',color= 'blue',  markerfacecolor='None', markersize= markersize, label = r'$\tilde\theta_{\mathrm{recovered, } \delta > 0.3}$', alpha = alpha)
-plt.plot(pGB_injected_not_matched_list[data_set][parameter_x],pGB_injected_not_matched_list[data_set][parameter_y], '+', color = 'r', label = r'$\tilde\theta_{\mathrm{injected, } \delta > 0.3}$', markersize= markersize, alpha = alpha, zorder = 1)
+plt.plot(found_sources_matched_list[data_set][parameter_x],found_sources_matched_list[data_set][parameter_y],'.', label = r'$\tilde\theta_{\mathrm{recovered, } \delta < 0.3}$', markersize= markersize, alpha = alpha, zorder = 5)
+plt.plot(found_sources_not_matched_list[data_set][parameter_x],found_sources_not_matched_list[data_set][parameter_y],'o',  markerfacecolor='None', markersize= markersize, label = r'$\tilde\theta_{\mathrm{recovered, } \delta > 0.3}$', alpha = alpha)
+plt.plot(pGB_injected_not_matched_list[data_set][parameter_x],pGB_injected_not_matched_list[data_set][parameter_y], '+', label = r'$\tilde\theta_{\mathrm{injected, } \delta > 0.3}$', markersize= markersize, alpha = alpha, zorder = 1)
 # plt.plot(f,SA*10**20, color = 'black', label = 'Sangria', linewidth=2)
 # plt.yscale('log')
 # plt.xscale('log')

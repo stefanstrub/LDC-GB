@@ -135,10 +135,10 @@ parent = os.path.dirname(path)
 # grandparent directory
 grandparent = os.path.dirname(parent)
 
-dataset = 'Radler'
-VGB = True
-add_gaps_and_glitches = True
-fill_gaps = True
+dataset = 'Sangria'
+VGB = False
+add_gaps_and_glitches = False
+fill_gaps = False
 if dataset == 'Radler':
     DATAPATH = grandparent+"/LDC/Radler/data"
     SAVEPATH = grandparent+"/LDC/pictures/LDC1-4/"
@@ -471,9 +471,13 @@ frequencies_odd = frequencies[1::2]
 
 
 # save_name = 'not_anticorrelatedLDC1-4_2_optimized_second'
-save_name = 'Sangria_12m'
-save_name = 'Radler_24m'
-save_name = dataset + '_VGB_gaps'
+save_name = 'Sangria_12m_filled_anticorrelated'
+# save_name = 'Radler_24m'
+if add_gaps_and_glitches:
+    save_name = save_name + '_gaps'
+if VGB:
+    save_name = save_name + '_VGB'
+# save_name = dataset + '_VGB_gaps'
 # save_name = 'Sangria_1_dynamic_noise'
 # save_name = 'not_anticorrelatedRadler_half_dynamic_noise'
 # for i in range(65):
@@ -1405,14 +1409,16 @@ print('GPU memory free', get_gpu_memory())
 # pGB_injected_not_matched = np.load(SAVEPATH+'/injected_not_matched_windows' +save_name+'.npy', allow_pickle=True)
 # pGB_injected_matched = np.load(SAVEPATH+'/injected_matched_windows' +save_name+'.npy', allow_pickle=True)
 
-found_sources = np.load(SAVEPATH+'/found_sources_'+save_name+'.npy', allow_pickle=True)
+# found_sources_in_flat = np.load(SAVEPATH+'/found_sources_'+save_name+'_flat.pkl', allow_pickle=True)
+found_sources = np.load(SAVEPATH+'/found_sources_in_SNR_'+save_name+'.pkl', allow_pickle=True)
 found_sources_in_flat = []
-# for i in range(len(found_sources)):
-#     for j in range(len(found_sources[i])):
-#         found_sources_in_flat.append(found_sources[i][j])
 for i in range(len(found_sources)):
-    for j in range(len(found_sources[i][3])):
-        found_sources_in_flat.append(found_sources[i][3][j])
+    for j in range(len(found_sources[i])):
+        found_sources_in_flat.append(found_sources[i][j])
+# found_sources = np.load(SAVEPATH+'/found_sources_'+save_name+'.npy', allow_pickle=True)
+# for i in range(len(found_sources)):
+#     for j in range(len(found_sources[i][3])):
+#         found_sources_in_flat.append(found_sources[i][3][j])
 pickle.dump(found_sources_in_flat, open(SAVEPATH+'found_sources_' +save_name+'_flat.pkl', 'wb'))
 
 found_sources_in_flat = pickle.load(open(SAVEPATH+'found_sources_' +save_name+'_flat.pkl', 'rb'))
@@ -1531,6 +1537,7 @@ if do_subtract:
     plot_subtraction = False
     if plot_subtraction:
         i = 4000
+        i = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.0186)+1
         lower_frequency = frequencies_search[i][0]
         upper_frequency = frequencies_search[i][1]
         search1 = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
@@ -1689,8 +1696,8 @@ plt.loglog(f_res, psdA_welch, label=r'$S_{A \mathrm{,welch}}$', linewidth = 3)
 # plt.loglog(tdi_fs.f, spline(tdi_fs.f))
 # plt.loglog(frequencies_means, psd_residual, zorder=5)    
 # plt.loglog(f_res[1:], SA, zorder=5)   
-plt.loglog(f_res, smoothedA, zorder=4, label=r'$S_{A \mathrm{,median}}$')   
-plt.loglog(tdi_fs.f, psdA_residual, zorder=5, label=r'$S_{A \mathrm{,residual}}$', linewidth=3)   
+plt.loglog(f_res, smoothedA, color='purple', zorder=4, label=r'$S_{A \mathrm{,median}}$')   
+plt.loglog(tdi_fs.f, psdA_residual,  zorder=5, label=r'$S_{A \mathrm{,residual}}$', linewidth=3)   
 # plt.loglog(f_res[1:], SAa, 'k--', zorder=5, label='instrument')   
 plt.loglog(f_res[1:], SA, 'k--', zorder=5, label=r'$S_{A \mathrm{,instrument}}$')   
 # plt.loglog(tdi_fs.f, noise_means, zorder=3)   

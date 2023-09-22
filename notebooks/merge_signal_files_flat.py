@@ -33,30 +33,21 @@ for i in range(len(onlyfiles)):
             # frequency = sources[j][1][0][0][0]['Frequency']
             frequency = sources[j][4][0]
             frequencies.append(frequency)
-            found_sources_mp_even_unsorted.append(sources[j])
+            found_sources_mp_even_unsorted.append(sources[j][3])
 
         except:
-            pass
+            found_sources_mp_even_unsorted.append(sources[j])
     # frequencies.append(frequency)
     # found_sources_mp_even_unsorted.append(sources)
-sorted_indexes = np.argsort(frequencies)
-found_sources_mp = []
-for i in range(len(sorted_indexes)):
-    found_sources_mp.append(found_sources_mp_even_unsorted[sorted_indexes[i]])
-# del found_sources_mp[1430]
-del found_sources_mp[2858]
-try:
-    time = 0
-    times = []
-    for i in range(len(found_sources_mp)):
-        times.append(found_sources_mp[i][5])
-    time = np.sum(times)
-    max_time = np.max(times)
-    print('time', np.round(time/3600,1), 'hours')
-    print('max time', np.round(max_time/60,1), 'minutes')
-except:
-    print('no time')
+found_sources_in_flat = np.concatenate(found_sources_mp_even_unsorted)
+found_sources_in_flat_frequency = []
+for i in range(len(found_sources_in_flat)):
+    found_sources_in_flat_frequency.append(found_sources_in_flat[i]['Frequency'])
+found_sources_in_flat_frequency = np.asarray(found_sources_in_flat_frequency)
+found_sources_in_flat = np.asarray(found_sources_in_flat)
+indexes_in = np.argsort(found_sources_in_flat_frequency)
+found_sources_in_flat_frequency = found_sources_in_flat_frequency[indexes_in]
+found_sources_in_flat = found_sources_in_flat[indexes_in]
 
-
-pickle.dump(found_sources_mp, open(folderpath_save+'/found_sources_' +save_name+'.pkl', 'wb'))
+pickle.dump(found_sources_in_flat, open(folderpath_save+'/found_sources_' +save_name+'_flat.pkl', 'wb'))
 # np.save(folderpath_save+'/found_sources_' +save_name+'.npy', found_sources_mp)

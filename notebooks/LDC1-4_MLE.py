@@ -78,8 +78,8 @@ parent = os.path.dirname(path)
 # grandparent directory
 grandparent = os.path.dirname(parent)
 
-dataset = 'Sangria'
-VGB = True
+dataset = 'Radler'
+VGB = False
 add_gaps_and_glitches = False
 fill_gaps = False
 if dataset == 'Radler':
@@ -684,12 +684,12 @@ plt.show()
 plt.savefig(SAVEPATH+'bandwidth.png')
 
 
-save_name = 'Sangria_12m_even3mHz'
-# save_name = 'Radler_24m_even'
+# save_name = 'Sangria_12m_even3m'
+save_name = 'Radler_24m_filled_anticorrelation'
 # save_name = dataset + '_12m_eventest'
 # save_name = dataset + '_VGB_gaps'
 # for i in range(65):
-frequencies_search = frequencies_even
+frequencies_search = frequencies_odd
 frequencies_search_full = deepcopy(frequencies_search)
 # batch_index = int(sys.argv[1])
 batch_index = int(150)
@@ -724,11 +724,14 @@ if dataset == 'Radler' and VGB:
         start_index = np.searchsorted(np.asarray(frequencies)[:,0], cat[i]['Frequency'])-1
         frequencies_search.append(frequencies[start_index])
 
+### redo the search for the anticorrelated signals
 frequencies_search = []
-found_sources_anticorrelated_flat = pickle.load(open(SAVEPATH+'found_sources_anticorrelated_Sangria_12m.pkl', 'rb'))
+# found_sources_anticorrelated_flat = pickle.load(open(SAVEPATH+'found_sources_anticorrelated_Sangria_12m.pkl', 'rb'))
+found_sources_anticorrelated_flat = pickle.load(open(SAVEPATH+'found_sources_anticorrelated_Radler_24m.pkl', 'rb'))
 for i in range(int(len(found_sources_anticorrelated_flat)/2)):
-    start_index = np.searchsorted(np.asarray(frequencies)[:,0], found_sources_anticorrelated_flat[i*2]['Frequency'])-1
-    frequencies_search.append(frequencies[start_index])
+    start_index = np.searchsorted(np.asarray(frequencies_odd)[:,0], found_sources_anticorrelated_flat[i*2]['Frequency'])-1
+    frequencies_search.append(frequencies_odd[start_index])
+frequencies_search = [frequencies_search[1]]
 
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.003977)
 
@@ -752,9 +755,9 @@ if do_subtract:
     start = time.time()
     # save_name_previous = 'found_sourcesRadler_half_odd_dynamic_noise'
     # Sangria
-    save_name_previous = 'found_sources_Sangria_12m_odd'
+    # save_name_previous = 'found_sources_Sangria_12m_even'
     # save_name_previous = 'found_sources_not_anticorrelated_Sangria_12m'
-    # save_name_previous = 'found_sources_Radler_24m_odd'
+    save_name_previous = 'found_sources_Radler_24m_even'
     # save_name_previous = 'found_sources_Radler_half_odd_dynamic_noise'
     # save_name_previous = 'found_sources_Sangria_1_odd_dynamic_noise'
     # save_name_previous = 'found_sourcesSangria_half_odd'
@@ -765,15 +768,16 @@ if do_subtract:
     # save_name_previous = 'found_sourcesRadler_1_odd'
     # save_name_previous = 'found_sourcesSangria_1_odd_dynamic_noise'
     # save_name_previous = 'found_sources'+save_name
-    # found_sources_mp_subtract = np.load(SAVEPATH+save_name_previous+'.npy', allow_pickle = True)
-    found_sources_mp_subtract = pickle.load(open(SAVEPATH+'found_sources_not_anticorrelated_Sangria_12m.pkl', 'rb'))
+    found_sources_mp_subtract = np.load(SAVEPATH+save_name_previous+'.npy', allow_pickle = True)
+    # found_sources_mp_subtract = pickle.load(open(SAVEPATH+'found_sources_not_anticorrelated_Sangria_12m.pkl', 'rb'))
+    # found_sources_mp_subtract = pickle.load(open(SAVEPATH+'found_sources_not_anticorrelated_Radler_24m.pkl', 'rb'))
 
     found_sources_flat = []
     for i in range(len(found_sources_mp_subtract)):
-        # for j in range(len(found_sources_mp_subtract[i][3])):
-        #     found_sources_flat.append(found_sources_mp_subtract[i][3][j])
-        for j in range(len(found_sources_mp_subtract[i])):
-            found_sources_flat.append(found_sources_mp_subtract[i][j])
+        for j in range(len(found_sources_mp_subtract[i][3])):
+            found_sources_flat.append(found_sources_mp_subtract[i][3][j])
+        # for j in range(len(found_sources_mp_subtract[i])):
+        #     found_sources_flat.append(found_sources_mp_subtract[i][j])
     found_sources_flat = np.asarray(found_sources_flat)
     found_sources_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_flat]) for attribute in found_sources_flat[0].keys()}
     found_sources_flat_df = pd.DataFrame(found_sources_flat_array)
@@ -789,7 +793,7 @@ if do_subtract:
     plot_subtraction = False
     if plot_subtraction:
         # i = start_index
-        i = 2
+        i = 1
         # lower_frequency = frequencies_search_full[i][0]
         # upper_frequency = frequencies_search_full[i][1]
         lower_frequency = frequencies_search[i][0]

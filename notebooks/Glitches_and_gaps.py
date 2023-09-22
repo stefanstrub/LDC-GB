@@ -16,11 +16,28 @@ sys.path.append('/cluster/home/sstrub/Repositories/LDC/lib/lib64/python3.8/site-
 
 
 from ldc.lisa.noise import get_noise_model
-from ldc.common.series import TimeSeries
+from ldc.common.series import TimeSeries, FrequencySeries
 import ldc.waveform.fastGB as fastGB
+
 from ldc.common.tools import compute_tdi_snr, window
+try:
+    import cupy as xp
+
+    gpu_available = True
+
+except (ImportError, ModuleNotFoundError) as e:
+    import numpy as xp
+
+    gpu_available = False
+
+from gbgpu.gbgpu import GBGPU
+
+from gbgpu.utils.constants import *
 
 from sources import *
+
+# gpu_available = False
+gb_gpu = GBGPU(use_gpu=gpu_available)
 
 # customized settings
 plot_parameter = {  # 'backend': 'ps',
@@ -78,9 +95,10 @@ parent = os.path.dirname(path)
 # grandparent directory
 grandparent = os.path.dirname(parent)
 
+fill_gaps = False
 dataset = 'Radler'
 # dataset = 'Sangria'
-# dataset = 'Spritz'
+dataset = 'Spritz'
 if dataset == 'Radler':
     DATAPATH = grandparent+"/LDC/Radler/data"
     SAVEPATH = grandparent+"/LDC/gaps/"
@@ -214,14 +232,16 @@ if dataset != 'Spritz':
         tdi_ts_with_glitches[k].values = tdi_ts[k].values + tdi_ts_glitches[k].values[:len(tdi_ts[k].values)]
 
 plt.figure()
+# plt.plot(tdi_ts_with_glitches['X'].t, tdi_ts_with_glitches["X"])
 plt.plot(tdi_ts['X'].t, tdi_ts['X'])
 # plt.plot(tdi_ts_obs['X'].t, tdi_ts_obs['X'])
 # plt.plot(tdi_ts_clean['X'].t, tdi_ts_clean["X"])
 # plt.plot(tdi_ts_noisefree['X'].t, tdi_ts_noisefree["X"])
 # plt.plot(tdi_ts_sky['X'].t, tdi_ts_sky["X"])
 # plt.plot(tdi_ts_galaxy['X'].t, tdi_ts_galaxy["X"])
-plt.plot(tdi_ts_glitches['X'].t, tdi_ts_glitches["X"])
-plt.plot(tdi_ts_with_glitches['X'].t, tdi_ts_with_glitches["X"])
+# plt.plot(tdi_ts_glitches['X'].t, tdi_ts_glitches["X"])
+plt.xlabel('time')
+plt.ylabel('TDI X')
 plt.show()
 
 GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
@@ -231,6 +251,8 @@ plt.plot(tdi_ts_with_glitches['X'].t, tdi_ts_with_glitches['X'])
 plt.plot(tdi_ts_with_glitches['Y'].t, tdi_ts_with_glitches['Y'])
 plt.plot(tdi_ts_with_glitches['Z'].t, tdi_ts_with_glitches['Z'])
 # plt.plot(tdi_ts['X'].t, tdi_ts['X'])
+plt.xlabel('time')
+plt.ylabel('TDI')
 plt.show()
 
 start = 200
@@ -247,19 +269,25 @@ for k in ["X", "Y", "Z"]:
     peaks, properties = scipy.signal.find_peaks(np.abs(tdi_ts_with_glitches[k]), height=10*mad, threshold=None, distance=1)
     # Turning glitches into gaps
     for pk in peaks:
-        tdi_ts_with_glitches[k][pk-10:pk+10] = 0.0
+        tdi_ts_with_glitches['X'][pk-10:pk+10] = 0.0
+        tdi_ts_with_glitches['Y'][pk-10:pk+10] = 0.0
+        tdi_ts_with_glitches['Z'][pk-10:pk+10] = 0.0
 
     mad = scipy.stats.median_abs_deviation(tdi_ts_with_glitches[k])
     peaks, properties = scipy.signal.find_peaks(np.abs(tdi_ts_with_glitches[k]), height=10*mad, threshold=None, distance=1)
     # Turning glitches into gaps
     for pk in peaks:
-        tdi_ts_with_glitches[k][pk-10:pk+10] = 0.0
+        tdi_ts_with_glitches['X'][pk-10:pk+10] = 0.0
+        tdi_ts_with_glitches['Y'][pk-10:pk+10] = 0.0
+        tdi_ts_with_glitches['Z'][pk-10:pk+10] = 0.0
 
     mad = scipy.stats.median_abs_deviation(tdi_ts_with_glitches[k])
     peaks, properties = scipy.signal.find_peaks(np.abs(tdi_ts_with_glitches[k]), height=10*mad, threshold=None, distance=1)
     # Turning glitches into gaps
     for pk in peaks:
-        tdi_ts_with_glitches[k][pk-10:pk+10] = 0.0
+        tdi_ts_with_glitches['X'][pk-10:pk+10] = 0.0
+        tdi_ts_with_glitches['Y'][pk-10:pk+10] = 0.0
+        tdi_ts_with_glitches['Z'][pk-10:pk+10] = 0.0
 
 
 for k in ["X", "Y", "Z"]:
@@ -270,29 +298,31 @@ plt.plot(tdi_ts_with_glitches['X'].t, tdi_ts_with_glitches['X'])
 plt.plot(tdi_ts_with_glitches['Y'].t, tdi_ts_with_glitches['Y'])
 plt.plot(tdi_ts_with_glitches['Z'].t, tdi_ts_with_glitches['Z'])
 # plt.plot(tdi_ts['X'].t, tdi_ts['X'])
+plt.xlabel('time')
+plt.ylabel('TDI')
 plt.show()
 
-### fill gaps
-for k in ["X", "Y", "Z"]:
-    groups = []
-    gaps = tdi_ts_with_glitches[k] == 0
-    gaps = tdi_ts_with_glitches[k][gaps]
-    start_points = []
-    if gaps.t[0].values == tdi_ts_with_glitches[k].t[0].values:
-        start_points = [0]
-    differences = gaps.t[1:].values - gaps.t[:-1].values
-    jumps = differences > 15
-    end_points = list(gaps[:-1][jumps].t.values) + list([gaps.t[-1].values])
-    start_points = list(start_points) + list(gaps[1:][jumps].t.values)
+if fill_gaps:
+    for k in ["X", "Y", "Z"]:
+        groups = []
+        gaps = tdi_ts_with_glitches[k] == 0
+        gaps = tdi_ts_with_glitches[k][gaps]
+        start_points = []
+        if gaps.t[0].values == tdi_ts_with_glitches[k].t[0].values:
+            start_points = [0]
+        differences = gaps.t[1:].values - gaps.t[:-1].values
+        jumps = differences > 15
+        end_points = list(gaps[:-1][jumps].t.values) + list([gaps.t[-1].values])
+        start_points = list(start_points) + list(gaps[1:][jumps].t.values)
 
-    for i in range(len(start_points)):
-        index_start = int((start_points[i]-tdi_ts_with_glitches[k].t[0].values)/dt)
-        index_end = int((end_points[i]-tdi_ts_with_glitches[k].t[0])/dt)
-        length_gap = len(tdi_ts_with_glitches[k][index_start:index_end])+1
-        tdi_ts_with_glitches[k][index_start:index_start+length_gap] = tdi_ts_with_glitches[k][index_end+1:index_end+1+length_gap].values
-        # else:
-        #     tdi_ts_with_glitches[k][index_start:index_start+int(length_gap/2)] = tdi_ts_with_glitches[k][index_start-int(length_gap/2):index_start].values
-        #     tdi_ts_with_glitches[k][index_end-int(length_gap/2):index_end] = tdi_ts_with_glitches[k][index_end:index_end+int(length_gap/2)].values
+        for i in range(len(start_points)):
+            index_start = int((start_points[i]-tdi_ts_with_glitches[k].t[0].values)/dt)
+            index_end = int((end_points[i]-tdi_ts_with_glitches[k].t[0])/dt)
+            length_gap = len(tdi_ts_with_glitches[k][index_start:index_end])+1
+            tdi_ts_with_glitches[k][index_start:index_start+length_gap] = tdi_ts_with_glitches[k][index_end+1:index_end+1+length_gap].values
+            # else:
+            #     tdi_ts_with_glitches[k][index_start:index_start+int(length_gap/2)] = tdi_ts_with_glitches[k][index_start-int(length_gap/2):index_start].values
+            #     tdi_ts_with_glitches[k][index_end-int(length_gap/2):index_end] = tdi_ts_with_glitches[k][index_end:index_end+int(length_gap/2)].values
     
 plt.figure()
 plt.plot(tdi_ts_with_glitches['X'].t, tdi_ts_with_glitches['X'])
@@ -318,41 +348,186 @@ plt.xlim([1.8e7, 2.2e7])
 plt.show()
 
 
+data_fd= {}
+gap_less_duration = {}
+for k in ["X", "Y", "Z"]:
+    data_fd[k] = []
+    gap_less_duration[k] = []
+    groups = []
+    gaps = tdi_ts_with_glitches[k] == 0
+    gaps = tdi_ts_with_glitches[k][gaps]
+    start_points = []
+    if gaps.t[0].values != tdi_ts_with_glitches[k].t[0].values:
+        start_points = [0]
+        end_points = gaps.t[0].values
+    differences = gaps.t[1:].values - gaps.t[:-1].values
+    jumps = differences > 15
+    start_points = list(start_points) + list(gaps[:-1][jumps].t.values) + list([gaps.t[-1].values])
+    end_points =  list(gaps[1:][jumps].t.values)
+    for i in range(len(end_points)):
+        index_start = int((start_points[i]-tdi_ts_with_glitches[k].t[0].values)/dt)
+        index_end = int((end_points[i]-tdi_ts_with_glitches[k].t[0])/dt)
+        data_fd[k].append(tdi_ts_with_glitches[k][index_start:index_end].ts.fft(win=window))
+        gap_less_duration[k].append(tdi_ts_with_glitches[k][index_start:index_end].t[-1].values- tdi_ts_with_glitches[k][index_start:index_end].t[0].values)
 
-tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
-# tdi_fs_noisefree = xr.Dataset(dict([(k, tdi_ts_noisefree[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
-tdi_fs_sky = xr.Dataset(dict([(k, tdi_ts_sky[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
-tdi_fs_glitches = xr.Dataset(dict([(k, tdi_ts_glitches[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+
+data_fd['A'] = []
+data_fd['E'] = []
+for i in range(len(end_points)):
+    data_fd['A'].append((data_fd['Z'][i] - data_fd['X'][i])/np.sqrt(2.0))
+    data_fd['E'].append((data_fd['Z'][i] - 2.0*data_fd['Y'][i] + data_fd['X'][i])/np.sqrt(6.0))
+
+
+# tdi_fs = xr.Dataset(dict([(k, tdi_ts[k][index_start:index_end].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+# # tdi_fs_noisefree = xr.Dataset(dict([(k, tdi_ts_noisefree[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+# tdi_fs_sky = xr.Dataset(dict([(k, tdi_ts_sky[k][index_start:index_end].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+# tdi_fs_glitches = xr.Dataset(dict([(k, tdi_ts_glitches[k][index_start:index_end].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 tdi_fs_with_glitches = xr.Dataset(dict([(k, tdi_ts_with_glitches[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 # tdi_fs_signals = xr.Dataset(dict([(k, tdi_ts_signals[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 
+data_glitches = {}
+data_glitches['A'] = (tdi_fs_with_glitches['Z'] - tdi_fs_with_glitches['X'])/np.sqrt(2.0)
+data_glitches['E'] = (tdi_fs_with_glitches['Z'] - 2.0*tdi_fs_with_glitches['Y'] + tdi_fs_with_glitches['X'])/np.sqrt(6.0)
 
-i = 0
-lower_frequency = cat[i]['Frequency']-0.0000005
-upper_frequency = cat[i]['Frequency']+0.0000005
-search = Search(tdi_fs,Tobs, lower_frequency, upper_frequency)
+cat_index = 0
+lower_frequency = cat[cat_index]['Frequency']-0.0000005
+upper_frequency = cat[cat_index]['Frequency']+0.0000005
+# search = Search(tdi_fs_with_glitches,Tobs, lower_frequency, upper_frequency)
 
-search.plot(found_sources_in= [cat[i]])
-print(search.SNR([cat[i]]))
-print(search.SNR_scaled([cat[i]]))
+# search.plot(found_sources_in= [cat[i]])
+# print(search.SNR([cat[i]]))
+# print(search.SNR_scaled([cat[i]]))
+parameters_gpgpu = ['Amplitude','Frequency','FrequencyDerivative','Frequency2Derivative','InitialPhase','Inclination','Polarization','EclipticLongitude','EclipticLatitude']
+start = time.time()
+Xs, Ys, Zs = GB.get_fd_tdixyz(template=cat[cat_index], oversample=4, tdi2=True)
+print('time', time.time()-start)
 
-Xs, Ys, Zs = GB.get_fd_tdixyz(template=cat[i], oversample=4)
+start = time.time()
+X_td, Ys_td, Zs_td = GB.get_td_tdixyz(template=cat[cat_index], oversample=4, tdi2=True)
+print('time', time.time()-start)
+
+simulated_td = { 'X': X_td, 'Y': Ys_td, 'Z': Zs_td}
+simulated_fd = {}
+for k in ["X", "Y", "Z"]:
+    simulated_fd[k] = []
+    for i in range(len(end_points)):
+        index_start = int((start_points[i]-tdi_ts_with_glitches[k].t[0].values)/dt)
+        index_end = int((end_points[i]-tdi_ts_with_glitches[k].t[0])/dt)
+        simulated_fd[k].append(simulated_td[k][index_start:index_end].ts.fft(win=window))
+
+pGB = {}
+for parameter in parameters:
+    pGB[parameter] = cat[cat_index][parameter]
+pGB['Frequency2Derivative'] = 0
+pGB2 = deepcopy(pGB)
+pGB2['Amplitude'] = 1e-18
+num_bin = 100
+params = np.array([np.full(num_bin, pGB[parameter]) for parameter in parameters_gpgpu])
+# params = (np.zeros((100,len(params))) + params).T
+start = time.time()
+gb_gpu.run_wave(*params,
+        N=None,
+        T=end_points[i]-start_points[i],
+        dt=dt,
+        t_start=start_points[i],
+        oversample=4,
+        tdi2=True)
+print('time', time.time()-start)
+
+gb_gpu.run_wave(*params,
+        N=None,
+        T=Tobs,
+        dt=dt,
+        t_start=0,
+        oversample=4,
+        tdi2=True)
+
+noise_model =  "SciRDv1"
+data_gpu = []
+PSD_GPU = []
+for i in range(len(data_fd['A'])):
+    data_gpu.append(xp.array([data_fd['A'][i].values[1:], data_fd['E'][i].values[1:]]))
+    Nmodel = get_noise_model(noise_model, data_fd['A'][i].f[1:])
+    SA_full_f = Nmodel.psd(freq=data_fd['A'][i].f[1:], option="A")
+    SE_full_f = Nmodel.psd(freq=data_fd['E'][i].f[1:], option="E")
+    PSD_GPU.append(xp.array([SA_full_f, SE_full_f]))
+gb_gpu.d_d = 0.0
+loglikelihood = []
+for i in range(len(data_fd['A'])):
+    loglikelihood.append(gb_gpu.get_ll(params, data_gpu[i], PSD_GPU[i], N=None, oversample=4, dt=dt, T=end_points[i]-start_points[i], start_freq_ind=0, tdi2=True, t_start=start_points[i]))
+
+
+start_index = 10**5
+end_index = 1
+t_start = float(tdi_ts_sky[k].t[start_index].values)
+t_end = float(tdi_ts_sky[k].t[-end_index].values)
+tdi_fs_sky = xr.Dataset(dict([(k, tdi_ts_sky[k][start_index:-end_index].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+
+data_sky = {}
+data_sky['A'] = (tdi_fs_sky['Z'] - tdi_fs_sky['X'])/np.sqrt(2.0)
+data_sky['E'] = (tdi_fs_sky['Z'] - 2.0*tdi_fs_sky['Y'] + tdi_fs_sky['X'])/np.sqrt(6.0)
+
+N = 256
+data_gpu_full = [xp.array(data_sky['A'].values), xp.array(data_sky['E'].values)]
+Nmodel = get_noise_model(noise_model, data_sky['A'].f)
+SA_full_f = Nmodel.psd(freq=data_sky['A'].f, option="A")
+SE_full_f = Nmodel.psd(freq=data_sky['E'].f, option="E")
+PSD_GPU = xp.array([SA_full_f, SE_full_f])
+loglikelihood = gb_gpu.get_ll(params, data_gpu_full, PSD_GPU, N=N, oversample=4, dt=dt, T=t_end-t_start, start_freq_ind=0, tdi2=True, t_start=t_start)
+
+search = Search(tdi_fs_sky,t_end-t_start, lower_frequency, upper_frequency, tdi2=True, gb_gpu=gb_gpu, t_start=t_start)
+search.plot(found_sources_in= [cat[cat_index]])
+loglikelihood = search.loglikelihood_gpu(params)
+
+
+X_fd = X_td[start_index:-end_index].ts.fft(win=window)
+
+gb_gpu.run_wave(*params,
+        N=None,
+        T=t_end-t_start,
+        dt=dt,
+        t_start=t_start,
+        oversample=4,
+        tdi2=True)
+
+t0 = tdi_ts_with_glitches[k].t[0].values
+target_length = index_end - index_start
+# xr.Dataset(dict([(k, tdi_ts[k][index_start:index_end].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+# X_fd = FrequencySeries(gb_gpu.X.get()[0], fs= gb_gpu.freqs.get()[0])
+# X_td = TimeSeries(X_fd.ifft() / dt, t0=t0, dt=dt)
+
+# Y_td = TimeSeries(np.fft.irfft(gb_gpu.Y.get()[0] / dt, n=int(Tobs)), t0=t0, dt=dt)
+# Z_td = TimeSeries(np.fft.irfft(gb_gpu.Z.get()[0] / dt, n=int(Tobs)), t0=t0, dt=dt)
+# gb_gpu_td = xr.Dataset({'X': X_td, 'Y': Y_td, 'Z': Z_td})
+A_td = TimeSeries(np.fft.irfft(gb_gpu.A.get()[0] / dt, n=int(Tobs)), t0=t0, dt=dt)
+E_td = TimeSeries(np.fft.irfft(gb_gpu.E.get()[0] / dt, n=int(Tobs)), t0=t0, dt=dt)
+gb_gpu_td = xr.Dataset({'A': A_td, 'E': E_td})
+
+plt.figure()
+plt.plot(X_td.t, X_td)
+plt.plot(X_td[index_start:index_end].t, X_td[index_start:index_end])
+plt.xlabel('time')
+plt.ylabel('TDI X')
+plt.show()
+
+# X_fd = X_td[index_start:index_end].ts.fft(win=window)
+
+tdi_fs = xr.Dataset(dict([(k, tdi_ts[k][index_start:index_end].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+
 Af = (Zs - Xs)/np.sqrt(2.0)
 Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)   
 plt.figure()
-plt.semilogx(Xs.f*1000,np.real(Xs.values))
-plt.semilogx(tdi_fs_with_glitches['X'].f.values*1000,np.real(tdi_fs_with_glitches['X'].values))
-plt.semilogx(tdi_fs['X'].f.values*1000,np.real(tdi_fs['X'].values))
+plt.semilogx(Xs.f*1000,np.real(Xs.values), label='fast GB')
+plt.plot(np.array(gb_gpu.freqs.get()[0])*1000,np.real(gb_gpu.X.get()[0]), '.', label='GBGPU')
+plt.plot(np.array(X_fd.f)*1000,np.real(X_fd), label='fast GB part')
+plt.semilogx(tdi_fs_with_glitches['X'].f.values*1000,np.real(tdi_fs_with_glitches['X'].values),label='data')
+plt.semilogx(tdi_fs['X'].f.values*1000,np.real(tdi_fs['X'].values), label='original data')
 # plt.semilogx(tdi_fs_clean['X'].f.values*1000,np.real(tdi_fs_clean['X'].values))
 # plt.semilogx(tdi_fs_noisefree['X'].f.values*1000,np.real(tdi_fs_noisefree['X'].values))
-plt.semilogx(tdi_fs_sky['X'].f.values*1000,np.real(tdi_fs_sky['X'].values))
+plt.semilogx(tdi_fs_sky['X'].f.values*1000,np.real(tdi_fs_sky['X'].values),'.',label='sky')
 plt.xlim(lower_frequency*1000,upper_frequency*1000)
 # plt.semilogx(Ef.f*1000,Ef.values)
-plt.show()
-
-plt.figure()
-plt.plot(tdi_ts_with_glitches['X'].t, tdi_ts_with_glitches['X'])
-plt.plot(tdi_ts['X'].t, tdi_ts['X'])
+plt.legend()
 plt.show()
 
 print('end')

@@ -116,7 +116,6 @@ class GBGPU(object):
         beta,
         *args,
         N=None,
-        t_start = 0.0,
         T=4 * YEAR,
         dt=10.0,
         oversample=1,

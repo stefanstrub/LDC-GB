@@ -116,6 +116,7 @@ class GBGPU(object):
         beta,
         *args,
         N=None,
+        t_start = 0.0,
         T=4 * YEAR,
         dt=10.0,
         oversample=1,
@@ -269,7 +270,7 @@ class GBGPU(object):
         )
 
         # time points evaluated
-        tm = self.xp.linspace(0, T, num=N, endpoint=False)
+        tm = self.xp.linspace(t_start, T+t_start, num=N, endpoint=False)
 
         # get the spacecraft positions from orbits
         Ps = self._spacecraft(tm)
@@ -301,7 +302,7 @@ class GBGPU(object):
 
         # adjust for TDI2 if needed
         if tdi2:
-            omegaL = 2 * np.pi * f0_out * (Larm / Clight)
+            omegaL = 2 * np.pi * f0 * (Larm / Clight)
             tdi2_factor = 2.0j * self.xp.sin(2 * omegaL) * self.xp.exp(-2j * omegaL)
             fctr *= tdi2_factor
 
