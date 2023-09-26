@@ -3,6 +3,7 @@ README.md
 requirements.txt
 setup.py
 .vscode/launch.json
+dist/gbgpu-0.1-py3.7-linux-x86_64.egg
 dist/gbgpu-0.1-py3.9-linux-x86_64.egg
 docs/.nojekyll
 docs/Makefile
@@ -160,6 +161,7 @@ notebooks/hamiltonian_mc.py
 notebooks/littlemc_test.py
 notebooks/mbhb_CD.py
 notebooks/merge_signal_files.py
+notebooks/merge_signal_files_flat.py
 notebooks/optimize_nosie_matrix.py
 notebooks/plot_MLE.py
 notebooks/plot_found_signals.py

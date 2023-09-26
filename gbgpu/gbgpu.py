@@ -270,11 +270,13 @@ class GBGPU(object):
         )
 
         # time points evaluated
+        self.t_start = t_start
         tm = self.xp.linspace(t_start, T+t_start, num=N, endpoint=False)
-
+        self.tm = tm
         # get the spacecraft positions from orbits
         Ps = self._spacecraft(tm)
 
+        tm = self.xp.linspace(0, T+0, num=N, endpoint=False)
         # time domain information
         Gs, q = self._construct_slow_part(
             T,
@@ -306,7 +308,10 @@ class GBGPU(object):
             tdi2_factor = 2.0j * self.xp.sin(2 * omegaL) * self.xp.exp(-2j * omegaL)
             fctr *= tdi2_factor
 
-        XYZf *= fctr
+        if tdi2:
+            XYZf = XYZf * fctr[:, None, None]
+        else:
+            XYZf *= fctr
 
         # we do not care about T right now
         Af, Ef, Tf = AET(XYZf[:, 0], XYZf[:, 1], XYZf[:, 2])
@@ -501,7 +506,7 @@ class GBGPU(object):
 
         argS = (
             phi0[:, None, None]
-            + (om[:, None, None] - df[:, None, None]) * tm[None, None, :]
+            + (om[:, None, None] - df[:, None, None]) * (tm[None, None, :])
             + np.pi * fdot[:, None, None] * (xi**2)
             + 1 / 3 * np.pi * fddot[:, None, None] * (xi**3)
         )
@@ -579,6 +584,7 @@ class GBGPU(object):
         start_freq_ind=0,
         data_index=None,
         noise_index=None,
+        get_SNR=False,
         **kwargs,
     ):
         """Get batched log likelihood
@@ -731,15 +737,17 @@ class GBGPU(object):
         self.h_h = h_h
         self.d_h = d_h
 
-        # compute Likelihood
-        like_out = -1.0 / 2.0 * (self.d_d + h_h - 2 * d_h).real
-
+        # compute Likelihood or SNR
+        if get_SNR:
+            out = (d_h.real / self.xp.sqrt(h_h.real))
+        else:
+            out = -1.0 / 2.0 * (self.d_d + h_h - 2 * d_h).real
         # back to CPU if on GPU
         try:
-            return like_out.get()
+            return out.get()
 
         except AttributeError:
-            return like_out
+            return out
 
     def fill_global_template(
         self, group_index, templates, A, E, start_inds, N=None, start_freq_ind=0

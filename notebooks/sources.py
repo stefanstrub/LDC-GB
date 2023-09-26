@@ -22,12 +22,8 @@ from ldc.common.tools import compute_tdi_snr, window
 try:
     import cupy as xp
 
-    gpu_available = True
-
 except (ImportError, ModuleNotFoundError) as e:
     import numpy as xp
-
-    gpu_available = False
 
 # customized settings
 plot_parameter = {  # 'backend': 'ps',
@@ -399,7 +395,7 @@ def moving_average(a, n=3) :
     return ret[n - 1:] / n
 
 class Search():
-    def __init__(self,tdi_fs,Tobs, lower_frequency, upper_frequency, noise_model =  "SciRDv1", recombination=0.75, dt=None, update_noise=False, noise=None, gb_gpu=None, tdi2=False, t_start=0,
+    def __init__(self,tdi_fs,Tobs, lower_frequency, upper_frequency, noise_model =  "SciRDv1", recombination=0.75, dt=None, update_noise=False, noise=None, gb_gpu=None, use_gpu=False, tdi2=False, t_start=0,
     parameters = [
     "Amplitude",
     "EclipticLatitude",
@@ -421,6 +417,10 @@ class Search():
         self.t_start = t_start
         self.Tobs = Tobs
         self.gb_gpu = gb_gpu
+        if use_gpu:
+            self.xp = xp
+        else:
+            self.xp = np
         if dt is None:
             dt =   Tobs/self.N_samples # 0 and f_Nyquist are both included
         self.dt = dt
@@ -459,19 +459,27 @@ class Search():
         self.dataX = tdi_fs["X"][self.indexes]
         self.dataY = tdi_fs["Y"][self.indexes]
         self.dataZ = tdi_fs["Z"][self.indexes]
-
-        self.DAf = (self.dataZ - self.dataX)/np.sqrt(2.0)
-        self.DEf = (self.dataZ - 2.0*self.dataY + self.dataX)/np.sqrt(6.0)
-        self.DTf = (self.dataZ + self.dataY + self.dataX)/np.sqrt(3.0)
+        try:
+            self.DAf = tdi_fs["A"][self.indexes]
+            self.DEf = tdi_fs["E"][self.indexes]
+            self.DTf = tdi_fs["T"][self.indexes]
+        except:
+            self.DAf = (self.dataZ - self.dataX)/np.sqrt(2.0)
+            self.DEf = (self.dataZ - 2.0*self.dataY + self.dataX)/np.sqrt(6.0)
+            self.DTf = (self.dataZ + self.dataY + self.dataX)/np.sqrt(3.0)
 
         if gb_gpu:
             self.dataX_full_f = tdi_fs["X"]
             self.dataY_full_f = tdi_fs["Y"]
             self.dataZ_full_f = tdi_fs["Z"]
-
-            self.DAf_full_f = (self.dataZ_full_f - self.dataX_full_f)/np.sqrt(2.0)
-            self.DEf_full_f = (self.dataZ_full_f - 2.0*self.dataY_full_f + self.dataX_full_f)/np.sqrt(6.0)
-            self.DTf_full_f = (self.dataZ_full_f + self.dataY_full_f + self.dataX_full_f)/np.sqrt(3.0)
+            try:
+                self.DAf_full_f = tdi_fs["A"]
+                self.DEf_full_f = tdi_fs["E"]
+                self.DTf_full_f = tdi_fs["T"]
+            except:
+                self.DAf_full_f = (self.dataZ_full_f - self.dataX_full_f)/np.sqrt(2.0)
+                self.DEf_full_f = (self.dataZ_full_f - 2.0*self.dataY_full_f + self.dataX_full_f)/np.sqrt(6.0)
+                self.DTf_full_f = (self.dataZ_full_f + self.dataY_full_f + self.dataX_full_f)/np.sqrt(3.0)
 
         # plt.figure()
         # plt.plot(f[self.indexes], np.abs(self.DAf))
@@ -503,12 +511,12 @@ class Search():
             self.ST = self.ST_full_f[self.indexes]
 
         if gb_gpu:
-            self.data_GPU = [xp.array(self.DAf_full_f),
-                    xp.array(self.DEf_full_f),
+            self.data_GPU = [self.xp.array(self.DAf_full_f),
+                    self.xp.array(self.DEf_full_f),
             ]
             
-            self.PSD_GPU =  [xp.array(self.SA_full_f),
-                    xp.array(self.SA_full_f),
+            self.PSD_GPU =  [self.xp.array(self.SA_full_f),
+                    self.xp.array(self.SA_full_f),
             ]
 
         if update_noise:
@@ -1238,7 +1246,7 @@ class Search():
         # print("p true", self.loglikelihood([pGB]), "null hypothesis", self.loglikelihood([null_pGBs]))
 
 
-    def loglikelihood_gpu(self, parameters, start_freq_ind=0):
+    def loglikelihood_gpu(self, parameters, start_freq_ind=0, **kwargs):
         # N_index = np.searchsorted(self.N_values,int(len(self.dataX)))
         N = 256
         self.gb_gpu.d_d = 0
@@ -1249,9 +1257,9 @@ class Search():
         if len(parameters.shape) == 2:
             parameters = np.array([parameters])
         for n in range(int(full_length/partial_length)):
-            like[n*partial_length:(n+1)*partial_length] = self.gb_gpu.get_ll(parameters[:,:,(n)*partial_length:(n+1)*partial_length], self.data_GPU, self.PSD_GPU, N=N, oversample=4, dt=self.dt, T=self.Tobs, start_freq_ind=start_freq_ind, tdi2=self.tdi2, t_start=self.t_start)
+            like[n*partial_length:(n+1)*partial_length] = self.gb_gpu.get_ll(parameters[:,:,(n)*partial_length:(n+1)*partial_length], self.data_GPU, self.PSD_GPU, N=N, oversample=4, dt=self.dt, T=self.Tobs, start_freq_ind=start_freq_ind, tdi2=self.tdi2, t_start=self.t_start, **kwargs)
         try:
-            like[int(full_length/partial_length)*partial_length:] = self.gb_gpu.get_ll(parameters[:,:,int(full_length/partial_length)*partial_length:], self.data_GPU, self.PSD_GPU, N=N, oversample=4, dt=self.dt, T=self.Tobs, start_freq_ind=start_freq_ind, tdi2=self.tdi2)
+            like[int(full_length/partial_length)*partial_length:] = self.gb_gpu.get_ll(parameters[:,:,int(full_length/partial_length)*partial_length:], self.data_GPU, self.PSD_GPU, N=N, oversample=4, dt=self.dt, T=self.Tobs, start_freq_ind=start_freq_ind, tdi2=self.tdi2, t_start=self.t_start, **kwargs)
         except:
             pass
         return like
@@ -1660,6 +1668,27 @@ class Search():
                     pGBs[signal][parameter] = (pGBs01[signal*7:signal*7+7][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0]
                 i += 1
         p = -self.SNR(pGBs)
+        return p
+
+    def function_evolution_gb_gpu(self, pGBs01, number_of_signals = 1):
+        pGBs = []
+        for signal in range(number_of_signals):
+            pGBs.append({})
+            i = 0
+            for parameter in self.parameters:
+                if parameter in ["EclipticLatitude"]:
+                    pGBs[signal][parameter] = np.arcsin((pGBs01[signal*7:signal*7+7][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
+                elif parameter in ["Inclination"]:
+                    pGBs[signal][parameter] = np.arccos((pGBs01[signal*7:signal*7+7][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
+                elif parameter in ['Amplitude']:
+                    i -= 1
+                    pGBs[signal][parameter] = 10**((0.1 * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
+                # elif parameter in ["FrequencyDerivative"]:
+                #     pGBs[signal][parameter] = 10**((pGBs01[signal*7:signal*7+7][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
+                else:
+                    pGBs[signal][parameter] = (pGBs01[signal*7:signal*7+7][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0]
+                i += 1
+        p = -self.loglikelihood_gpu(pGBs, get_SNR=True)
         return p
 
     def fisher_information(self, maxpGB):
