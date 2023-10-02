@@ -190,6 +190,8 @@ class GBGPU(object):
         lam = np.atleast_1d(lam)
         beta = np.atleast_1d(beta)
 
+        phi0 = phi0 - f0*t_start * np.pi*2 - fdot*t_start**2 * np.pi - fddot*t_start**3 * np.pi/3
+        # print('phi0', phi0)
         # if circular base
         if len(args) == 0:
             add_args = ()
