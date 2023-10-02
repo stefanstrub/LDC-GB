@@ -1323,7 +1323,7 @@ class Search():
 
 
 
-    def differential_evolution_search(self, frequency_boundaries, initial_guess = None, number_of_signals = 1):
+    def differential_evolution_search(self, frequency_boundaries=None, initial_guess = None, number_of_signals = 1):
         bounds = []
         for signal in range(number_of_signals):
             for i in range(7):
@@ -1331,7 +1331,8 @@ class Search():
 
         maxpGB = []
         self.boundaries_reduced = deepcopy(self.boundaries)
-        self.boundaries_reduced['Frequency'] = frequency_boundaries
+        if frequency_boundaries != None:
+            self.boundaries_reduced['Frequency'] = frequency_boundaries
         if initial_guess != None:
             initial_guess01 = np.zeros((len(self.parameters)-1)*number_of_signals)
             for signal in range(number_of_signals):
@@ -1670,27 +1671,6 @@ class Search():
         p = -self.SNR(pGBs)
         return p
 
-    def function_evolution_gb_gpu(self, pGBs01, number_of_signals = 1):
-        pGBs = []
-        for signal in range(number_of_signals):
-            pGBs.append({})
-            i = 0
-            for parameter in self.parameters:
-                if parameter in ["EclipticLatitude"]:
-                    pGBs[signal][parameter] = np.arcsin((pGBs01[signal*7:signal*7+7][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
-                elif parameter in ["Inclination"]:
-                    pGBs[signal][parameter] = np.arccos((pGBs01[signal*7:signal*7+7][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
-                elif parameter in ['Amplitude']:
-                    i -= 1
-                    pGBs[signal][parameter] = 10**((0.1 * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
-                # elif parameter in ["FrequencyDerivative"]:
-                #     pGBs[signal][parameter] = 10**((pGBs01[signal*7:signal*7+7][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
-                else:
-                    pGBs[signal][parameter] = (pGBs01[signal*7:signal*7+7][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0]
-                i += 1
-        p = -self.loglikelihood_gpu(pGBs, get_SNR=True)
-        return p
-
     def fisher_information(self, maxpGB):
         maxpGB_changed = deepcopy(maxpGB)
         maxpGB01 = scaleto01(maxpGB, self.boundaries, self.parameters, self.parameters_log_uniform)
@@ -1752,3 +1732,6 @@ class Search():
                     inner_product[parameter1][parameter2] = 4*float(np.real(np.sum(AE / self.SA) * self.dataX.df))
             print(step_size['Amplitude'],inner_product['Amplitude']['Amplitude'],step_size['Frequency'],inner_product['Frequency']['Frequency'])
         return inner_product
+    
+
+
