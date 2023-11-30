@@ -17,7 +17,6 @@ import pickle
 from ldc.lisa.noise import get_noise_model
 from ldc.common.series import TimeSeries
 import ldc.waveform.fastGB as fastGB
-from ldc.common.tools import compute_tdi_snr, window
 
 try:
     import cupy as xp
@@ -454,8 +453,8 @@ class Search():
         # plt.plot(f[indexes], psd)
         # plt.show()
 
-        frequencyrange =  [lower_frequency-self.padding, upper_frequency+self.padding]
-        self.indexes = np.logical_and(tdi_fs['X'].f > frequencyrange[0], tdi_fs['X'].f < frequencyrange[1]) 
+        self.frequencyrange =  [lower_frequency-self.padding, upper_frequency+self.padding]
+        self.indexes = np.logical_and(tdi_fs['X'].f > self.frequencyrange[0], tdi_fs['X'].f < self.frequencyrange[1]) 
         self.dataX = tdi_fs["X"][self.indexes]
         self.dataY = tdi_fs["Y"][self.indexes]
         self.dataZ = tdi_fs["Z"][self.indexes]
@@ -554,7 +553,7 @@ class Search():
             "EclipticLongitude": [-np.pi, np.pi],
             # "Frequency": [self.pGB["Frequency"] * 0.99995, self.pGB["Frequency"] * 1.00015],
             # "Frequency": [self.pGB["Frequency"] - 3e-7, self.pGB["Frequency"] + 3e-7],
-            "Frequency": frequencyrange,
+            "Frequency": self.frequencyrange,
             "FrequencyDerivative": fd_range,
             # "FrequencyDerivative": [np.log10(5e-6*self.pGB['Frequency']**(13/3)),np.log10(8e-8*self.pGB['Frequency']**(11/3))],
             "Inclination": [-1.0, 1.0],
@@ -731,9 +730,15 @@ class Search():
 
         for j in range(len( pGB_injected)):
             Xs, Ys, Zs = self.GB.get_fd_tdixyz(template= pGB_injected[j], oversample=4, tdi2=self.tdi2)
-            a,Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)
-            a,Ys = xr.align(self.dataY, Ys, join='left',fill_value=0)
-            a,Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)
+            index_low = np.searchsorted(Xs.f, self.dataX.f[0])
+            try:
+                if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
+                    index_low = index_low-1
+            except:
+                pass
+            Xs = Xs[index_low : index_low + len(self.dataX)]
+            Ys = Ys[index_low : index_low + len(self.dataY)]
+            Zs = Zs[index_low : index_low + len(self.dataZ)]
             Af = (Zs - Xs)/np.sqrt(2.0)
             Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)
             ax1.plot(Af.f*10**3,Af.data, color='grey', linewidth = 5, alpha = 0.5)
@@ -824,55 +829,101 @@ class Search():
         plt.show()
         # print("p true", self.loglikelihood([pGB]), "null hypothesis", self.loglikelihood([null_pGBs]))
 
-
-    def SNR(self, pGBs):
+    def get_dh_hh(self, pGBs):
         for i in range(len(pGBs)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, tdi2=self.tdi2)
-            if i == 0:
-                Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
-                Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
-                Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
-            else:
-                Xs_total += xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
-                Ys_total += xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
-                Zs_total += xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4)#, tdi2=self.tdi2)
+            Xs_total = deepcopy(self.dataX)
+            Ys_total = deepcopy(self.dataY)
+            Zs_total = deepcopy(self.dataZ)
+            Xs_total.data = np.zeros_like(self.dataX.data)
+            Ys_total.data = np.zeros_like(self.dataY.data)
+            Zs_total.data = np.zeros_like(self.dataZ.data)
+
+            index_low = np.searchsorted(Xs.f, Xs_total.f[0])
+            index_high = np.searchsorted(Xs.f, Xs_total.f[-1])
+            try:
+                if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
+                # if Xs.f[index_low] > self.dataX.f[0]:
+                    index_low = index_low-1
+            except:
+                pass
+            try:
+                if np.abs(self.dataX.f[-1] - Xs.f[index_high-1]) < np.abs(self.dataX.f[-1] - Xs.f[index_high]):
+                    index_high = index_high-1
+            except:
+                pass
+            Xs_total[index_low:index_high] += Xs[index_low:index_high]
+            Ys_total[index_low:index_high] += Ys[index_low:index_high]
+            Zs_total[index_low:index_high] += Zs[index_low:index_high]
             
         Af = (Zs_total - Xs_total)/np.sqrt(2.0)
         Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
         if self.use_T_component:
             Tf = (Zs_total + Ys_total + Xs_total)/np.sqrt(3.0)
+        index_data = np.searchsorted(self.dataX.f, Xs.f[0])
+        try:
+            if np.abs(self.dataX.f[index_data-1] - Xs.f[0]) < np.abs(self.dataX.f[index_data] - Xs.f[0]):
+            # if self.dataX.f[index_data] > Xs.f[0]:
+                index_data = index_data-1
+        except:
+            pass
+        if len(self.DAf) > len(Af.f) or index_data != 0:
+            Af_full = xr.DataArray(np.zeros(len(self.DAf), dtype=complex), dims='f', coords={'f':self.DAf.f})
+            Ef_full = xr.DataArray(np.zeros(len(self.DEf), dtype=complex), dims='f', coords={'f':self.DEf.f})
+            if self.use_T_component:
+                Tf_full = xr.DataArray(np.zeros(len(self.DTf), dtype=complex), dims='f', coords={'f':self.DTf.f})
+            try:
+                Af_full.data[index_data:index_data+len(Af)] = Af.data
+                Ef_full.data[index_data:index_data+len(Ef)] = Ef.data
+                if self.use_T_component:
+                    Tf_full.data[index_data:index_data+len(Tf)] = Tf.data
+            except:
+                Af_full.data[index_data:] = Af.data[:len(Af_full.data[index_data:])]
+                Ef_full.data[index_data:] = Ef.data[:len(Ef_full.data[index_data:])]
+                if self.use_T_component:
+                    Tf_full.data[index_data:] = Tf.data[:len(Tf_full.data[index_data:])]
+            Af = Af_full
+            Ef = Ef_full
+            if self.use_T_component:
+                Tf = Tf_full
+        if self.use_T_component:
             hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2)/self.SA + np.absolute(Tf.data)**2 /self.ST)
-            SNR2 = np.sum( np.real(self.DAf * np.conjugate(Af.data) + self.DEf * np.conjugate(Ef.data))/self.SA + np.real(self.DTf * np.conjugate(Tf.data))/self.ST )
+            dh = np.sum( np.real(self.DAf * np.conjugate(Af.data) + self.DEf * np.conjugate(Ef.data))/self.SA + np.real(self.DTf * np.conjugate(Tf.data))/self.ST )
         else:
-            SNR2 = np.sum( np.real(self.DAf * np.conjugate(Af.data) + self.DEf * np.conjugate(Ef.data))/self.SA )
+            dh = np.sum( np.real(self.DAf * np.conjugate(Af.data) + self.DEf * np.conjugate(Ef.data))/self.SA )
             hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2) /self.SA)
-        SNR = 4.0*Xs.df* hh
-        SNR2 = 4.0*Xs.df* SNR2
-        SNR3 = SNR2 / np.sqrt(SNR)
-        # plotIt = False
-        # if plotIt:
-        #     fig, ax = plt.subplots(nrows=3, sharex=True) 
-        #     ax[0].plot(Af.f, np.abs(self.DAf))
-        #     ax[0].plot(Af.f, np.abs(Af.data))
-            
-        #     ax[1].plot(Af.f, np.abs(self.DEf))
-        #     ax[1].plot(Af.f, np.abs(Ef.data))
-        #     ax[2].plot(Af.f, np.abs(self.DTf))
-        #     ax[2].plot(Af.f, np.abs(Tf.data))
-        #     plt.show()
-        return SNR3.values
+        hh = 4.0*self.dataX.df* hh
+        dh = 4.0*self.dataX.df* dh
+        return dh, hh
+    
+    def SNR(self, pGBs):
+        dh, hh = self.get_dh_hh(pGBs)
+        SNR = dh / np.sqrt(hh)
+        return SNR.values
 
     def SNR_scaled(self, pGBs):
         for i in range(len(pGBs)):
             Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, tdi2=self.tdi2)
             if i == 0:
-                Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
-                Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
-                Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+                index_low = np.searchsorted(Xs.f, self.dataX.f[0])
+                try:
+                    if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
+                        index_low = index_low-1
+                except:
+                    pass
+                Xs_total = Xs[index_low : index_low + len(self.dataX)]
+                Ys_total = Ys[index_low : index_low + len(self.dataY)]
+                Zs_total = Zs[index_low : index_low + len(self.dataZ)]
             else:
-                Xs_total += xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
-                Ys_total += xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
-                Zs_total += xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+                index_low = np.searchsorted(Xs.f, self.dataX.f[0])
+                try:
+                    if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
+                        index_low = index_low-1
+                except:
+                    pass
+                Xs_total += Xs[index_low : index_low + len(self.dataX)]
+                Ys_total += Ys[index_low : index_low + len(self.dataY)]
+                Zs_total += Zs[index_low : index_low + len(self.dataZ)]
             
         Af = (Zs_total - Xs_total)/np.sqrt(2.0)
         Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
@@ -1245,7 +1296,6 @@ class Search():
         plt.show()
         # print("p true", self.loglikelihood([pGB]), "null hypothesis", self.loglikelihood([null_pGBs]))
 
-
     def loglikelihood_gpu(self, parameters, start_freq_ind=0, **kwargs):
         # N_index = np.searchsorted(self.N_values,int(len(self.dataX)))
         N = 256
@@ -1263,53 +1313,85 @@ class Search():
         except:
             pass
         return like
+    
+    def initialize_for_gaps(self, end_points, start_points, gap_less_duration, data_gaps_gpu, PSD_gaps_gpu, get_SNR):
+        self.end_points = end_points
+        self.start_points = start_points
+        self.gap_less_duration = gap_less_duration
+        self.data_gaps_gpu = data_gaps_gpu
+        self.PSD_gaps_gpu = PSD_gaps_gpu
+        self.get_SNR = get_SNR
 
-    def loglikelihood(self, pGBs):
-        for i in range(len(pGBs)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, tdi2=self.tdi2)
-            if i == 0:
-                Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
-                Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
-                Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
-            else:
-                Xs_total += xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
-                Ys_total += xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
-                Zs_total += xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
-            
-        Af = (Zs_total - Xs_total)/np.sqrt(2.0)
-        Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
-        Tf = (Zs_total + Ys_total + Xs_total)/np.sqrt(3.0)
-        if self.use_T_component:
-            Tf = (Zs_total + Ys_total + Xs_total)/np.sqrt(3.0)
-            hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2)/self.SA + np.absolute(Tf.data)**2 /self.ST)
-            SNR2 = np.sum( np.real(self.DAf * np.conjugate(Af.data) + self.DEf * np.conjugate(Ef.data))/self.SA + np.real(self.DTf * np.conjugate(Tf.data))/self.ST )
+    def loglikelihood_gaps_gpu(self, params, get_SNR=None, data_gaps_gpu=None):
+        N = 256
+        if get_SNR == None:
+            get_SNR = self.get_SNR
+        self.loglikelihood_list = []
+        if len(np.shape(params)) == 2:
+            params = np.array([params])
         else:
-            SNR2 = np.sum( np.real(self.DAf * np.conjugate(Af.data) + self.DEf * np.conjugate(Ef.data))/self.SA )
-            hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2) /self.SA)
-        # dd = np.sum((np.absolute(self.DAf.data)**2 + np.absolute(self.DEf.data)**2) /self.SA)
-        plotIt = False
-        if plotIt:
-            fig, ax = plt.subplots(nrows=2, sharex=True) 
-            ax[0].plot(Af.f, np.abs(self.DAf))
-            ax[0].plot(Af.f, np.abs(Af.data))
-            
-            ax[1].plot(Af.f, np.abs(self.DEf))
-            ax[1].plot(Af.f, np.abs(Ef.data))
-            plt.show()
-        logliks = 4.0*Xs.df*( SNR2 - 0.5 * hh )
+            params = np.array(params)
+        # initial_phase = np.copy(pGB_gpu[:,4])
+        for i in range(len(self.data_gaps_gpu)):
+            # pGB_gpu[:,4] = initial_phase - pGB_gpu[:,1]*start_points[i] * np.pi*2 - pGB_gpu[:,2]*t_start**2 * np.pi - pGB_gpu[:,3]*t_start**3 * np.pi/3
+            # pGB_gpu = np.array([np.full(num_bin, pGB_gpu[parameter]) for parameter in pGB_gpu_gpgpu])
+            self.loglikelihood_list.append(self.gb_gpu.get_ll(params, self.data_gaps_gpu[i], self.PSD_gaps_gpu[i], N=N, oversample=4, dt=self.dt, T=self.end_points[i]-self.start_points[i], start_freq_ind=0, tdi2=True, t_start=self.start_points[i], get_SNR=get_SNR))
+
+        self.total_gapless_time = np.sum(self.gap_less_duration)
+        loglikelihood_average = 0
+        for i in range(len(self.loglikelihood_list)):
+            loglikelihood_average += self.loglikelihood_list[i] * self.gap_less_duration[i]
+        loglikelihood_average /= self.total_gapless_time
+        return loglikelihood_average
+    
+    def calculate_Amplitude_gaps(self, params):
+        N = 256
+        self.amplitude_list = []
+        if len(np.shape(params)) == 2:
+            pGB_gpu = np.array([params])
+        else:
+            pGB_gpu = np.array(params)
+        # initial_phase = np.copy(pGB_gpu[:,4])
+        for i in range(len(self.data_gaps_gpu)):
+            # pGB_gpu[:,4] = initial_phase - pGB_gpu[:,1]*start_points[i] * np.pi*2 - pGB_gpu[:,2]*t_start**2 * np.pi - pGB_gpu[:,3]*t_start**3 * np.pi/3
+            # pGB_gpu = np.array([np.full(num_bin, pGB_gpu[parameter]) for parameter in pGB_gpu_gpgpu])
+            self.amplitude_list.append(self.gb_gpu.get_ll(pGB_gpu, self.data_gaps_gpu[i], self.PSD_gaps_gpu[i], N=N, oversample=4, dt=self.dt, T=self.end_points[i]-self.start_points[i], start_freq_ind=0, tdi2=True, t_start=self.start_points[i], get_SNR=False, get_dh_hh_ratio=True))
+
+        self.total_gapless_time = np.sum(self.gap_less_duration)
+        Amplitude_average = 0
+        for i in range(len(self.amplitude_list)):
+            Amplitude_average += self.amplitude_list[i] * self.gap_less_duration[i]
+        Amplitude_average /= self.total_gapless_time
+        return Amplitude_average
+    
+    def loglikelihood(self, pGBs):
+        dh, hh = self.get_dh_hh(pGBs)
+        logliks = dh - 0.5 * hh
         return logliks.values
 
     def intrinsic_SNR(self, pGBs):
         for i in range(len(pGBs)):
             Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, tdi2=self.tdi2)
             if i == 0:
-                Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
-                Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
-                Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+                index_low = np.searchsorted(Xs.f, self.dataX.f[0])
+                try:
+                    if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
+                        index_low = index_low-1
+                except:
+                    pass
+                Xs_total = Xs[index_low : index_low + len(self.dataX)]
+                Ys_total = Ys[index_low : index_low + len(self.dataY)]
+                Zs_total = Zs[index_low : index_low + len(self.dataZ)]
             else:
-                Xs_total += xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
-                Ys_total += xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
-                Zs_total += xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+                index_low = np.searchsorted(Xs.f, self.dataX.f[0])
+                try:
+                    if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
+                        index_low = index_low-1
+                except:
+                    pass
+                Xs_total += Xs[index_low : index_low + len(self.dataX)]
+                Ys_total += Ys[index_low : index_low + len(self.dataY)]
+                Zs_total += Zs[index_low : index_low + len(self.dataZ)]
             
         Af = (Zs_total - Xs_total)/np.sqrt(2.0)
         Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
@@ -1538,27 +1620,9 @@ class Search():
         return maxpGB
 
     def calculate_Amplitude(self, pGBs):
-        for i in range(len(pGBs)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, tdi2=self.tdi2)
-            if i == 0:
-                Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
-                Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
-                Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
-            else:
-                Xs_total += xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
-                Ys_total += xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
-                Zs_total += xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
-            
-        Af = (Zs_total - Xs_total)/np.sqrt(2.0)
-        Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
-        SNR2 = np.sum( np.real(self.DAf * np.conjugate(Af.data) + self.DEf * np.conjugate(Ef.data))/self.SA )
-        hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2) /self.SA)
-        logliks = 4.0*Xs.df*( SNR2 - 0.5 * hh )
-        scalar_product_hh = 4.0*Xs.df* hh
-        scalar_product_dh = 4.0*Xs.df* SNR2
-        A = scalar_product_dh / scalar_product_hh
+        dh, hh = self.get_dh_hh(pGBs)
+        A = dh / hh
         return A
-
 
     def optimizeA(self, pGBmodes, boundaries = None):
         if boundaries == None:
@@ -1704,9 +1768,14 @@ class Search():
                 # print(maxpGB_changed)
                 Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=maxpGB_changed, oversample=4, tdi2=self.tdi2)
                 index_low = np.searchsorted(Xs.f, self.dataX.f[0])
-                Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
-                Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
-                Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+                try:
+                    if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
+                        index_low = index_low-1
+                except:
+                    pass
+                Xs_total = Xs[index_low : index_low + len(self.dataX)]
+                Ys_total = Ys[index_low : index_low + len(self.dataY)]
+                Zs_total = Zs[index_low : index_low + len(self.dataZ)]
                 Af_low = (Zs_total - Xs_total)/np.sqrt(2.0)
                 Ef_low = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
 
@@ -1714,9 +1783,14 @@ class Search():
                 maxpGB_changed = scaletooriginalparameter(maxpGB01_changed,self.boundaries, self.parameters, self.parameters_log_uniform)
                 Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=maxpGB_changed, oversample=4, tdi2=self.tdi2)
                 index_low = np.searchsorted(Xs.f, self.dataX.f[0])
-                Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
-                Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
-                Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
+                try:
+                    if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
+                        index_low = index_low-1
+                except:
+                    pass
+                Xs_total = Xs[index_low : index_low + len(self.dataX)]
+                Ys_total = Ys[index_low : index_low + len(self.dataY)]
+                Zs_total = Zs[index_low : index_low + len(self.dataZ)]
                 Af_high = (Zs_total - Xs_total)/np.sqrt(2.0)
                 Ef_high = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
 
@@ -1728,7 +1802,7 @@ class Search():
             for parameter1 in self.parameters:
                 inner_product[parameter1] = {}
                 for parameter2 in self.parameters:
-                    AE = derivativeAf[parameter1]*np.conjugate(derivativeAf[parameter2]) + derivativeAf[parameter1]*np.conjugate(derivativeAf[parameter2])
+                    AE = derivativeAf[parameter1]*np.conjugate(derivativeAf[parameter2]) + derivativeEf[parameter1]*np.conjugate(derivativeEf[parameter2])
                     inner_product[parameter1][parameter2] = 4*float(np.real(np.sum(AE / self.SA) * self.dataX.df))
             print(step_size['Amplitude'],inner_product['Amplitude']['Amplitude'],step_size['Frequency'],inner_product['Frequency']['Frequency'])
         return inner_product
