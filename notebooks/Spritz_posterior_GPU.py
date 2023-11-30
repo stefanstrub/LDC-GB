@@ -135,24 +135,21 @@ parent = os.path.dirname(path)
 # grandparent directory
 grandparent = os.path.dirname(parent)
 
-dataset = 'Sangria'
-VGB = False
-add_gaps = False
-zero_gaps = False
+dataset = 'Spritz'
+VGB = True
+add_gaps = True
+zero_gaps = True
 zero_glitches = False
 fill_gaps = False
 if dataset == 'Radler':
     DATAPATH = grandparent+"/LDC/Radler/data"
     SAVEPATH = grandparent+"/LDC/pictures/LDC1-4/"
-    tdi2 = False
 elif dataset == 'Sangria':
     DATAPATH = grandparent+"/LDC/Sangria/data"
     SAVEPATH = grandparent+"/LDC/pictures/Sangria/"
-    tdi2 = False
 elif dataset == 'Spritz':
     DATAPATH = grandparent+"/LDC/Spritz/data"
     SAVEPATH = grandparent+"/LDC/Spritz/"
-    tdi2 = True
 
 if dataset == 'Radler':
     data_fn = DATAPATH + "/LDC1-4_GB_v2.hdf5"
@@ -200,11 +197,8 @@ elif dataset == 'Sangria':
 
 elif dataset == 'Spritz':
     names = fid["sky/cat"].dtype.names
-    params = [np.array(fid["sky/cat"][k]).squeeze() for k in names]
-    cat = np.rec.fromarrays(params, names=list(names))
-    indexes = np.argsort(cat['Frequency'])
-    cat = cat[indexes]
-    # print(cat_vgb)
+    cat = dict(zip(names, [fid["sky/cat"][name] for name in names]))
+    # print(cat)
     td = fid["obs/tdi"][()]
     td = np.rec.fromarrays(list(td.T), names=["t", "X", "Y", "Z"])
     td = td['t']
@@ -247,17 +241,11 @@ if add_gaps:
     for k in ["X", "Y", "Z"]:
         tdi_ts_glitches[k].values = tdi_ts_obs[k].values - tdi_ts_clean[k].values - tdi_ts_galaxy[k].values
 
-
     ## add gaps to tdi
     tdi_ts_with_glitches = deepcopy(tdi_ts)
     if dataset != 'Spritz':
         for k in ["X", "Y", "Z"]:
             tdi_ts_with_glitches[k].values = tdi_ts[k].values + tdi_ts_glitches[k].values - tdi_ts_glitches[k].values
-    if dataset == 'Spritz':
-        for k in ["X", "Y", "Z"]:
-            # tdi_ts_with_glitches[k].values = tdi_ts_clean[k].values + tdi_ts_glitches[k].values - tdi_ts_glitches[k].values + tdi_ts_galaxy[k].values
-            tdi_ts_with_glitches[k].values = tdi_ts_clean[k].values + tdi_ts_galaxy[k].values ### no gaps
-            # tdi_ts_with_glitches[k].values = tdi_ts[k].values - tdi_ts_glitches[k].values
     tdi_ts = deepcopy(tdi_ts_with_glitches)
 
 if zero_gaps:
@@ -334,20 +322,14 @@ chandrasekhar_limit = 1.4
 M_chirp_upper_boundary = (chandrasekhar_limit**2)**(3/5)/(2*chandrasekhar_limit)**(1/5)
 
 
-def tdi_subtraction(tdi_fs,found_sources_mp_subtract, ratio = 1):
+def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search, ratio = 1):
     #subtract the found sources from original
     tdi_fs_subtracted2 = deepcopy(tdi_fs)
     for i in range(len(found_sources_mp_subtract)):
         # for j in range(len(found_sources_to_subtract[i])):
-            Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_mp_subtract[i], oversample=4, tdi2=tdi2)
+            Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_mp_subtract[i], oversample=4)
             source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
             index_low = np.searchsorted(tdi_fs_subtracted2["X"].f, Xs_subtracted.f[0])
-            try:
-                if np.abs(Xs_subtracted.f[0] - tdi_fs_subtracted2["X"].f[index_low-1]) < np.abs(Xs_subtracted.f[0] - tdi_fs_subtracted2["X"].f[index_low]):
-                # if tdi_fs_subtracted2["X"].f[index_low] > Xs_subtracted.f[0]:
-                    index_low = index_low-1
-            except:
-                pass
             index_high = index_low+len(Xs_subtracted)
             for k in ["X", "Y", "Z"]:
                 tdi_fs_subtracted2[k].data[index_low:index_high] -= source_subtracted[k].data * ratio
@@ -456,12 +438,12 @@ frequencies_odd = frequencies[1::2]
 
 # save_name = 'not_anticorrelatedLDC1-4_2_optimized_second'
 save_name = 'Sangria_12m_filled_anticorrelated'
-# save_name = 'Spritz_clean_galaxy'
+save_name = 'Spritz'
 # save_name = 'Radler_24m'
-# if add_gaps:
-#     save_name = save_name + '_gaps'
-# if VGB:
-#     save_name = save_name + '_VGB'
+if add_gaps:
+    save_name = save_name + '_gaps'
+if VGB:
+    save_name = save_name + '_VGB'
 # save_name = dataset + '_VGB_gaps'
 # save_name = 'Sangria_1_dynamic_noise'
 # save_name = 'not_anticorrelatedRadler_half_dynamic_noise'
@@ -548,11 +530,6 @@ if do_print:
     for j in range(len(frequencies_search)):
         padding = (frequencies_search[j][1] - frequencies_search[j][0])/2 *0
         index_low = np.searchsorted(cat['Frequency'], frequencies_search[j][0]-padding)
-        try:
-            if np.abs(frequencies_search[j][0]-padding - cat['Frequency'][index_low-1]) < np.abs(frequencies_search[j][0]-padding - cat['Frequency'][index_low]):
-                index_low = index_low-1
-        except:
-            pass
         index_high = np.searchsorted(cat['Frequency'], frequencies_search[j][1]+padding)
         try:
             if cat['Frequency'][index_high] < frequencies_search[j][1]:
@@ -661,13 +638,14 @@ def leapfrog(q, p, dVdq, path_len, step_size):
     return q, -p
 
 class Posterior_computer():
-    def __init__(self, tdi_fs, Tobs, frequencies, maxpGB, noise=None, use_gpu=False) -> None:
+    def __init__(self, tdi_fs, Tobs, frequencies, maxpGB, noise=None) -> None:
         self.tdi_fs = tdi_fs
         self.Tobs = Tobs
         self.frequencies = frequencies
         self.maxpGB = maxpGB
-        self.use_gpu = use_gpu
-        self.search1 = Search(self.tdi_fs,self.Tobs, self.frequencies[0], self.frequencies[1], noise=noise, gb_gpu=gb_gpu, use_gpu=use_gpu)
+        self.search1 = Search(self.tdi_fs,self.Tobs, self.frequencies[0], self.frequencies[1], noise=noise, gb_gpu=gb_gpu)
+        self.search1.initialize_for_gaps(end_points, start_points, gap_less_duration, data_gaps_gpu=data_gpu, PSD_gaps_gpu=PSD_GPU, get_SNR=True)
+        self.boundaries_reduced = self.search1.boundaries
 
     def reduce_boundaries(self, plot_confidance = False):
         fisher_information_matrix = self.search1.fisher_information(self.maxpGB)
@@ -767,8 +745,8 @@ class Posterior_computer():
         #     maxpGB_fisher_low = (maxpGB01_low[parameter] * (self.search1.boundaries[parameter][1] - self.search1.boundaries[parameter][0])) + self.search1.boundaries[parameter][0]
         #     maxpGB_fisher_high = (maxpGB01_high[parameter] * (self.search1.boundaries[parameter][1] - self.search1.boundaries[parameter][0])) + self.search1.boundaries[parameter][0]
         #     self.boundaries_reduced[parameter] = [maxpGB_fisher_low, maxpGB_fisher_high]
-        # print('boundaries reduced', self.boundaries_reduced)
-    
+        # print('boundaries reduced', self.boundaries_reduced)+
+
     def reduce_boundaries_from_kde(self, resolution=10**6, proposal=None):
         test_x_m, probability = self.get_samples(resolution=10**6, proposal=proposal)
         min_parameters = np.min(test_x_m, axis=0)
@@ -1034,8 +1012,9 @@ class Posterior_computer():
         #                  levels=[0.9], title_kwargs={"fontsize": 12})
         # plt.show()
 
+        use_gpu = True
         start = time.time()
-        if self.use_gpu:
+        if use_gpu:
             # test_x_m[0] = [0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5]
             test_x_m_scaled = scaletooriginal_array(test_x_m, self.boundaries_reduced, self.search1.parameters, self.search1.parameters_log_uniform)
             test_x_m_scaled = np.swapaxes(test_x_m_scaled, 0,1)
@@ -1061,7 +1040,7 @@ class Posterior_computer():
             # )
 
             # params[1,0] = 0.00443235
-            observed_pred_mean = self.search1.loglikelihood_gpu(params)
+            observed_pred_mean = self.search1.loglikelihood_gaps_gpu(params, get_SNR=False)
         else:
             observed_pred_mean = self.evaluate(test_x_m)
 
@@ -1070,7 +1049,7 @@ class Posterior_computer():
         flatsamplesparameters = np.zeros((len(test_x_m),len(parameters)+1))
         i = 0
         flatsamples[:] = observed_pred_mean
-        # flatsamplesparameters[:,1:] = test_x_m
+        flatsamplesparameters[:,1:] = test_x_m
         flatsamplesparameters[:,0] = observed_pred_mean
 
         maxindx = np.unravel_index(flatsamplesparameters[:,0].argmax(), flatsamplesparameters[:,0].shape)
@@ -1335,11 +1314,17 @@ class Posterior_computer():
             g.export(SAVEPATH+'Posteriors_gpu/frequency'+ str(int(np.round(save_frequency*10**9)))+save_name+str(parameter_titles)+'.png')
             # plt.show()
 
+
+parameters_gpgpu = ['Amplitude','Frequency','FrequencyDerivative','Frequency2Derivative','InitialPhase','Inclination','Polarization','EclipticLongitude','EclipticLatitude']
+
 def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true = [], number_of_signal = 0, noise=None):
     start = time.time()
-    posterior1 = Posterior_computer(tdi_fs, Tobs, frequencies, maxpGB, noise=noise, use_gpu=gpu_available)
+    posterior1 = Posterior_computer(tdi_fs, Tobs, frequencies, maxpGB, noise=noise)
     print('time to initialize: ', time.time()-start)
-    print(posterior1.search1.loglikelihood([maxpGB]))
+    maxpGB['Frequency2Derivative'] = 0
+    params = np.array([np.full(1, maxpGB[parameter]) for parameter in parameters_gpgpu])
+
+    print(posterior1.search1.loglikelihood_gaps_gpu(params, get_SNR=False))
     # posterior1.search1.update_noise(pGB=maxpGB)
     # print(posterior1.search1.loglikelihood([maxpGB]))
     # print('SNR found',posterior1.search1.SNR([maxpGB]))
@@ -1349,30 +1334,22 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true = [], number_o
     #     print('SNR injected',posterior1.search1.SNR([pGB_true]))
     # posterior1.search1.plot(found_sources_in=[maxpGB])
     start = time.time()
-    posterior1.reduce_boundaries()
+    posterior1.reduce_goundaries_ratio(0.1)
+    # posterior1.reduce_boundaries()
     print('time to reduce boundaries: ', time.time()-start)
     start = time.time()
     # posterior1.train_model()
     # print('GPU memory free', get_gpu_memory())
     # mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, temperature= 10)
-    temperature = [15, 10, 5, 3, 2, 1]
-    resolution = [10**4, 10**4, 10**4, 10**4, 10**4, 10**6]
+    temperature = [15, 10, 5, 3, 2,2, 1]
+    resolution = [10**4, 10**4, 10**4, 10**4, 10**4,10**4, 10**4]
     posterior_round = 0
     mcmc_samples = posterior1.calculate_posterior(resolution = resolution[posterior_round], temperature= temperature[posterior_round])
     posterior_round += 1
     # posterior1.boundaries_reduced = posterior1.reduce_boundaries_from_samples(mcmc_samples)
-
-    mcmc_samples = posterior1.calculate_posterior(resolution = resolution[posterior_round], proposal= mcmc_samples, temperature= temperature[posterior_round])
-    posterior_round += 1
-    
-    mcmc_samples = posterior1.calculate_posterior(resolution = resolution[posterior_round], proposal= mcmc_samples, temperature= temperature[posterior_round])
-    posterior_round += 1
-
-    mcmc_samples = posterior1.calculate_posterior(resolution = resolution[posterior_round], proposal= mcmc_samples, temperature= temperature[posterior_round])
-    posterior_round += 1
-
-    mcmc_samples = posterior1.calculate_posterior(resolution = resolution[posterior_round], proposal= mcmc_samples, temperature= temperature[posterior_round])
-    posterior_round += 1
+    for _ in range(len(temperature)-2):
+        mcmc_samples = posterior1.calculate_posterior(resolution = resolution[posterior_round], proposal= mcmc_samples, temperature= temperature[posterior_round])
+        posterior_round += 1
 
     mcmc_samples_final = posterior1.calculate_posterior(resolution = resolution[posterior_round], proposal= mcmc_samples, temperature= temperature[posterior_round])
     # posterior1.plot_corner(mcmc_samples_final, pGB_true, save_figure= True)
@@ -1454,7 +1431,7 @@ posterior_calculation_input = []
 # plt.loglog(np.array(frequencies)[:,1],frequency_derivative(np.array(frequencies)[:,1], M_chirp_upper_boundary))
 # plt.show()
 
-do_subtract = True
+do_subtract = False
 if do_subtract:
     start = time.time()
     # found_sources_flat = found_sources_in_flat
@@ -1471,8 +1448,8 @@ if do_subtract:
     #     found_sources_flat_df = found_sources_flat_df[(found_sources_flat_df['Frequency']< frequencies_search_full[i][0]) | (found_sources_flat_df['Frequency']> frequencies_search_full[i][1])]
     # found_sources_flat_df = found_sources_flat_df.sort_values('Frequency')
     found_sources_out_flat = found_sources_flat_df.to_dict(orient='records')
-    tdi_fs_residual = tdi_subtraction(tdi_fs,found_sources_out_flat)
-    tdi_fs_partial_residual = tdi_subtraction(tdi_fs,found_sources_out_flat, ratio = 0.7)
+    tdi_fs_residual = tdi_subtraction(tdi_fs,found_sources_out_flat, frequencies_search_full)
+    tdi_fs_partial_residual = tdi_subtraction(tdi_fs,found_sources_out_flat, frequencies_search_full, ratio = 0.7)
 
     print('subtraction time', time.time()-start)
     plot_subtraction = False
@@ -1486,9 +1463,11 @@ if do_subtract:
         # search1.plot(second_data= tdi_fs_residual, found_sources_in=found_sources_mp_o[start_index][0])
         
     # tdi_fs = deepcopy(tdi_fs_residual)
+else:
+    tdi_fs_residual = deepcopy(tdi_fs)
+    tdi_fs_partial_residual = deepcopy(tdi_fs)
 
 tdi_fs['A'] = (tdi_fs["Z"] - tdi_fs["X"])/np.sqrt(2.0)
-
 tdi_fs_residual['A'] = (tdi_fs_residual["Z"] - tdi_fs_residual["X"])/np.sqrt(2.0)
 
 
@@ -1519,227 +1498,74 @@ def smooth_psd(psd, f):
     psd_fit[:index_cut_lower] = smoothed[:index_cut_lower]
     return psd_fit, smoothed
 
+data_fd = []
+gap_less_duration = []
+groups = []
 
-number_of_windows = 500
-start = time.time()
-f, psdA, psdE, psdT = get_noise_from_frequency_domain(tdi_fs, number_of_windows=number_of_windows)
-print(time.time()-start)
-# psdA = np.interp(tdi_fs.f, f, psdA)
-# psdE = np.interp(tdi_fs.f, f, psdE)
-# psdT = np.interp(tdi_fs.f, f, psdT)
+gaps = tdi_ts_with_glitches[k] == 0
+gaps = tdi_ts_with_glitches[k][gaps]
+start_points = []
+if gaps.t[0].values != tdi_ts_with_glitches['X'].t[0].values:
+    start_points = [0]
+    end_points = np.array([gaps.t[0].values])
+differences = gaps.t[1:].values - gaps.t[:-1].values
+jumps = differences > 15
+start_points = list(start_points) + list(np.array(gaps[:-1][jumps].t.values)+dt) #+ list([gaps.t[-1].values])
+end_points =  list(end_points) + list(np.array(gaps[1:][jumps].t.values)-dt)
 
-f_partial_residual, psdA_partial, psdE_partial, psdT_partial = get_noise_from_frequency_domain(tdi_fs_partial_residual, number_of_windows=number_of_windows)
-# psdA_partial_residual = np.interp(tdi_fs.f, f_partial_residual, psdA_partial_residual)
-# psdE_partial_residual = np.interp(tdi_fs.f, f_partial_residual, psdE_partial_residual)
-# psdT_partial_residual = np.interp(tdi_fs.f, f_partial_residual, psdT_partial_residual)
+Tobs_list = np.array(end_points) - np.array(start_points)
+# remove short observation times
+i = 0
+while i < len(Tobs_list):
+    if Tobs_list[i] < 300000:
+        start_points.pop(i)
+        end_points.pop(i)
+        Tobs_list = np.array(end_points) - np.array(start_points)
+    i += 1
+for i in range(len(end_points)):
+    index_start = int((start_points[i]-tdi_ts_with_glitches['X'].t[0].values)/dt)
+    index_end = int((end_points[i]-tdi_ts_with_glitches['X'].t[0])/dt)
 
+    tdi_ts_sky_part = {}
+    for k in ["X", "Y", "Z"]:
+        # tdi_ts_sky[k]['t'] = tdi_ts_sky[k].t[start_index:-end_index or None]
+        tdi_ts_sky_part[k] = tdi_ts_with_glitches[k][index_start:index_end or None]
+        # tdi_ts_sky_part[k] = tdi_ts_sky[k][index_start:index_end or None]
+        # tdi_ts_sky_part[k]['t0'] = t_start
+    data_fd.append(xr.Dataset(dict([(k, tdi_ts_sky_part[k].ts.fft()) for k in ["X", "Y", "Z"]])))
+    # data_fd.append(xr.Dataset(dict([(k, np.fft.rfft(tdi_ts_sky[k][index_start:index_end])*dt) for k in ["X", "Y", "Z"]])))
+    # data_fd[k].append(tdi_ts_with_glitches[k][index_start:index_end].ts.fft(win=window))
+    gap_less_duration.append(tdi_ts_with_glitches['X'][index_start:index_end].t[-1].values- tdi_ts_with_glitches['X'][index_start:index_end].t[0].values)
 
-f_res, psdA_residual, psdE_residual, psdT_residual = get_noise_from_frequency_domain(tdi_fs_residual, number_of_windows=number_of_windows)
-psdA_welch = deepcopy(psdA_residual)
-# psdA_residual = np.interp(tdi_fs.f, f_res, psdA_residual)
-# psdE_residual = np.interp(tdi_fs.f, f_res, psdE_residual)
-# psdT_residual = np.interp(tdi_fs.f, f_res, psdT_residual)
+for i in range(len(end_points)):
+    data_fd[i]['A'] = (data_fd[i]['Z'] - data_fd[i]['X'])/np.sqrt(2.0)
+    data_fd[i]['E'] = (data_fd[i]['Z'] - 2.0*data_fd[i]['Y'] + data_fd[i]['X'])/np.sqrt(6.0)
 
-# i = 4000
-# lower_frequency = frequencies_search[i][0]
-# upper_frequency = frequencies_search[i][1]
-# search1 = Search(tdi_fs_residual,Tobs, lower_frequency, upper_frequency)
-
-### mean in each frequency window
-# noise_means = deepcopy(search1.SA_full_f)
-# noise_means2 = []
-# frequencies_means = []
-# for i in range(len(frequencies)):
-#     padding = (frequencies[i][1] - frequencies[i][0])/2
-#     lower_index = np.searchsorted(search1.DAf_full_f.f, frequencies[i][0]-padding)
-#     upper_index = np.searchsorted(search1.DAf_full_f.f, frequencies[i][1]+padding)
-#     lower_index_inner = np.searchsorted(search1.DAf_full_f.f, frequencies[i][0])
-#     upper_index_inner = np.searchsorted(search1.DAf_full_f.f, frequencies[i][1])
-#     # indexes = np.logical_and(tdi_fs['X'].f >= frequencies[i][0]-padding, tdi_fs['X'].f < frequencies[i][1]+padding) 
-#     DAf = search1.DAf_full_f[lower_index:upper_index]
-#     noise_means2.append(np.median((np.abs(DAf).data)**2)/(Tobs)*2)
-#     frequencies_means.append(search1.DAf_full_f.f[lower_index+int((upper_index-lower_index)/2)].data)
-#     noise_means[lower_index_inner:upper_index_inner] = np.ones_like(search1.DAf_full_f[lower_index_inner:upper_index_inner])*np.median((np.abs(DAf).data)**2)/(Tobs)*2
-    # noise_means[lower_index:upper_index] = ((np.abs(DAf).data))**2/(Tobs)*2
-
-
-
-
-# psdA_fit = median_windows(psdA,20)
-# psdE_fit = median_windows(psdE,20)
-# psdT_fit = median_windows(psdT,20)
-psdA_partial, smoothedA = smooth_psd(psdA_partial, f_partial_residual)
-psdE_partial, smoothedE = smooth_psd(psdE_partial, f_partial_residual)
-psdT_partial, smoothedT = smooth_psd(psdT_partial, f_partial_residual)
-
-psdA_residual, smoothedA = smooth_psd(psdA_residual, f_res)
-psdE_residual, smoothedE = smooth_psd(psdE_residual, f_res)
-psdT_residual, smoothedT = smooth_psd(psdT_residual, f_res)
-
-# psdA_fit = smooth_psd(noise_means, frequencies_means)
-
-# psdA_fit = np.interp(tdi_fs.f, f_res, psdA_fit)
-# psdE_fit = np.interp(tdi_fs.f, f_res, psdE_fit)
-# psdT_fit = np.interp(tdi_fs.f, f_res, psdT_fit)
-
-psdA_partial = scipy.interpolate.InterpolatedUnivariateSpline(f_partial_residual, psdA_partial)(tdi_fs.f)
-psdE_partial = scipy.interpolate.InterpolatedUnivariateSpline(f_partial_residual, psdE_partial)(tdi_fs.f)
-psdT_partial = scipy.interpolate.InterpolatedUnivariateSpline(f_partial_residual, psdT_partial)(tdi_fs.f)
-
-psdA_residual = scipy.interpolate.InterpolatedUnivariateSpline(f_res, psdA_residual)(tdi_fs.f)
-psdE_residual = scipy.interpolate.InterpolatedUnivariateSpline(f_res, psdE_residual)(tdi_fs.f)
-psdT_residual = scipy.interpolate.InterpolatedUnivariateSpline(f_res, psdT_residual)(tdi_fs.f)
+N = 256
+data_gpu = []
+PSD_GPU = []
+for i in range(len(data_fd)):
+    data_gpu.append([xp.array(data_fd[i]['A'].values), xp.array(data_fd[i]['E'].values)])
+    Nmodel = get_noise_model(noise_model, data_fd[i]['A'].f)
+    SA_full_f = Nmodel.psd(freq=data_fd[i]['A'].f, option="A")
+    SE_full_f = Nmodel.psd(freq=data_fd[i]['E'].f, option="E")
+    PSD_GPU.append(xp.array([SA_full_f, SE_full_f]))
+gb_gpu.d_d = 0.0
 
 
-# t = np.linspace(f_res[8], f_res[-2], 50)
-# # t = np.append( f_res[1:10], t)
-# spline = scipy.interpolate.LSQUnivariateSpline(f_res, smoothed_A, t)
-# spline.set_smoothing_factor(10**5)
+mempool = xp.get_default_memory_pool()
+pinned_mempool = xp.get_default_pinned_memory_pool()
 
 
-
-SA_full_f = Nmodel.psd(freq=tdi_fs.f, option="A")
-df = tdi_fs['A'].f[1] - tdi_fs['A'].f[0]
-fs = 1/dt
-
-N = len(tdi_ts['X'])
-tdi_fsX = np.fft.rfft(tdi_ts['X'].data)[0:N//2+1]/fs
-
-if dataset == 'Radler':
-    noise_model = "SciRDv1"
-if dataset == 'Sangria':
-    noise_model = "sangria"
-Nmodel = get_noise_model(noise_model, f_res[1:])
-Sn = Nmodel.psd(freq=f_res[1:], option="X")
-SA = Nmodel.psd(freq=f_res[1:], option="A")
-SE = Nmodel.psd(freq=f_res[1:], option="E")
-ST = Nmodel.psd(freq=f_res[1:], option="T")
-
-ldc_noise = AnalyticNoise(f_res[1:], model="sangria", wd=1)
-Nmodel = get_noise_model(noise_model, f_res[1:])
-SA = Nmodel.psd(freq=f_res[1:], option="A")
-SAa = ldc_noise.psd(f_res[1:], option='A')
-
-
-f_partial_residual1, psdA_residual1, psdE_residual1, psdT_residual1 = get_noise_from_frequency_domain(tdi_fs_residual, number_of_windows=1)
-
-plt.figure()
-# plt.plot(xnew, np.sin(xnew), '-.', label='sin(x)')
-# plt.plot(xnew, BSpline(*tck)(xnew), '-', label='s=0')
-# plt.loglog(f_res, psdA)   
-plt.loglog(tdi_fs.f, np.abs(tdi_fs['A']/dt)**2 /(fs*len(tdi_ts['X']))*2 ,color='grey', zorder =0, label=r'PSD $d$')     
-plt.loglog(tdi_fs.f, np.abs(tdi_fs_residual['A']/dt)**2 /(fs*len(tdi_ts['X']))*2 ,color='darkgrey', zorder =1, label=r'PSD $d_\mathrm{residual}$')  
-plt.loglog(tdi_fs.f, psdA_partial, zorder=4.5, label=r'$S_{A \mathrm{,partial}}$', linewidth=3)   
-plt.loglog(f_res, psdA_welch, label=r'$S_{A \mathrm{,welch}}$', linewidth = 3)  
-# plt.loglog(f_partial_residual1, psdA_residual1, label='welch2', linewidth = 3)  
-# plt.loglog(f_res, psdA_partial)   
-# plt.loglog(f_res, smoothed_A)     
-# plt.loglog(tdi_fs.f, spline(tdi_fs.f))
-# plt.loglog(frequencies_means, psd_residual, zorder=5)    
-# plt.loglog(f_res[1:], SA, zorder=5)   
-plt.loglog(f_res, smoothedA, color='purple', zorder=4, label=r'$S_{A \mathrm{,median}}$')   
-plt.loglog(tdi_fs.f, psdA_residual,  zorder=5, label=r'$S_{A \mathrm{,residual}}$', linewidth=3)   
-# plt.loglog(f_res[1:], SAa, 'k--', zorder=5, label='instrument')   
-plt.loglog(f_res[1:], SA, 'k--', zorder=5, label=r'$S_{A \mathrm{,instrument}}$')   
-# plt.loglog(tdi_fs.f, noise_means, zorder=3)   
-# plt.loglog(tdi_fs.f, tdi_fs['X'],'.', zorder =1)   
-# plt.loglog(tdi_fs.f, tdi_fsX,'.', zorder =1)    
-# plt.loglog(tdi_fs.f, (psdA_residual-np.abs(tdi_fs_residual['A'])**2 /(Tobs)*2)/psdA_residual,'.')    
-# plt.loglog(f_res[peaks], psdA_residual[peaks],'x', color='red')     
-# plt.loglog(f_res[lower_index_res:], y_pred)  
-plt.xlabel(r'$f$ (Hz)')
-plt.ylabel(r'PSD (1/Hz)')
-plt.xlim(0.0001,0.1)
-plt.ylim(10**-43,10**-37)   
-plt.legend(loc='upper left')
-plt.show()
-
-
-# psdA_residual = (np.abs(search1.DAf_full_f)).data**2*2/(dt*len(search1.tdi_fs['X']))
-# psdE_residual = (np.abs(search1.DEf_full_f)).data**2/(dt*len(search1.tdi_fs['X']))*2
-# psdT_residual = (np.abs(search1.DTf_full_f)).data**2/(dt*len(search1.tdi_fs['X']))*2
-
-
-SA = scipy.interpolate.InterpolatedUnivariateSpline(f_res[1:], SA)(tdi_fs.f)
-SE = scipy.interpolate.InterpolatedUnivariateSpline(f_res[1:], SE)(tdi_fs.f)
-ST = scipy.interpolate.InterpolatedUnivariateSpline(f_res[1:], ST)(tdi_fs.f)
-
-noise_data = {'A': psdA, 'E': psdE, 'T': psdT}
-noise_fit = {'A': psdA_partial, 'E': psdE_partial, 'T': psdT_partial}
-noise_residual = {'A': psdA_residual, 'E': psdE_residual, 'T': psdT_residual}
-noise_instrument = {'A': SA, 'E': SE, 'T': ST}
-# noise_partial_residual = {'A': psdA_partial_residual, 'E': psdE_partial_residual, 'T': psdT_partial_residual}
-noise = noise_residual
-
-# noise_residual['f'] = tdi_fs.f
-# noise_df = pd.DataFrame(noise_residual)
-# noise_df.to_csv(SAVEPATH+'ETH_'+save_name+'_noise.csv')
-
-# search1 = Search(tdi_fs_residual,Tobs, lower_frequency, upper_frequency, noise=noise)
-
-# whitened_data = np.abs(tdi_fs_residual['A']/dt)**2 /(fs*len(tdi_ts['X']))*2 / noise['A']/dt
-# whitened_data = tdi_fs_residual['A']*2/dt / np.sqrt(noise['A']*fs*len(tdi_ts['X']))
-
-# psdA_residual_interpol = scipy.interpolate.InterpolatedUnivariateSpline(f_res, psdA_residual)(tdi_fs.f)
-whitened_data = tdi_fs_residual['A']*2/dt / np.sqrt(psdA_residual*fs*len(tdi_ts['X']))
-# whitened_data = search1.DAf_full_f / np.real(search1.DAf_full_f)
-
-lower_index = np.searchsorted(tdi_fs['X'].f, 0.0003)
-upper_index = np.searchsorted(tdi_fs['X'].f, 0.1)
-print(np.mean(np.real(whitened_data[lower_index:upper_index])))
-print(np.std(np.real(whitened_data[lower_index:upper_index])))
-print(np.std(np.imag(whitened_data[lower_index:upper_index])))
-
-# plt.figure()
-# plt.hist(np.real(whitened_data[lower_index:upper_index]), bins=2000, density=True)
-# plt.xlim(-4,4)
-# plt.show()
-
-
-
-i = 3000
-# search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1], noise=noise)
-plt.figure()
-# plt.loglog(tdi_fs_residual.f, search1.SA_full_f, 'k')
-# plt.loglog(tdi_fs_residual.f, psdA)
-# plt.loglog(tdi_fs_residual.f, psdA_residual*(dt*len(search1.tdi_fs['X'])), zorder = 5)
-# plt.loglog(tdi_fs_residual.f,  np.sqrt(psdA_residual), zorder = 5)
-# plt.loglog(tdi_fs_residual.f,  np.sqrt(psdE_residual), zorder = 5)
-# plt.loglog(tdi_fs_residual.f,  np.sqrt(noise_means), zorder = 5)
-# plt.loglog(tdi_fs_residual.f, psdA_partial_residual)
-plt.semilogx(tdi_fs_residual.f[100:], np.real(whitened_data[100:]))
-# plt.loglog(tdi_fs.f, np.sqrt(psdA_interp),'-x')
-# plt.loglog(f2, np.sqrt(psdA_residual2))
-# plt.loglog(tdi_fs.f, np.abs(tdi_fs['A']))
-# plt.semilogx(tdi_fs.f, np.abs(search1.DAf_full_f),'k')
-# search1.update_noise()
-# plt.loglog(tdi_fs.f, np.sqrt(search1.SA_full_f),'r')
-# plt.loglog(tdi_fs_residual.f, np.abs(tdi_fs_residual['A']))
-plt.xlim(0.0003, 0.1)
-plt.show()
-
-
-tdi_fs_original = deepcopy(tdi_fs)
-dataX_original = tdi_fs["X"]
-dataY_original = tdi_fs["Y"]
-dataZ_original = tdi_fs["Z"]
-DAf_original = (dataZ_original - dataX_original)/np.sqrt(2.0)
-
-# cat_index = 0
-# for index in range(len(found_sources_in)):
-#     for j in range(len(found_sources_in[index])):
-#         search1 = Search(tdi_fs,Tobs, frequencies_search[index][0], frequencies_search[index][1], tdi2=tdi2, gb_gpu=gb_gpu, use_gpu=gpu_available)
-#         # search1.plot(pGB_injected=[pGB_injected])
-#         print(search1.SNR([found_sources_in_flat[cat_index]]))
-#         print(search1.loglikelihood([found_sources_in_flat[cat_index]]))
-#         # print(search1.loglikelihood_gpu([found_sources_in_flat[cat_index]]))
-#         print(found_sources_in_flat[cat_index])
-#         cat_index += 1
+print('GPU memory free', get_gpu_memory())
+mempool.free_all_blocks()
+pinned_mempool.free_all_blocks()
+print('GPU memory free', get_gpu_memory())
 
 start_all = time.time()
 for i in range(len(found_sources_in)):
-    if i != 1687:
-        continue
+    # if i < 2898:
+    #     continue
     # if i%10 != 0:
     #     continue
     # if i in [0,len(found_sources_in)-1]:
@@ -1754,20 +1580,6 @@ for i in range(len(found_sources_in)):
         tdi_fs_added = deepcopy(tdi_fs_residual)
         # tdi_fs_added_part = deepcopy(tdi_fs)
 
-        Xs_added, Ys_added, Zs_added = GB.get_fd_tdixyz(template=found_sources_in[i][j], oversample=4, tdi2=tdi2)
-        source_added = dict({"X": Xs_added, "Y": Ys_added, "Z": Zs_added})
-        index_low = np.searchsorted(tdi_fs_added["X"].f, Xs_added.f[0])
-        try:
-            if np.abs(tdi_fs_added["X"].f[index_low-1] - Xs_added.f[0]) < np.abs(tdi_fs_added["X"].f[index_low] - Xs_added.f[0]):
-            # if tdi_fs_added["X"].f[index_low] > Xs_added.f[0]:
-                index_low = index_low-1
-        except:
-            pass
-        index_high = index_low+len(Xs_added)
-        for k in ["X", "Y", "Z"]:
-            tdi_fs_added[k].data[index_low:index_high] = tdi_fs_added[k].data[index_low:index_high] + source_added[k].data
-            # tdi_fs_added_part[k].data[index_low:index_high] = tdi_fs_added_part[k].data[index_low:index_high] - source_added[k].data * 1
-
         plot_addition = False
         if plot_addition:
             # pGB_true = []
@@ -1776,7 +1588,7 @@ for i in range(len(found_sources_in)):
             # pGB_true_not_matched = []
             # for k in range(len(pGB_injected_not_matched[i])):
             #     pGB_true_not_matched.append(pGB_injected_not_matched[i].iloc[k].to_dict())
-            search1 = Search(tdi_fs_residual,Tobs, frequencies_search[i][0], frequencies_search[i][1], noise=noise, tdi2=tdi2)
+            search1 = Search(tdi_fs,Tobs, frequencies_search[i][0], frequencies_search[i][1])
             search1.plot(second_data= tdi_fs_added, found_sources_in=found_sources_in[i])
             # print(search1.loglikelihood([found_sources_in[i][j]]))
             # search1.update_noise(pGB=found_sources_in[i][j])
@@ -1785,10 +1597,10 @@ for i in range(len(found_sources_in)):
 
         number_of_signals += 1
         frequencies_found.append(found_sources_in[i][j]['Frequency'])
-        compute_posterior(tdi_fs_added, Tobs, frequencies_search[i], found_sources_in[i][j], noise=noise)#, pGB_injected_matched[i][j].to_dict())
+        compute_posterior(tdi_fs_added, Tobs, frequencies_search[i], found_sources_in[i][j])#, pGB_injected_matched[i][j].to_dict())
         print('time for one signal posterior', time.time() - start)
 print('time to search ', number_of_signals, 'signals: ', time.time()-start_all, (time.time()-start_all)/number_of_signals, 's per signal')
-# start = time.time()
+start = time.time()
 
 print('time to search ', len(posterior_calculation_input), 'signals: ', time.time()-start)
 

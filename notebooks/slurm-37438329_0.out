@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "LDC1-4_MLE.py", line 18, in <module>
+    from bbhx.waveformbuild import BBHWaveformFD
+ModuleNotFoundError: No module named 'bbhx'
+/var/spool/slurm/slurmd/state/job37438336/slurm_script: line 10: /cluster/home/sstrub: Is a directory

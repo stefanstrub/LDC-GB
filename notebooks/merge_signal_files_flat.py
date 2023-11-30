@@ -10,18 +10,21 @@ path = os.getcwd()
 parent = os.path.dirname(path)
 # grandparent directory
 grandparent = os.path.dirname(parent)
-folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/found_signals"
-# folderpath_parent = grandparent+"/LDC/pictures/Sangria/found_signals"
-folderpath_save = grandparent+"/LDC/pictures/LDC1-4"
-# folderpath_save = grandparent+"/LDC/pictures/Sangria"
+# folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/found_signals"
+folderpath_parent = grandparent+"/LDC/pictures/Sangria/found_signals"
+# folderpath_parent = grandparent+"/LDC/Spritz/found_signals"
+# folderpath_save = grandparent+"/LDC/pictures/LDC1-4"
+folderpath_save = grandparent+"/LDC/pictures/Sangria"
+# folderpath_save = grandparent+"/LDC/Spritz/"
 
-name = '_24m_redone'
-save_name = 'Radler' + name
-# save_name = 'Sangria' + name
+name = '_6m_mbhb'
+# save_name = 'Spritz' + name
+save_name = 'Sangria' + name
 folderpath = folderpath_parent + name
 onlyfiles = [f for f in listdir(folderpath) if isfile(join(folderpath, f))]
 found_sources_mp_even_unsorted = []
 frequencies = []
+times = []
 for i in range(len(onlyfiles)):
     try:
         sources = pickle.load(open(folderpath+'/'+onlyfiles[i], 'rb'))
@@ -34,9 +37,11 @@ for i in range(len(onlyfiles)):
             frequency = sources[j][4][0]
             frequencies.append(frequency)
             found_sources_mp_even_unsorted.append(sources[j][3])
+            times.append(sources[j][5])
 
         except:
-            found_sources_mp_even_unsorted.append(sources[j])
+            found_sources_mp_even_unsorted.append([sources[j]])
+            # found_sources_mp_even_unsorted.append(sources[j])
     # frequencies.append(frequency)
     # found_sources_mp_even_unsorted.append(sources)
 found_sources_in_flat = np.concatenate(found_sources_mp_even_unsorted)
@@ -48,6 +53,12 @@ found_sources_in_flat = np.asarray(found_sources_in_flat)
 indexes_in = np.argsort(found_sources_in_flat_frequency)
 found_sources_in_flat_frequency = found_sources_in_flat_frequency[indexes_in]
 found_sources_in_flat = found_sources_in_flat[indexes_in]
+
+
+print('time', np.round(np.sum(times)/3600,1), 'hours')
+print('max time', np.round(np.max(times)/60,1), 'minutes')
+
+
 
 pickle.dump(found_sources_in_flat, open(folderpath_save+'/found_sources_' +save_name+'_flat.pkl', 'wb'))
 # np.save(folderpath_save+'/found_sources_' +save_name+'.npy', found_sources_mp)

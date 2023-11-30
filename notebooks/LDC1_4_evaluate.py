@@ -85,7 +85,7 @@ grandparent = os.path.dirname(parent)
 
 Radler = False
 version = '2'
-reduction = 1
+reduction = 2
 
 if Radler:
     DATAPATH = grandparent+"/LDC/Radler/data/"
@@ -290,7 +290,9 @@ frequencies_odd = frequencies[1::2]
 start_index = np.searchsorted(np.asarray(frequencies_odd)[:,0], 0.0040489)-1
 
 # save_name = 'Sangria_1_full_cut'
-save_name = 'Sangria_12m_filled_anticorrelated'
+# save_name = 'Sangria_12m_filled_anticorrelated'
+save_name_injected = 'Sangria_6m'
+save_name = save_name_injected+'_mbhb'
 # save_name = 'Radler_24m'
 # save_name = 'Radler_24m_filled_anticorrelated'
 # save_name = 'Radler_24m_redone'
@@ -508,6 +510,7 @@ def SNR_match_amplitude_condsiered(pGB_injected, pGB_found):
 
 try:
     found_sources_in_flat = np.load(SAVEPATH+'found_sources_' +save_name+'_flat.pkl', allow_pickle = True)
+    found_sources_in_flat = np.asarray(found_sources_in_flat[:-1])
 except:
     found_sources_mp = np.load(SAVEPATH+'found_sources_' +save_name+'.pkl', allow_pickle = True)
     # found_sources_mp = np.load(SAVEPATH+'found_sources_' +save_name+'.npy', allow_pickle = True)
@@ -529,7 +532,7 @@ except:
 
     np.save(SAVEPATH+'found_sources_' +save_name+'_flat.pkl', np.asarray(found_sources_in_flat))
 
-sort_found = False
+sort_found = True
 if sort_found:
     found_sources_in_flat_frequency = []
     for i in range(len(found_sources_in_flat)):
@@ -587,7 +590,7 @@ def get_SNR(pGB_injected, lower_frequency, upper_frequency):
             except:
                 pGB_injected_dict[parameter] = pGB_injected.iloc[i][parameter]
         intrinsic_SNR_injected.append(search1.intrinsic_SNR([pGB_injected_dict]))
-        if i > 30:
+        if i > 20:
             break
     return intrinsic_SNR_injected
 
@@ -627,9 +630,9 @@ except:
 # found_sources_in = np.load(SAVEPATH+'/found_sources_in_SNR30000to3312283Montana2022_31457280.npy', allow_pickle= True)
 
 # try:
-#     fn = SAVEPATH+'/pGB_injected_no_SNR' +save_name+'.pkl'
+#     fn = SAVEPATH+'/pGB_injected_no_SNR' +save_name_injected+'.pkl'
 #     pGB_injected = pickle.load(open(fn, 'rb'))
-#     # pGB_injected = np.load(SAVEPATH+'/found_sources_pGB_injected_no_SNR'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', allow_pickle = True)
+#     # pGB_injected = np.load(SAVEPATH+'/found_sources_pGB_injected_no_SNR'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name_injected+'.npy', allow_pickle = True)
 # except:
 #     get_injected_sources = pd.DataFrame(cat_sorted)
 #     pGB_injected = []
@@ -649,7 +652,7 @@ except:
 #         pGB_injected.append(get_injected_sources[(get_injected_sources['Frequency']> frequencies_search[j][0]) & (get_injected_sources['Frequency']< frequencies_search[j][1])].sort_values(by='Amplitude', ascending=False))
 
 
-#     fn = SAVEPATH+'/pGB_injected_no_SNR' +save_name+'.pkl'
+#     fn = SAVEPATH+'/pGB_injected_no_SNR' +save_name_injected+'.pkl'
 #     pickle.dump(pGB_injected, open(fn, "wb"))
 #     # np.save(SAVEPATH+'/found_sources_pGB_injected_no_SNR'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', np.asarray(pGB_injected))
 
@@ -662,10 +665,17 @@ except:
 
 
 #### parallel
+# for i in range(len(pGB_injected)):
+#     if i in index:
+#         continue
+#     else:
+#         pGB_injected[i]['IntrinsicSNR'] = np.zeros(len(pGB_injected[i]))
 # input = []
 # index = []
 # for i in range(len(pGB_injected)):
 # # for i in range(16):
+#     if i == 6021:
+#         continue
 #     if len(pGB_injected[i]) > 0:
 #         index.append(i)
 #         input.append((pGB_injected[i],frequencies_search[i][0], frequencies_search[i][1]))
@@ -688,11 +698,13 @@ except:
 # for i in range(len(pGB_injected)):
 #     pGB_injected[i] = pGB_injected[i].to_records()
 
+# pGB_injected = list(pGB_injected)
 
-
-#### sequential
+# pd.options.mode.chained_assignment = None 
+# # #### sequential
 # for i in range(len(pGB_injected)):
 #     print(i)
+#     pGB_injected[i]['IntrinsicSNR'] = np.zeros(len(pGB_injected[i]))
 #     # if i != 5:
 #     #     continue
 #     if len(pGB_injected[i]) > 0:
@@ -701,12 +713,12 @@ except:
 #         pGB_injected_dict = {}
 #         for parameter in parameters:
 #             pGB_injected_dict[parameter] = pGB_injected[i].iloc[j][parameter]
-#         pGB_injected[i].iloc[j]['IntrinsicSNR'] = search1.intrinsic_SNR([pGB_injected_dict])
-#         if j > 300:
+#         pGB_injected[i]['IntrinsicSNR'].iloc[j] = search1.intrinsic_SNR([pGB_injected_dict])
+#         if j > 30:
 #             break
         # print('SNR for noise model', noise_model, intrinsic_SNR_injected[-1], 'loglikelihood ratio',search1.loglikelihood([pGB_injected[i][j]]), 'SNR data',search1.loglikelihood_SNR([pGB_injected[i][j]]))
 
-# fn = SAVEPATH+'/pGB_injected_intrinsic_SNR' +save_name+'.pkl'
+# fn = SAVEPATH+'/pGB_injected_intrinsic_SNR' +save_name_injected+'.pkl'
 # pickle.dump(pGB_injected, open(fn, "wb"))
 
 # pGB_injected_SNR_sorted = []
@@ -734,7 +746,7 @@ if Radler:
     for i in range(len(pGB_injected)):
         pGB_injected[i] = pGB_injected[i].to_records()
 else:
-    fn = SAVEPATH+'/pGB_injected_intrinsic_SNR' +save_name+'.pkl'
+    fn = SAVEPATH+'/pGB_injected_intrinsic_SNR' +save_name_injected+'.pkl'
     pGB_injected = pickle.load(open(fn, 'rb'))
     # for i in range(len(pGB_injected)):
     #     pGB_injected[i] = pGB_injected[i].to_records()
@@ -1018,7 +1030,7 @@ def match_function(found_sources_in, pGB_injected_not_matched, found_sources_not
         match_best_list.append(found_sources_in[j])
     return found_sources_in, pGB_injected_not_matched, match_list, pGB_best_list, match_best_list, found_sources_not_matched, pGB_injected_matched, found_sources_matched
 
-do_match_parallelized = False
+do_match_parallelized = True
 if do_match_parallelized:
     pGB_injected_matched = []
     found_sources_matched = []

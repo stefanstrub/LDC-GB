@@ -100,7 +100,7 @@ parent = os.path.dirname(path)
 grandparent = os.path.dirname(parent)
 
 fill_gaps = False
-taper_gaps = True
+taper_gaps = False
 dataset = 'Radler'
 # dataset = 'Sangria'
 dataset = 'Spritz'
@@ -171,13 +171,17 @@ elif dataset == 'Sangria':
         td[k] = td[k] - td_mbhb[k]
 
 elif dataset == 'Spritz':
+    noise_model =  "spritz"
     names = fid["sky/cat"].dtype.names
-    cat_vgb = dict(zip(names, [fid["sky/cat"][name] for name in names]))
+    params = [np.array(fid["sky/cat"][k]).squeeze() for k in names]
+    cat_vgb = np.rec.fromarrays(params, names=list(names))
+    indexes = np.argsort(cat_vgb['Frequency'])
+    cat_vgb = cat_vgb[indexes]
     cat = []
     for i in range(len(cat_vgb['Frequency'])):
         cat.append({})
         for parameter in parameters:
-            cat[i][parameter] = cat_vgb[parameter][i][0]
+            cat[i][parameter] = cat_vgb[parameter][i]
 
     # for i in range(len(cat_vgb['Frequency'])):
     #     cat[i]['InitialPhase'] *= -1
@@ -240,10 +244,15 @@ if dataset == 'Spritz':
     for k in ["X", "Y", "Z"]:
         # tdi_ts_with_glitches[k].values = tdi_ts_clean[k].values + tdi_ts_glitches[k].values - tdi_ts_glitches[k].values + tdi_ts_galaxy[k].values
         tdi_ts_with_glitches[k].values = tdi_ts[k].values - tdi_ts_glitches[k].values
+tdi_ts_with_glitches['A'] = TimeSeries((tdi_ts_with_glitches['Z'] - tdi_ts_with_glitches['X'])/np.sqrt(2.0), dt=dt, t0=td.t[0])
+tdi_ts_with_glitches['E'] = TimeSeries((tdi_ts_with_glitches['Z']- 2.0*tdi_ts_with_glitches['Y'] + tdi_ts_with_glitches['X'])/np.sqrt(6.0), dt=dt, t0=td.t[0])
 
 tdi_ts_clean_galaxy = deepcopy(tdi_ts)
 for k in ["X", "Y", "Z"]:
     tdi_ts_clean_galaxy[k].values = tdi_ts_clean[k].values + tdi_ts_galaxy[k].values
+tdi_ts_clean_galaxy['A'] = TimeSeries((tdi_ts_clean_galaxy['Z'] - tdi_ts_clean_galaxy['X'])/np.sqrt(2.0), dt=dt, t0=td.t[0])
+tdi_ts_clean_galaxy['E'] = TimeSeries((tdi_ts_clean_galaxy['Z']- 2.0*tdi_ts_clean_galaxy['Y'] + tdi_ts_clean_galaxy['X'])/np.sqrt(6.0), dt=dt, t0=td.t[0])
+
 
 glitchesX = np.abs(tdi_ts_glitches["X"]) > 10**-22
 glitchesY = np.abs(tdi_ts_glitches["Y"]) > 10**-22
@@ -274,12 +283,25 @@ GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
 # plt.show()
 
 gaps = {}
-for k in ["X", "Y", "Z"]:
+for k in ["X", "Y", "Z", 'A', 'E']:
     gap = np.isnan(tdi_ts_with_glitches[k])
     tdi_ts_with_glitches[k][gap] = 0
     gaps[k] = tdi_ts_with_glitches[k] == 0
     # gaps = np.isnan(tdi_ts_with_glitches[k])
     tdi_ts_with_glitches[k][gaps[k]] = 0
+
+
+tdi_ts_with_glitches = deepcopy(tdi_ts_clean_galaxy)
+# add gap
+gap_duration = 48*3600
+gap_location = 60*24*3600
+gap_locations = [70*24*3600,140*24*3600,220*24*3600,300*24*3600]
+for gap_location in gap_locations:
+    gap_start_index = np.searchsorted(tdi_ts_with_glitches[k].t, gap_location)
+    gap_end_index = np.searchsorted(tdi_ts_with_glitches[k].t, gap_location+gap_duration)
+    for k in ["X", "Y", "Z", 'A', 'E']:
+        tdi_ts_with_glitches[k][gap_start_index:gap_end_index] = 0
+
 
 # for k in ["X", "Y", "Z"]:
 #     for i in range(1):
@@ -291,97 +313,222 @@ for k in ["X", "Y", "Z"]:
 #             tdi_ts_with_glitches['Y'][pk-20:pk+20] = 0
 #             tdi_ts_with_glitches['Z'][pk-20:pk+20] = 0
 
-# plt.figure()
-# plt.plot(tdi_ts_with_glitches['X'].t, tdi_ts_with_glitches['X'])
+plt.figure()
+plt.plot(tdi_ts_with_glitches['X'].t, tdi_ts_with_glitches['X'])
 # plt.plot(tdi_ts_with_glitches['Y'].t, tdi_ts_with_glitches['Y'])
 # plt.plot(tdi_ts_with_glitches['Z'].t, tdi_ts_with_glitches['Z'])
-# # plt.plot(tdi_ts_glitches['X'].t, tdi_ts_glitches["X"])
+# plt.plot(tdi_ts_glitches['X'].t, tdi_ts_glitches["X"])
 # plt.plot(tdi_ts_glitches['X'][glitchesX].t, tdi_ts_glitches["X"][glitchesX],'.')
 # plt.plot(tdi_ts_glitches['Y'][glitchesY].t, tdi_ts_glitches["Y"][glitchesY],'.')
 # plt.plot(tdi_ts_glitches['Z'][glitchesZ].t, tdi_ts_glitches["Z"][glitchesZ],'.')
-# # plt.plot(tdi_ts['X'].t, tdi_ts['X'])
-# plt.xlabel('time')
-# plt.ylabel('TDI')
-# plt.show()
-
-if fill_gaps:
-    for k in ["X", "Y", "Z"]:
-        groups = []
-        gaps = tdi_ts_with_glitches[k] == 0
-        gaps = tdi_ts_with_glitches[k][gaps]
-        start_points = []
-        if gaps.t[0].values == tdi_ts_with_glitches[k].t[0].values:
-            start_points = [0]
-        differences = gaps.t[1:].values - gaps.t[:-1].values
-        jumps = differences > 2*dt
-        end_points = list(gaps[:-1][jumps].t.values) + list([gaps.t[-1].values])
-        start_points = list(start_points) + list(gaps[1:][jumps].t.values)
-
-        for i in range(len(start_points)):
-            index_start = int((start_points[i]-tdi_ts_with_glitches[k].t[0].values)/dt)
-            index_end = int((end_points[i]-tdi_ts_with_glitches[k].t[0])/dt)
-            length_gap = len(tdi_ts_with_glitches[k][index_start:index_end])+1
-            tdi_ts_with_glitches[k][index_start:index_start+length_gap] = tdi_ts_with_glitches[k][index_end+1:index_end+1+length_gap].values
-            # else:
-            #     tdi_ts_with_glitches[k][index_start:index_start+int(length_gap/2)] = tdi_ts_with_glitches[k][index_start-int(length_gap/2):index_start].values
-            #     tdi_ts_with_glitches[k][index_end-int(length_gap/2):index_end] = tdi_ts_with_glitches[k][index_end:index_end+int(length_gap/2)].values
-
-length_taper = 360
-length_taper_index = 1+2*int(length_taper/2/dt)
-middle_window = int((length_taper_index-1)/2)
-window_hann = scipy.signal.windows.hann(length_taper_index)
-window_hann_right = window_hann[middle_window:]
-window_hann_left = window_hann[:middle_window+1]
-
-plt.figure()
-plt.plot(window_hann)
-plt.plot(window_hann_right)
-plt.plot(window_hann_left)
-plt.title("Hann window")
-plt.ylabel("Amplitude")
-plt.xlabel("Sample")
+# plt.plot(tdi_ts['X'].t, tdi_ts['X'])
+plt.xlabel('time')
+plt.ylabel('TDI')
 plt.show()
 
+tdi_fs_clean_galaxy = xr.Dataset(dict([(k, tdi_ts_clean_galaxy[k].ts.fft()) for k in ["X", "Y", "Z", 'A', 'E']]))
+# tdi_fs_clean_galaxy = tdi_fs_clean_galaxy.assign(A=(tdi_fs_clean_galaxy.Z - tdi_fs_clean_galaxy.X)/np.sqrt(2.0))
+# tdi_fs_clean_galaxy = tdi_fs_clean_galaxy.assign(E=(tdi_fs_clean_galaxy.Z - 2.0*tdi_fs_clean_galaxy.Y + tdi_fs_clean_galaxy.X)/np.sqrt(6.0))
 
-if taper_gaps:
+
+N = 256
+data_gpu = []
+PSD_GPU = []
+data_gpu.append([xp.array(tdi_fs_clean_galaxy.X.values), xp.array(tdi_fs_clean_galaxy.X.values)])
+Nmodel = get_noise_model(noise_model, tdi_fs_clean_galaxy.X.f)
+SA_f = Nmodel.psd(freq=tdi_fs_clean_galaxy.X.f, option="A", tdi2=True)
+
+df = tdi_fs_clean_galaxy.f[1] - tdi_fs_clean_galaxy.f[0]
+
+
+f_Nyquist = 1/dt/2
+search_range = [0.0003, f_Nyquist]
+frequencies = create_frequency_windows(search_range, Tobs)
+frequencies_even = frequencies[::2]
+frequencies_odd = frequencies[1::2]
+
+frequencies_search = []
+for i in range(len(cat)):
+    start_index = np.searchsorted(np.asarray(frequencies)[:,0], cat[i]['Frequency'])-1
+    frequencies_search.append(frequencies[start_index])
+
+for cat_index in range(len(cat)):
+    # cat[cat_index]['FrequencyDerivative'] *= 10
+    # lower_frequency = cat[cat_index]['Frequency']-0.0000005
+    # upper_frequency = cat[cat_index]['Frequency']+0.0000005
+    lower_frequency = frequencies_search[cat_index][0]
+    upper_frequency = frequencies_search[cat_index][1]
+    search = Search(tdi_fs_clean_galaxy,Tobs, lower_frequency, upper_frequency, tdi2=True)
+    # search.plot(found_sources_in= [cat[cat_index]])
+    print(cat[cat_index]['Frequency'],search.SNR([cat[cat_index]]))
+
+cat_index =35
+lower_frequency = frequencies_search[cat_index][0]
+upper_frequency = frequencies_search[cat_index][1]
+search = Search(tdi_fs_clean_galaxy,Tobs, lower_frequency, upper_frequency, tdi2=True)
+lower_index = np.searchsorted(tdi_fs_clean_galaxy['A'].f, search.frequencyrange[0])
+upper_index = np.searchsorted(tdi_fs_clean_galaxy['A'].f, search.frequencyrange[1])
+lower_index = np.searchsorted(tdi_fs_clean_galaxy['A'].f, 0.0003)
+upper_index = np.searchsorted(tdi_fs_clean_galaxy['A'].f, 0.02)
+
+def is_odd(num):
+    return num & 0x1
+
+
+if fill_gaps:
+    tdi_ts_filled = deepcopy(tdi_ts_with_glitches)
     for k in ["X", "Y", "Z"]:
-        gaps = tdi_ts_with_glitches[k] == 0
-        gaps = tdi_ts_with_glitches[k][gaps]
+        gaps = tdi_ts_filled[k] == 0
+        gaps = tdi_ts_filled[k][gaps]
         start_points = []
-        if gaps.t[0].values != tdi_ts_with_glitches['X'].t[0].values:
+        if gaps.t[0].values != tdi_ts_filled['X'].t[0].values:
             start_points = [0]
             end_points = np.array([gaps.t[0].values]-dt)
         differences = gaps.t[1:].values - gaps.t[:-1].values
         jumps = differences > 2*dt
-        start_points_data = list(start_points) + list(np.array(gaps[:-1][jumps].t.values)+dt) #+ list([gaps.t[-1].values])
-        end_points_data =  list(end_points) + list(np.array(gaps[1:][jumps].t.values)-dt)
+
+        start_points_data = list(start_points) + list(np.array(gaps[:-1][jumps].t.values)+dt) + list([gaps.t[-1].values]+dt)
+        end_points_data =  list(end_points) + list(np.array(gaps[1:][jumps].t.values)-dt) + list([float(tdi_ts_filled['X'].t[-1].values)])
 
         start_points_gaps = end_points_data[:-1]
         end_points_gaps = start_points_data[1:]
-
-        for i in range(len(start_points_gaps)):
-            index_start = int((start_points_gaps[i]-tdi_ts_with_glitches[k].t[0].values)/dt)+1
+            
+        for i in range(len(start_points)):
+            index_start = int((start_points_gaps[i]-tdi_ts_with_glitches[k].t[0].values)/dt)
             index_end = int((end_points_gaps[i]-tdi_ts_with_glitches[k].t[0])/dt)
-            tdi_ts_with_glitches[k][index_start-len(window_hann_right):index_start] *= window_hann_right
-            tdi_ts_with_glitches[k][index_end:index_end+len(window_hann_left)] *= window_hann_left
+            length_gap = len(tdi_ts_with_glitches[k][index_start:index_end])+1
+            tdi_ts_with_glitches[k][index_start:index_start+length_gap].values = tdi_ts_with_glitches[k][index_end+1:index_end+1+length_gap].values
+            # else:
+            #     tdi_ts_with_glitches[k][index_start:index_start+int(length_gap/2)] = tdi_ts_with_glitches[k][index_start-int(length_gap/2):index_start].values
+            #     tdi_ts_with_glitches[k][index_end-int(length_gap/2):index_end] = tdi_ts_with_glitches[k][index_end:index_end+int(length_gap/2)].values
+    tdi_fs_filled = xr.Dataset(dict([(k, tdi_ts_filled[k].ts.fft()) for k in ['A', 'E']]))
+
+    diff_filled_clean = tdi_fs_clean_galaxy - tdi_fs_filled
+    fd_error = -1/2*(4.0*df*np.sum(((diff_filled_clean.A.data*np.conjugate(diff_filled_clean.A.data) + diff_filled_clean.E.data*np.conjugate(diff_filled_clean.E.data)) /SA_f)[lower_index:upper_index]).data)
 
 
+    plt.figure()
+    plt.loglog(tdi_fs_filled.f,np.abs(tdi_fs_filled.A))
+    plt.loglog(tdi_fs_clean_galaxy.f,np.abs(tdi_fs_clean_galaxy.A))
+    plt.loglog(diff_filled_clean.A.f[lower_index:upper_index],np.abs(diff_filled_clean.A)[lower_index:upper_index])
+    plt.loglog(SA_f.f,np.sqrt(SA_f))
+    plt.show()
 
-plt.figure()
-# plt.plot(gaps.t[:-1],differences)
-plt.plot(tdi_ts_with_glitches['X'].t, tdi_ts_with_glitches['X'])
-# plt.plot(gaps[:-1][jumps].t.values, float(np.max(tdi_ts_with_glitches['X']))*np.ones_like(gaps[:-1][jumps].t.values), '.')
-# plt.plot(gaps[1:][jumps].t.values, float(np.max(tdi_ts_with_glitches['X']))*np.ones_like(gaps[1:][jumps].t.values), '.')
-plt.plot(start_points_data, float(np.max(tdi_ts_with_glitches['X']))*np.ones_like(start_points_data), '.')
-plt.plot(end_points_data,float(np.max(tdi_ts_with_glitches['X']))*np.ones_like(end_points_data), '.')
-plt.show()
+    tdi_ts_with_glitches = deepcopy(tdi_ts_filled)
 
-plt.figure()
-plt.plot(tdi_ts_with_glitches['X'].t, tdi_ts_with_glitches['X'])
-plt.plot(tdi_ts_with_glitches['Y'].t, tdi_ts_with_glitches['Y'])
-plt.plot(tdi_ts_with_glitches['Z'].t, tdi_ts_with_glitches['Z'])
-# plt.plot(tdi_ts['X'].t, tdi_ts['X'])
-plt.show()
+
+# taper_lengths = [0,10,20,30,40,50,60,70,80,90,100,110,120,200,300,400,500,600]
+taper_lengths = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,23,30,40,50,60,70,80,90,100,120,130,140,150,200]
+# taper_lengths = [70]
+if taper_gaps:
+    fd_error = []
+    plt.figure()
+    for length_taper_index in taper_lengths:
+        # length_taper = 90
+        # length_taper_index = 1+2*int(length_taper/2/dt)
+        middle_window = int((length_taper_index)/2)
+        window_hann = scipy.signal.windows.barthann(length_taper_index)
+        window_hann_right = window_hann[middle_window:]
+        window_hann_left = window_hann[:middle_window+is_odd(length_taper_index)]
+
+        # plt.figure()
+        # plt.plot(window_hann)
+        # plt.plot(window_hann_right)
+        # plt.plot(window_hann_left)
+        # plt.title("Hann window")
+        # plt.ylabel("Amplitude")
+        # plt.xlabel("Sample")
+        # plt.show()
+
+        # A = np.fft.fft(window_hann, 2048) / (len(window_hann)/2.0)
+        # freq = np.linspace(-0.5, 0.5, len(A))
+        # response = np.abs(np.fft.fftshift(A / np.max(np.abs(A))))
+        # response = 20 * np.log10(np.maximum(response, 1e-10))
+        # plt.plot(freq, response, label=length_taper)
+
+        tdi_ts_tapered = deepcopy(tdi_ts_with_glitches)
+        for k in ['A', 'E']:
+        # for k in ["X", "Y", "Z"]:
+            gaps = tdi_ts_tapered[k] == 0
+            gaps = tdi_ts_tapered[k][gaps]
+            start_points = []
+            if gaps.t[0].values != tdi_ts_tapered['X'].t[0].values:
+                start_points = [0]
+                end_points = np.array([gaps.t[0].values]-dt)
+            differences = gaps.t[1:].values - gaps.t[:-1].values
+            jumps = differences > 2*dt
+
+            start_points_data = list(start_points) + list(np.array(gaps[:-1][jumps].t.values)+dt) + list([gaps.t[-1].values]+dt)
+            end_points_data =  list(end_points) + list(np.array(gaps[1:][jumps].t.values)-dt) + list([float(tdi_ts_tapered['X'].t[-1].values)])
+
+            start_points_gaps = end_points_data[:-1]
+            end_points_gaps = start_points_data[1:]
+
+            for i in range(len(start_points_gaps)):
+                index_start = int((start_points_gaps[i]-tdi_ts_tapered[k].t[0].values)/dt)+1
+                index_end = int((end_points_gaps[i]-tdi_ts_tapered[k].t[0])/dt)
+                tdi_ts_tapered[k][index_start-len(window_hann_right):index_start] *= window_hann_right
+                tdi_ts_tapered[k][index_end:index_end+len(window_hann_left)] *= window_hann_left
+
+        tdi_fs_tapered = xr.Dataset(dict([(k, tdi_ts_tapered[k].ts.fft()) for k in ['A', 'E']]))
+
+        diff_tapered_clean = tdi_fs_clean_galaxy - tdi_fs_tapered
+        # diff_tapered_clean = diff_tapered_clean.assign(A=diff_tapered_clean.Z - diff_tapered_clean.X)/np.sqrt(2.0)
+        # diff_tapered_clean = diff_tapered_clean.assign(E=diff_tapered_clean.Z - 2.0*diff_tapered_clean.Y + diff_tapered_clean.X)/np.sqrt(6.0)
+        # dh = np.sum( np.real(self.DAf * np.conjugate(tdi_fs_tapered.A.data) + self.DEf * np.conjugate(Ef.data))/self.SA )
+        # hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2) /self.SA)
+        # dh = 4.0*df*np.sum((np.real(tdi_fs_clean_galaxy.A.data * np.conjugate(tdi_fs_tapered.A.data) + tdi_fs_clean_galaxy.E.data * np.conjugate(tdi_fs_tapered.E.data)) /SA_f)[lower_index:upper_index]).data
+        # hh = 4.0*df*np.sum(((np.absolute(tdi_fs_tapered.A.data)**2 + np.absolute(tdi_fs_tapered.E.data)**2) /SA_f)[lower_index:upper_index]).data
+        # dd = 4.0*df*np.sum(((np.absolute(tdi_fs_clean_galaxy.A.data)**2 + np.absolute(tdi_fs_clean_galaxy.E.data)**2) /SA_f)[lower_index:upper_index]).data
+        # fd_error.append(-1/2*(4.0*df*np.sum(((np.absolute(diff_tapered_clean.A.data)**2 + np.absolute(diff_tapered_clean.E.data)**2) /SA_f)[lower_index:upper_index])).data)
+        fd_error.append(-1/2*(4.0*df*np.sum(((diff_tapered_clean.A.data*np.conjugate(diff_tapered_clean.A.data) + diff_tapered_clean.E.data*np.conjugate(diff_tapered_clean.E.data)) /SA_f)[lower_index:upper_index])).data)
+        # fd_error.append(-1/2*(4.0*df*np.sum(((np.absolute(tdi_fs_clean_galaxy.A.data-tdi_fs_tapered.A.data)**2 + np.absolute(tdi_fs_clean_galaxy.E.data-tdi_fs_tapered.E.data)**2) /SA_f)[lower_index:upper_index])).data)
+        # fd_error.append((dh/np.sqrt(hh)).data)
+        # fd_error.append((dh-hh/2).data)
+        # fd_error.append((dh-hh/2-dd/2).data)
+
+    # plt.title("Frequency response of the Hann window")
+    # plt.ylabel("Normalized magnitude [dB]")
+    # plt.xlabel("Normalized frequency [cycles per sample]")
+    # plt.legend()
+    # plt.show()
+
+    max_index = np.argmax(fd_error)
+    plt.figure()
+    plt.plot(taper_lengths, fd_error)
+    plt.plot(taper_lengths[max_index],fd_error[max_index],'.')
+    plt.xlabel('taper length (index)')
+    plt.ylabel('loglikelihood of tapered signal')
+    plt.show()
+
+    plt.figure()
+    plt.loglog(tdi_fs_tapered.f,np.abs(tdi_fs_tapered.A))
+    plt.loglog(tdi_fs_clean_galaxy.f,np.abs(tdi_fs_clean_galaxy.A))
+    plt.loglog(diff_tapered_clean.A.f[lower_index:upper_index],np.abs(diff_tapered_clean.A)[lower_index:upper_index])
+    plt.loglog(SA_f.f,np.sqrt(SA_f))
+    plt.show()
+
+    tdi_ts_with_glitches = deepcopy(tdi_ts_tapered)
+    # plt.figure()
+    # # plt.plot(gaps.t[:-1],differences)
+    # plt.plot(tdi_ts_with_glitches['X'].t, tdi_ts_with_glitches['X'])
+    # # plt.plot(gaps[:-1][jumps].t.values, float(np.max(tdi_ts_with_glitches['X']))*np.ones_like(gaps[:-1][jumps].t.values), '.')
+    # # plt.plot(gaps[1:][jumps].t.values, float(np.max(tdi_ts_with_glitches['X']))*np.ones_like(gaps[1:][jumps].t.values), '.')
+    # plt.plot(start_points_data, float(np.max(tdi_ts_with_glitches['X']))*np.ones_like(start_points_data), '.')
+    # plt.plot(end_points_data,float(np.max(tdi_ts_with_glitches['X']))*np.ones_like(end_points_data), '.')
+    # plt.show()
+
+    plt.figure()
+    # plt.plot(tdi_ts_clean_galaxy['A'].t, tdi_ts_clean_galaxy['A'])
+    plt.plot(tdi_ts_with_glitches['A'].t, tdi_ts_with_glitches['A'], label='Data')
+    plt.plot(tdi_ts_tapered['A'].t, tdi_ts_tapered['A'], label='Tapered data')
+    # plt.plot(tdi_ts_with_glitches['Y'].t, tdi_ts_with_glitches['Y'])
+    # plt.plot(tdi_ts_with_glitches['Z'].t, tdi_ts_with_glitches['Z'])
+    # plt.plot(tdi_ts['X'].t, tdi_ts['X'])
+    plt.xlabel('time (s)')
+    plt.ylabel('TDI A')
+    plt.legend(loc='upper right')
+    plt.show()
 
 start = 200
 tdi_ts_signals = deepcopy(tdi_ts)
@@ -435,15 +582,19 @@ if gaps.t[0].values != tdi_ts_with_glitches['X'].t[0].values:
     end_points = np.array([gaps.t[0].values]-dt)
 differences = gaps.t[1:].values - gaps.t[:-1].values
 jumps = differences > 2*dt
-start_points = list(start_points) + list(np.array(gaps[:-1][jumps].t.values)+dt) #+ list([gaps.t[-1].values])
-end_points =  list(end_points) + list(np.array(gaps[1:][jumps].t.values)-dt)
+
+start_points = list(start_points) + list(np.array(gaps[:-1][jumps].t.values)+dt) + list([gaps.t[-1].values]+dt)
+end_points =  list(end_points) + list(np.array(gaps[1:][jumps].t.values)-dt) + list([float(tdi_ts_with_glitches['X'].t[-1].values)])
+
+start_points_gaps = end_points[:-1]
+end_points_gaps = start_points[1:]
 
 ## no gaps
 # tdi_ts_with_glitches = deepcopy(tdi_ts)
 # tdi_ts_with_glitches = deepcopy(tdi_ts_clean_galaxy)
 # tdi_ts_with_glitches = tdi_ts_clean
-start_points = np.array([0])
-end_points = np.array([tdi_ts_with_glitches['X'].t[-1].values])
+# start_points = np.array([0])
+# end_points = np.array([tdi_ts_with_glitches['X'].t[-1].values])
 
 Tobs_list = np.array(end_points) - np.array(start_points)
 # remove short observation times
@@ -488,26 +639,6 @@ data_glitches = {}
 data_glitches['A'] = (tdi_fs_with_glitches['Z'] - tdi_fs_with_glitches['X'])/np.sqrt(2.0)
 data_glitches['E'] = (tdi_fs_with_glitches['Z'] - 2.0*tdi_fs_with_glitches['Y'] + tdi_fs_with_glitches['X'])/np.sqrt(6.0)
 
-f_Nyquist = 1/dt/2
-search_range = [0.0003, f_Nyquist]
-frequencies = create_frequency_windows(search_range, Tobs)
-frequencies_even = frequencies[::2]
-frequencies_odd = frequencies[1::2]
-
-frequencies_search = []
-for i in range(len(cat)):
-    start_index = np.searchsorted(np.asarray(frequencies)[:,0], cat[i]['Frequency'])-1
-    frequencies_search.append(frequencies[start_index])
-
-for cat_index in range(10):
-    # cat[cat_index]['FrequencyDerivative'] *= 10
-    # lower_frequency = cat[cat_index]['Frequency']-0.0000005
-    # upper_frequency = cat[cat_index]['Frequency']+0.0000005
-    lower_frequency = frequencies_search[cat_index][0]
-    upper_frequency = frequencies_search[cat_index][1]
-    search = Search(tdi_fs_clean,Tobs, lower_frequency, upper_frequency, tdi2=True)
-    # search.plot(found_sources_in= [cat[cat_index]])
-    print(search.SNR([cat[cat_index]]))
 
 cat_index = 0
 
@@ -538,19 +669,23 @@ start_index = 1000000
 end_index = 6000000
 start_index = index_start
 end_index = index_end
+k = 'X'
 t_start = float(tdi_ts_sky[k].t[start_index].values)
 t_end = float(tdi_ts_sky[k].t[end_index].values)
 tdi_ts_sky_part = {}
 tdi_ts_data_part = {}
 tdi_ts_clean_part = {}
+tdi_ts_clean_galaxy_part = {}
 for k in ["X", "Y", "Z"]:
     # tdi_ts_sky[k]['t'] = tdi_ts_sky[k].t[start_index:-end_index or None]
     tdi_ts_data_part[k] = tdi_ts_with_glitches[k][start_index:end_index or None]
+    tdi_ts_clean_galaxy_part[k] = tdi_ts_clean_galaxy[k][start_index:end_index or None]
     tdi_ts_clean_part[k] = tdi_ts_clean[k][start_index:end_index or None]
     tdi_ts_sky_part[k] = tdi_ts_sky[k][start_index:end_index or None]
     # tdi_ts_sky_part[k]['t0'] = t_start
 tdi_fs_data = xr.Dataset(dict([(k, tdi_ts_data_part[k].ts.fft()) for k in ["X", "Y", "Z"]]))
 tdi_fs_clean = xr.Dataset(dict([(k, tdi_ts_clean_part[k].ts.fft()) for k in ["X", "Y", "Z"]]))
+tdi_fs_clean_galaxy = xr.Dataset(dict([(k, tdi_ts_clean_galaxy_part[k].ts.fft()) for k in ["X", "Y", "Z"]]))
 tdi_fs_sky = xr.Dataset(dict([(k, tdi_ts_sky_part[k].ts.fft()) for k in ["X", "Y", "Z"]]))
 
 data_glitches = {}
@@ -562,6 +697,15 @@ plt.plot(tdi_ts_data_part[k].t,tdi_ts_data_part[k])
 # plt.plot(tdi_ts_glitches[k].t,tdi_ts_glitches[k])
 plt.plot(tdi_ts_data_part[k].t,tdi_ts_data_part[k]-tdi_ts_clean_part[k])
 # plt.plot(tdi_ts_clean[k].t,tdi_ts_clean[k])
+plt.show()
+
+i =0
+plt.figure()
+plt.plot(data_fd[i].f.values,data_fd[i]['X'].values)
+plt.plot(tdi_fs_clean.f,tdi_fs_clean['X'])
+plt.plot(tdi_fs_clean_galaxy.f,tdi_fs_clean_galaxy['X'])
+plt.plot(Xs.f,Xs)
+plt.xlim( frequencies_search[cat_index])
 plt.show()
 
 pGB = {}
@@ -702,7 +846,7 @@ class GBSearch_with_gaps():
 params = np.array([np.full(num_bin, pGB[parameter]) for parameter in parameters_gpgpu])
 
 save_name = '_data_gaps_ignored'
-for cat_index in range(10,len(frequencies_search)):
+for cat_index in range(22,len(frequencies_search)):
     pGB = {}
     for parameter in parameters:
         pGB[parameter] = cat[cat_index][parameter]
@@ -736,7 +880,50 @@ for cat_index in range(10,len(frequencies_search)):
     fn = SAVEPATH+'/found_signals/found_sources'+ str(int(np.round(frequencies_search[cat_index][0]*10**9)))+'nHz_to'+ str(int(np.round(frequencies_search[cat_index][1]*10**9)))+'nHz_' +save_name+'.pkl'
     pickle.dump(maxpGB, open(fn, "wb"))
 
-# found_clean = pickle.load(open(SAVEPATH+'/found_sources_Spritz_clean_galaxy_flat.pkl', "rb"))
+found_clean = list(pickle.load(open(SAVEPATH+'/found_sources_Spritz_clean_galaxy_flat.pkl', "rb"))[21:])
+found_gaps_ignored = list(pickle.load(open(SAVEPATH+'/found_sources_Spritz_4gaps_ignored_flat.pkl', "rb")))
+found_tapered = list(pickle.load(open(SAVEPATH+'/found_sources_Spritz_4gaps_tapered_hann70_flat.pkl', "rb")))
+pGB_injected = cat[22:]
+
+found_clean.pop(8)
+found_gaps_ignored.pop(8)
+found_tapered.pop(8)
+pGB_injected.pop(8)
+
+signal_names = ['clean', 'gaps_ignored', 'tapered_hann70']
+errors = {}
+frequencies_found = {}
+for j, signals in enumerate([found_clean,found_gaps_ignored, found_tapered]):
+    errors[signal_names[j]] = {}
+    frequencies_found[signal_names[j]] = {}
+    for parameter in parameters:
+        errors[signal_names[j]][parameter] = []
+        frequencies_found[signal_names[j]] = []
+        for i in range(len(signals)):
+            if parameter in ['EclipticLatitude', 'Inclination', 'Polarization', 'InintialPhase', 'EclipticLongitude']:
+                errors[signal_names[j]][parameter].append(np.abs(np.arcsin(np.sin(signals[i][parameter]-pGB_injected[i][parameter]))))
+            else:
+                errors[signal_names[j]][parameter].append(np.abs(signals[i][parameter]-pGB_injected[i][parameter]))
+            frequencies_found[signal_names[j]].append(signals[i]['Frequency'])
+        frequencies_found[signal_names[j]] = np.array(frequencies_found[signal_names[j]])
+
+plt.figure()
+# parameter = 'Frequency'
+parameter = 'EclipticLongitude'
+# parameter = 'Amplitude'
+symbol_list = ['o', '.','+']
+for j, signals in enumerate([found_clean,found_gaps_ignored, found_tapered]):
+    plt.plot(errors[signal_names[j]][parameter], symbol_list[j], label=signal_names[j], markersize=12)
+# plt.hlines([0.1], 0,35)
+plt.ylabel(parameter+ ' Error')
+plt.xlabel('Signal with frequency (mHz)')
+plt.xticks(ticks=np.arange(len(frequencies_found[signal_names[j]])),labels=np.round(frequencies_found[signal_names[j]]*1000,2), rotation='vertical' )
+plt.legend()
+plt.tight_layout()
+plt.savefig(SAVEPATH+parameter+'_Error_4gaps.png')
+plt.show()
+
+
 # found_clean[19]['Frequency2Derivative'] = 0
 # params_clean = np.array([np.full(num_bin, found_clean[19][parameter]) for parameter in parameters_gpgpu])
 # loglikelihood_gpu_clean = gap_search.loglikelihood_gaps_gpu(params_clean, get_SNR=True)

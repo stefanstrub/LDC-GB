@@ -44,7 +44,7 @@ found_sources_mp = []
 for i in range(len(sorted_indexes)):
     found_sources_mp.append(found_sources_mp_even_unsorted[sorted_indexes[i]])
 # del found_sources_mp[1430]
-del found_sources_mp[2858]
+# del found_sources_mp[2858]
 try:
     time = 0
     times = []

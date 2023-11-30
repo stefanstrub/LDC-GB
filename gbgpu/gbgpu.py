@@ -587,6 +587,7 @@ class GBGPU(object):
         data_index=None,
         noise_index=None,
         get_SNR=False,
+        get_dh_hh_ratio=False,
         **kwargs,
     ):
         """Get batched log likelihood
@@ -742,6 +743,8 @@ class GBGPU(object):
         # compute Likelihood or SNR
         if get_SNR:
             out = (d_h.real / self.xp.sqrt(h_h.real))
+        elif get_dh_hh_ratio:
+            out = (d_h.real / h_h.real)
         else:
             out = -1.0 / 2.0 * (self.d_d + h_h - 2 * d_h).real
         # back to CPU if on GPU
