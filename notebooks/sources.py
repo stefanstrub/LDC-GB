@@ -394,7 +394,7 @@ def moving_average(a, n=3) :
     return ret[n - 1:] / n
 
 class Search():
-    def __init__(self,tdi_fs,Tobs, lower_frequency, upper_frequency, noise_model =  "SciRDv1", recombination=0.75, dt=None, update_noise=False, noise=None, gb_gpu=None, use_gpu=False, tdi2=False, t_start=0,
+    def __init__(self,tdi_fs,Tobs, lower_frequency, upper_frequency, noise_model =  "SciRDv1", recombination=0.75, dt=None, update_noise=True, noise=None, gb_gpu=None, use_gpu=False, tdi2=False, t_start=0,
     parameters = [
     "Amplitude",
     "EclipticLatitude",
@@ -841,20 +841,36 @@ class Search():
 
             index_low = np.searchsorted(Xs.f, Xs_total.f[0])
             index_high = np.searchsorted(Xs.f, Xs_total.f[-1])
+            if index_high > len(Xs.f)-1:
+                index_high = len(Xs.f)-1
             try:
-                if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
-                # if Xs.f[index_low] > self.dataX.f[0]:
+                if np.abs(Xs_total.f[0] - Xs.f[index_low-1]) < np.abs(Xs_total.f[0] - Xs.f[index_low]):
+                # if Xs.f[index_low] > Xs_total.f[0]:
                     index_low = index_low-1
             except:
                 pass
             try:
-                if np.abs(self.dataX.f[-1] - Xs.f[index_high-1]) < np.abs(self.dataX.f[-1] - Xs.f[index_high]):
+                if np.abs(Xs_total.f[-1] - Xs.f[index_high-1]) < np.abs(Xs_total.f[-1] - Xs.f[index_high]):
                     index_high = index_high-1
             except:
                 pass
-            Xs_total[index_low:index_high] += Xs[index_low:index_high]
-            Ys_total[index_low:index_high] += Ys[index_low:index_high]
-            Zs_total[index_low:index_high] += Zs[index_low:index_high]
+            index_low_total = np.searchsorted(Xs_total.f, Xs.f[index_low])
+            index_high_total = np.searchsorted(Xs_total.f, Xs.f[index_high])
+            if index_high_total > len(Xs_total.f)-1:
+                index_high_total = len(Xs_total.f)-1
+            try:
+                if np.abs(Xs_total.f[index_low_total-1] - Xs.f[index_low]) < np.abs(Xs_total.f[index_low_total] - Xs.f[index_low]):
+                    index_low_total = index_low_total-1
+            except:
+                pass
+            try:
+                if np.abs(Xs_total.f[index_high_total-1] - Xs.f[index_high]) < np.abs(Xs_total.f[index_high_total] - Xs.f[index_high]):
+                    index_high_total = index_high_total-1
+            except:
+                pass
+            Xs_total[index_low_total:index_high_total] += Xs[index_low:index_high]
+            Ys_total[index_low_total:index_high_total] += Ys[index_low:index_high]
+            Zs_total[index_low_total:index_high_total] += Zs[index_low:index_high]
             
         Af = (Zs_total - Xs_total)/np.sqrt(2.0)
         Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
@@ -1370,40 +1386,39 @@ class Search():
         return logliks.values
 
     def intrinsic_SNR(self, pGBs):
-        for i in range(len(pGBs)):
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, tdi2=self.tdi2)
-            if i == 0:
-                index_low = np.searchsorted(Xs.f, self.dataX.f[0])
-                try:
-                    if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
-                        index_low = index_low-1
-                except:
-                    pass
-                Xs_total = Xs[index_low : index_low + len(self.dataX)]
-                Ys_total = Ys[index_low : index_low + len(self.dataY)]
-                Zs_total = Zs[index_low : index_low + len(self.dataZ)]
-            else:
-                index_low = np.searchsorted(Xs.f, self.dataX.f[0])
-                try:
-                    if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
-                        index_low = index_low-1
-                except:
-                    pass
-                Xs_total += Xs[index_low : index_low + len(self.dataX)]
-                Ys_total += Ys[index_low : index_low + len(self.dataY)]
-                Zs_total += Zs[index_low : index_low + len(self.dataZ)]
+        # for i in range(len(pGBs)):
+        #     Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, tdi2=self.tdi2)
+        #     if i == 0:
+        #         index_low = np.searchsorted(Xs.f, self.dataX.f[0])
+        #         try:
+        #             if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
+        #                 index_low = index_low-1
+        #         except:
+        #             pass
+        #         Xs_total = Xs[index_low : index_low + len(self.dataX)]
+        #         Ys_total = Ys[index_low : index_low + len(self.dataY)]
+        #         Zs_total = Zs[index_low : index_low + len(self.dataZ)]
+        #     else:
+        #         index_low = np.searchsorted(Xs.f, self.dataX.f[0])
+        #         try:
+        #             if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
+        #                 index_low = index_low-1
+        #         except:
+        #             pass
+        #         Xs_total += Xs[index_low : index_low + len(self.dataX)]
+        #         Ys_total += Ys[index_low : index_low + len(self.dataY)]
+        #         Zs_total += Zs[index_low : index_low + len(self.dataZ)]
             
-        Af = (Zs_total - Xs_total)/np.sqrt(2.0)
-        Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
-        if self.use_T_component:
-            Tf = (Zs_total + Ys_total + Xs_total)/np.sqrt(3.0)
-            hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2)/self.SA + np.absolute(Tf.data)**2 /self.ST)
-        else:
-            hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2) /self.SA)
-        SNR = 4.0*Xs.df* hh
-        return np.sqrt(SNR)
-
-
+        # Af = (Zs_total - Xs_total)/np.sqrt(2.0)
+        # Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
+        # if self.use_T_component:
+        #     Tf = (Zs_total + Ys_total + Xs_total)/np.sqrt(3.0)
+        #     hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2)/self.SA + np.absolute(Tf.data)**2 /self.ST)
+        # else:
+        #     hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2) /self.SA)
+        # SNR = 4.0*Xs.df* hh
+        dh, hh = self.get_dh_hh(pGBs)
+        return np.sqrt(hh)
 
     def differential_evolution_search(self, frequency_boundaries=None, initial_guess = None, number_of_signals = 1):
         bounds = []
@@ -1438,6 +1453,9 @@ class Search():
             maxpGB.append(scaletooriginal(pGB01,self.boundaries_reduced, self.parameters, self.parameters_log_uniform))
         print(res)
         print(maxpGB)
+        print('log-likelihood',self.loglikelihood(maxpGB))
+        print('SNR', self.SNR(maxpGB))
+        print('evolution SNR', self.function_evolution(res.x))
         # print('log-likelihood',self.loglikelihood(maxpGB))
         # print(pGB)
         return [maxpGB], res.nfev
@@ -1693,45 +1711,53 @@ class Search():
 
     def function(self, pGBs01, boundaries_reduced):
         pGBs = []
+
         for signal in range(int(len(pGBs01)/8)):
-            pGBs.append({})
-            i = 0
-            for parameter in self.parameters:
-                if parameter in ["EclipticLatitude"]:
-                    pGBs[signal][parameter] = np.arcsin((pGBs01[signal*8:signal*8+8][i] * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0])
-                elif parameter in ["Inclination"]:
-                    shifted_inclination = pGBs01[signal*8:signal*8+8][i]
-                    if pGBs01[signal*8:signal*8+8][i] < 0:
-                        shifted_inclination = pGBs01[signal*8:signal*8+8][i] + 1
-                    if pGBs01[signal*8:signal*8+8][i] > 1:
-                        shifted_inclination = pGBs01[signal*8:signal*8+8][i] - 1
-                    pGBs[signal][parameter] = np.arccos((shifted_inclination * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0])
-                elif parameter in self.parameters_log_uniform:
-                    pGBs[signal][parameter] = 10**((pGBs01[signal*8:signal*8+8][i] * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0])
-                else:
-                    pGBs[signal][parameter] = (pGBs01[signal*8:signal*8+8][i] * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0]
-                i += 1
+            pGBs.append(scaletooriginal(pGBs01[signal*8:signal*8+8],boundaries_reduced[signal], self.parameters, self.parameters_log_uniform))
+        # for signal in range(int(len(pGBs01)/8)):
+        #     pGBs.append({})
+        #     i = 0
+        #     for parameter in self.parameters:
+        #         if parameter in ["EclipticLatitude"]:
+        #             pGBs[signal][parameter] = np.arcsin((pGBs01[signal*8:signal*8+8][i] * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0])
+        #         elif parameter in ["Inclination"]:
+        #             shifted_inclination = pGBs01[signal*8:signal*8+8][i]
+        #             if pGBs01[signal*8:signal*8+8][i] < 0:
+        #                 shifted_inclination = pGBs01[signal*8:signal*8+8][i] + 1
+        #             if pGBs01[signal*8:signal*8+8][i] > 1:
+        #                 shifted_inclination = pGBs01[signal*8:signal*8+8][i] - 1
+        #             pGBs[signal][parameter] = np.arccos((shifted_inclination * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0])
+        #         elif parameter in self.parameters_log_uniform:
+        #             pGBs[signal][parameter] = 10**((pGBs01[signal*8:signal*8+8][i] * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0])
+        #         else:
+        #             pGBs[signal][parameter] = (pGBs01[signal*8:signal*8+8][i] * (boundaries_reduced[signal][parameter][1] - boundaries_reduced[signal][parameter][0])) + boundaries_reduced[signal][parameter][0]
+        #         i += 1
         p = -self.loglikelihood(pGBs)
         return p#/10**4
 
     def function_evolution(self, pGBs01, number_of_signals = 1):
         pGBs = []
+
         for signal in range(number_of_signals):
-            pGBs.append({})
-            i = 0
-            for parameter in self.parameters:
-                if parameter in ["EclipticLatitude"]:
-                    pGBs[signal][parameter] = np.arcsin((pGBs01[signal*7:signal*7+7][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
-                elif parameter in ["Inclination"]:
-                    pGBs[signal][parameter] = np.arccos((pGBs01[signal*7:signal*7+7][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
-                elif parameter in ['Amplitude']:
-                    i -= 1
-                    pGBs[signal][parameter] = 10**((0.1 * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
-                # elif parameter in ["FrequencyDerivative"]:
-                #     pGBs[signal][parameter] = 10**((pGBs01[signal*7:signal*7+7][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
-                else:
-                    pGBs[signal][parameter] = (pGBs01[signal*7:signal*7+7][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0]
-                i += 1
+            pGB01 = [0.5] + pGBs01[signal*7:signal*7+7].tolist()
+            pGBs.append(scaletooriginal(pGB01,self.boundaries_reduced, self.parameters, self.parameters_log_uniform))
+
+        # for signal in range(number_of_signals):
+        #     pGBs.append({})
+        #     i = 0
+        #     for parameter in self.parameters:
+        #         if parameter in ["EclipticLatitude"]:
+        #             pGBs[signal][parameter] = np.arcsin((pGBs01[signal*7:signal*7+7][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
+        #         elif parameter in ["Inclination"]:
+        #             pGBs[signal][parameter] = np.arccos((pGBs01[signal*7:signal*7+7][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
+        #         elif parameter in ['Amplitude']:
+        #             i -= 1
+        #             pGBs[signal][parameter] = 10**((0.1 * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
+        #         # elif parameter in ["FrequencyDerivative"]:
+        #         #     pGBs[signal][parameter] = 10**((pGBs01[signal*7:signal*7+7][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0])
+        #         else:
+        #             pGBs[signal][parameter] = (pGBs01[signal*7:signal*7+7][i] * (self.boundaries_reduced[parameter][1] - self.boundaries_reduced[parameter][0])) + self.boundaries_reduced[parameter][0]
+        #         i += 1
         p = -self.SNR(pGBs)
         return p
 
