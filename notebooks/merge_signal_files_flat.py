@@ -17,7 +17,7 @@ folderpath_parent = grandparent+"/LDC/pictures/Sangria/found_signals"
 folderpath_save = grandparent+"/LDC/pictures/Sangria"
 # folderpath_save = grandparent+"/LDC/Spritz/"
 
-name = '_6m_mbhb'
+name = '_6m_mbhb_odd_old'
 # save_name = 'Spritz' + name
 save_name = 'Sangria' + name
 folderpath = folderpath_parent + name
