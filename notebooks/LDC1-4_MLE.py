@@ -19,10 +19,10 @@ sys.path.append('/cluster/home/sstrub/python/lib64/python3.8/site-packages/ldc-0
 # from bbhx.waveformbuild import BBHWaveformFD
 
 from ldc.lisa.noise import get_noise_model
-from ldc.common.series import TimeSeries
-# from ldc.common.series import window ### manual install of  ldc
+from ldc.common.series import TimeSeries#, TDI
+from ldc.common.series import window ### manual install of  ldc
 import ldc.waveform.fastGB as fastGB
-from ldc.common.tools import window ### pip install of ldc
+# from ldc.common.tools import window ### pip install of ldc
 
 from sources import *
 
@@ -170,8 +170,8 @@ elif dataset == 'Sangria':
 
     td_original = deepcopy(td)
     if reduction == 2:
+        # wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_found_6months.pkl", "rb"))
         wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_found_6months.pkl", "rb"))
-        # wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_found_6months_self_injected.pkl", "rb"))
     else:
         wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_found_12months.pkl", "rb"))
     if HM:
@@ -226,18 +226,18 @@ freq_full = np.fft.rfftfreq(int(len(td['t'])), d=dt)
 # pickle.dump(td_found, open(MBHBPATH+dataset+"_mbhbh_found.pkl", "wb"))
 
 
-plt.figure()
-plt.plot(td_original['t'], td_original['X'])
-plt.plot(td['t'], td['X'])
-# plt.plot(td_mbhb['t'], td_mbhb['X'])
+# plt.figure()
+# plt.plot(td_original['t'], td_original['X'])
+# plt.plot(td['t'], td['X'])
+# # plt.plot(td_mbhb['t'], td_mbhb['X'])
 # plt.plot(td_injected['t'], td_injected['X'])
-# plt.plot(wave['t'], wave['X'])
-# plt.plot(td_original['t'], td_original['X']-td_mbhb['X']-td['X'])
-# plt.plot(td_original['t'], td_original['X']-td_injected['X']-td['X'])
-plt.plot(td_original['t'], td_mbhb['X']-wave['X'])
-plt.plot(td_original['t'], td_injected['X']-wave['X'])
-plt.plot(td_original['t'], td_mbhb['X']-td_injected['X'])
-plt.show()
+# plt.plot(td_original['t'], wave['X'])
+# # plt.plot(td_original['t'], td_original['X']-td_mbhb['X']-td['X'])
+# # plt.plot(td_original['t'], td_original['X']-td_injected['X']-td['X'])
+# plt.plot(td_original['t'], td_mbhb['X']-wave['X'])
+# # plt.plot(td_original['t'], td_injected['X']-wave['X'])
+# # plt.plot(td_original['t'], td_mbhb['X']-td_injected['X'])
+# plt.show()
 
 # # Build timeseries and frequencyseries object for X,Y,Z
 tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt, t0=td.t[0])) for k in ["X", "Y", "Z"]])
@@ -343,9 +343,11 @@ if fill_gaps:
 
 
 tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+# tdi_fs = TDI(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
+# pickle.dump(tdi_fs, open(MBHBPATH+dataset+"_tdi_fs_residual.pkl", "wb"))
 
-noise_model = "SciRDv1"
-Nmodel = get_noise_model(noise_model, np.logspace(-5, -1, 100))
+# noise_model = "SciRDv1"
+# Nmodel = get_noise_model(noise_model, np.logspace(-5, -1, 100))
 
 pGB = {}
 ind = 0
@@ -436,6 +438,8 @@ class MLP_search():
         #     SNR_threshold = 20
         # if lower_frequency > 20*10**-3:
         #     SNR_threshold = 100
+        if lower_frequency > 5*10**-3:
+            self.signals_per_window = 3
         if lower_frequency > 10**-2:
             self.signals_per_window = 1
         # current_loglikelihood_ratio = 1000
@@ -777,13 +781,13 @@ frequencies_search = np.asarray(frequencies)
 # plt.savefig(SAVEPATH+'bandwidth.png')
 
 
-save_name = 'Sangria_mbhb_subtracted_6m_even'
+save_name = 'Sangria_mbhb_subtracted_6m_odd'
 # save_name = 'Radler_24m_filled_anticorrelation'
 # save_name = 'Spritz'
 # save_name = dataset + '_12m_eventest'
 # save_name = dataset + '_VGB_gaps'
 # for i in range(65):
-frequencies_search = frequencies_even
+frequencies_search = frequencies_odd
 frequencies_search_full = deepcopy(frequencies_search)
 batch_index = int(sys.argv[1]) 
 # batch_index = int(200) 
@@ -849,7 +853,7 @@ if do_subtract:
     start = time.time()
     # save_name_previous = 'found_sourcesRadler_half_odd_dynamic_noise'
     # Sangria
-    save_name_previous = 'found_sources_Sangria_6m_mbhb_odd_flat'
+    save_name_previous = 'found_sources_Sangria_6m_mbhb_even3_flat'
     # save_name_previous = 'found_sources_Sangria_6m_mbhb_flat'
     # save_name_previous = 'found_sources_not_anticorrelated_Sangria_12m'
     # save_name_previous = 'found_sources_Radler_24m_even'
