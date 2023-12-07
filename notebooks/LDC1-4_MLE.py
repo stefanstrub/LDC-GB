@@ -284,7 +284,7 @@ class MLP_search():
         # while current_loglikelihood_ratio > loglikelihood_ratio_threshold and ind < self.signals_per_window:
             ind += 1
             search1 = Search(tdi_fs_search,self.Tobs, lower_frequency, upper_frequency)
-            # search1.update_noise()
+            search1.update_noise()
             # N_frequency = 5
             # F_stat, frequencies_F_stat, eclipticlatitude_F_stat, eclipticlongitude_F_stat =  search1.f_statistic(N_frequency,5)
             # ind = np.unravel_index(np.argmax(F_stat, axis=None), F_stat.shape)
@@ -398,7 +398,7 @@ class MLP_search():
                         tdi_fs_subtracted[k].data[index_low:index_high] = tdi_fs_subtracted[k].data[index_low:index_high] - source_subtracted[k].data
 
                 search_out_subtracted = Search(tdi_fs_subtracted,self.Tobs, lower_frequency, upper_frequency)
-                # search_out_subtracted.update_noise()
+                search_out_subtracted.update_noise()
                 total_boundaries = deepcopy(search_out_subtracted.boundaries)
                 # amplitudes = []
                 # for i in range(len(found_sources_in)):
