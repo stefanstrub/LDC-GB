@@ -975,9 +975,15 @@ if do_not_search_unchanged_even_windows:
             else:
                 # print('no search', frequencies_search[i])
                 found_sources_in_skipped.append(found_sources_in_flat_df.to_dict(orient='records'))
-    found_sources_in_skipped = np.concatenate(found_sources_in_skipped)
+    # found_sources_in_skipped = np.concatenate(found_sources_in_skipped)
     # pickle.dump(found_sources_in_skipped, open(SAVEPATH+save_name_previous+'_skipped.pkl', "wb"))
     frequencies_search = frequencies_search_reduced
+
+if len(found_sources_in_skipped) > 0:
+    do_search = False
+else:
+    do_search = True
+
 
 found_sources_sorted = []
 use_initial_guess = True
@@ -1037,7 +1043,6 @@ if use_initial_guess:
 # search1.plot(found_sources_in=found_sources_mp_loaded[index][0], pGB_injected=pGB_injected[index])
 # search1.SNR(pGB_injected[index])
 # frequencies_search = [frequencies_search[35]]
-do_search = True
 if do_search:
     MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 10, found_sources_previous = found_sources_sorted, strategy = 'DE')
     start = time.time()
