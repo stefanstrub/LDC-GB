@@ -119,7 +119,7 @@ elif dataset == 'Spritz':
     data_fn = DATAPATH + "/LDC2_spritz_vgb_training_v2.h5"
 fid = h5py.File(data_fn)
 
-reduction = 2
+reduction = 1
 HM = False
 mbhbs_removed = bool(int(sys.argv[3]))
 
@@ -435,7 +435,7 @@ class MLP_search():
         number_of_evaluations_all = []
         found_sources_in = []
         current_SNR = 100
-        SNR_threshold = 9
+        SNR_threshold = 10
         loglikelihood_ratio_threshold = 50
         f_transfer = 19.1*10**-3
         # if lower_frequency > f_transfer:
@@ -803,13 +803,13 @@ frequencies_search = np.asarray(frequencies)
 # plt.savefig(SAVEPATH+'bandwidth.png')
 
 
-save_name = 'Sangria_6m_no_mbhb_SNR9_odd'
+save_name = 'Sangria_12m_mbhb_even'
 # save_name = 'Radler_24m_filled_anticorrelation'
 # save_name = 'Spritz'
 # save_name = dataset + '_12m_eventest'
 # save_name = dataset + '_VGB_gaps'
 # for i in range(65):
-frequencies_search = frequencies_odd
+frequencies_search = frequencies_even
 frequencies_search_full = deepcopy(frequencies_search)
 batch_index = int(sys.argv[1]) 
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.008545)
@@ -878,9 +878,9 @@ if do_subtract:
     # Sangria
     # save_name_previous = 'found_sources_Sangria_6m_mbhb_odd_seed'+str(seed)+'_flat'
     if mbhbs_removed:
-        save_name_previous = 'found_sources_Sangria_6m_no_mbhb_even3_seed'+str(seed)+'_flat'
+        save_name_previous = 'found_sources_Sangria_12m_no_mbhb_odd_seed'+str(seed)+'_flat'
     else:
-        save_name_previous = 'found_sources_Sangria_6m_mbhb_even3_seed'+str(seed)+'_flat'
+        save_name_previous = 'found_sources_Sangria_12m_mbhb_odd_seed'+str(seed)+'_flat'
     # save_name_previous = 'found_sources_Sangria_6m_mbhb_flat'
     # save_name_previous = 'found_sources_not_anticorrelated_Sangria_12m'
     # save_name_previous = 'found_sources_Radler_24m_even'
@@ -936,7 +936,7 @@ if do_subtract:
         
     tdi_fs = deepcopy(tdi_fs_subtracted)
 
-do_not_search_unchanged_even_windows = False
+do_not_search_unchanged_even_windows = True
 if do_not_search_unchanged_even_windows:
     frequencies_search_reduced = []
 
@@ -980,7 +980,7 @@ if do_not_search_unchanged_even_windows:
     frequencies_search = frequencies_search_reduced
 
 found_sources_sorted = []
-use_initial_guess = False
+use_initial_guess = True
 if use_initial_guess:
     # save_name_found_sources_previous = 'found_sources397769to400619LDC1-4_4mHz_half_year_even10'
     # save_name_found_sources_previous = 'found_sources397919to400770LDC1-4_4mHz_half_year_odd'
@@ -1039,7 +1039,7 @@ if use_initial_guess:
 # frequencies_search = [frequencies_search[35]]
 do_search = True
 if do_search:
-    MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 3, found_sources_previous = found_sources_sorted, strategy = 'DE')
+    MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 10, found_sources_previous = found_sources_sorted, strategy = 'DE')
     start = time.time()
 
     # cpu_cores = 16
@@ -1055,9 +1055,9 @@ if do_search:
 
     print('time to search ', len(frequencies_search), 'windows: ', time.time()-start)
     if mbhbs_removed:
-        directory = SAVEPATH+'found_signals_6m_no_mbhb_SNR9_odd_seed'+str(seed)
+        directory = SAVEPATH+'found_signals_12m_no_mbhb_seed'+str(seed)
     else:
-        directory = SAVEPATH+'found_signals_6m_mbhb_SNR9_odd_seed'+str(seed)
+        directory = SAVEPATH+'found_signals_12m_mbhb_seed'+str(seed)
     fn = directory+'/found_sources_batch_index_'+str(batch_index)+'_'+ str(int(np.round(search_range[0]*10**9)))+'nHz_to'+ str(int(np.round(search_range[1]*10**9)))+'nHz_' +save_name+'.pkl'
     if not os.path.exists(directory):
         os.makedirs(directory)
