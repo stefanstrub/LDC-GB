@@ -17,12 +17,14 @@ sys.path.append('/cluster/home/sstrub/python/lib64/python3.8/site-packages/ldc-0
 
 
 # from bbhx.waveformbuild import BBHWaveformFD
-
+cluster = True
 from ldc.lisa.noise import get_noise_model
 from ldc.common.series import TimeSeries#, TDI
-from ldc.common.series import window ### manual install of  ldc
 import ldc.waveform.fastGB as fastGB
-# from ldc.common.tools import window ### pip install of ldc
+if cluster:
+    from ldc.common.series import window ### manual install of  ldc
+else:
+    from ldc.common.tools import window ### pip install of ldc
 
 from sources import *
 
@@ -59,6 +61,9 @@ fig_size_squared = [fig_width, fig_width]
 rcParams.update({"figure.figsize": fig_size})
 prop_cycle = plt.rcParams['axes.prop_cycle']
 colors = prop_cycle.by_key()['color']
+
+seed = int(sys.argv[2])
+np.random.seed(seed) #40
 
 parameters = [
     "Amplitude",
@@ -116,6 +121,7 @@ fid = h5py.File(data_fn)
 
 reduction = 2
 HM = False
+mbhbs_removed = bool(int(sys.argv[3]))
 
 # get TDI 
 if dataset == 'Radler':
@@ -152,33 +158,36 @@ elif dataset == 'Sangria':
     td_mbhb  = np.rec.fromarrays(list(td_mbhb .T), names=["t", "X", "Y", "Z"])
     td_mbhb  = td_mbhb ['t']
 
-    td_injected = deepcopy(td)
+    # td_injected = deepcopy(td)
     Tobs = float(int(np.array(fid['obs/config/t_max']))/reduction)
-    for k in ["X", "Y", "Z"]:
-        # td[k] = td[k] - td_mbhb[k]
-        td_injected[k] -= td_injected[k]
-
-    td_mbhbs_subtracted = deepcopy(td)
-
-    wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_injected.pkl", "rb"))
-    if HM:
-        wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_HM_injected.pkl", "rb"))
-    for i, k in enumerate(["X", "Y", "Z"]):
-        # td[k] = td_mbhb[k]
-        # td[k] += wave[k]
-        td_injected[k] += wave[k]
-
-    td_original = deepcopy(td)
-    if reduction == 2:
-        # wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_found_6months.pkl", "rb"))
-        wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_found_6months.pkl", "rb"))
+    if mbhbs_removed:
+        for k in ["X", "Y", "Z"]:
+            td[k] = td[k] - td_mbhb[k]
+            # td_injected[k] -= td_injected[k]
     else:
-        wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_found_12months.pkl", "rb"))
-    if HM:
-        wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_HM_found.pkl", "rb"))
-    for i, k in enumerate(["X", "Y", "Z"]):
-        # td[k] = td_mbhb[k]
-        td[k] -= wave[k]
+        td_original = deepcopy(td)
+        if reduction == 2:
+            # wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_found_6months.pkl", "rb"))
+            wave = pickle.load(open(MBHBPATH+dataset+'_mbhbh_found_6months_seed'+str(seed)+'.pkl', "rb"))
+            # wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_found_6months.pkl", "rb"))
+        else:
+            wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_found_12months_seed12.pkl", "rb"))
+        if HM:
+            wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_HM_found.pkl", "rb"))
+        for i, k in enumerate(["X", "Y", "Z"]):
+            # td[k] = td_mbhb[k]
+            td[k] -= wave[k] 
+
+    # td_mbhbs_subtracted = deepcopy(td)
+
+    # wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_injected.pkl", "rb"))
+    # if HM:
+    #     wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_HM_injected.pkl", "rb"))
+    # for i, k in enumerate(["X", "Y", "Z"]):
+    #     # td[k] = td_mbhb[k]
+    #     # td[k] += wave[k]
+    #     td_injected[k] += wave[k]
+
 
 elif dataset == 'Spritz':
     names = fid["sky/cat"].dtype.names
@@ -227,10 +236,10 @@ freq_full = np.fft.rfftfreq(int(len(td['t'])), d=dt)
 
 
 # plt.figure()
-# plt.plot(td_original['t'], td_original['X'])
+# # plt.plot(td_original['t'], td_original['X'])
 # plt.plot(td['t'], td['X'])
-# # plt.plot(td_mbhb['t'], td_mbhb['X'])
-# plt.plot(td_injected['t'], td_injected['X'])
+# plt.plot(td_mbhb['t'], td_mbhb['X'])
+# # plt.plot(td_injected['t'], td_injected['X'])
 # plt.plot(td_original['t'], wave['X'])
 # # plt.plot(td_original['t'], td_original['X']-td_mbhb['X']-td['X'])
 # # plt.plot(td_original['t'], td_original['X']-td_injected['X']-td['X'])
@@ -354,7 +363,6 @@ ind = 0
 found_sources = []
 target_sources = []
 first_start = time.time()
-np.random.seed(42) #40
 number_of_signals = 1
 signals_per_subtraction = 1
 
@@ -427,7 +435,7 @@ class MLP_search():
         number_of_evaluations_all = []
         found_sources_in = []
         current_SNR = 100
-        SNR_threshold = 10
+        SNR_threshold = 9
         loglikelihood_ratio_threshold = 50
         f_transfer = 19.1*10**-3
         # if lower_frequency > f_transfer:
@@ -673,8 +681,12 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search=None):
 
 
 #sum the found sources
-# found_sources = np.load(SAVEPATH+'found_sources_not_anticorrelated_Sangria_6m_mbhb.pkl', allow_pickle = True)
+# if mbhbs_removed:
+#     found_sources = np.load(SAVEPATH+'found_sources_not_anticorrelated_Sangria_6m_no_mbhb_seed'+str(seed)+'.pkl', allow_pickle = True)
+# else:
+#     found_sources = np.load(SAVEPATH+'found_sources_not_anticorrelated_Sangria_6m_mbhb_seed'+str(seed)+'.pkl', allow_pickle = True)
 # found_sources_flat = np.concatenate(found_sources)
+# # found_sources_flat = np.load(SAVEPATH+'found_sources_Sangria_6m_mbhb_even3_seed1_flat.pkl', allow_pickle = True)
 # tdi_fs_sum_found = deepcopy(tdi_fs)
 # for k in ["X", "Y", "Z"]:
 #     tdi_fs_sum_found[k].data = np.zeros(len(tdi_fs_sum_found[k].data), np.complex128)
@@ -686,18 +698,28 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search=None):
 #     index_high = index_low+len(Xs_subtracted)
 #     for k in ["X", "Y", "Z"]:
 #         tdi_fs_sum_found[k].data[index_low:index_high] += source_subtracted[k].data
-# pickle.dump(tdi_fs_sum_found, open(SAVEPATH+'tdi_fs_sum_found.pkl', "wb"))
-# tdi_fs_sum_found = pickle.load(open(SAVEPATH+'tdi_fs_sum_found.pkl', "rb"))
+# # if mbhbs_removed:
+# #     pickle.dump(tdi_fs_sum_found, open(SAVEPATH+'tdi_fs_sum_found_6m_no_mbhb_seed'+str(seed)+'.pkl', "wb"))
+# # else:
+# #     pickle.dump(tdi_fs_sum_found, open(SAVEPATH+'tdi_fs_sum_found_6m_mbhb_seed'+str(seed)+'.pkl', "wb"))
 
 # tdi_fs_subtracted = deepcopy(tdi_fs)
 # for k in ["X", "Y", "Z"]:
 #     tdi_fs_subtracted[k].data -= tdi_fs_sum_found[k].data
 
 # plt.figure()
+# plt.semilogx(tdi_fs['X'].f, (tdi_fs['X'].data))
+# plt.semilogx(tdi_fs_sum_found['X'].f, (tdi_fs_sum_found['X'].data))
+# plt.semilogx(tdi_fs_subtracted['X'].f, (tdi_fs_subtracted['X'].data))
+# plt.show()
+
+# plt.figure()
 # plt.loglog(tdi_fs['X'].f, np.abs(tdi_fs['X'].data))
 # plt.loglog(tdi_fs_sum_found['X'].f, np.abs(tdi_fs_sum_found['X'].data))
 # plt.loglog(tdi_fs_subtracted['X'].f, np.abs(tdi_fs_subtracted['X'].data))
 # plt.show()
+
+# pickle.dump(tdi_fs_subtracted, open(MBHBPATH+dataset+"_tdi_fs_residual.pkl", "wb"))
 
 # try:
 #     cat = np.load(SAVEPATH+'cat_sorted.npy', allow_pickle = True)
@@ -781,7 +803,7 @@ frequencies_search = np.asarray(frequencies)
 # plt.savefig(SAVEPATH+'bandwidth.png')
 
 
-save_name = 'Sangria_mbhb_subtracted_6m_odd'
+save_name = 'Sangria_6m_no_mbhb_SNR9_odd'
 # save_name = 'Radler_24m_filled_anticorrelation'
 # save_name = 'Spritz'
 # save_name = dataset + '_12m_eventest'
@@ -790,12 +812,11 @@ save_name = 'Sangria_mbhb_subtracted_6m_odd'
 frequencies_search = frequencies_odd
 frequencies_search_full = deepcopy(frequencies_search)
 batch_index = int(sys.argv[1]) 
-# batch_index = int(200) 
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.008545)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00399)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00404)
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00264612)
-# start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.007977)
+# start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.007977) 
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.016308)-1
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.00545)-1
 # start_index = np.searchsorted(np.asarray(frequencies_search)[:,0], 0.001373)-1
@@ -815,6 +836,8 @@ while frequencies_search[-1][1] + (frequencies_search[-1][1] - frequencies_searc
 # frequencies_search = frequencies_search[70:80]
 # frequencies_search = frequencies_search[25:]
 
+
+# frequencies_search = frequencies_even
 
 if VGB:
     frequencies_search = []
@@ -853,7 +876,11 @@ if do_subtract:
     start = time.time()
     # save_name_previous = 'found_sourcesRadler_half_odd_dynamic_noise'
     # Sangria
-    save_name_previous = 'found_sources_Sangria_6m_mbhb_even3_flat'
+    # save_name_previous = 'found_sources_Sangria_6m_mbhb_odd_seed'+str(seed)+'_flat'
+    if mbhbs_removed:
+        save_name_previous = 'found_sources_Sangria_6m_no_mbhb_even3_seed'+str(seed)+'_flat'
+    else:
+        save_name_previous = 'found_sources_Sangria_6m_mbhb_even3_seed'+str(seed)+'_flat'
     # save_name_previous = 'found_sources_Sangria_6m_mbhb_flat'
     # save_name_previous = 'found_sources_not_anticorrelated_Sangria_12m'
     # save_name_previous = 'found_sources_Radler_24m_even'
@@ -914,15 +941,20 @@ if do_not_search_unchanged_even_windows:
     frequencies_search_reduced = []
 
     # save_name_previous = 'found_sources_Sangria_12m_even3'
-    save_name_previous = 'found_sources_Radler_24m_even3'
-    found_sources_mp_previous = np.load(SAVEPATH+save_name_previous+'.npy', allow_pickle = True)
-    found_sources_flat = []
-    for j in range(len(found_sources_mp_previous)):
-        for k in range(len(found_sources_mp_previous[j][3])):
-            found_sources_flat.append(found_sources_mp_previous[j][3][k])
-    found_sources_flat = np.asarray(found_sources_flat)
+    if mbhbs_removed:
+        save_name_previous = 'found_sources_Sangria_12m_no_mbhb_even3_seed'+str(seed)+'_flat'
+    else:
+        save_name_previous = 'found_sources_Sangria_12m_mbhb_even3_seed'+str(seed)+'_flat'
+    found_sources_mp_previous = np.load(SAVEPATH+save_name_previous+'.pkl', allow_pickle = True)
+    # found_sources_flat = []
+    # for j in range(len(found_sources_mp_previous)):
+    #     for k in range(len(found_sources_mp_previous[j][3])):
+    #         found_sources_flat.append(found_sources_mp_previous[j][3][k])
+    # found_sources_flat = np.asarray(found_sources_flat)
+    found_sources_flat = np.asarray(found_sources_mp_previous)
     found_sources_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_flat]) for attribute in found_sources_flat[0].keys()}
     found_sources_flat_df = pd.DataFrame(found_sources_flat_array)
+    found_sources_in_skipped = []
     for i in range(len(frequencies_search)):
         found_sources_out_lower = []
         found_sources_out_upper = []
@@ -940,6 +972,11 @@ if do_not_search_unchanged_even_windows:
             found_sources_in_flat_df = found_sources_flat_df[(found_sources_flat_df['Frequency']> frequencies_search[i][0]) & (found_sources_flat_df['Frequency']< frequencies_search[i][1])]
             if len(found_sources_in_flat_df) > 2:
                 frequencies_search_reduced.append(frequencies_search[i])
+            else:
+                # print('no search', frequencies_search[i])
+                found_sources_in_skipped.append(found_sources_in_flat_df.to_dict(orient='records'))
+    found_sources_in_skipped = np.concatenate(found_sources_in_skipped)
+    # pickle.dump(found_sources_in_skipped, open(SAVEPATH+save_name_previous+'_skipped.pkl', "wb"))
     frequencies_search = frequencies_search_reduced
 
 found_sources_sorted = []
@@ -949,8 +986,12 @@ if use_initial_guess:
     # save_name_found_sources_previous = 'found_sources397919to400770LDC1-4_4mHz_half_year_odd'
     # save_name_found_sources_previous = 'found_sources2537595to3305084LDC1-4_4mHz_half_year_even'
     # save_name_found_sources_previous = 'found_sourcesLDC1-4_half_even10'
-    save_name_found_sources_previous = 'found_sources_Radler_12m'
-    save_name_found_sources_previous = 'found_sources_not_anticorrelated_Sangria_6m_mbhb'
+    # save_name_found_sources_previous = 'found_sources_Radler_12m'
+    # save_name_found_sources_previous = 'found_sources_not_anticorrelated_Sangria_6m_mbhb'
+    if mbhbs_removed:
+        save_name_found_sources_previous = 'found_sources_not_anticorrelated_Sangria_6m_no_mbhb_seed'+str(seed)
+    else:
+        save_name_found_sources_previous = 'found_sources_not_anticorrelated_Sangria_6m_mbhb_seed'+str(seed)
     # save_name_found_sources_previous = 'found_sourcesLDC1-4_half_odd'
     # found_sources_mp_subtract = np.load(SAVEPATH+save_name_found_sources_previous+'.npy', allow_pickle = True)
 
@@ -998,7 +1039,7 @@ if use_initial_guess:
 # frequencies_search = [frequencies_search[35]]
 do_search = True
 if do_search:
-    MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 10, found_sources_previous = found_sources_sorted, strategy = 'DE')
+    MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 3, found_sources_previous = found_sources_sorted, strategy = 'DE')
     start = time.time()
 
     # cpu_cores = 16
@@ -1013,8 +1054,13 @@ if do_search:
         found_sources_mp.append(MLP.search(*frequencies_search[i]))
 
     print('time to search ', len(frequencies_search), 'windows: ', time.time()-start)
-
-    fn = SAVEPATH+'found_signals/found_sources_batch_index_'+str(batch_index)+'_'+ str(int(np.round(search_range[0]*10**9)))+'nHz_to'+ str(int(np.round(search_range[1]*10**9)))+'nHz_' +save_name+'.pkl'
+    if mbhbs_removed:
+        directory = SAVEPATH+'found_signals_6m_no_mbhb_SNR9_odd_seed'+str(seed)
+    else:
+        directory = SAVEPATH+'found_signals_6m_mbhb_SNR9_odd_seed'+str(seed)
+    fn = directory+'/found_sources_batch_index_'+str(batch_index)+'_'+ str(int(np.round(search_range[0]*10**9)))+'nHz_to'+ str(int(np.round(search_range[1]*10**9)))+'nHz_' +save_name+'.pkl'
+    if not os.path.exists(directory):
+        os.makedirs(directory)
     pickle.dump(found_sources_mp, open(fn, "wb"))
     
     # np.save(SAVEPATH+'found_signals/found_sources'+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(np.round(search_range[1]*10**8))) +save_name+'.npy', found_sources_mp, allow_pickle=True)

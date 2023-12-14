@@ -11,13 +11,13 @@ parent = os.path.dirname(path)
 # grandparent directory
 grandparent = os.path.dirname(parent)
 folderpath_parent = grandparent+"/LDC/pictures/LDC1-4/found_signals"
-# folderpath_parent = grandparent+"/LDC/pictures/Sangria/found_signals"
+folderpath_parent = grandparent+"/LDC/pictures/Sangria/found_signals"
 folderpath_save = grandparent+"/LDC/pictures/LDC1-4"
-# folderpath_save = grandparent+"/LDC/pictures/Sangria"
+folderpath_save = grandparent+"/LDC/pictures/Sangria"
 
-name = '_24m_redone'
-save_name = 'Radler' + name
-# save_name = 'Sangria' + name
+name = '_12m_even3'
+# save_name = 'Radler' + name
+save_name = 'Sangria' + name
 folderpath = folderpath_parent + name
 onlyfiles = [f for f in listdir(folderpath) if isfile(join(folderpath, f))]
 found_sources_mp_even_unsorted = []

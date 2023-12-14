@@ -17,7 +17,7 @@ folderpath_parent = grandparent+"/LDC/pictures/Sangria/found_signals"
 folderpath_save = grandparent+"/LDC/pictures/Sangria"
 # folderpath_save = grandparent+"/LDC/Spritz/"
 
-name = '_6m_mbhb_odd'
+name = '_12m_mbhb_odd_seed1'
 # save_name = 'Spritz' + name
 save_name = 'Sangria' + name
 folderpath = folderpath_parent + name
@@ -34,17 +34,21 @@ for i in range(len(onlyfiles)):
     for j in range(len(sources)):
         try:
             # frequency = sources[j][1][0][0][0]['Frequency']
+            times.append(sources[j][5])
             frequency = sources[j][4][0]
             frequencies.append(frequency)
+            if frequency > 0.00350 and frequency < 0.003509:
+                print(sources[j][3])
+                # found_sources_mp_even_unsorted.append(sources[j][3])
             found_sources_mp_even_unsorted.append(sources[j][3])
-            times.append(sources[j][5])
 
         except:
-            found_sources_mp_even_unsorted.append([sources[j]])
-            # found_sources_mp_even_unsorted.append(sources[j])
+            # found_sources_mp_even_unsorted.append(sources[j][3])
+            found_sources_mp_even_unsorted.append(sources[j])
     # frequencies.append(frequency)
     # found_sources_mp_even_unsorted.append(sources)
 found_sources_in_flat = np.concatenate(found_sources_mp_even_unsorted)
+# found_sources_in_flat = found_sources_mp_even_unsorted
 found_sources_in_flat_frequency = []
 for i in range(len(found_sources_in_flat)):
     found_sources_in_flat_frequency.append(found_sources_in_flat[i]['Frequency'])

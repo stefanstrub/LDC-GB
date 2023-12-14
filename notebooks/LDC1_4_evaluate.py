@@ -291,8 +291,8 @@ start_index = np.searchsorted(np.asarray(frequencies_odd)[:,0], 0.0040489)-1
 
 # save_name = 'Sangria_1_full_cut'
 # save_name = 'Sangria_12m_filled_anticorrelated'
-save_name_injected = 'Sangria_6m'
-save_name = save_name_injected+'_mbhb_odd_old'
+save_name_injected = 'Sangria_12m'
+save_name = save_name_injected+'_mbhb_odd_seed1'
 # save_name = 'Radler_24m'
 # save_name = 'Radler_24m_filled_anticorrelated'
 # save_name = 'Radler_24m_redone'
@@ -510,7 +510,7 @@ def SNR_match_amplitude_condsiered(pGB_injected, pGB_found):
 
 try:
     found_sources_in_flat = np.load(SAVEPATH+'found_sources_' +save_name+'_flat.pkl', allow_pickle = True)
-    found_sources_in_flat = np.asarray(found_sources_in_flat[:-1])
+    # found_sources_in_flat = np.asarray(found_sources_in_flat[:-1])
 except:
     found_sources_mp = np.load(SAVEPATH+'found_sources_' +save_name+'.pkl', allow_pickle = True)
     # found_sources_mp = np.load(SAVEPATH+'found_sources_' +save_name+'.npy', allow_pickle = True)
@@ -957,6 +957,8 @@ found_sources_in_flat = np.concatenate(found_sources_in)
 found_sources_in_flat_array = {attribute: np.asarray([x[attribute] for x in found_sources_in_flat]) for attribute in found_sources_in_flat[0].keys()}
 found_sources_in_flat_df = pd.DataFrame(found_sources_in_flat_array)
 
+
+found_sources_in_flat_df_high_SNR = found_sources_in_flat_df[found_sources_in_flat_df['IntrinsicSNR'] > 12]
 # #### parallel
 # input = []
 # index = []
@@ -1315,7 +1317,6 @@ found_sources_not_matched_flat_df.to_pickle(SAVEPATH+'/found_sources_not_matched
 pGB_injected_matched_flat_df.to_pickle(SAVEPATH+'/injected_matched_windows_' +save_name+end_string+'_df')
 pGB_injected_not_matched_flat_df.to_pickle(SAVEPATH+'/injected_not_matched_windows_' +save_name+end_string+'_df')
 
-
 plt.figure()
 plt.plot([1,2,3], [1,2,3])
 plt.xlabel(r'$f$ (mHz)')
@@ -1360,7 +1361,8 @@ index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.00360246099898)-2
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.003302)-3
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.002026)-2
-# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.00399)+99
+index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.00399)+98
+index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.003508)-2
 #plot strains
 number_of_windows = 3
 for i in range(len(frequencies_search)):
