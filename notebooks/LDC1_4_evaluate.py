@@ -291,8 +291,8 @@ start_index = np.searchsorted(np.asarray(frequencies_odd)[:,0], 0.0040489)-1
 
 # save_name = 'Sangria_1_full_cut'
 # save_name = 'Sangria_12m_filled_anticorrelated'
-save_name_injected = 'Sangria_12m'
-save_name = save_name_injected+'_mbhb_odd_seed1'
+save_name_injected = 'Sangria_6m'
+save_name = save_name_injected+'_mbhb_SNR9_seed1'
 # save_name = 'Radler_24m'
 # save_name = 'Radler_24m_filled_anticorrelated'
 # save_name = 'Radler_24m_redone'

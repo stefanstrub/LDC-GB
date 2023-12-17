@@ -17,9 +17,10 @@ folderpath_parent = grandparent+"/LDC/pictures/Sangria/found_signals"
 folderpath_save = grandparent+"/LDC/pictures/Sangria"
 # folderpath_save = grandparent+"/LDC/Spritz/"
 
-name = '_12m_mbhb_odd_seed1'
+name = '_Sangria_12m_mbhb_SNR9_even_seed1'
 # save_name = 'Spritz' + name
-save_name = 'Sangria' + name
+# save_name = 'Sangria' + name
+save_name =  name
 folderpath = folderpath_parent + name
 onlyfiles = [f for f in listdir(folderpath) if isfile(join(folderpath, f))]
 found_sources_mp_even_unsorted = []
@@ -37,9 +38,6 @@ for i in range(len(onlyfiles)):
             times.append(sources[j][5])
             frequency = sources[j][4][0]
             frequencies.append(frequency)
-            if frequency > 0.00350 and frequency < 0.003509:
-                print(sources[j][3])
-                # found_sources_mp_even_unsorted.append(sources[j][3])
             found_sources_mp_even_unsorted.append(sources[j][3])
 
         except:
@@ -47,8 +45,10 @@ for i in range(len(onlyfiles)):
             found_sources_mp_even_unsorted.append(sources[j])
     # frequencies.append(frequency)
     # found_sources_mp_even_unsorted.append(sources)
-found_sources_in_flat = np.concatenate(found_sources_mp_even_unsorted)
-# found_sources_in_flat = found_sources_mp_even_unsorted
+try:
+    found_sources_in_flat = np.concatenate(found_sources_mp_even_unsorted)
+except:
+    found_sources_in_flat = found_sources_mp_even_unsorted
 found_sources_in_flat_frequency = []
 for i in range(len(found_sources_in_flat)):
     found_sources_in_flat_frequency.append(found_sources_in_flat[i]['Frequency'])
@@ -57,12 +57,12 @@ found_sources_in_flat = np.asarray(found_sources_in_flat)
 indexes_in = np.argsort(found_sources_in_flat_frequency)
 found_sources_in_flat_frequency = found_sources_in_flat_frequency[indexes_in]
 found_sources_in_flat = found_sources_in_flat[indexes_in]
-
+print(len(found_sources_in_flat))
 
 print('time', np.round(np.sum(times)/3600,1), 'hours')
-print('max time', np.round(np.max(times)/60,1), 'minutes')
+# print('max time', np.round(np.max(times)/60,1), 'minutes')
 
 
 
-pickle.dump(found_sources_in_flat, open(folderpath_save+'/found_sources_' +save_name+'_flat.pkl', 'wb'))
+pickle.dump(found_sources_in_flat, open(folderpath_save+'/found_sources' +save_name+'_flat.pkl', 'wb'))
 # np.save(folderpath_save+'/found_sources_' +save_name+'.npy', found_sources_mp)

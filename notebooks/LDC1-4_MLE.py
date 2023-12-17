@@ -17,13 +17,12 @@ sys.path.append('/cluster/home/sstrub/python/lib64/python3.8/site-packages/ldc-0
 
 
 # from bbhx.waveformbuild import BBHWaveformFD
-cluster = True
 from ldc.lisa.noise import get_noise_model
 from ldc.common.series import TimeSeries#, TDI
 import ldc.waveform.fastGB as fastGB
-if cluster:
+try:
     from ldc.common.series import window ### manual install of  ldc
-else:
+except:
     from ldc.common.tools import window ### pip install of ldc
 
 from sources import *
@@ -120,6 +119,7 @@ elif dataset == 'Spritz':
 fid = h5py.File(data_fn)
 
 reduction = 1
+SNR_threshold = 9
 HM = False
 mbhbs_removed = bool(int(sys.argv[3]))
 
@@ -171,7 +171,7 @@ elif dataset == 'Sangria':
             wave = pickle.load(open(MBHBPATH+dataset+'_mbhbh_found_6months_seed'+str(seed)+'.pkl', "rb"))
             # wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_found_6months.pkl", "rb"))
         else:
-            wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_found_12months_seed12.pkl", "rb"))
+            wave = pickle.load(open(MBHBPATH+dataset+'_mbhbh_found_12months_seed'+str(seed)+'.pkl', "rb"))
         if HM:
             wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_HM_found.pkl", "rb"))
         for i, k in enumerate(["X", "Y", "Z"]):
@@ -435,7 +435,6 @@ class MLP_search():
         number_of_evaluations_all = []
         found_sources_in = []
         current_SNR = 100
-        SNR_threshold = 10
         loglikelihood_ratio_threshold = 50
         f_transfer = 19.1*10**-3
         # if lower_frequency > f_transfer:
@@ -682,9 +681,9 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search=None):
 
 #sum the found sources
 # if mbhbs_removed:
-#     found_sources = np.load(SAVEPATH+'found_sources_not_anticorrelated_Sangria_6m_no_mbhb_seed'+str(seed)+'.pkl', allow_pickle = True)
+#     found_sources = np.load(SAVEPATH+'found_sources_not_anticorrelated_Sangria_6m_no_mbhb_SNR9_seed'+str(seed)+'.pkl', allow_pickle = True)
 # else:
-#     found_sources = np.load(SAVEPATH+'found_sources_not_anticorrelated_Sangria_6m_mbhb_seed'+str(seed)+'.pkl', allow_pickle = True)
+#     found_sources = np.load(SAVEPATH+'found_sources_not_anticorrelated_Sangria_6m_mbhb_SNR9_seed'+str(seed)+'.pkl', allow_pickle = True)
 # found_sources_flat = np.concatenate(found_sources)
 # # found_sources_flat = np.load(SAVEPATH+'found_sources_Sangria_6m_mbhb_even3_seed1_flat.pkl', allow_pickle = True)
 # tdi_fs_sum_found = deepcopy(tdi_fs)
@@ -699,9 +698,9 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search=None):
 #     for k in ["X", "Y", "Z"]:
 #         tdi_fs_sum_found[k].data[index_low:index_high] += source_subtracted[k].data
 # # if mbhbs_removed:
-# #     pickle.dump(tdi_fs_sum_found, open(SAVEPATH+'tdi_fs_sum_found_6m_no_mbhb_seed'+str(seed)+'.pkl', "wb"))
+# #     pickle.dump(tdi_fs_sum_found, open(SAVEPATH+'tdi_fs_sum_found_6m_no_mbhb_SNR9_seed'+str(seed)+'.pkl', "wb"))
 # # else:
-# #     pickle.dump(tdi_fs_sum_found, open(SAVEPATH+'tdi_fs_sum_found_6m_mbhb_seed'+str(seed)+'.pkl', "wb"))
+# #     pickle.dump(tdi_fs_sum_found, open(SAVEPATH+'tdi_fs_sum_found_6m_mbhb_SNR9_seed'+str(seed)+'.pkl', "wb"))
 
 # tdi_fs_subtracted = deepcopy(tdi_fs)
 # for k in ["X", "Y", "Z"]:
@@ -803,7 +802,10 @@ frequencies_search = np.asarray(frequencies)
 # plt.savefig(SAVEPATH+'bandwidth.png')
 
 
-save_name = 'Sangria_12m_mbhb_even'
+if mbhbs_removed:
+    save_name = 'Sangria_12m_no_mbhb_SNR'+str(SNR_threshold)+'_even'
+else:
+    save_name = 'Sangria_12m_mbhb_SNR'+str(SNR_threshold)+'_even'
 # save_name = 'Radler_24m_filled_anticorrelation'
 # save_name = 'Spritz'
 # save_name = dataset + '_12m_eventest'
@@ -878,9 +880,9 @@ if do_subtract:
     # Sangria
     # save_name_previous = 'found_sources_Sangria_6m_mbhb_odd_seed'+str(seed)+'_flat'
     if mbhbs_removed:
-        save_name_previous = 'found_sources_Sangria_12m_no_mbhb_odd_seed'+str(seed)+'_flat'
+        save_name_previous = 'found_sources_Sangria_12m_no_mbhb_SNR9_odd_seed'+str(seed)+'_flat'
     else:
-        save_name_previous = 'found_sources_Sangria_12m_mbhb_odd_seed'+str(seed)+'_flat'
+        save_name_previous = 'found_sources_Sangria_12m_mbhb_SNR9_odd_seed'+str(seed)+'_flat'
     # save_name_previous = 'found_sources_Sangria_6m_mbhb_flat'
     # save_name_previous = 'found_sources_not_anticorrelated_Sangria_12m'
     # save_name_previous = 'found_sources_Radler_24m_even'
@@ -939,12 +941,13 @@ if do_subtract:
 do_not_search_unchanged_even_windows = True
 if do_not_search_unchanged_even_windows:
     frequencies_search_reduced = []
+    frequencies_search_skipped = []
 
     # save_name_previous = 'found_sources_Sangria_12m_even3'
     if mbhbs_removed:
-        save_name_previous = 'found_sources_Sangria_12m_no_mbhb_even3_seed'+str(seed)+'_flat'
+        save_name_previous = 'found_sources_Sangria_12m_no_mbhb_SNR9_even3_seed'+str(seed)+'_flat'
     else:
-        save_name_previous = 'found_sources_Sangria_12m_mbhb_even3_seed'+str(seed)+'_flat'
+        save_name_previous = 'found_sources_Sangria_12m_mbhb_SNR9_even3_seed'+str(seed)+'_flat'
     found_sources_mp_previous = np.load(SAVEPATH+save_name_previous+'.pkl', allow_pickle = True)
     # found_sources_flat = []
     # for j in range(len(found_sources_mp_previous)):
@@ -974,15 +977,17 @@ if do_not_search_unchanged_even_windows:
                 frequencies_search_reduced.append(frequencies_search[i])
             else:
                 # print('no search', frequencies_search[i])
+                frequencies_search_skipped.append(frequencies_search[i])
                 found_sources_in_skipped.append(found_sources_in_flat_df.to_dict(orient='records'))
     # found_sources_in_skipped = np.concatenate(found_sources_in_skipped)
     # pickle.dump(found_sources_in_skipped, open(SAVEPATH+save_name_previous+'_skipped.pkl', "wb"))
     frequencies_search = frequencies_search_reduced
+    # frequencies_search = frequencies_search_skipped
 
-if len(found_sources_in_skipped) > 0:
-    do_search = False
-else:
-    do_search = True
+# if len(found_sources_in_skipped) > 0:
+#     do_search = False
+# else:
+#     do_search = True
 
 
 found_sources_sorted = []
@@ -995,9 +1000,9 @@ if use_initial_guess:
     # save_name_found_sources_previous = 'found_sources_Radler_12m'
     # save_name_found_sources_previous = 'found_sources_not_anticorrelated_Sangria_6m_mbhb'
     if mbhbs_removed:
-        save_name_found_sources_previous = 'found_sources_not_anticorrelated_Sangria_6m_no_mbhb_seed'+str(seed)
+        save_name_found_sources_previous = 'found_sources_not_anticorrelated_Sangria_6m_no_mbhb_SNR9_seed'+str(seed)
     else:
-        save_name_found_sources_previous = 'found_sources_not_anticorrelated_Sangria_6m_mbhb_seed'+str(seed)
+        save_name_found_sources_previous = 'found_sources_not_anticorrelated_Sangria_6m_mbhb_SNR9_seed'+str(seed)
     # save_name_found_sources_previous = 'found_sourcesLDC1-4_half_odd'
     # found_sources_mp_subtract = np.load(SAVEPATH+save_name_found_sources_previous+'.npy', allow_pickle = True)
 
@@ -1043,6 +1048,8 @@ if use_initial_guess:
 # search1.plot(found_sources_in=found_sources_mp_loaded[index][0], pGB_injected=pGB_injected[index])
 # search1.SNR(pGB_injected[index])
 # frequencies_search = [frequencies_search[35]]
+
+do_search = True
 if do_search:
     MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 10, found_sources_previous = found_sources_sorted, strategy = 'DE')
     start = time.time()
@@ -1060,9 +1067,9 @@ if do_search:
 
     print('time to search ', len(frequencies_search), 'windows: ', time.time()-start)
     if mbhbs_removed:
-        directory = SAVEPATH+'found_signals_12m_no_mbhb_seed'+str(seed)
+        directory = SAVEPATH+'found_signals_'+save_name+'_seed'+str(seed)
     else:
-        directory = SAVEPATH+'found_signals_12m_mbhb_seed'+str(seed)
+        directory = SAVEPATH+'found_signals_'+save_name+'_seed'+str(seed)
     fn = directory+'/found_sources_batch_index_'+str(batch_index)+'_'+ str(int(np.round(search_range[0]*10**9)))+'nHz_to'+ str(int(np.round(search_range[1]*10**9)))+'nHz_' +save_name+'.pkl'
     if not os.path.exists(directory):
         os.makedirs(directory)
