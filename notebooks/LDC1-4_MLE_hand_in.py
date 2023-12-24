@@ -638,14 +638,13 @@ print('search range '+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(n
 #             frequencies_search_reduced.append(frequencies_search_full[i])
 # frequencies_search = frequencies_search_reduced
 
-frequencies_search = frequencies_even
 do_subtract = True
 if do_subtract:
     start = time.time()
     # save_name_previous = 'found_sourcesRadler_half_odd_dynamic_noise'
     # Sangria
     if mbhbs_removed:
-        save_name_previous = 'found_sources_Sangria_12m_original_odd_seed42_flat'
+        save_name_previous = 'found_sources_original_Sangria_12m_no_mbhb_SNR9_odd_seed1_flat'
     else:
         save_name_previous = 'found_sources_original_Sangria_12m_mbhb_SNR9_odd_seed1_flat'
     # save_name_previous = 'found_sources_Sangria_12m_even3'
@@ -700,7 +699,7 @@ if do_not_search_unchanged_even_windows:
     frequencies_search_skipped = []
 
     if mbhbs_removed:
-        save_name_previous = 'found_sources_Sangria_12m_original_even3_seed'+str(seed)+'_flat'
+        save_name_previous = 'found_sources_original_Sangria_12m_no_mbhb_SNR9_even3_seed'+str(seed)+'_flat'
     else:
         save_name_previous = 'found_sources_original_Sangria_12m_mbhb_SNR9_even3_seed'+str(seed)+'_flat'
     found_sources_mp_previous = np.load(SAVEPATH+save_name_previous+'.pkl', allow_pickle = True)
@@ -729,13 +728,13 @@ if do_not_search_unchanged_even_windows:
                 # print('no search', frequencies_search[i])
                 frequencies_search_skipped.append(frequencies_search[i])
                 found_sources_in_skipped.append(found_sources_in_flat_df.to_dict(orient='records'))
-    found_sources_in_skipped = np.concatenate(found_sources_in_skipped)
-    pickle.dump(found_sources_in_skipped, open(SAVEPATH+save_name_previous+'_skipped.pkl', "wb"))
+    # found_sources_in_skipped = np.concatenate(found_sources_in_skipped)
+    # pickle.dump(found_sources_in_skipped, open(SAVEPATH+save_name_previous+'_skipped.pkl', "wb"))
     frequencies_search = frequencies_search_reduced
     # frequencies_search = frequencies_search_skipped
 
 found_sources_sorted = []
-use_initial_guess = False
+use_initial_guess = True
 if use_initial_guess:
     # save_name_found_sources_previous = 'found_sources397769to400619LDC1-4_4mHz_half_year_even10'
     # save_name_found_sources_previous = 'found_sources397919to400770LDC1-4_4mHz_half_year_odd'

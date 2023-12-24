@@ -292,7 +292,8 @@ start_index = np.searchsorted(np.asarray(frequencies_odd)[:,0], 0.0040489)-1
 # save_name = 'Sangria_1_full_cut'
 # save_name = 'Sangria_12m_filled_anticorrelated'
 save_name_injected = 'Sangria_6m'
-save_name = save_name_injected+'_mbhb_SNR9_seed1'
+save_name = 'original_'+save_name_injected+'_no_mbhb_SNR9_seed1'
+save_name2 = 'original_'+save_name_injected+'_mbhb_SNR9_seed1'
 # save_name = 'Radler_24m'
 # save_name = 'Radler_24m_filled_anticorrelated'
 # save_name = 'Radler_24m_redone'
@@ -822,6 +823,8 @@ if get_pGB_injected:
 try:
     fn = SAVEPATH+'/found_sources_not_anticorrelated_'+save_name+'.pkl'
     found_sources_in = pickle.load(open(fn, 'rb'))
+    fn = SAVEPATH+'/found_sources_not_anticorrelated_'+save_name2+'.pkl'
+    found_sources_in2 = pickle.load(open(fn, 'rb'))
 except:
     threshold_overlap = -0.7
     found_sources_anitcorrelated = []
@@ -1026,6 +1029,7 @@ def match_function(found_sources_in, pGB_injected_not_matched, found_sources_not
             pGB_injected_matched.append(pGB_injected_not_matched[best_index])
             found_sources_matched.append(found_sources_in[j])
             # pGB_injected_not_matched = np.delete(pGB_injected_not_matched, best_index)
+            # pGB_injected_not_matched[best_index] = None
             found_sources_not_matched[j] = None
         match_list.append(match_list_one_found_signal[best_index])
         pGB_best_list.append(pGB_injected_not_matched[best_index])
@@ -1040,7 +1044,8 @@ if do_match_parallelized:
     pGB_best_list = []
     match_best_list = []
     amplitude_factor = []
-    pGB_injected_not_matched = deepcopy(pGB_injected_SNR_sorted_overlap)
+    # pGB_injected_not_matched = deepcopy(pGB_injected_SNR_sorted_overlap)
+    pGB_injected_not_matched = deepcopy(found_sources_in2)
     found_sources_not_matched = deepcopy(found_sources_in)
     number_of_matched_signals = 0
     input = []
@@ -1203,7 +1208,7 @@ if do_match_sequential:
 #         found_sources_not_matched[i][j]['IntrinsicSNR'] = search1.intrinsic_SNR([pGB_dict])     
 
 
-end_string = '_SNR_scaled_03_injected_snr'+str(injected_SNR)
+end_string = '_SNR_scaled_03_injected_snr'+str(injected_SNR)+'_comparison'
 # end_string = '_correlation_09_injected_snr'+str(injected_SNR)
 # end_string = ''
 
@@ -1253,13 +1258,17 @@ for i in range(len(found_sources_in)):
 ### 32, 128, 187, 222, 235, 257, 268, 274
 ### 128, 222
 number_of_found_signals_not_matched = 0
+number_of_injected_signals_not_matched = 0
 for i in range(len(found_sources_not_matched)):
     number_of_found_signals_not_matched += len(found_sources_not_matched[i])
+    number_of_injected_signals_not_matched += len(pGB_injected_not_matched[i])
 number_of_matched_signals = len(np.concatenate(found_sources_matched))
 print(number_of_matched_signals ,'matched signals out of', number_of_injected_signals , 'injected signals and',number_of_found_signals, 'found signals')
 print('sensitivity = matched signals/injected signals:', np.round(number_of_matched_signals/number_of_injected_signals,2))
 print('number_of_injected_signals_SNR_high:', np.round(number_of_injected_signals_SNR_high,2))
 print('matched signals/found signals:', np.round(number_of_matched_signals/number_of_found_signals,2))
+print('number_of_found_signals_not_matched:', np.round(number_of_found_signals_not_matched,2))
+print('number_of_injected_signals_not_matched:', np.round(number_of_injected_signals_not_matched,2))
 
 if version == '1':
     for i in range(len(found_sources_matched)):

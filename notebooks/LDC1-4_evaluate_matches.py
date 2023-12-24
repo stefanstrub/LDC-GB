@@ -85,8 +85,10 @@ else:
     SAVEPATH = grandparent+"/LDC/pictures/Sangria/"
 
 SAVEPATH_sangria = grandparent+"/LDC/pictures/Sangria/"
-save_name2 = 'Sangria_1year_dynamic_noise'
+# save_name2 = 'Sangria_1year_dynamic_noise'
+save_name1 = 'Sangria_12m'
 save_name2 = 'Sangria_12m_filled_anticorrelated'
+save_name2 = 'Sangria_12m_no_mbhb_SNR9_seed1'
 # save_name3 = 'Sangria_1'
 # save_name3 = 'LDC1-4_2_optimized_second'
 # save_name2 = 'Radler_1_full'
@@ -94,7 +96,7 @@ save_name2 = 'Sangria_12m_filled_anticorrelated'
 # save_name0 = 'LDC1-4_half_year'
 save_name4 = 'Radler_6m'
 save_name3 = 'Radler_12m'
-save_name1 = 'Radler_24m_redone'
+# save_name1 = 'Radler_24m_redone'
 # save_name = 'LDC1-4_half_year'
 # save_name = 'Sangria_1_full_cut'
 
@@ -107,7 +109,7 @@ duration = '31457280'
 # save_name1 = 'Montana2022_'+duration
 
 save_names = [save_name1, save_name2, save_name3, save_name4]
-SAVEPATHS = [SAVEPATH,SAVEPATH_sangria,SAVEPATH,SAVEPATH]
+SAVEPATHS = [SAVEPATH_sangria,SAVEPATH_sangria,SAVEPATH,SAVEPATH]
 
 Tobs = int(duration)
 
@@ -143,7 +145,8 @@ def load_files(save_path, save_name):
     pGB_injected_matched_flat_df = pd.read_pickle(save_path+'/injected_matched_windows_' +save_name+end_string+'_df')
     pGB_injected_not_matched_flat_df = pd.read_pickle(save_path+'/injected_not_matched_windows_' +save_name+end_string+'_df')
     match_list = np.load(save_path+'match_list_' +save_name+end_string+'.npy', allow_pickle=True)
-    correlation_list = np.load(save_path+'match_list_' +save_name+'_correlation_09_injected_snr5.npy', allow_pickle=True)
+    # correlation_list = np.load(save_path+'match_list_' +save_name+'_correlation_09_injected_snr5.npy', allow_pickle=True)
+    correlation_list = np.load(save_path+'match_list_' +save_name+'_SNR_scaled_03_injected_snr5.npy', allow_pickle=True)
     pGB_best_list = np.load(save_path+'pGB_best_list_' +save_name+end_string+'.npy', allow_pickle=True)
     match_best_list = np.load(save_path+'match_best_list_' +save_name+end_string+'.npy', allow_pickle=True)
 
@@ -206,41 +209,41 @@ for i, save_name in enumerate(save_names):
 #         print(pGB_duplicates)
 #         print(len(correlation_flat_duplicates), correlation_threshold, save_names[i])
 
-i = 1
-matches_flat = pd.DataFrame(np.concatenate(match_list[i]))
-correlation_flat = pd.DataFrame(np.concatenate(correlation_list[i]))
-sources = match_best_list[i]
-pGB_best = pGB_best_list[i]
-for i in range(len(sources)):
-    if sources.iloc[i]['EclipticLongitude'] < 0:
-        sources.iloc[i]['EclipticLongitude'] += 2*np.pi
+# i = 1
+# matches_flat = pd.DataFrame(np.concatenate(match_list[i]))
+# correlation_flat = pd.DataFrame(np.concatenate(correlation_list[i]))
+# sources = match_best_list[i]
+# pGB_best = pGB_best_list[i]
+# for i in range(len(sources)):
+#     if sources.iloc[i]['EclipticLongitude'] < 0:
+#         sources.iloc[i]['EclipticLongitude'] += 2*np.pi
 
-good_correlation_filter = correlation_flat[0] > 0.8
-good_correlation = correlation_flat[good_correlation_filter]
-good_matches = matches_flat[good_correlation_filter]
-good_correlation_sources = sources[good_correlation_filter]
-bad_match_filter = good_matches[0] > 1
-bad_matches_good_correlation = good_matches[bad_match_filter]
-# good_correlation_bad_matches = good_correlation[bad_match_filter]
-bad_matches_good_correlation_sources = good_correlation_sources[bad_match_filter]
+# good_correlation_filter = correlation_flat[0] > 0.8
+# good_correlation = correlation_flat[good_correlation_filter]
+# good_matches = matches_flat[good_correlation_filter]
+# good_correlation_sources = sources[good_correlation_filter]
+# bad_match_filter = good_matches[0] > 1
+# bad_matches_good_correlation = good_matches[bad_match_filter]
+# # good_correlation_bad_matches = good_correlation[bad_match_filter]
+# bad_matches_good_correlation_sources = good_correlation_sources[bad_match_filter]
 
 
-index = 298
-index = 721
-index = 2307
-for parameter in parameters:
-    print(parameter)
+# index = 298
+# index = 721
+# index = 2307
+# for parameter in parameters:
+#     print(parameter)
     
-for parameter in parameters:
-    if parameter in ['Frequency']:
-        print(np.format_float_scientific(sources.loc[index][parameter],6))
-    else:
-        print(np.format_float_scientific(sources.loc[index][parameter],3))
-for parameter in parameters:
-    if parameter in ['Frequency']:
-        print(np.format_float_scientific(pGB_best.loc[index][parameter],6))
-    else:
-        print(np.format_float_scientific(pGB_best.loc[index][parameter],3))
+# for parameter in parameters:
+#     if parameter in ['Frequency']:
+#         print(np.format_float_scientific(sources.loc[index][parameter],6))
+#     else:
+#         print(np.format_float_scientific(sources.loc[index][parameter],3))
+# for parameter in parameters:
+#     if parameter in ['Frequency']:
+#         print(np.format_float_scientific(pGB_best.loc[index][parameter],6))
+#     else:
+#         print(np.format_float_scientific(pGB_best.loc[index][parameter],3))
 
 # bad_correlation_filter = correlation_flat[0] < 0.9
 # bad_correlation = correlation_flat[bad_correlation_filter]
@@ -278,10 +281,10 @@ else:
 Nmodel = get_noise_model(noise_model, f)
 SA = Nmodel.psd(freq=f, option="A")
 
-data_set = 0
-noise_fn = SAVEPATHS[data_set]+'ETH_'+save_names[data_set]+'_noise.csv'
-psd = pd.read_csv(noise_fn, delimiter=",")  
-SA = spline(psd['f'], psd['A'])(f)
+data_set = 1
+# noise_fn = SAVEPATHS[data_set]+'ETH_'+save_names[data_set]+'_noise.csv'
+# psd = pd.read_csv(noise_fn, delimiter=",")  
+# SA = spline(psd['f'], psd['A'])(f)
 
 #### plot amplitude - frequency
 markersize = 3

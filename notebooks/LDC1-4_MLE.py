@@ -445,8 +445,8 @@ class MLP_search():
         #     SNR_threshold = 20
         # if lower_frequency > 20*10**-3:
         #     SNR_threshold = 100
-        if lower_frequency > 5*10**-3:
-            self.signals_per_window = 3
+        # if lower_frequency > 5*10**-3:
+        #     self.signals_per_window = 3
         if lower_frequency > 10**-2:
             self.signals_per_window = 1
         # current_loglikelihood_ratio = 1000
@@ -680,43 +680,43 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search=None):
 
 
 #sum the found sources
+if mbhbs_removed:
+    found_sources = np.load(SAVEPATH+'found_sources_not_anticorrelated_Sangria_12m_no_mbhb_SNR9_seed'+str(seed)+'.pkl', allow_pickle = True)
+else:
+    found_sources = np.load(SAVEPATH+'found_sources_not_anticorrelated_Sangria_12m_mbhb_SNR9_seed'+str(seed)+'.pkl', allow_pickle = True)
+found_sources_flat = np.concatenate(found_sources)
+# found_sources_flat = np.load(SAVEPATH+'found_sources_Sangria_6m_mbhb_even3_seed1_flat.pkl', allow_pickle = True)
+tdi_fs_sum_found = deepcopy(tdi_fs)
+for k in ["X", "Y", "Z"]:
+    tdi_fs_sum_found[k].data = np.zeros(len(tdi_fs_sum_found[k].data), np.complex128)
+for i in range(len(found_sources_flat)):
+    # for j in range(len(found_sources_to_subtract[i])):
+    Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_flat[i], oversample=4)
+    source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
+    index_low = np.searchsorted(tdi_fs_sum_found["X"].f, Xs_subtracted.f[0])
+    index_high = index_low+len(Xs_subtracted)
+    for k in ["X", "Y", "Z"]:
+        tdi_fs_sum_found[k].data[index_low:index_high] += source_subtracted[k].data
 # if mbhbs_removed:
-#     found_sources = np.load(SAVEPATH+'found_sources_not_anticorrelated_Sangria_6m_no_mbhb_SNR9_seed'+str(seed)+'.pkl', allow_pickle = True)
+#     pickle.dump(tdi_fs_sum_found, open(SAVEPATH+'tdi_fs_sum_found_12m_no_mbhb_SNR9_seed'+str(seed)+'.pkl', "wb"))
 # else:
-#     found_sources = np.load(SAVEPATH+'found_sources_not_anticorrelated_Sangria_6m_mbhb_SNR9_seed'+str(seed)+'.pkl', allow_pickle = True)
-# found_sources_flat = np.concatenate(found_sources)
-# # found_sources_flat = np.load(SAVEPATH+'found_sources_Sangria_6m_mbhb_even3_seed1_flat.pkl', allow_pickle = True)
-# tdi_fs_sum_found = deepcopy(tdi_fs)
-# for k in ["X", "Y", "Z"]:
-#     tdi_fs_sum_found[k].data = np.zeros(len(tdi_fs_sum_found[k].data), np.complex128)
-# for i in range(len(found_sources_flat)):
-#     # for j in range(len(found_sources_to_subtract[i])):
-#     Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_flat[i], oversample=4)
-#     source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
-#     index_low = np.searchsorted(tdi_fs_sum_found["X"].f, Xs_subtracted.f[0])
-#     index_high = index_low+len(Xs_subtracted)
-#     for k in ["X", "Y", "Z"]:
-#         tdi_fs_sum_found[k].data[index_low:index_high] += source_subtracted[k].data
-# # if mbhbs_removed:
-# #     pickle.dump(tdi_fs_sum_found, open(SAVEPATH+'tdi_fs_sum_found_6m_no_mbhb_SNR9_seed'+str(seed)+'.pkl', "wb"))
-# # else:
-# #     pickle.dump(tdi_fs_sum_found, open(SAVEPATH+'tdi_fs_sum_found_6m_mbhb_SNR9_seed'+str(seed)+'.pkl', "wb"))
+#     pickle.dump(tdi_fs_sum_found, open(SAVEPATH+'tdi_fs_sum_found_12m_mbhb_SNR9_seed'+str(seed)+'.pkl', "wb"))
 
-# tdi_fs_subtracted = deepcopy(tdi_fs)
-# for k in ["X", "Y", "Z"]:
-#     tdi_fs_subtracted[k].data -= tdi_fs_sum_found[k].data
+tdi_fs_subtracted = deepcopy(tdi_fs)
+for k in ["X", "Y", "Z"]:
+    tdi_fs_subtracted[k].data -= tdi_fs_sum_found[k].data
 
-# plt.figure()
-# plt.semilogx(tdi_fs['X'].f, (tdi_fs['X'].data))
-# plt.semilogx(tdi_fs_sum_found['X'].f, (tdi_fs_sum_found['X'].data))
-# plt.semilogx(tdi_fs_subtracted['X'].f, (tdi_fs_subtracted['X'].data))
-# plt.show()
+plt.figure()
+plt.semilogx(tdi_fs['X'].f, (tdi_fs['X'].data))
+plt.semilogx(tdi_fs_sum_found['X'].f, (tdi_fs_sum_found['X'].data))
+plt.semilogx(tdi_fs_subtracted['X'].f, (tdi_fs_subtracted['X'].data))
+plt.show()
 
-# plt.figure()
-# plt.loglog(tdi_fs['X'].f, np.abs(tdi_fs['X'].data))
-# plt.loglog(tdi_fs_sum_found['X'].f, np.abs(tdi_fs_sum_found['X'].data))
-# plt.loglog(tdi_fs_subtracted['X'].f, np.abs(tdi_fs_subtracted['X'].data))
-# plt.show()
+plt.figure()
+plt.loglog(tdi_fs['X'].f, np.abs(tdi_fs['X'].data))
+plt.loglog(tdi_fs_sum_found['X'].f, np.abs(tdi_fs_sum_found['X'].data))
+plt.loglog(tdi_fs_subtracted['X'].f, np.abs(tdi_fs_subtracted['X'].data))
+plt.show()
 
 # pickle.dump(tdi_fs_subtracted, open(MBHBPATH+dataset+"_tdi_fs_residual.pkl", "wb"))
 
