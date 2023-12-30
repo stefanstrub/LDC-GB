@@ -98,7 +98,7 @@ else:
 fid = h5py.File(sangria_fn)
 
 seed = int(sys.argv[2])
-reduction = 1
+reduction = 2
 SNR_threshold = 9
 HM = False
 mbhbs_removed = bool(int(sys.argv[3]))
@@ -514,6 +514,32 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search):
                 tdi_fs_subtracted2[k].data[index_low:index_high] -= source_subtracted[k].data
     return tdi_fs_subtracted2
 
+
+
+#sum the found sources
+# if mbhbs_removed:
+#     found_sources = np.load(SAVEPATH+'found_sources_not_anticorrelated_Sangria_12m_no_mbhb_SNR9_seed'+str(seed)+'.pkl', allow_pickle = True)
+# else:
+#     found_sources = np.load(SAVEPATH+'found_sources_not_anticorrelated_original_Sangria_12m_mbhb_SNR9_seed'+str(seed)+'.pkl', allow_pickle = True)
+# found_sources_flat = np.concatenate(found_sources)
+# # found_sources_flat = np.load(SAVEPATH+'found_sources_Sangria_6m_mbhb_even3_seed1_flat.pkl', allow_pickle = True)
+# tdi_fs_sum_found = deepcopy(tdi_fs)
+# for k in ["X", "Y", "Z"]:
+#     tdi_fs_sum_found[k].data = np.zeros(len(tdi_fs_sum_found[k].data), np.complex128)
+# for i in range(len(found_sources_flat)):
+#     # for j in range(len(found_sources_to_subtract[i])):
+#     Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_flat[i], oversample=4)
+#     source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
+#     index_low = np.searchsorted(tdi_fs_sum_found["X"].f, Xs_subtracted.f[0])
+#     index_high = index_low+len(Xs_subtracted)
+#     for k in ["X", "Y", "Z"]:
+#         tdi_fs_sum_found[k].data[index_low:index_high] += source_subtracted[k].data
+# if mbhbs_removed:
+#     pickle.dump(tdi_fs_sum_found, open(SAVEPATH+'tdi_fs_sum_found_12m_no_mbhb_SNR9_seed'+str(seed)+'.pkl', "wb"))
+# else:
+#     pickle.dump(tdi_fs_sum_found, open(SAVEPATH+'tdi_fs_sum_found_12m_mbhb_SNR9_seed'+str(seed)+'.pkl', "wb"))
+        
+
 # try:
 #     cat = np.load(SAVEPATH+'cat_sorted.npy', allow_pickle = True)
 #     print('cat sorted loaded')
@@ -594,9 +620,9 @@ frequencies_odd = frequencies[1::2]
 
 
 if mbhbs_removed:
-    save_name = 'Sangria_12m_no_mbhb_SNR'+str(SNR_threshold)+'_even'
+    save_name = 'Sangria_6m_no_mbhb_SNR'+str(SNR_threshold)+'_even3'
 else:
-    save_name = 'Sangria_12m_mbhb_SNR'+str(SNR_threshold)+'_even'
+    save_name = 'Sangria_6m_mbhb_SNR'+str(SNR_threshold)+'_even3'
 frequencies_search = frequencies_even
 frequencies_search_full = deepcopy(frequencies_search)
 batch_index = int(sys.argv[1])
@@ -638,7 +664,8 @@ print('search range '+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(n
 #             frequencies_search_reduced.append(frequencies_search_full[i])
 # frequencies_search = frequencies_search_reduced
 
-do_subtract = True
+frequencies_search = frequencies_even
+do_subtract = False
 if do_subtract:
     start = time.time()
     # save_name_previous = 'found_sourcesRadler_half_odd_dynamic_noise'
@@ -693,7 +720,7 @@ if do_subtract:
         
     tdi_fs = deepcopy(tdi_fs_subtracted)
 
-do_not_search_unchanged_even_windows = True
+do_not_search_unchanged_even_windows = False
 if do_not_search_unchanged_even_windows:
     frequencies_search_reduced = []
     frequencies_search_skipped = []
@@ -728,13 +755,13 @@ if do_not_search_unchanged_even_windows:
                 # print('no search', frequencies_search[i])
                 frequencies_search_skipped.append(frequencies_search[i])
                 found_sources_in_skipped.append(found_sources_in_flat_df.to_dict(orient='records'))
-    # found_sources_in_skipped = np.concatenate(found_sources_in_skipped)
-    # pickle.dump(found_sources_in_skipped, open(SAVEPATH+save_name_previous+'_skipped.pkl', "wb"))
+    found_sources_in_skipped = np.concatenate(found_sources_in_skipped)
+    pickle.dump(found_sources_in_skipped, open(SAVEPATH+save_name_previous+'_skipped.pkl', "wb"))
     frequencies_search = frequencies_search_reduced
     # frequencies_search = frequencies_search_skipped
 
 found_sources_sorted = []
-use_initial_guess = True
+use_initial_guess = False
 if use_initial_guess:
     # save_name_found_sources_previous = 'found_sources397769to400619LDC1-4_4mHz_half_year_even10'
     # save_name_found_sources_previous = 'found_sources397919to400770LDC1-4_4mHz_half_year_odd'
@@ -787,7 +814,7 @@ if use_initial_guess:
 
 do_search = True
 if do_search:
-    MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 10, found_sources_previous = found_sources_sorted, strategy = 'DE')
+    MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 3, found_sources_previous = found_sources_sorted, strategy = 'DE')
     start = time.time()
 
     # cpu_cores = 16
