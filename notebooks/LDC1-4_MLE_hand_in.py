@@ -664,7 +664,7 @@ print('search range '+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(n
 #             frequencies_search_reduced.append(frequencies_search_full[i])
 # frequencies_search = frequencies_search_reduced
 
-frequencies_search = frequencies_even
+# frequencies_search = frequencies_even
 do_subtract = False
 if do_subtract:
     start = time.time()
