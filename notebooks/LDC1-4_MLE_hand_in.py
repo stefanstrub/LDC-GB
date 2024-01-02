@@ -620,10 +620,10 @@ frequencies_odd = frequencies[1::2]
 
 
 if mbhbs_removed:
-    save_name = 'Sangria_6m_no_mbhb_SNR'+str(SNR_threshold)+'_even3'
+    save_name = 'Sangria_6m_no_mbhb_SNR'+str(SNR_threshold)+'_odd'
 else:
-    save_name = 'Sangria_6m_mbhb_SNR'+str(SNR_threshold)+'_even3'
-frequencies_search = frequencies_even
+    save_name = 'Sangria_6m_mbhb_SNR'+str(SNR_threshold)+'_odd'
+frequencies_search = frequencies_odd
 frequencies_search_full = deepcopy(frequencies_search)
 batch_index = int(sys.argv[1])
 # batch_index = int(150)
@@ -665,15 +665,15 @@ print('search range '+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(n
 # frequencies_search = frequencies_search_reduced
 
 # frequencies_search = frequencies_even
-do_subtract = False
+do_subtract = True
 if do_subtract:
     start = time.time()
     # save_name_previous = 'found_sourcesRadler_half_odd_dynamic_noise'
     # Sangria
     if mbhbs_removed:
-        save_name_previous = 'found_sources_original_Sangria_12m_no_mbhb_SNR9_odd_seed1_flat'
+        save_name_previous = 'found_sources_original_Sangria_6m_no_mbhb_SNR9_even3_seed'+str(seed)+'_flat'
     else:
-        save_name_previous = 'found_sources_original_Sangria_12m_mbhb_SNR9_odd_seed1_flat'
+        save_name_previous = 'found_sources_original_Sangria_6m_mbhb_SNR9_even3_seed'+str(seed)+'_flat'
     # save_name_previous = 'found_sources_Sangria_12m_even3'
     # save_name_previous = 'found_sources_Radler_12m_odd'
     # save_name_previous = 'found_sources_Radler_half_odd_dynamic_noise'
@@ -814,7 +814,7 @@ if use_initial_guess:
 
 do_search = True
 if do_search:
-    MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 3, found_sources_previous = found_sources_sorted, strategy = 'DE')
+    MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 10, found_sources_previous = found_sources_sorted, strategy = 'DE')
     start = time.time()
 
     # cpu_cores = 16
