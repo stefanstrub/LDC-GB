@@ -25,7 +25,7 @@ try:
 except:
     from ldc.common.tools import window ### pip install of ldc
 
-from sources import *
+from sources2 import *
 
 gpu = False
 # customized settings
@@ -118,7 +118,8 @@ elif dataset == 'Spritz':
     data_fn = DATAPATH + "/LDC2_spritz_vgb_training_v2.h5"
 fid = h5py.File(data_fn)
 
-reduction = 1
+reduction = int(2)
+Tobs = float(7*7*24*3600)
 SNR_threshold = 9
 HM = False
 mbhbs_removed = bool(int(sys.argv[3]))
@@ -128,7 +129,7 @@ if dataset == 'Radler':
     td = np.array(fid["H5LISA/PreProcess/TDIdata"])
     td = np.rec.fromarrays(list(td.T), names=["t", "X", "Y", "Z"])
     dt = float(np.array(fid['H5LISA/GWSources/GalBinaries']['Cadence']))
-    Tobs = float(int(np.array(fid['H5LISA/GWSources/GalBinaries']['ObservationDuration']))/reduction)
+    # Tobs = float(int(np.array(fid['H5LISA/GWSources/GalBinaries']['ObservationDuration'])/reduction))
     names = np.array(fid['H5LISA/GWSources/GalBinaries'])
     params = [fid['H5LISA/GWSources/GalBinaries'][k] for k in names]
     reduced_names = []
@@ -159,24 +160,24 @@ elif dataset == 'Sangria':
     td_mbhb  = td_mbhb ['t']
 
     # td_injected = deepcopy(td)
-    Tobs = float(int(np.array(fid['obs/config/t_max']))/reduction)
+    Tobs = float(int(np.array(fid['obs/config/t_max'])/reduction))
     if mbhbs_removed:
         for k in ["X", "Y", "Z"]:
             td[k] = td[k] - td_mbhb[k]
             # td_injected[k] -= td_injected[k]
     else:
         td_original = deepcopy(td)
-        if reduction == 2:
-            # wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_found_6months.pkl", "rb"))
-            wave = pickle.load(open(MBHBPATH+dataset+'_mbhbh_found_6months_seed'+str(seed)+'.pkl', "rb"))
-            # wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_found_6months.pkl", "rb"))
-        else:
-            wave = pickle.load(open(MBHBPATH+dataset+'_mbhbh_found_12months_seed'+str(seed)+'.pkl', "rb"))
-        if HM:
-            wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_HM_found.pkl", "rb"))
-        for i, k in enumerate(["X", "Y", "Z"]):
-            # td[k] = td_mbhb[k]
-            td[k] -= wave[k] 
+        # if reduction == 2:
+        #     # wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_found_6months.pkl", "rb"))
+        #     wave = pickle.load(open(MBHBPATH+dataset+'_mbhbh_found_6months_seed'+str(seed)+'.pkl', "rb"))
+        #     # wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_found_6months.pkl", "rb"))
+        # else:
+        #     wave = pickle.load(open(MBHBPATH+dataset+'_mbhbh_found_12months_seed'+str(seed)+'.pkl', "rb"))
+        # if HM:
+        #     wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_HM_found.pkl", "rb"))
+        # for i, k in enumerate(["X", "Y", "Z"]):
+        #     # td[k] = td_mbhb[k]
+        #     td[k] -= wave[k] 
 
     # td_mbhbs_subtracted = deepcopy(td)
 
@@ -249,7 +250,8 @@ freq_full = np.fft.rfftfreq(int(len(td['t'])), d=dt)
 # plt.show()
 
 # # Build timeseries and frequencyseries object for X,Y,Z
-tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt, t0=td.t[0])) for k in ["X", "Y", "Z"]])
+t_max_index = np.searchsorted(td['t'], Tobs)+1
+tdi_ts = dict([(k, TimeSeries(td[k][:t_max_index], dt=dt, t0=td.t[0])) for k in ["X", "Y", "Z"]])
 # td_mbhbs_subtracted = dict([(k, TimeSeries(td_mbhbs_subtracted[k][:int(len(td[k][:])/reduction)], dt=dt, t0=td.t[0])) for k in ["X", "Y", "Z"]])
 # # tdi_ts_o = deepcopy(tdi_ts)
 # tdi_fs_o = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
@@ -285,10 +287,10 @@ if add_gaps:
     dt_spritz = tdi['t'][1]-tdi['t'][0]
 
     # Build timeseries and frequencyseries object for X,Y,Z
-    tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt, t0=td.t[0])) for k in ["X", "Y", "Z"]])
-    tdi_ts_obs = dict([(k, TimeSeries(td_obs[k][:int(len(td_obs[k][:])/reduction)], dt=dt_spritz, t0=td_obs.t[0])) for k in ["X", "Y", "Z"]])
-    tdi_ts_clean = dict([(k, TimeSeries(td_clean[k][:int(len(td_clean[k][:])/reduction)], dt=dt_spritz, t0=td_clean.t[0])) for k in ["X", "Y", "Z"]])
-    tdi_ts_galaxy = dict([(k, TimeSeries(td_galaxy[k][:int(len(td_galaxy[k][:])/reduction)], dt=dt_spritz, t0=td_galaxy.t[0])) for k in ["X", "Y", "Z"]])
+    tdi_ts = dict([(k, TimeSeries(td[k][:t_max_index], dt=dt, t0=td.t[0])) for k in ["X", "Y", "Z"]])
+    tdi_ts_obs = dict([(k, TimeSeries(td_obs[k][:t_max_index], dt=dt_spritz, t0=td_obs.t[0])) for k in ["X", "Y", "Z"]])
+    tdi_ts_clean = dict([(k, TimeSeries(td_clean[k][:t_max_index], dt=dt_spritz, t0=td_clean.t[0])) for k in ["X", "Y", "Z"]])
+    tdi_ts_galaxy = dict([(k, TimeSeries(td_galaxy[k][:t_max_index], dt=dt_spritz, t0=td_galaxy.t[0])) for k in ["X", "Y", "Z"]])
 
     tdi_ts_glitches = deepcopy(tdi_ts_obs)
     for k in ["X", "Y", "Z"]:
@@ -680,43 +682,43 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search=None):
 
 
 #sum the found sources
-if mbhbs_removed:
-    found_sources = np.load(SAVEPATH+'found_sources_not_anticorrelated_Sangria_12m_no_mbhb_SNR9_seed'+str(seed)+'.pkl', allow_pickle = True)
-else:
-    found_sources = np.load(SAVEPATH+'found_sources_not_anticorrelated_Sangria_12m_mbhb_SNR9_seed'+str(seed)+'.pkl', allow_pickle = True)
-found_sources_flat = np.concatenate(found_sources)
-# found_sources_flat = np.load(SAVEPATH+'found_sources_Sangria_6m_mbhb_even3_seed1_flat.pkl', allow_pickle = True)
-tdi_fs_sum_found = deepcopy(tdi_fs)
-for k in ["X", "Y", "Z"]:
-    tdi_fs_sum_found[k].data = np.zeros(len(tdi_fs_sum_found[k].data), np.complex128)
-for i in range(len(found_sources_flat)):
-    # for j in range(len(found_sources_to_subtract[i])):
-    Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_flat[i], oversample=4)
-    source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
-    index_low = np.searchsorted(tdi_fs_sum_found["X"].f, Xs_subtracted.f[0])
-    index_high = index_low+len(Xs_subtracted)
-    for k in ["X", "Y", "Z"]:
-        tdi_fs_sum_found[k].data[index_low:index_high] += source_subtracted[k].data
 # if mbhbs_removed:
-#     pickle.dump(tdi_fs_sum_found, open(SAVEPATH+'tdi_fs_sum_found_12m_no_mbhb_SNR9_seed'+str(seed)+'.pkl', "wb"))
+#     found_sources = np.load(SAVEPATH+'found_sources_not_anticorrelated_Sangria_12m_no_mbhb_SNR9_seed'+str(seed)+'.pkl', allow_pickle = True)
 # else:
-#     pickle.dump(tdi_fs_sum_found, open(SAVEPATH+'tdi_fs_sum_found_12m_mbhb_SNR9_seed'+str(seed)+'.pkl', "wb"))
+#     found_sources = np.load(SAVEPATH+'found_sources_not_anticorrelated_Sangria_12m_mbhb_SNR9_seed'+str(seed)+'.pkl', allow_pickle = True)
+# found_sources_flat = np.concatenate(found_sources)
+# # found_sources_flat = np.load(SAVEPATH+'found_sources_Sangria_6m_mbhb_even3_seed1_flat.pkl', allow_pickle = True)
+# tdi_fs_sum_found = deepcopy(tdi_fs)
+# for k in ["X", "Y", "Z"]:
+#     tdi_fs_sum_found[k].data = np.zeros(len(tdi_fs_sum_found[k].data), np.complex128)
+# for i in range(len(found_sources_flat)):
+#     # for j in range(len(found_sources_to_subtract[i])):
+#     Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_flat[i], oversample=4)
+#     source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
+#     index_low = np.searchsorted(tdi_fs_sum_found["X"].f, Xs_subtracted.f[0])
+#     index_high = index_low+len(Xs_subtracted)
+#     for k in ["X", "Y", "Z"]:
+#         tdi_fs_sum_found[k].data[index_low:index_high] += source_subtracted[k].data
+# # if mbhbs_removed:
+# #     pickle.dump(tdi_fs_sum_found, open(SAVEPATH+'tdi_fs_sum_found_12m_no_mbhb_SNR9_seed'+str(seed)+'.pkl', "wb"))
+# # else:
+# #     pickle.dump(tdi_fs_sum_found, open(SAVEPATH+'tdi_fs_sum_found_12m_mbhb_SNR9_seed'+str(seed)+'.pkl', "wb"))
 
-tdi_fs_subtracted = deepcopy(tdi_fs)
-for k in ["X", "Y", "Z"]:
-    tdi_fs_subtracted[k].data -= tdi_fs_sum_found[k].data
+# tdi_fs_subtracted = deepcopy(tdi_fs)
+# for k in ["X", "Y", "Z"]:
+#     tdi_fs_subtracted[k].data -= tdi_fs_sum_found[k].data
 
-plt.figure()
-plt.semilogx(tdi_fs['X'].f, (tdi_fs['X'].data))
-plt.semilogx(tdi_fs_sum_found['X'].f, (tdi_fs_sum_found['X'].data))
-plt.semilogx(tdi_fs_subtracted['X'].f, (tdi_fs_subtracted['X'].data))
-plt.show()
+# plt.figure()
+# plt.semilogx(tdi_fs['X'].f, (tdi_fs['X'].data))
+# plt.semilogx(tdi_fs_sum_found['X'].f, (tdi_fs_sum_found['X'].data))
+# plt.semilogx(tdi_fs_subtracted['X'].f, (tdi_fs_subtracted['X'].data))
+# plt.show()
 
-plt.figure()
-plt.loglog(tdi_fs['X'].f, np.abs(tdi_fs['X'].data))
-plt.loglog(tdi_fs_sum_found['X'].f, np.abs(tdi_fs_sum_found['X'].data))
-plt.loglog(tdi_fs_subtracted['X'].f, np.abs(tdi_fs_subtracted['X'].data))
-plt.show()
+# plt.figure()
+# plt.loglog(tdi_fs['X'].f, np.abs(tdi_fs['X'].data))
+# plt.loglog(tdi_fs_sum_found['X'].f, np.abs(tdi_fs_sum_found['X'].data))
+# plt.loglog(tdi_fs_subtracted['X'].f, np.abs(tdi_fs_subtracted['X'].data))
+# plt.show()
 
 # pickle.dump(tdi_fs_subtracted, open(MBHBPATH+dataset+"_tdi_fs_residual.pkl", "wb"))
 
@@ -803,9 +805,9 @@ frequencies_search = np.asarray(frequencies)
 
 
 if mbhbs_removed:
-    save_name = 'Sangria_12m_no_mbhb_SNR'+str(SNR_threshold)+'_even'
+    save_name = 'Sangria_1m_no_mbhb_SNR'+str(SNR_threshold)+'_even'
 else:
-    save_name = 'Sangria_12m_mbhb_SNR'+str(SNR_threshold)+'_even'
+    save_name = 'Sangria_1m_mbhb_SNR'+str(SNR_threshold)+'_even'
 # save_name = 'Radler_24m_filled_anticorrelation'
 # save_name = 'Spritz'
 # save_name = dataset + '_12m_eventest'
@@ -873,7 +875,7 @@ print('search range '+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(n
 
 
 subtract_all = False
-do_subtract = True
+do_subtract = False
 if do_subtract:
     start = time.time()
     # save_name_previous = 'found_sourcesRadler_half_odd_dynamic_noise'
@@ -938,7 +940,7 @@ if do_subtract:
         
     tdi_fs = deepcopy(tdi_fs_subtracted)
 
-do_not_search_unchanged_even_windows = True
+do_not_search_unchanged_even_windows = False
 if do_not_search_unchanged_even_windows:
     frequencies_search_reduced = []
     frequencies_search_skipped = []
@@ -991,7 +993,7 @@ if do_not_search_unchanged_even_windows:
 
 
 found_sources_sorted = []
-use_initial_guess = True
+use_initial_guess = False
 if use_initial_guess:
     # save_name_found_sources_previous = 'found_sources397769to400619LDC1-4_4mHz_half_year_even10'
     # save_name_found_sources_previous = 'found_sources397919to400770LDC1-4_4mHz_half_year_odd'
@@ -1051,7 +1053,7 @@ if use_initial_guess:
 
 do_search = True
 if do_search:
-    MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 10, found_sources_previous = found_sources_sorted, strategy = 'DE')
+    MLP = MLP_search(tdi_fs, Tobs, signals_per_window = 3, found_sources_previous = found_sources_sorted, strategy = 'DE')
     start = time.time()
 
     # cpu_cores = 16

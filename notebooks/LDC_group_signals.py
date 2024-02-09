@@ -181,10 +181,13 @@ def create_df_per_seed(seed):
     for i, save_name in enumerate(save_names):
         found_sources_flat_df, found_sources_matched_flat_df, found_sources_not_matched_flat_df, pGB_injected_matched_flat_df, pGB_injected_not_matched_flat_df, match, pGB_best, match_best = load_files(SAVEPATHS[i], save_name)
         found_sources_list.append(found_sources_flat_df)
-        found_sources_matched_flat_df['Seed'] = int(save_name[-1])
-        found_sources_not_matched_flat_df['Seed'] = int(save_name[-1])
-        pGB_injected_matched_flat_df['Seed'] = int(save_name[-1])
-        pGB_injected_not_matched_flat_df['Seed'] = int(save_name[-1])
+        seed_number = int(save_name[-1])
+        if seed_number == 0:
+            seed_number = 10
+        found_sources_matched_flat_df['Seed'] = seed_number
+        found_sources_not_matched_flat_df['Seed'] = seed_number
+        pGB_injected_matched_flat_df['Seed'] = seed_number
+        pGB_injected_not_matched_flat_df['Seed'] = seed_number
         found_sources_matched_list.append(found_sources_matched_flat_df)
         found_sources_not_matched_list.append(found_sources_not_matched_flat_df)
         pGB_injected_matched_list.append(pGB_injected_matched_flat_df)
@@ -217,6 +220,12 @@ def create_df_per_seed(seed):
 # create_df_per_seed(9)
 # create_df_per_seed(10)
 
+# for i in range(len(found_sources_matched_df_list)):
+#     found_sources_matched_df_list[i] = found_sources_matched_df_list[i].drop(['index'], axis=1)
+#     found_sources_not_matched_df_list[i] = found_sources_not_matched_df_list[i].drop(['index'], axis=1)
+#     pGB_injected_matched_df_list[i] = pGB_injected_matched_df_list[i].drop(['index'], axis=1)
+#     pGB_injected_not_matched_df_list[i] = pGB_injected_not_matched_df_list[i].drop(['index'], axis=1)
+
 # pickle.dump(found_sources_matched_df_list, open(SAVEPATH_sangria+'found_sources_matched_df_list', 'wb'))
 # pickle.dump(found_sources_not_matched_df_list, open(SAVEPATH_sangria+'found_sources_not_matched_df_list', 'wb'))
 # pickle.dump(pGB_injected_matched_df_list, open(SAVEPATH_sangria+'pGB_injected_matched_df_list', 'wb'))
@@ -228,18 +237,38 @@ pGB_injected_matched_df_list = pickle.load(open(SAVEPATH_sangria+'pGB_injected_m
 pGB_injected_not_matched_df_list = pickle.load(open(SAVEPATH_sangria+'pGB_injected_not_matched_df_list', 'rb'))
 
 
-seed = 1
+seed = 10
 counts = found_sources_matched_df_list[seed-1]['Frequency'].value_counts().reset_index(name='counts')
 counts_counts = counts['counts'].value_counts().reset_index(name='counts_counts')
 print(counts_counts.sort_values(by=['index'], ascending=False))
 number_of_sets = counts_counts.sort_values(by=['index'], ascending=False)['counts_counts']
 print(counts_counts['counts_counts'].sum())
+print(np.array(number_of_sets))
 
-for i in range(len(found_sources_matched_df_list)):
-    found_sources_matched_df_list[i] = found_sources_matched_df_list[i].drop(['index'], axis=1)
-    found_sources_not_matched_df_list[i] = found_sources_not_matched_df_list[i].drop(['index'], axis=1)
-    pGB_injected_matched_df_list[i] = pGB_injected_matched_df_list[i].drop(['index'], axis=1)
-    pGB_injected_not_matched_df_list[i] = pGB_injected_not_matched_df_list[i].drop(['index'], axis=1)
+found_sources_matched_df_no_seed = found_sources_matched_df_list[seed-1].drop(['Seed'], axis=1)
+counts_full = found_sources_matched_df_no_seed.value_counts().reset_index(name='counts')
+
+plt.figure()
+plt.hist(counts_full['counts'], bins=100)
+plt.xlabel('Number of matches')
+plt.ylabel('Number of signals')
+plt.yscale('log')
+# plt.savefig(SAVEPATH_sangria+'number_of_matches_per_signal_seed'+str(seed)+'.pdf', bbox_inches='tight')
+plt.show()
+
+plt.figure()
+for i in range(1,10):
+    j = 10-i
+    index = counts_full['counts'] == j
+    plt.plot(counts_full[index]['Frequency'], counts_full[index]['Amplitude'], '.', label=str(j))
+plt.xscale('log')
+plt.yscale('log')
+plt.xlabel('Frequency')
+plt.ylabel('Amplitude')
+plt.legend()
+plt.savefig(SAVEPATH_sangria+'number_of_matches_per_signal_seed'+str(seed)+'_frequency_amplitude.png', bbox_inches='tight')
+plt.show()
+
 
 number_of_extended_sets = 0
 found_sources_matched_df_extended_list = deepcopy(found_sources_matched_df_list)
@@ -267,7 +296,7 @@ while i in range(number_of_sets.iloc[0], len(counts)):
                     number_of_extended_sets += 1
                     print('seed extend', seed_extend, 'of seed', seed, 'due to seed', seed_pairs[j])
                     # print(injected_list)
-                    if i == 4389:
+                    if i == 4188:
                         print(i)
                     frequency_injected = float(injected_list[matches_list['Seed'] == seed_extend]['Frequency'])
                     signal_to_extend = found_sources_not_matched_df_list[seed-1][found_sources_not_matched_df_list[seed-1]['Frequency'] == frequency_of_signal]
@@ -279,7 +308,8 @@ while i in range(number_of_sets.iloc[0], len(counts)):
                     # remove from not matched
                     found_sources_not_matched_df_list[seed-1] = found_sources_not_matched_df_list[seed-1].drop(found_sources_not_matched_df_list[seed-1][found_sources_not_matched_df_list[seed-1]['Frequency'] == frequency_of_signal].index)
                     # print('injected')
-                    signal_to_extend = pGB_injected_not_matched_df_list[seed-1][pGB_injected_not_matched_df_list[seed-1]['Frequency'] == frequency_injected]
+                    signal_to_extend = injected_list[injected_list['Seed'] == seed_extend]
+                    # signal_to_extend = pGB_injected_not_matched_df_list[seed-1][pGB_injected_not_matched_df_list[seed-1]['Frequency'] == frequency_injected]
                     # print('before',pGB_injected_matched_df_list[seed-1][pGB_injected_matched_df_list[seed-1]['Frequency'] == frequency_injected])
                     pGB_injected_matched_df_list[seed-1] = pd.concat([pGB_injected_matched_df_list[seed-1], signal_to_extend])
                     # print(pGB_injected_matched_df_list[seed-1][pGB_injected_matched_df_list[seed-1]['Frequency'] == frequency_injected])

@@ -148,6 +148,7 @@ if dataset == 'Radler':
 elif dataset == 'Sangria':
     DATAPATH = grandparent+"/LDC/Sangria/data"
     SAVEPATH = grandparent+"/LDC/pictures/Sangria/"
+    MBHBPATH = grandparent+"/LDC/MBHB/"
     tdi2 = False
 elif dataset == 'Spritz':
     DATAPATH = grandparent+"/LDC/Spritz/data"
@@ -166,6 +167,8 @@ elif dataset == 'Spritz':
 fid = h5py.File(data_fn)
 
 reduction = 1
+mbhbs_removed = False
+seed = 4
 
 # get TDI 
 if dataset == 'Radler':
@@ -195,8 +198,21 @@ elif dataset == 'Sangria':
     td_mbhb  = td_mbhb ['t']
 
     Tobs = float(int(np.array(fid['obs/config/t_max']))/reduction)
-    for k in ["X", "Y", "Z"]:
-        td[k] = td[k] - td_mbhb[k]
+    if mbhbs_removed:
+        for k in ["X", "Y", "Z"]:
+            td[k] = td[k] - td_mbhb[k]
+            # td_injected[k] -= td_injected[k]
+    else:
+        td_original = deepcopy(td)
+        if reduction == 2:
+            # wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_found_6months.pkl", "rb"))
+            wave = pickle.load(open(MBHBPATH+dataset+'_mbhbh_found_6months_seed'+str(seed)+'.pkl', "rb"))
+            # wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_found_6months.pkl", "rb"))
+        else:
+            wave = pickle.load(open(MBHBPATH+dataset+'_mbhbh_found_12months_seed'+str(seed)+'.pkl', "rb"))
+        for i, k in enumerate(["X", "Y", "Z"]):
+            # td[k] = td_mbhb[k]
+            td[k] -= wave[k] 
 
 elif dataset == 'Spritz':
     names = fid["sky/cat"].dtype.names
@@ -217,6 +233,11 @@ tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt, t0=td
 # tdi_fs_o = xr.Dataset(dict([(k, tdi_ts_o[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
 
+plt.figure()
+plt.plot(tdi_ts['X'].t, tdi_ts['X'].values)
+plt.plot(tdi_ts['Y'].t, tdi_ts['Y'].values)
+plt.plot(tdi_ts['Z'].t, tdi_ts['Z'].values)
+plt.show()
 
 if add_gaps:
     DATAPATH_spritz = grandparent+"/LDC/Spritz/data"
@@ -456,6 +477,7 @@ frequencies_odd = frequencies[1::2]
 
 # save_name = 'not_anticorrelatedLDC1-4_2_optimized_second'
 save_name = 'Sangria_12m_filled_anticorrelated'
+save_name = 'not_anticorrelated_original_Sangria_12m_mbhb_SNR9_seed1'
 # save_name = 'Spritz_clean_galaxy'
 # save_name = 'Radler_24m'
 # if add_gaps:
@@ -1356,7 +1378,7 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true = [], number_o
     # print('GPU memory free', get_gpu_memory())
     # mcmc_samples = posterior1.calculate_posterior(resolution = 1*10**5, temperature= 10)
     temperature = [15, 10, 5, 3, 2, 1]
-    resolution = [10**4, 10**4, 10**4, 10**4, 10**4, 10**6]
+    resolution = [10**4, 10**4, 10**4, 10**4, 10**4, 10**4]
     posterior_round = 0
     mcmc_samples = posterior1.calculate_posterior(resolution = resolution[posterior_round], temperature= temperature[posterior_round])
     posterior_round += 1
@@ -1378,7 +1400,7 @@ def compute_posterior(tdi_fs, Tobs, frequencies, maxpGB, pGB_true = [], number_o
     # posterior1.plot_corner(mcmc_samples_final, pGB_true, save_figure= True)
     print('time to compute posterior: ', time.time()-start)
     start = time.time()
-    posterior1.plot_corner(mcmc_samples_final, pGB_true, save_figure= True, save_chain= True, number_of_signal = 0, parameter_titles = False)
+    posterior1.plot_corner(mcmc_samples_final, pGB_true, save_figure= False, save_chain= True, number_of_signal = 0, parameter_titles = False)
     # kde_samples, probability = posterior1.get_samples(resolution = 1*10**4, proposal= mcmc_samples)
 
     # plt.figure()
@@ -1411,6 +1433,9 @@ print('GPU memory free', get_gpu_memory())
 #     for j in range(len(found_sources[i][3])):
 #         found_sources_in_flat.append(found_sources[i][3][j])
 
+
+# found_sources = np.load(SAVEPATH+'/found_sources_'+save_name+'.pkl', allow_pickle=True)
+# found_sources_in_flat = np.concatenate(found_sources)
 # pickle.dump(found_sources_in_flat, open(SAVEPATH+'found_sources_' +save_name+'_flat.pkl', 'wb'))
 
 found_sources_in_flat = pickle.load(open(SAVEPATH+'found_sources_' +save_name+'_flat.pkl', 'rb'))
@@ -1493,7 +1518,7 @@ tdi_fs_residual['A'] = (tdi_fs_residual["Z"] - tdi_fs_residual["X"])/np.sqrt(2.0
 
 
 
-def get_noise_from_frequency_domain(tdi_fs, number_of_windows=100):
+def get_noise_from_frequency_domain(tdi_fs, number_of_windows=500):
     tdi_ts = xr.Dataset(dict([(k, tdi_fs[k].ts.ifft()) for k in ["X", "Y", "Z"]]))
     tdi_ts["E"] = deepcopy(tdi_ts["X"])
     tdi_ts["A"] = (tdi_ts["Z"] - tdi_ts["X"])/np.sqrt(2.0)
@@ -1669,12 +1694,12 @@ noise_fit = {'A': psdA_partial, 'E': psdE_partial, 'T': psdT_partial}
 noise_residual = {'A': psdA_residual, 'E': psdE_residual, 'T': psdT_residual}
 noise_instrument = {'A': SA, 'E': SE, 'T': ST}
 # noise_partial_residual = {'A': psdA_partial_residual, 'E': psdE_partial_residual, 'T': psdT_partial_residual}
-noise = noise_residual
 
 # noise_residual['f'] = tdi_fs.f
 # noise_df = pd.DataFrame(noise_residual)
 # noise_df.to_csv(SAVEPATH+'ETH_'+save_name+'_noise.csv')
 
+noise = noise_fit
 # search1 = Search(tdi_fs_residual,Tobs, lower_frequency, upper_frequency, noise=noise)
 
 # whitened_data = np.abs(tdi_fs_residual['A']/dt)**2 /(fs*len(tdi_ts['X']))*2 / noise['A']/dt
@@ -1738,7 +1763,7 @@ DAf_original = (dataZ_original - dataX_original)/np.sqrt(2.0)
 
 start_all = time.time()
 for i in range(len(found_sources_in)):
-    if i != 1687:
+    if i < 5368:
         continue
     # if i%10 != 0:
     #     continue

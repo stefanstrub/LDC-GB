@@ -17,7 +17,7 @@ folderpath_parent = grandparent+"/LDC/pictures/Sangria/found_signals"
 folderpath_save = grandparent+"/LDC/pictures/Sangria"
 # folderpath_save = grandparent+"/LDC/Spritz/"
 
-name = '_original_Sangria_12m_mbhb_SNR9_odd_seed1'
+name = '_original_Sangria_3w_mbhb_SNR9_odd_seed1'
 # save_name = 'Spritz' + name
 # save_name = 'Sangria' + name
 save_name =  name

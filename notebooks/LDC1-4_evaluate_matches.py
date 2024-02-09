@@ -75,7 +75,7 @@ path = os.getcwd()
 parent = os.path.dirname(path)
 # grandparent directory
 grandparent = os.path.dirname(parent)
-Radler = True
+Radler = False
 if Radler:
     DATAPATH = grandparent+"/LDC/Radler/data/"
     SAVEPATH = grandparent+"/LDC/pictures/LDC1-4/"
@@ -86,16 +86,18 @@ else:
 
 SAVEPATH_sangria = grandparent+"/LDC/pictures/Sangria/"
 # save_name2 = 'Sangria_1year_dynamic_noise'
-save_name1 = 'Sangria_12m'
-save_name2 = 'Sangria_12m_filled_anticorrelated'
-save_name2 = 'Sangria_12m_no_mbhb_SNR9_seed1'
+save_name1 = 'original_Sangria_6m_mbhb_SNR9_seed1'
+# save_name2 = 'Sangria_12m_filled_anticorrelated'
+save_name2 = 'original_Sangria_6m_no_mbhb_SNR9_seed1'
+save_name3 = 'original_Sangria_12m_mbhb_SNR9_seed1'
+save_name4 = 'original_Sangria_12m_no_mbhb_SNR9_seed42'
 # save_name3 = 'Sangria_1'
 # save_name3 = 'LDC1-4_2_optimized_second'
 # save_name2 = 'Radler_1_full'
 # save_name2 = 'Rxadler_1_full'
 # save_name0 = 'LDC1-4_half_year'
-save_name4 = 'Radler_6m'
-save_name3 = 'Radler_12m'
+# save_name4 = 'Radler_6m'
+# save_name3 = 'Radler_12m'
 # save_name1 = 'Radler_24m_redone'
 # save_name = 'LDC1-4_half_year'
 # save_name = 'Sangria_1_full_cut'
@@ -109,7 +111,7 @@ duration = '31457280'
 # save_name1 = 'Montana2022_'+duration
 
 save_names = [save_name1, save_name2, save_name3, save_name4]
-SAVEPATHS = [SAVEPATH_sangria,SAVEPATH_sangria,SAVEPATH,SAVEPATH]
+SAVEPATHS = [SAVEPATH_sangria,SAVEPATH_sangria,SAVEPATH_sangria,SAVEPATH_sangria]
 
 Tobs = int(duration)
 
@@ -281,7 +283,7 @@ else:
 Nmodel = get_noise_model(noise_model, f)
 SA = Nmodel.psd(freq=f, option="A")
 
-data_set = 1
+data_set = 0
 # noise_fn = SAVEPATHS[data_set]+'ETH_'+save_names[data_set]+'_noise.csv'
 # psd = pd.read_csv(noise_fn, delimiter=",")  
 # SA = spline(psd['f'], psd['A'])(f)
@@ -292,7 +294,7 @@ alpha = 0.6
 save_name = save_names[data_set]
 # parameter_to_plot = 'IntrinsicSNR'
 parameter_x = 'Frequency'
-parameter_y = 'Amplitude'
+parameter_y = 'FrequencyDerivative'
 fig = plt.figure(figsize=fig_size)
 # plt.plot(pGB_injectced_flat_df['Frequency']*10**3,pGB_injected_flat_df[parameter_y], '.', color= colors[0], label = 'Injected', markersize= markersize, alpha = alpha)
 # plt.plot(pGB_injected_matched_flat_df['Frequency']*10**3,pGB_injected_matched_flat_df[parameter_y], '.', color= colors[1], label = 'Injected matched', markersize= markersize, alpha = alpha)
@@ -314,9 +316,8 @@ plt.legend(markerscale=4, loc = 'upper right')
 plt.savefig(SAVEPATH+'/Evaluation/'+parameter_y+save_name+'injected_not_matched_found_matched_found_not_matched'+end_string,dpi=300,bbox_inches='tight')
 plt.show()
 
-#### plot amplitude - frequency
+#### plot
 markersize = 3
-data_set = 0
 save_name = save_names[data_set]
 # parameter_to_plot = 'IntrinsicSNR'
 parameter_x = 'EclipticLongitude'
@@ -723,7 +724,6 @@ axs[0,0].set_ylabel('Count')
 axs[1,0].set_ylabel('Count')
 plt.savefig(SAVEPATH+'/Evaluation/error_histogram'+save_names[0]+save_names[1]+save_names[2]+save_names[3]+end_string+'linear',dpi=300,bbox_inches='tight')
 plt.show()
-
 
 rcParams.update(plot_parameter_big)
 

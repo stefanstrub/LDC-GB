@@ -829,7 +829,7 @@ class Search():
         plt.show()
         # print("p true", self.loglikelihood([pGB]), "null hypothesis", self.loglikelihood([null_pGBs]))
 
-    def get_dh_hh(self, pGBs):
+    def A_E_total(self, pGBs):
         Xs_total = deepcopy(self.dataX)
         Ys_total = deepcopy(self.dataY)
         Zs_total = deepcopy(self.dataZ)
@@ -837,6 +837,10 @@ class Search():
         Ys_total.data = np.zeros_like(self.dataY.data)
         Zs_total.data = np.zeros_like(self.dataZ.data)
         for i in range(len(pGBs)):
+            # freqs = np.array(self.dataX.f)
+            # if len(freqs) < 16:
+            #     freqs = np.linspace(self.lower_frequency, self.upper_frequency, 16)
+            # Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, freqs=freqs)#, tdi2=self.tdi2)
             Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4)#, tdi2=self.tdi2)
 
             index_low = np.searchsorted(Xs.f, Xs_total.f[0])
@@ -868,17 +872,27 @@ class Search():
                     index_high_total = index_high_total-1
             except:
                 pass
-            Xs_total[index_low_total:index_high_total] += Xs[index_low:index_high]
-            Ys_total[index_low_total:index_high_total] += Ys[index_low:index_high]
-            Zs_total[index_low_total:index_high_total] += Zs[index_low:index_high]
+            Xs_total[index_low_total:index_low_total+(index_high-index_low)] += Xs[index_low:index_high]
+            Ys_total[index_low_total:index_low_total+(index_high-index_low)] += Ys[index_low:index_high]
+            Zs_total[index_low_total:index_low_total+(index_high-index_low)] += Zs[index_low:index_high]
             
         Af = (Zs_total - Xs_total)/np.sqrt(2.0)
         Ef = (Zs_total - 2.0*Ys_total + Xs_total)/np.sqrt(6.0)
         if self.use_T_component:
             Tf = (Zs_total + Ys_total + Xs_total)/np.sqrt(3.0)
-        index_data = np.searchsorted(self.dataX.f, Xs.f[0])
+            return Af, Ef, Tf
+        return Af, Ef
+    
+    def get_dh_hh(self, pGBs):
+        if self.use_T_component:
+            Af, Ef, Tf = self.A_E_total(pGBs)
+        else:
+            Af, Ef = self.A_E_total(pGBs)
+
+            
+        index_data = np.searchsorted(self.dataX.f, Af.f[0])
         try:
-            if np.abs(self.dataX.f[index_data-1] - Xs.f[0]) < np.abs(self.dataX.f[index_data] - Xs.f[0]):
+            if np.abs(self.dataX.f[index_data-1] - Af.f[0]) < np.abs(self.dataX.f[index_data] - Af.f[0]):
             # if self.dataX.f[index_data] > Xs.f[0]:
                 index_data = index_data-1
         except:
@@ -1766,6 +1780,58 @@ class Search():
         p = -self.SNR(pGBs)
         return p
 
+
+    # def fisher_information(self, maxpGB):
+    #     maxpGB_changed = deepcopy(maxpGB)
+    #     maxpGB01 = scaleto01(maxpGB, self.boundaries, self.parameters, self.parameters_log_uniform)
+    #     maxpGB01_changed = deepcopy(maxpGB01)
+    #     step_size = {}
+    #     pGB_low = {}
+    #     pGB_high = {}
+    #     derivativeAf = {}
+    #     derivativeEf = {}
+    #     inner_product = {}
+    #     for i in range(1):
+    #         for parameter in self.parameters:
+    #             if i == 0:
+    #                 step_size[parameter] = 1e-9
+    #                 # if parameter == 'Frequency':
+    #                 #     step_size[parameter] = 0.00001
+    #             else:
+    #                 step_size[parameter] = 0.001/np.sqrt(inner_product[parameter][parameter])
+    #             # if step_size[parameter] > 1e-9:
+    #             #     step_size[parameter] = 1e-9
+    #             pGB_low = maxpGB01[parameter] - step_size[parameter]/2
+    #             pGB_high = maxpGB01[parameter] + step_size[parameter]/2
+    #             # print(parameter, step_size[parameter],i)
+    #             # print(parameter, pGB_low, pGB_high)
+    #             if pGB_low < 0:
+    #                 pGB_low = 0
+    #             if pGB_high > 1:
+    #                 pGB_high = 1
+    #             maxpGB01_changed[parameter] = pGB_low
+    #             maxpGB_changed = scaletooriginalparameter(maxpGB01_changed,self.boundaries, self.parameters, self.parameters_log_uniform)
+    #             # print(maxpGB_changed)
+
+    #             Af_low, Ef_low = self.A_E_total([maxpGB_changed])
+
+    #             maxpGB01_changed[parameter] = pGB_high
+    #             maxpGB_changed = scaletooriginalparameter(maxpGB01_changed,self.boundaries, self.parameters, self.parameters_log_uniform)
+    #             Af_high, Ef_high = self.A_E_total([maxpGB_changed])
+
+    #             derivativeAf[parameter] = (Af_high - Af_low)/step_size[parameter]
+    #             derivativeEf[parameter] = (Ef_high - Ef_low)/step_size[parameter]
+
+    #             maxpGB01_changed[parameter] = maxpGB01[parameter]
+
+    #         for parameter1 in self.parameters:
+    #             inner_product[parameter1] = {}
+    #             for parameter2 in self.parameters:
+    #                 AE = derivativeAf[parameter1]*np.conjugate(derivativeAf[parameter2]) + derivativeEf[parameter1]*np.conjugate(derivativeEf[parameter2])
+    #                 inner_product[parameter1][parameter2] = 4*float(np.real(np.sum(AE / self.SA) * self.dataX.df))
+    #         print(step_size['Amplitude'],inner_product['Amplitude']['Amplitude'],step_size['Frequency'],inner_product['Frequency']['Frequency'])
+    #     return inner_product
+    
     def fisher_information(self, maxpGB):
         maxpGB_changed = deepcopy(maxpGB)
         maxpGB01 = scaleto01(maxpGB, self.boundaries, self.parameters, self.parameters_log_uniform)
@@ -1834,7 +1900,7 @@ class Search():
                 inner_product[parameter1] = {}
                 for parameter2 in self.parameters:
                     AE = derivativeAf[parameter1]*np.conjugate(derivativeAf[parameter2]) + derivativeEf[parameter1]*np.conjugate(derivativeEf[parameter2])
-                    inner_product[parameter1][parameter2] = 4*float(np.real(np.sum(AE / self.SA) * self.dataX.df))
+                    inner_product[parameter1][parameter2] = 4*float(np.real(np.sum(AE / self.SA[:len(AE)]) * self.dataX.df))
             print(step_size['Amplitude'],inner_product['Amplitude']['Amplitude'],step_size['Frequency'],inner_product['Frequency']['Frequency'])
         return inner_product
     
