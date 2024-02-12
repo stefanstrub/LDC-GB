@@ -86,7 +86,7 @@ grandparent = os.path.dirname(parent)
 Radler = False
 version = '2'
 reduction = 2
-weeks = 2
+weeks = 7
 Tobs = float(weeks*7*24*3600)
 
 if Radler:

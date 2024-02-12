@@ -119,7 +119,8 @@ elif dataset == 'Spritz':
 fid = h5py.File(data_fn)
 
 reduction = int(2)
-Tobs = float(7*7*24*3600)
+week = 7
+Tobs = float(week*7*24*3600)
 SNR_threshold = 9
 HM = False
 mbhbs_removed = bool(int(sys.argv[3]))
@@ -160,7 +161,7 @@ elif dataset == 'Sangria':
     td_mbhb  = td_mbhb ['t']
 
     # td_injected = deepcopy(td)
-    Tobs = float(int(np.array(fid['obs/config/t_max'])/reduction))
+    # Tobs = float(int(np.array(fid['obs/config/t_max'])/reduction))
     if mbhbs_removed:
         for k in ["X", "Y", "Z"]:
             td[k] = td[k] - td_mbhb[k]
@@ -250,7 +251,7 @@ freq_full = np.fft.rfftfreq(int(len(td['t'])), d=dt)
 # plt.show()
 
 # # Build timeseries and frequencyseries object for X,Y,Z
-t_max_index = np.searchsorted(td['t'], Tobs)+1
+t_max_index = np.searchsorted(td['t'], Tobs)
 tdi_ts = dict([(k, TimeSeries(td[k][:t_max_index], dt=dt, t0=td.t[0])) for k in ["X", "Y", "Z"]])
 # td_mbhbs_subtracted = dict([(k, TimeSeries(td_mbhbs_subtracted[k][:int(len(td[k][:])/reduction)], dt=dt, t0=td.t[0])) for k in ["X", "Y", "Z"]])
 # # tdi_ts_o = deepcopy(tdi_ts)

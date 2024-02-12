@@ -100,7 +100,7 @@ fid = h5py.File(sangria_fn)
 
 seed = int(sys.argv[2])
 reduction = 12
-weeks = 3
+weeks = 8
 Tobs = float(weeks*7*24*3600)
 # Tobs = float(2628000)
 SNR_threshold = 9
@@ -147,7 +147,7 @@ else:
     # tdi_ts_vgb = dict([(k, TimeSeries(td_vgb[k][:int(len(td_vgb[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
     # tdi_fs_vgb = xr.Dataset(dict([(k, tdi_ts_vgb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
         
-    # Tobs = float(int(np.array(fid['obs/config/t_max']))/reduction)
+    # Tobs = float(int(np.array(fid['obs/config/t_max'])))
     if mbhbs_removed:
         for k in ["X", "Y", "Z"]:
             td[k] = td[k] - td_mbhb[k]
@@ -162,9 +162,10 @@ else:
         #     wave = pickle.load(open(MBHBPATH+'Sangria_mbhbh_found_12months_seed'+str(seed)+'.pkl', "rb"))
         # if HM:
         #     wave = pickle.load(open(MBHBPATH+"Sangria_mbhbh_HM_found.pkl", "rb"))
-        # for i, k in enumerate(["X", "Y", "Z"]):
-        #     # td[k] = td_mbhb[k]
-        #     td[k] -= wave[k] 
+        wave = pickle.load(open(MBHBPATH+'Sangria_mbhbh_found_'+str(weeks)+'w_seed'+str(seed)+'.pkl', "rb"))
+        for i, k in enumerate(["X", "Y", "Z"]):
+            # td[k] = td_mbhb[k]
+            td[k] -= wave[k] 
 
 # Build timeseries and frequencyseries object for X,Y,Z
 t_max_index = np.searchsorted(td['t'], Tobs)
@@ -172,6 +173,12 @@ tdi_ts = dict([(k, TimeSeries(td[k][:t_max_index], dt=dt, t0=td.t[0])) for k in 
 # tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt, t0=td.t[0])) for k in ["X", "Y", "Z"]])
 tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
+
+
+# plt.figure()
+# plt.plot(td_original.t, td_original['X'])
+# plt.plot(tdi_ts['X'].t, tdi_ts['X'])
+# plt.show()
 
 pGBadded20 = {}
 pGBadded20['Amplitude'] = 5e-21
@@ -530,12 +537,11 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search):
     return tdi_fs_subtracted2
 
 
-
-#sum the found sources
+# sum the found sources
 # if mbhbs_removed:
 #     found_sources = np.load(SAVEPATH+'found_sources_not_anticorrelated_Sangria_12m_no_mbhb_SNR9_seed'+str(seed)+'.pkl', allow_pickle = True)
 # else:
-#     found_sources = np.load(SAVEPATH+'found_sources_not_anticorrelated_original_Sangria_12m_mbhb_SNR9_seed'+str(seed)+'.pkl', allow_pickle = True)
+#     found_sources = np.load(SAVEPATH+'found_sources_not_anticorrelated_original_Sangria_'+str(weeks)+'w_mbhb_SNR9_seed'+str(seed)+'.pkl', allow_pickle = True)
 # found_sources_flat = np.concatenate(found_sources)
 # # found_sources_flat = np.load(SAVEPATH+'found_sources_Sangria_6m_mbhb_even3_seed1_flat.pkl', allow_pickle = True)
 # tdi_fs_sum_found = deepcopy(tdi_fs)
@@ -543,17 +549,41 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search):
 #     tdi_fs_sum_found[k].data = np.zeros(len(tdi_fs_sum_found[k].data), np.complex128)
 # for i in range(len(found_sources_flat)):
 #     # for j in range(len(found_sources_to_subtract[i])):
-#     Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_flat[i], oversample=4)
+#     freqs = None
+#     if GB.T < 365.26*24*3600/4:
+#         freqs = np.linspace(found_sources_flat[i]['Frequency'], found_sources_flat[i]['Frequency']+0.00001, 16)
+#     Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_flat[i], oversample=4, freqs=freqs)
 #     source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
 #     index_low = np.searchsorted(tdi_fs_sum_found["X"].f, Xs_subtracted.f[0])
 #     index_high = index_low+len(Xs_subtracted)
 #     for k in ["X", "Y", "Z"]:
 #         tdi_fs_sum_found[k].data[index_low:index_high] += source_subtracted[k].data
 # if mbhbs_removed:
-#     pickle.dump(tdi_fs_sum_found, open(SAVEPATH+'tdi_fs_sum_found_12m_no_mbhb_SNR9_seed'+str(seed)+'.pkl', "wb"))
+#     pickle.dump(tdi_fs_sum_found, open(SAVEPATH+'tdi_fs_sum_found_'+str(weeks)+'w_no_mbhb_SNR9_seed'+str(seed)+'.pkl', "wb"))
 # else:
-#     pickle.dump(tdi_fs_sum_found, open(SAVEPATH+'tdi_fs_sum_found_12m_mbhb_SNR9_seed'+str(seed)+'.pkl', "wb"))
-        
+#     pickle.dump(tdi_fs_sum_found, open(SAVEPATH+'tdi_fs_sum_found_'+str(weeks)+'w_mbhb_SNR9_seed'+str(seed)+'.pkl', "wb"))
+
+# tdi_fs_subtracted = deepcopy(tdi_fs)
+# for k in ["X", "Y", "Z"]:
+#     tdi_fs_subtracted[k].data -= tdi_fs_sum_found[k].data
+
+
+# plt.figure()
+# plt.semilogx(tdi_fs['X'].f, (tdi_fs['X'].data), label = 'original')
+# plt.semilogx(tdi_fs_sum_found['X'].f, (tdi_fs_sum_found['X'].data), label = 'sum found')
+# plt.semilogx(tdi_fs_subtracted['X'].f, (tdi_fs_subtracted['X'].data), label = 'subtracted')
+# plt.legend()
+# plt.show()
+
+# plt.figure()
+# plt.loglog(tdi_fs['X'].f, np.abs(tdi_fs['X'].data), label = 'original')
+# plt.loglog(tdi_fs_sum_found['X'].f, np.abs(tdi_fs_sum_found['X'].data), label = 'sum found')
+# plt.loglog(tdi_fs_subtracted['X'].f, np.abs(tdi_fs_subtracted['X'].data),   label = 'subtracted')
+# plt.legend()
+# plt.show()
+
+# pickle.dump(tdi_fs_subtracted, open(MBHBPATH+'Sangria_tdi_fs_'+str(weeks)+'w_residual.pkl', "wb"))
+
 
 # try:
 #     cat = np.load(SAVEPATH+'cat_sorted.npy', allow_pickle = True)
@@ -662,7 +692,18 @@ batch_index = int(sys.argv[1])
 batch_size = int(10)
 start_index = int(batch_size*batch_index)
 print('batch',batch_index, start_index, batch_size)
-frequencies_search = frequencies_search[start_index:start_index+batch_size]
+### analize frequency windows in a row per batch
+# frequencies_search = frequencies_search[start_index:start_index+batch_size]
+### analize frequency windows spread out per batch
+frequencies_search_reduced = []
+segment_jump = int(len(frequencies_search_full) / batch_size)
+if start_index > segment_jump * batch_size-1:
+   frequencies_search = frequencies_search[start_index:start_index+batch_size]
+else:
+    for i in range(batch_size):
+        frequencies_search_reduced.append(frequencies_search[segment_jump*i+batch_index])
+    frequencies_search = frequencies_search_reduced
+
 # frequencies_search = [frequencies_search[1359],frequencies_search[1370],frequencies_search[1419],frequencies_search[1430],frequencies_search[1659],frequencies_search[1670]]
 
 # print(i, frequencies_search[0])
@@ -685,6 +726,7 @@ print('search range '+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(n
 # frequencies_search = frequencies_search_reduced
 
 # frequencies_search = frequencies_even
+do_subtract = False
 do_subtract = True
 if do_subtract:
     start = time.time()
@@ -740,6 +782,7 @@ if do_subtract:
         
     tdi_fs = deepcopy(tdi_fs_subtracted)
 
+do_not_search_unchanged_even_windows = False
 do_not_search_unchanged_even_windows = True
 if do_not_search_unchanged_even_windows:
     frequencies_search_reduced = []
@@ -759,11 +802,15 @@ if do_not_search_unchanged_even_windows:
         found_sources_out_lower = []
         found_sources_out_upper = []
         try:
-            found_sources_out_lower = found_sources_out_flat_df[(found_sources_out_flat_df['Frequency']> frequencies_search[i-1][1]) & (found_sources_out_flat_df['Frequency']< frequencies_search[i][0])]
+            # found_sources_out_lower = found_sources_out_flat_df[(found_sources_out_flat_df['Frequency']> frequencies_search[i-1][1]) & (found_sources_out_flat_df['Frequency']< frequencies_search[i][0])]
+            index = np.searchsorted(np.asarray(frequencies_search_full)[:,0], frequencies_search[i][0])
+            found_sources_out_lower = found_sources_out_flat_df[(found_sources_out_flat_df['Frequency']> frequencies_search_full[index-1][1]) & (found_sources_out_flat_df['Frequency']< frequencies_search_full[index][0])]
         except:
             pass
         try:
-            found_sources_out_upper = found_sources_out_flat_df[(found_sources_out_flat_df['Frequency']> frequencies_search[i][1]) & (found_sources_out_flat_df['Frequency']< frequencies_search[i+1][0])]
+            # found_sources_out_upper = found_sources_out_flat_df[(found_sources_out_flat_df['Frequency']> frequencies_search[i][1]) & (found_sources_out_flat_df['Frequency']< frequencies_search[i+1][0])]
+            index = np.searchsorted(np.asarray(frequencies_search_full)[:,0], frequencies_search[i][0])
+            found_sources_out_upper = found_sources_out_flat_df[(found_sources_out_flat_df['Frequency']> frequencies_search_full[index][1]) & (found_sources_out_flat_df['Frequency']< frequencies_search_full[index+1][0])]
         except:
             pass
         if not(len(found_sources_out_lower) == 0 and len(found_sources_out_upper) == 0):
@@ -779,7 +826,7 @@ if do_not_search_unchanged_even_windows:
                 # print('no search', frequencies_search[i])
                 frequencies_search_skipped.append(frequencies_search[i])
                 found_sources_in_skipped.append(found_sources_in_flat_df.to_dict(orient='records'))
-    found_sources_in_skipped = np.concatenate(found_sources_in_skipped)
+    # found_sources_in_skipped = np.concatenate(found_sources_in_skipped)
     # found_sources_in_not_skipped = np.concatenate(found_sources_in_not_skipped)
     # pickle.dump(found_sources_in_skipped, open(SAVEPATH+save_name_previous+'_skipped.pkl', "wb"))
     frequencies_search = frequencies_search_reduced
