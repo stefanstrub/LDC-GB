@@ -3,6 +3,8 @@ import os
 from os import listdir
 from os.path import isfile, join
 import pickle
+import matplotlib.pyplot as plt
+import sys
 
 # get current directory
 path = os.getcwd()
@@ -17,8 +19,10 @@ folderpath_parent = grandparent+"/LDC/pictures/Sangria/found_signals"
 folderpath_save = grandparent+"/LDC/pictures/Sangria"
 # folderpath_save = grandparent+"/LDC/Spritz/"
 
-name = '_original_Sangria_8w_mbhb_SNR9_odd_seed1'
-# save_name = 'Spritz' + name
+which_run = str(sys.argv[1])+'_'
+which_run = ''
+name = '_original_Sangria_27w_mbhb_SNR9_'+which_run+'seed1'
+save_name = 'Spritz' + name
 # save_name = 'Sangria' + name
 save_name =  name
 folderpath = folderpath_parent + name
@@ -59,9 +63,12 @@ found_sources_in_flat_frequency = found_sources_in_flat_frequency[indexes_in]
 found_sources_in_flat = found_sources_in_flat[indexes_in]
 print(len(found_sources_in_flat))
 
-print('time', np.round(np.sum(times)/3600,1), 'hours')
+print('time', np.round(np.sum(times)/3600,0), 'hours ')
 # print('max time', np.round(np.max(times)/60,1), 'minutes')
 
+# plt.figure()
+# plt.plot(found_sources_in_flat_frequency,found_sources_in_flat_frequency, '.')
+# plt.show()
 
 
 pickle.dump(found_sources_in_flat, open(folderpath_save+'/found_sources' +save_name+'_flat.pkl', 'wb'))

@@ -85,8 +85,8 @@ grandparent = os.path.dirname(parent)
 
 Radler = False
 version = '2'
-reduction = 2
-weeks = 7
+reduction = 1
+weeks = 27
 Tobs = float(weeks*7*24*3600)
 
 if Radler:
@@ -197,7 +197,9 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search):
     tdi_fs_subtracted2 = deepcopy(tdi_fs)
     for i in range(len(found_sources_mp_subtract)):
         # for j in range(len(found_sources_to_subtract[i])):
-            Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_mp_subtract[i], oversample=4)
+            if GB.T < 365.26*24*3600/4:
+                freqs = np.linspace(found_sources_mp_subtract['Frequency'], found_sources_mp_subtract['Frequency']+0.00001, 128)
+            Xs_subtracted, Ys_subtracted, Zs_subtracted = GB.get_fd_tdixyz(template=found_sources_mp_subtract[i], oversample=4, freqs=freqs)
             source_subtracted = dict({"X": Xs_subtracted, "Y": Ys_subtracted, "Z": Zs_subtracted})
             index_low = np.searchsorted(tdi_fs_subtracted2["X"].f, Xs_subtracted.f[0])
             index_high = index_low+len(Xs_subtracted)
@@ -352,7 +354,9 @@ print('search range '+ str(int(np.round(search_range[0]*10**8)))+'to'+ str(int(n
 # search1.plot()
 
 def l2_norm_match(pGB_injected, pGB_found):
-    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4)
+    if GB.T < 365.26*24*3600/4:
+        freqs = np.linspace(pGB_found['Frequency'], pGB_found['Frequency']+0.00001, 128)
+    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4, freqs=freqs)
     Xs_injected, Ys_injected, Zs_injected = GB.get_fd_tdixyz(template=pGB_injected, oversample=4)
     Xs_aligned = xr.align(Xs_injected, Xs, join='left',fill_value=0)[1]
     Ys_aligned = xr.align(Ys_injected, Ys, join='left',fill_value=0)[1]
@@ -382,7 +386,7 @@ def l2_norm_match(pGB_injected, pGB_found):
 def correlation_match(pGB_injected, pGB_found):
     freqs = None
     if GB.T < 365.26*24*3600/4:
-        freqs = np.linspace(pGB_found['Frequency'], pGB_found['Frequency']+0.00001, 16)
+        freqs = np.linspace(pGB_found['Frequency'], pGB_found['Frequency']+0.00001, 128)
     Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4, freqs=freqs)
     Xs_injected, Ys_injected, Zs_injected = GB.get_fd_tdixyz(template=pGB_injected, oversample=4, freqs=freqs)
     Xs_aligned = xr.align(Xs_injected, Xs, join='left',fill_value=0)[1]
@@ -418,7 +422,7 @@ def correlation_match(pGB_injected, pGB_found):
 def SNR_match_scaled(pGB_injected, pGB_found):
     freqs = None
     if GB.T < 365.26*24*3600/4:
-        freqs = np.linspace(pGB_found['Frequency'], pGB_found['Frequency']+0.00001, 16)
+        freqs = np.linspace(pGB_found['Frequency'], pGB_found['Frequency']+0.00001, 128)
     Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4, freqs=freqs)
     Xs_injected, Ys_injected, Zs_injected = GB.get_fd_tdixyz(template=pGB_injected, oversample=4, freqs=freqs)
     Xs_aligned = xr.align(Xs_injected, Xs, join='left',fill_value=0)[1]
@@ -455,7 +459,7 @@ def SNR_match_scaled(pGB_injected, pGB_found):
 def SNR_match(pGB_injected, pGB_found):
     freqs = None
     if GB.T < 365.26*24*3600/4:
-        freqs = np.linspace(pGB_found['Frequency'], pGB_found['Frequency']+0.00001, 16)
+        freqs = np.linspace(pGB_found['Frequency'], pGB_found['Frequency']+0.00001, 128)
     Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4, freqs=freqs)
     Xs_injected, Ys_injected, Zs_injected = GB.get_fd_tdixyz(template=pGB_injected, oversample=4, freqs=freqs)
     Xs_aligned = xr.align(Xs_injected, Xs, join='left',fill_value=0)[1]
@@ -490,8 +494,10 @@ def SNR_match(pGB_injected, pGB_found):
     return SNR3.values
 
 def SNR_match_amplitude_condsiered(pGB_injected, pGB_found):
-    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4)
-    Xs_injected, Ys_injected, Zs_injected = GB.get_fd_tdixyz(template=pGB_injected, oversample=4)
+    if GB.T < 365.26*24*3600/4:
+        freqs = np.linspace(pGB_found['Frequency'], pGB_found['Frequency']+0.00001, 128)
+    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4, freqs=freqs)
+    Xs_injected, Ys_injected, Zs_injected = GB.get_fd_tdixyz(template=pGB_injected, oversample=4, freqs=freqs)
     Xs_aligned = xr.align(Xs_injected, Xs, join='left',fill_value=0)[1]
     Ys_aligned = xr.align(Ys_injected, Ys, join='left',fill_value=0)[1]
     Zs_aligned = xr.align(Zs_injected, Zs, join='left',fill_value=0)[1]

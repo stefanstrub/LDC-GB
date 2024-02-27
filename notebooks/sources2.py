@@ -551,7 +551,10 @@ class Search():
 
     def update_noise(self, pGB=None):
         if pGB != None:
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGB, oversample=4)
+            freqs = None
+            if self.GB.T < 365.26*24*3600/4:
+                freqs = np.linspace(self.lower_frequency, self.upper_frequency, 128)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGB, oversample=4, freqs=freqs)
             Xs_total = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
             Ys_total = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
             Zs_total = xr.align(self.dataZ, Zs, join='left',fill_value=0)[1]
@@ -857,10 +860,10 @@ class Search():
             ax1.plot(Af.f*10**3,Af,'c--',zorder= 1, linewidth = 2, label = 'Data subtracted')
             ax2.plot(Ef.f*10**3,Ef,'c--',zorder= 1, linewidth = 2, label = 'Data subtracted')
         for j in range(len( pGB_injected)):
-            freqs = np.array(self.dataX.f)
-            if len(freqs) < 16:
-                freqs = np.linspace(self.lower_frequency, self.upper_frequency, 16)
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template= pGB_injected[j], oversample=4, tdi2=self.tdi2, freqs=freqs)
+            freqs = None
+            if self.GB.T < 365.26*24*3600/4:
+                freqs = np.linspace(self.lower_frequency, self.upper_frequency, 128)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template= pGB_injected[j], oversample=4,  freqs=freqs)
             a,Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)
             a,Ys = xr.align(self.dataY, Ys, join='left',fill_value=0)
             a,Zs = xr.align(self.dataZ, Zs, join='left',fill_value=0)
@@ -878,10 +881,10 @@ class Search():
             # ax4.plot(pGB_injected[j]['Inclination']*10**3,pGB_injected[j]['FrequencyDerivative'],'o', color=colors[j%10], markersize=7, alpha = 0.5)
             # ax5.plot(pGB_injected[j]['InitialPhase']*10**3,pGB_injected[j]['Polarization'],'o', color=colors[j%10], markersize=7, alpha = 0.5)
         for j in range(len(pGB_injected_matched)):
-            freqs = np.array(self.dataX.f)
-            if len(freqs) < 16:
-                freqs = np.linspace(self.lower_frequency, self.upper_frequency, 16)
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template= pGB_injected_matched[j], oversample=4, tdi2=self.tdi2, freqs=freqs)
+            freqs = None
+            if self.GB.T < 365.26*24*3600/4:
+                freqs = np.linspace(self.lower_frequency, self.upper_frequency, 128)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template= pGB_injected_matched[j], oversample=4,  freqs=freqs)
             index_low = np.searchsorted(Xs.f, self.dataX.f[0])
             try:
                 if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
@@ -902,10 +905,10 @@ class Search():
             # ax3.plot(pGB_injected_matched[j][parameter_x2],pGB_injected_matched[j][parameter_y2],'o', color=colors[j%10], markersize=7, alpha = 1, markerfacecolor='None')
             # ax3.plot(pGB_injected_matched[j]['EclipticLongitude']*10**3,pGB_injected_matched[j]['EclipticLatitude'],'o', color=colors[j%10], markersize=7, alpha = 0.5)
         if pGBadded != None:
-            freqs = np.array(self.dataX.f)
-            if len(freqs) < 16:
-                freqs = np.linspace(self.lower_frequency, self.upper_frequency, 16)
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBadded, oversample=4, tdi2=self.tdi2, freqs=freqs)
+            freqs = None
+            if self.GB.T < 365.26*24*3600/4:
+                freqs = np.linspace(self.lower_frequency, self.upper_frequency, 128)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBadded, oversample=4,  freqs=freqs)
             index_low = np.searchsorted(Xs.f, self.dataX.f[0])
             Xs = Xs[index_low : index_low + len(self.dataX)]
             Ys = Ys[index_low : index_low + len(self.dataY)]
@@ -937,10 +940,10 @@ class Search():
         #     ax1.plot(Af.f* 1000, np.abs(Af.data),linewidth = 5, alpha = 0.5, color= 'grey')
         #     # ax2.plot(Ef.f* 1000, np.abs(Ef.data),'--', color= colors[j%10], linewidth = 1.6)
         for j in range(len(found_sources_in)):
-            freqs = np.array(self.dataX.f)
-            if len(freqs) < 16:
-                freqs = np.linspace(self.lower_frequency, self.upper_frequency, 16)
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_in[j], oversample=4, tdi2=self.tdi2, freqs=freqs)
+            freqs = None
+            if self.GB.T < 365.26*24*3600/4:
+                freqs = np.linspace(self.lower_frequency, self.upper_frequency, 128)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_in[j], oversample=4,  freqs=freqs)
             index_low = np.searchsorted(Xs.f, self.dataX.f[0])
             try:
                 if np.abs(self.dataX.f[0] - Xs.f[index_low-1]) < np.abs(self.dataX.f[0] - Xs.f[index_low]):
@@ -956,10 +959,10 @@ class Search():
             ax2.plot(Ef.f* 1000, Ef.data,'--', color= colors[j%10], linewidth = 1.6)
             # ax2.plot(found_sources_in[j][parameter_x]*10**3,found_sources_in[j][parameter_y],'.', color=colors[j%10], markersize=12, linewidth=6, label='recovered')
         for j in range(len(found_sources_not_matched)):
-            freqs = np.array(self.dataX.f)
-            if len(freqs) < 16:
-                freqs = np.linspace(self.lower_frequency, self.upper_frequency, 16)
-            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_not_matched[j], oversample=4, tdi2=self.tdi2, freqs=freqs)
+            freqs = None
+            if self.GB.T < 365.26*24*3600/4:
+                freqs = np.linspace(self.lower_frequency, self.upper_frequency, 128)
+            Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=found_sources_not_matched[j], oversample=4,  freqs=freqs)
             index_low = np.searchsorted(Xs.f, self.dataX.f[0])
             Xs = xr.align(self.dataX, Xs, join='left',fill_value=0)[1]
             Ys = xr.align(self.dataY, Ys, join='left',fill_value=0)[1]
@@ -1002,10 +1005,12 @@ class Search():
         ax2.set_ylabel(r'real($E$)')
         # ax1.set_yscale('log')
         # ax2.set_yscale('log')
-        # ax1.set_xlim((self.lower_frequency-self.padding)*10**3, (self.upper_frequency+self.padding)*10**3)
-        # ax2.set_xlim((self.lower_frequency-self.padding)*10**3, (self.upper_frequency+self.padding)*10**3)
-        ax1.set_xlim((vertical_lines[1]-self.padding)*10**3, (vertical_lines[-2]+self.padding)*10**3)
-        ax2.set_xlim((vertical_lines[1]-self.padding)*10**3, (vertical_lines[-2]+self.padding)*10**3)
+        if len(vertical_lines) > 0:
+            ax1.set_xlim((vertical_lines[1]-self.padding)*10**3, (vertical_lines[-2]+self.padding)*10**3)
+            ax2.set_xlim((vertical_lines[1]-self.padding)*10**3, (vertical_lines[-2]+self.padding)*10**3)
+        else:
+            ax1.set_xlim((self.lower_frequency-self.padding)*10**3, (self.upper_frequency+self.padding)*10**3)
+            ax2.set_xlim((self.lower_frequency-self.padding)*10**3, (self.upper_frequency+self.padding)*10**3)
         # ax1.set_ylim(10**-19,10**-15)
         # ax2.set_ylim(10**-19,10**-15)
         # ax2.set_ylim(10**-23,4*10**-23)
@@ -1032,9 +1037,9 @@ class Search():
 
     def SNR(self, pGBs):
         for i in range(len(pGBs)):
-            freqs = np.array(self.dataX.f)
-            if len(freqs) < 16:
-                freqs = np.linspace(self.lower_frequency, self.upper_frequency, 16)
+            freqs = None
+            if self.GB.T < 365.26*24*3600/4:
+                freqs = np.linspace(self.lower_frequency, self.upper_frequency, 128)
             Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, freqs=freqs)#, tdi2=self.tdi2)
             # Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4)
             if i == 0:
@@ -1074,9 +1079,9 @@ class Search():
 
     def loglikelihood(self, pGBs):
         for i in range(len(pGBs)):
-            freqs = np.array(self.dataX.f)
-            if len(freqs) < 16:
-                freqs = np.linspace(self.lower_frequency, self.upper_frequency, 16)
+            freqs = None
+            if self.GB.T < 365.26*24*3600/4:
+                freqs = np.linspace(self.lower_frequency, self.upper_frequency, 128)
             Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, freqs=freqs)
             # Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4)
             if i == 0:
@@ -1113,9 +1118,9 @@ class Search():
 
     def intrinsic_SNR(self, pGBs):
         for i in range(len(pGBs)):
-            freqs = np.array(self.dataX.f)
-            if len(freqs) < 16:
-                freqs = np.linspace(self.lower_frequency, self.upper_frequency, 16)
+            freqs = None
+            if self.GB.T < 365.26*24*3600/4:
+                freqs = np.linspace(self.lower_frequency, self.upper_frequency, 128)
             Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, freqs=freqs)
             # Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4)
             if i == 0:
@@ -1354,9 +1359,9 @@ class Search():
 
     def calculate_Amplitude(self, pGBs):
         for i in range(len(pGBs)):
-            freqs = np.array(self.dataX.f)
-            if len(freqs) < 16:
-                freqs = np.linspace(self.lower_frequency, self.upper_frequency, 16)
+            freqs = None
+            if self.GB.T < 365.26*24*3600/4:
+                freqs = np.linspace(self.lower_frequency, self.upper_frequency, 128)
             Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4, freqs=freqs)
             # Xs, Ys, Zs = self.GB.get_fd_tdixyz(template=pGBs[i], oversample=4)
             if i == 0:
@@ -1493,3 +1498,40 @@ class Search():
         # if np.isnan(p):
         #     p = -np.inf
         return p
+    
+
+def correlation_match(pGB_injected, pGB_found, GB, noise_model):
+    freqs = None
+    if GB.T < 365.26*24*3600/4:
+        freqs = np.linspace(pGB_found['Frequency'], pGB_found['Frequency']+0.00001, 128)
+    Xs, Ys, Zs = GB.get_fd_tdixyz(template=pGB_found, oversample=4, freqs=freqs)
+    Xs_injected, Ys_injected, Zs_injected = GB.get_fd_tdixyz(template=pGB_injected, oversample=4, freqs=freqs)
+    Xs_aligned = xr.align(Xs_injected, Xs, join='left',fill_value=0)[1]
+    Ys_aligned = xr.align(Ys_injected, Ys, join='left',fill_value=0)[1]
+    Zs_aligned = xr.align(Zs_injected, Zs, join='left',fill_value=0)[1]
+        
+    fmin, fmax = float(Xs_injected.f[0]), float(Xs_injected.f[-1] + Xs_injected.attrs["df"])
+    freq = np.array(Xs_injected.sel(f=slice(fmin, fmax)).f)
+    Nmodel = get_noise_model(noise_model, freq)
+    SA = Nmodel.psd(freq=freq, option="A")
+    ST = Nmodel.psd(freq=freq, option="T")
+
+    Af = (Zs_aligned - Xs_aligned)/np.sqrt(2.0)
+    Ef = (Zs_aligned - 2.0*Ys_aligned + Xs_aligned)/np.sqrt(6.0)
+    Af_injected = (Zs_injected - Xs_injected)/np.sqrt(2.0)
+    Ef_injected = (Zs_injected - 2.0*Ys_injected + Xs_injected)/np.sqrt(6.0)
+    frequency_T_threshold = 19.1*10**-3/2
+    if Af.f[-1] > frequency_T_threshold:
+        Tf = (Zs_aligned + Ys_aligned + Xs_aligned)/np.sqrt(3.0)
+        Tf_injected = (Zs_injected + Ys_injected + Xs_injected)/np.sqrt(3.0)
+        SNR2 = np.sum( np.real(Af_injected * np.conjugate(Af.data) + Ef_injected * np.conjugate(Ef.data))/SA + np.real(Tf_injected * np.conjugate(Tf.data))/ST)
+        hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2)/SA + np.absolute(Tf.data)**2 /ST)
+        ss = np.sum((np.absolute(Af_injected.data)**2 + np.absolute(Ef_injected.data)**2)/SA + np.absolute(Tf_injected.data)**2 /ST)
+    else:
+        SNR2 = np.sum( np.real(Af_injected * np.conjugate(Af.data) + Ef_injected * np.conjugate(Ef.data))/SA)
+        hh = np.sum((np.absolute(Af.data)**2 + np.absolute(Ef.data)**2) /SA)
+        ss = np.sum((np.absolute(Af_injected.data)**2 + np.absolute(Ef_injected.data)**2) /SA)
+    SNR = 4.0*Xs.df* hh
+    SNR2 = 4.0*Xs.df* SNR2
+    SNR3 = SNR2 / (np.sqrt(SNR)*np.sqrt(4.0*Xs.df* ss))
+    return SNR3.values
