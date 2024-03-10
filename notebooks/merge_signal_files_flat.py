@@ -21,7 +21,8 @@ folderpath_save = grandparent+"/LDC/pictures/Sangria"
 
 which_run = str(sys.argv[1])+'_'
 which_run = ''
-name = '_original_Sangria_27w_mbhb_SNR9_'+which_run+'seed1'
+week = int(sys.argv[5])
+name = '_original_Sangria_'+str(week)+'w_mbhb_SNR9_'+which_run+'seed1'
 save_name = 'Spritz' + name
 # save_name = 'Sangria' + name
 save_name =  name

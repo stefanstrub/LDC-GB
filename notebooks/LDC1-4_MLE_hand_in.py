@@ -100,8 +100,9 @@ fid = h5py.File(sangria_fn)
 
 seed = int(sys.argv[2])
 reduction = 12
-weeks = 27
-Tobs = float((weeks+0)*7*24*3600)
+weeks = int(sys.argv[5])
+Tobs = float((weeks)*7*24*3600)
+# Tobs = float((weeks+1)*7*24*3600+24*3600)
 # Tobs = float(2628000)
 SNR_threshold = 9
 HM = False
@@ -606,7 +607,6 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search):
 # for k in ["X", "Y", "Z"]:
 #     tdi_fs_subtracted[k].data -= tdi_fs_sum_found[k].data
 
-
 # plt.figure()
 # plt.semilogx(tdi_fs['X'].f, (tdi_fs['X'].data), label = 'original')
 # plt.semilogx(tdi_fs_sum_found['X'].f, (tdi_fs_sum_found['X'].data), label = 'sum found')
@@ -623,39 +623,6 @@ def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search):
 # plt.show()
 
 # pickle.dump(tdi_fs_subtracted, open(MBHBPATH+'Sangria_tdi_fs_'+str(weeks)+'w_residual.pkl', "wb"))
-
-
-# try:
-#     cat = np.load(SAVEPATH+'cat_sorted.npy', allow_pickle = True)
-#     print('cat sorted loaded')
-# except:
-#     # get the source parameters
-#     # Radler
-#     if Radler:
-#         names = np.array(fid['H5LISA/GWSources/GalBinaries']) # radler
-#         params = [fid['H5LISA/GWSources/GalBinaries'][k] for k in names]
-#         reduced_names = []
-#         i = 0
-#         for p in params:
-#             i += 1
-#             if p.shape:
-#                 reduced_names.append(names[i-1])
-#         params = [np.array(p) for p in params if p.shape]
-#         names = reduced_names
-#         cat = np.rec.fromarrays(params, names=list(names))
-#     # Sangria
-#     else:
-#         names_dgb = fid["sky/dgb/cat"].dtype.names # Sangria
-#         params_dgb = [np.array(fid["sky/dgb/cat"][k]).squeeze() for k in names_dgb]
-#         names_igb = fid["sky/igb/cat"].dtype.names # Sangria
-#         params_igb = [np.array(fid["sky/igb/cat"][k]).squeeze() for k in names_igb]
-#         names_vgb = fid["sky/vgb/cat"].dtype.names # Sangria
-#         params_vgb = [np.array(fid["sky/vgb/cat"][k]).squeeze() for k in names_vgb]
-
-#         cat = np.rec.fromarrays(params_dgb, names=list(names_dgb))
-#     indexes = np.argsort(cat['Frequency'])
-#     cat = cat[indexes]
-#     np.save(SAVEPATH+'cat_sorted.npy',cat)
 
 # LDC1-4 #####################################
 frequencies = []

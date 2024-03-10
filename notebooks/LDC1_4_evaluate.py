@@ -77,7 +77,7 @@ intrinsic_parameters = ['EclipticLatitude','EclipticLongitude','Frequency', 'Fre
 
 # get current directory
 path = os.getcwd()
- 
+
 # parent directory
 parent = os.path.dirname(path)
 # grandparent directory
@@ -86,7 +86,7 @@ grandparent = os.path.dirname(parent)
 Radler = False
 version = '2'
 reduction = 1
-weeks = 27
+weeks = 48
 Tobs = float(weeks*7*24*3600)
 
 if Radler:
@@ -246,8 +246,8 @@ except:
 
 cat_sorted = cat
 
-cat_window = cat_sorted[cat_sorted['Frequency']>0.005208333333333333]
-cat_window = cat_window[cat_window['Frequency']<0.005208333333333333+512/62914560]
+# cat_window = cat_sorted[cat_sorted['Frequency']>0.005208333333333333]
+# cat_window = cat_window[cat_window['Frequency']<0.005208333333333333+512/62914560]
 
 
 DAt = (tdi_ts['Z'] - tdi_ts['X'])/np.sqrt(2.0)
@@ -1371,11 +1371,11 @@ pGB_injected_not_matched_flat_df = pGB_injected_not_matched_flat_df.sort_values(
 # pGB_injected_not_matched_flat_df = pGB_injected_flat_reduced_df.append(pGB_injected_matched_flat_df)
 # pGB_injected_not_matched_flat_df = pGB_injected_not_matched_flat_df.drop_duplicates(keep=False)
 # amplitude_considered_
-found_sources_in_flat_df.to_pickle(SAVEPATH+'/found_sources_' +save_name+end_string+'_df')
-found_sources_matched_flat_df.to_pickle(SAVEPATH+'/found_sources_matched_' +save_name+end_string+'_df')
-found_sources_not_matched_flat_df.to_pickle(SAVEPATH+'/found_sources_not_matched_' +save_name+end_string+'_df')
-pGB_injected_matched_flat_df.to_pickle(SAVEPATH+'/injected_matched_windows_' +save_name+end_string+'_df')
-pGB_injected_not_matched_flat_df.to_pickle(SAVEPATH+'/injected_not_matched_windows_' +save_name+end_string+'_df')
+found_sources_in_flat_df.to_pickle(SAVEPATH+'/evaluation/found_sources_' +save_name+end_string+'_df')
+found_sources_matched_flat_df.to_pickle(SAVEPATH+'/evaluation/found_sources_matched_' +save_name+end_string+'_df')
+found_sources_not_matched_flat_df.to_pickle(SAVEPATH+'/evaluation/found_sources_not_matched_' +save_name+end_string+'_df')
+pGB_injected_matched_flat_df.to_pickle(SAVEPATH+'/evaluation/injected_matched_windows_' +save_name+end_string+'_df')
+pGB_injected_not_matched_flat_df.to_pickle(SAVEPATH+'/evaluation/injected_not_matched_windows_' +save_name+end_string+'_df')
 
 # plt.figure()
 # plt.plot([1,2,3], [1,2,3])
