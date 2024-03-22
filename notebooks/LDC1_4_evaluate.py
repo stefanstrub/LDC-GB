@@ -83,7 +83,7 @@ parent = os.path.dirname(path)
 # grandparent directory
 grandparent = os.path.dirname(parent)
 
-Radler = True
+Radler = False
 version = '2'
 reduction = 1
 weeks = 52
@@ -554,7 +554,7 @@ except:
 
     np.save(SAVEPATH+'found_sources_' +save_name+'_flat.pkl', np.asarray(found_sources_in_flat))
 
-sort_found = False
+sort_found = True
 if sort_found:
     found_sources_in_flat_frequency = []
     for i in range(len(found_sources_in_flat)):
@@ -1065,7 +1065,7 @@ def match_function(found_sources_in, pGB_injected_not_matched):
         match_best_list.append(found_sources_in[j])
     return found_sources_in, pGB_injected_not_matched, match_list, pGB_best_list, match_best_list, found_sources_not_matched, pGB_injected_matched, found_sources_matched, match_list2, match_list3
 
-do_match_parallelized = False
+do_match_parallelized = True
 if do_match_parallelized:
     print('match parallelized')
     pGB_injected_matched = []
