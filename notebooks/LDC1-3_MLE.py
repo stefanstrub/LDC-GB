@@ -20,13 +20,9 @@ import pickle
 sys.path.append('/cluster/home/sstrub/Repositories/LDC/lib/lib64/python3.8/site-packages/ldc-0.1-py3.8-linux-x86_64.egg')
 
 from ldc.lisa.noise import get_noise_model
-from ldc.common.series import TimeSeries, window
+from ldc.common.series import TimeSeries
 import ldc.waveform.fastGB as fastGB
-from ldc.common.tools import compute_tdi_snr
-
-from sklearn.metrics import mean_squared_error
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF
+from ldc.common.tools import compute_tdi_snr, window
 
 # customized settings
 plot_parameter = {  # 'backend': 'ps',
@@ -1448,9 +1444,23 @@ Tobs = float(int(np.array(fid['H5LISA/GWSources/GalBinaries']['ObservationDurati
 
 dt = del_t
 # Build timeseries and frequencyseries object for X,Y,Z
-tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
+tdi_ts = dict([(k, TimeSeries(td[k][:int(len(td[k][:])/reduction)], dt=dt, t0=td.t[0])) for k in ["X", "Y", "Z"]])
 tdi_fs = xr.Dataset(dict([(k, tdi_ts[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 GB = fastGB.FastGB(delta_t=dt, T=Tobs)  # in seconds
+
+i = 0
+lower_frequency = cat[i]['Frequency']-0.0000005
+upper_frequency = cat[i]['Frequency']+0.0000005
+Xs, Ys, Zs = GB.get_fd_tdixyz(template=cat[i], oversample=4)
+Af = (Zs - Xs)/np.sqrt(2.0)
+Ef = (Zs - 2.0*Ys + Xs)/np.sqrt(6.0)   
+plt.figure()
+plt.semilogx(Xs.f*1000,np.real(Xs.values))
+plt.semilogx(tdi_fs['X'].f.values*1000,np.real(tdi_fs['X'].values))
+plt.xlim(lower_frequency*1000,upper_frequency*1000)
+# plt.semilogx(Ef.f*1000,Ef.values)
+plt.show()
+
 
 pGBadded20 = {}
 pGBadded20['Amplitude'] = 1e-21
@@ -1471,7 +1481,7 @@ if add_signal:
         cat = np.hstack((cat,cat[0]))
         for parameter in parameters:
             cat[-1][parameter] = pGBadding[parameter]
-        Xs_added, Ys_added, Zs_added = GB.get_fd_tdixyz(template=pGBadding, oversample=4, simulator="synthlisa")
+        Xs_added, Ys_added, Zs_added = GB.get_fd_tdixyz(template=pGBadding, oversample=4)
         source_added = dict({"X": Xs_added, "Y": Ys_added, "Z": Zs_added})
         index_low = np.searchsorted(tdi_fs["X"].f, Xs_added.f[0])
         index_high = index_low+len(Xs_added)

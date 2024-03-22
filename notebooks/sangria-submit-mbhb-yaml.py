@@ -15,47 +15,60 @@ grandparent = os.path.dirname(parent)
 
 entry = {'author': 'Stefan Strub',
          'e-mail': 'stefan.strub@erdw.ethz.ch',
-         'date': '2024/3/21',           # standardize?
+         'date': '2024/1/18',           # standardize?
          'challenge': 'LDC2a',
          'dataset': 'LDC2_sangria_training_v2'}
 
 
-folderpath_parent = grandparent+"/LDC/pictures/Sangria/"
-folderpath_save = grandparent+"/LDC/pictures/Sangria/"
-name = 'found_sources_not_anticorrelatedSangria_1_full_cut'
-name = 'found_sources_not_anticorrelated30000to9261573Sangria_1_dynamic_noise'
-name = 'found_sources_Sangria_12m_flat'
-name = 'found_sources_not_anticorrelated_original_Sangria_12m_mbhb_SNR9_seed1'
-name = 'found_sources_not_anticorrelated_original_Sangria_52w_mbhb_SNR9_seed1'
+folderpath_parent = grandparent+"/LDC/MBHB/"
+folderpath_save = grandparent+"/LDC/MBHB/"
+name = 'Sangria_mbhbh_found_signals_12months_seed4'
 save_name = name
 folderpath = folderpath_parent + name
 
+parameters = ['Mass1', 'Mass2', 'Spin1', 'Spin2', 'Distance', 'Phase', 'Inclination', 'EclipticLongitude', 'EclipticLatitude', 'Polarization', 'CoalescenceTime']
 # found_sources_flat = np.load(folderpath+'.npy', allow_pickle = True)
 found_sources = np.load(folderpath+'.pkl', allow_pickle = True)
-found_sources_flat = np.concatenate(found_sources)
+found_sources_flat = []
 # found_sources_flat = np.concatenate(found_sources)
 # found_sources_flat = found_sources_flat[:100]
+for i in range(len(found_sources)):
+    found_sources_flat.append({})
+    for j, parameter in enumerate(parameters):
+        found_sources_flat[i][parameter] = found_sources[i][j]
+
+PC_SI = 3.0856775814913674e+16
 for i in range(len(found_sources_flat)):
-    found_sources_flat[i]['Frequency'] *= 10**3
+    found_sources_flat[i]['Distance'] /= PC_SI*1e6
+
+coalescence_time = []
+for i in range(len(found_sources_flat)):
+    coalescence_time.append(found_sources_flat[i]['CoalescenceTime'])
+index_sorted = np.argsort(coalescence_time)
+found_sources_flat = np.array(found_sources_flat)[index_sorted]
+
 for parameter in found_sources_flat[0].keys():
     for i in range(len(found_sources_flat)):
         found_sources_flat[i][parameter] = float(found_sources_flat[i][parameter])
 found_sources_flat = list(found_sources_flat)
 
 units = {  
-        'Amplitude' :1, 
-        'Frequency' :'mHz',
-        'FrequencyDerivative':'Hz',
+        'CoalescenceTime' :'s', 
+        'Distance' :'Mpc',
         'EclipticLatitude': 'rad',
         'EclipticLongitude': 'rad',
         'Inclination': 'rad',
+        'Mass1': 'M_sun',
+        'Mass2': 'M_sun',
+        'Phase': 'rad',
         'Polarization': 'rad', 
-        'InitialPhase': 'rad' 
+        'ProjectedSpin1': 'none',
+        'ProjectedSpin2': 'none',
      }
 
 entry['estimates'] = found_sources_flat
 entry['units'] = units
 
-open(folderpath_save+'ETH-LDC2-sangria-training-v2-training.yaml','w').write(yaml.dump(entry, default_flow_style=False))
+open(folderpath_save+'ETH-LDC2-sangria-training-v2-training-mbhb.yaml','w').write(yaml.dump(entry, default_flow_style=False))
 
 print('end')

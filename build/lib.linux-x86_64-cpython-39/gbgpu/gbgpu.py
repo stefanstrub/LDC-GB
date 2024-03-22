@@ -116,6 +116,7 @@ class GBGPU(object):
         beta,
         *args,
         N=None,
+        t_start = 0.0,
         T=4 * YEAR,
         dt=10.0,
         oversample=1,
@@ -189,6 +190,8 @@ class GBGPU(object):
         lam = np.atleast_1d(lam)
         beta = np.atleast_1d(beta)
 
+        phi0 = phi0 - f0*t_start * np.pi*2 - fdot*t_start**2 * np.pi - fddot*t_start**3 * np.pi/3
+        # print('phi0', phi0)
         # if circular base
         if len(args) == 0:
             add_args = ()
@@ -269,11 +272,13 @@ class GBGPU(object):
         )
 
         # time points evaluated
-        tm = self.xp.linspace(0, T, num=N, endpoint=False)
-
+        self.t_start = t_start
+        tm = self.xp.linspace(t_start, T+t_start, num=N, endpoint=False)
+        self.tm = tm
         # get the spacecraft positions from orbits
         Ps = self._spacecraft(tm)
 
+        tm = self.xp.linspace(0, T+0, num=N, endpoint=False)
         # time domain information
         Gs, q = self._construct_slow_part(
             T,
@@ -301,11 +306,14 @@ class GBGPU(object):
 
         # adjust for TDI2 if needed
         if tdi2:
-            omegaL = 2 * np.pi * f0_out * (Larm / Clight)
+            omegaL = 2 * np.pi * f0 * (Larm / Clight)
             tdi2_factor = 2.0j * self.xp.sin(2 * omegaL) * self.xp.exp(-2j * omegaL)
             fctr *= tdi2_factor
 
-        XYZf *= fctr
+        if tdi2:
+            XYZf = XYZf * fctr[:, None, None]
+        else:
+            XYZf *= fctr
 
         # we do not care about T right now
         Af, Ef, Tf = AET(XYZf[:, 0], XYZf[:, 1], XYZf[:, 2])
@@ -500,7 +508,7 @@ class GBGPU(object):
 
         argS = (
             phi0[:, None, None]
-            + (om[:, None, None] - df[:, None, None]) * tm[None, None, :]
+            + (om[:, None, None] - df[:, None, None]) * (tm[None, None, :])
             + np.pi * fdot[:, None, None] * (xi**2)
             + 1 / 3 * np.pi * fddot[:, None, None] * (xi**3)
         )
@@ -578,6 +586,8 @@ class GBGPU(object):
         start_freq_ind=0,
         data_index=None,
         noise_index=None,
+        get_SNR=False,
+        get_dh_hh_ratio=False,
         **kwargs,
     ):
         """Get batched log likelihood
@@ -730,15 +740,19 @@ class GBGPU(object):
         self.h_h = h_h
         self.d_h = d_h
 
-        # compute Likelihood
-        like_out = -1.0 / 2.0 * (self.d_d + h_h - 2 * d_h).real
-
+        # compute Likelihood or SNR
+        if get_SNR:
+            out = (d_h.real / self.xp.sqrt(h_h.real))
+        elif get_dh_hh_ratio:
+            out = (d_h.real / h_h.real)
+        else:
+            out = -1.0 / 2.0 * (self.d_d + h_h - 2 * d_h).real
         # back to CPU if on GPU
         try:
-            return like_out.get()
+            return out.get()
 
         except AttributeError:
-            return like_out
+            return out
 
     def fill_global_template(
         self, group_index, templates, A, E, start_inds, N=None, start_freq_ind=0

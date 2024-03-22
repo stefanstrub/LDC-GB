@@ -190,8 +190,6 @@ class GBGPU(object):
         lam = np.atleast_1d(lam)
         beta = np.atleast_1d(beta)
 
-        phi0 = phi0 - f0*t_start * np.pi*2 - fdot*t_start**2 * np.pi - fddot*t_start**3 * np.pi/3
-        # print('phi0', phi0)
         # if circular base
         if len(args) == 0:
             add_args = ()
@@ -587,7 +585,6 @@ class GBGPU(object):
         data_index=None,
         noise_index=None,
         get_SNR=False,
-        get_dh_hh_ratio=False,
         **kwargs,
     ):
         """Get batched log likelihood
@@ -742,9 +739,7 @@ class GBGPU(object):
 
         # compute Likelihood or SNR
         if get_SNR:
-            out = (d_h.real / self.xp.sqrt(h_h.real))
-        elif get_dh_hh_ratio:
-            out = (d_h.real / h_h.real)
+            out = (d_h.real / xp.sqrt(h_h.real))
         else:
             out = -1.0 / 2.0 * (self.d_d + h_h - 2 * d_h).real
         # back to CPU if on GPU
