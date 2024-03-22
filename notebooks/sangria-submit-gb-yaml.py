@@ -15,7 +15,7 @@ grandparent = os.path.dirname(parent)
 
 entry = {'author': 'Stefan Strub',
          'e-mail': 'stefan.strub@erdw.ethz.ch',
-         'date': '2024/1/18',           # standardize?
+         'date': '2024/3/21',           # standardize?
          'challenge': 'LDC2a',
          'dataset': 'LDC2_sangria_training_v2'}
 
@@ -26,6 +26,7 @@ name = 'found_sources_not_anticorrelatedSangria_1_full_cut'
 name = 'found_sources_not_anticorrelated30000to9261573Sangria_1_dynamic_noise'
 name = 'found_sources_Sangria_12m_flat'
 name = 'found_sources_not_anticorrelated_original_Sangria_12m_mbhb_SNR9_seed1'
+name = 'found_sources_not_anticorrelated_original_Sangria_52w_mbhb_SNR9_seed1'
 save_name = name
 folderpath = folderpath_parent + name
 

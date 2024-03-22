@@ -53,7 +53,7 @@ plot_parameter_big = {  # 'backend': 'ps',
     "grid.color": "k",
     "grid.linestyle": ":",
     "grid.linewidth": 1,
-    "savefig.dpi": 150,
+    "savefig.dpi": 300,
 }
 
 # tell matplotlib about your param_plots
@@ -114,7 +114,7 @@ duration = '31457280'
 save_names = [save_name1, save_name2, save_name3, save_name4]
 SAVEPATHS = [SAVEPATH_sangria,SAVEPATH_sangria,SAVEPATH_sangria,SAVEPATH_sangria]
 
-weeks = np.arange(1, 45, 1)
+weeks = np.arange(1, 53, 1)
 
 save_names = []
 SAVEPATHS = []
@@ -325,10 +325,11 @@ plt.legend(markerscale=4, loc = 'upper right')
 plt.savefig(SAVEPATH+'/Evaluation/'+parameter_y+save_name+'injected_not_matched_found_matched_found_not_matched'+end_string,dpi=300,bbox_inches='tight')
 plt.show()
 
+
 increment = 10
 weeks_plot = np.arange(1,len(weeks),increment)
-cmap = plt.get_cmap("jet")
-cmapr = plt.get_cmap("jet_r")
+cmap = plt.get_cmap("viridis")
+cmapr = plt.get_cmap("viridis_r")
 parameter_x = 'Frequency'
 parameter_y = 'Amplitude'
 fig, ax = plt.subplots(figsize=fig_size)
@@ -362,9 +363,9 @@ plt.show()
 
 increment = 10
 weeks_plot = np.arange(1,len(weeks),increment)
-weeks_plot = np.array([10,30,40])
-cmap = plt.get_cmap("jet")
-cmapr = plt.get_cmap("jet_r")
+weeks_plot = np.array([10,30,50])
+cmap = plt.get_cmap("viridis")
+cmapr = plt.get_cmap("viridis_r")
 parameter_x = 'Frequency'
 parameter_y = 'Amplitude'
 fig, axs = plt.subplots(4,1,figsize=np.array(fig_size)*np.array([1,2.5]))
@@ -377,11 +378,11 @@ for data_set in weeks_plot-1:
     # plt.plot(found_sources_not_matched_list[data_set][parameter_x],found_sources_not_matched_list[data_set][parameter_y],'o',  markerfacecolor='None', markersize= markersize, label = r'$\tilde\theta_{\mathrm{recovered, } \delta > 0.3}$', alpha = alpha)
     # plt.plot(pGB_injected_not_matched_list[data_set][parameter_x],pGB_injected_not_matched_list[data_set][parameter_y], '+', label = r'$\tilde\theta_{\mathrm{injected, } \delta > 0.3}$', markersize= markersize, alpha = alpha, zorder = 1)
     # plt.plot(f,np.sqrt(SA), color = 'black', label = 'Sangria', linewidth=2)
-data_set = 11
+data_set = weeks_plot[0]+1
 im = axs[0].plot(found_sources_matched_list[data_set][parameter_x],found_sources_matched_list[data_set][parameter_y],'.',  markersize= 2, alpha = alpha, zorder = np.max(weeks_plot)-data_set, color= cmap((data_set/np.max(weeks))), label = str(data_set-1)+' weeks')
-data_set = 31
+data_set = weeks_plot[1]+1
 im = axs[1].plot(found_sources_matched_list[data_set][parameter_x],found_sources_matched_list[data_set][parameter_y],'.',  markersize= 2, alpha = alpha, zorder = np.max(weeks_plot)-data_set, color= cmap((data_set/np.max(weeks))), label = str(data_set-1)+' weeks')
-data_set = 41
+data_set = weeks_plot[2]+1
 im = axs[2].plot(found_sources_matched_list[data_set][parameter_x],found_sources_matched_list[data_set][parameter_y],'.',  markersize= 2, alpha = alpha, zorder = np.max(weeks_plot)-data_set, color= cmap((data_set/np.max(weeks))), label = str(data_set-1)+' weeks')
 axs[0].set_yscale('log')
 axs[0].set_xscale('log')
@@ -425,8 +426,8 @@ plt.show()
 
 
 increment = 10
-cmap = plt.get_cmap("jet")
-cmapr = plt.get_cmap("jet_r")
+cmap = plt.get_cmap("viridis")
+cmapr = plt.get_cmap("viridis_r")
 parameter_x = 'Frequency'
 parameter_y = 'Amplitude'
 parameter_x = 'EclipticLongitude'
@@ -882,7 +883,9 @@ axs[1,0].set_ylabel('Count')
 plt.savefig(SAVEPATH+'/Evaluation/error_histogram'+save_names[0]+save_names[1]+save_names[2]+save_names[3]+end_string+'linear',dpi=300,bbox_inches='tight')
 plt.show()
 
-increment =2
+increment =4
+ticks = np.append(1,np.arange(4,np.max(weeks)+1,increment))
+
 fig, axs = plt.subplots(2, 4, figsize=np.array(fig_size)*[2,1], constrained_layout=True)
 for ax, parameter in zip(axs.flat, parameter_order):
     for i in range(len(found_sources_matched_list)):
@@ -937,7 +940,7 @@ sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
 sm.set_array([])
 # cbar_ax = fig.add_axes([0.85, 0.1, 0.01, 0.9])
 # cbar= plt.colorbar(sm, ticks=np.arange(np.min(weeks),np.max(weeks),increment), cax=cbar_ax, label='Weeks', boundaries=np.arange(np.min(weeks)-increment/2,np.max(weeks)+increment/2,increment))
-cbar= fig.colorbar(sm, ticks=np.arange(np.min(weeks),np.max(weeks),increment)+1, label='Observation time (weeks)', boundaries=np.arange(np.min(weeks)-1/2,np.max(weeks+1)+1/2,1), ax=axs.ravel().tolist())
+cbar= fig.colorbar(sm, ticks=ticks, label='Observation time (weeks)', boundaries=np.arange(np.min(weeks)-1/2,np.max(weeks+1)+1/2,1), ax=axs.ravel().tolist())
 # cbar.ax.invert_yaxis()
 # ax.yscale('log')
 # axs[0,1].legend(custom_lines, [label1, label2, label3], loc='best')
@@ -950,6 +953,159 @@ axs[0,0].set_ylabel('Count')
 axs[1,0].set_ylabel('Count')
 # plt.tight_layout()
 plt.savefig(SAVEPATH+'/Evaluation/error_histogram'+save_names[0]+save_names[1]+save_names[2]+save_names[3]+end_string+'linear',dpi=300,bbox_inches='tight')
+plt.show()
+
+
+parameter_order = [
+    "EclipticLatitude",
+    "EclipticLongitude",
+    "Frequency",
+    "FrequencyDerivative",
+    "Amplitude",
+    "Inclination",
+    "Polarization",
+    "InitialPhase",
+]
+fig, axs = plt.subplots(4, 2, figsize=np.array(fig_size)*[1.5,1.5], constrained_layout=True)
+for ax, parameter in zip(axs.flat, parameter_order):
+    for i in range(len(found_sources_matched_list)):
+        if parameter == 'Skylocation':
+            ax.hist(np.abs(found_sources_matched_list[i][parameter+'Error']), bins= np.logspace(-2,2, n_bins))
+        elif parameter == 'Frequency':
+            ax.hist(np.abs(found_sources_matched_list[i][parameter+'Error']/pGB_injected_matched_list[i][parameter]), bins= np.logspace(-8,-3.5, n_bins), log=False, density=False, histtype='step',linewidth=line_width, color= cmap((i/np.max(weeks))))
+        elif parameter == 'FrequencyDerivative':
+            ax.hist(np.abs(found_sources_matched_list[i][parameter+'Error']), bins=np.logspace(-19,-13, n_bins), density=False, histtype='step',linewidth=line_width, color= cmap((i/np.max(weeks))))
+        elif parameter == 'Amplitude':
+            ax.hist(found_sources_matched_list[i][parameter+'Error'], bins=np.logspace(-4,1,n_bins), density=False, histtype='step',linewidth=line_width, color= cmap((i/np.max(weeks))))
+        elif parameter == 'Inclination':
+            ax.hist(found_sources_matched_list[i][parameter+'Error'], bins=np.logspace(-5,np.log10(np.pi/2), n_bins), density=False, histtype='step',linewidth=line_width, color= cmap((i/np.max(weeks))))
+        elif parameter in ['EclipticLatitude', 'EclipticLongitude']:
+            ax.hist(found_sources_matched_list[i][parameter+'Error'], bins=np.logspace(-5,np.log10(np.pi/2), n_bins), log= False, density=False, histtype='step',linewidth=line_width, color= cmap((i/np.max(weeks))))
+        else:
+            ax.hist(found_sources_matched_list[i][parameter+'Error'], bins=n_bins, density=False, histtype='step',linewidth=line_width, color= cmap((i/np.max(weeks))))
+    ax.set_xlabel('$\Delta$'+parameter)
+    if parameter == 'Skylocation':
+        ax.set_xlabel('$\Delta$'+labels[parameter]+' (deg)')
+        ax.set_xscale('log')
+    if parameter == 'Inclination':
+        ax.set_xlabel('$\Delta$'+labels[parameter])
+        ax.set_xlim(10**-5,np.pi/2)
+        ax.set_xscale('log')
+    if parameter == 'Amplitude':
+        ax.set_xlabel(r'$\Delta \mathcal{A} / \mathcal{A}_{true}$')
+        ax.set_xscale('log')
+        ax.set_xlim(10**-4,10)
+    if parameter == 'FrequencyDerivative':
+        ax.set_xscale('log')
+        ax.set_xlabel('$\Delta$'+labels[parameter])
+        ax.set_xlim(10**-19,10**-13)
+    if parameter == 'Frequency':
+        ax.set_xscale('log')
+        ax.set_xlim(10**-8,10**-4)
+        # ax.ylim(0,10**3)
+        ax.set_xlabel(r'$\Delta f / f_{true}$')
+    if parameter in [ 'InitialPhase', 'Polarization']:
+        ax.set_xlabel('$\Delta$'+labels[parameter])
+        ax.set_xlim(0,np.pi/2)
+    if parameter in ['EclipticLongitude', 'EclipticLatitude']:
+        ax.set_xlabel('$\Delta$'+labels[parameter])
+        ax.set_xlim(10**-5,np.pi/2)
+        ax.set_xscale('log')
+    # ax.legend(custom_lines, [label1, label2, label3], loc='best')
+    ax.grid(True)
+    # ax.legend(loc='upper right')
+# fig.subplots_adjust(right=0.9)
+norm = mpl.colors.Normalize(vmin=np.min(weeks),vmax=np.max(weeks))
+sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+sm.set_array([])
+# cbar_ax = fig.add_axes([0.85, 0.1, 0.01, 0.9])
+# cbar= plt.colorbar(sm, ticks=np.arange(np.min(weeks),np.max(weeks),increment), cax=cbar_ax, label='Weeks', boundaries=np.arange(np.min(weeks)-increment/2,np.max(weeks)+increment/2,increment))
+cbar= fig.colorbar(sm, ticks=ticks, label='Observation time (weeks)', boundaries=np.arange(np.min(weeks)-1/2,np.max(weeks+1)+1/2,1), ax=axs.ravel().tolist())
+# cbar.ax.invert_yaxis()
+# ax.yscale('log')
+# axs[0,1].legend(custom_lines, [label1, label2, label3], loc='best')
+# axs[1,1].legend(custom_lines, [label1, label2, label3], loc='best')
+# axs[0,-1].legend(custom_lines, labels_plot, loc='upper right')
+# axs[1,0].legend(custom_lines, [label1, label2, label3], loc='upper left')
+# axs[0,2].legend(custom_lines, [label1, label2, label3], loc='upper left')
+# axs[1,2].legend(custom_lines, [label1, label2, label3], loc='upper right')
+axs[0,0].set_ylabel('Count')
+axs[1,0].set_ylabel('Count')
+axs[2,0].set_ylabel('Count')
+axs[3,0].set_ylabel('Count')
+# plt.tight_layout()
+plt.savefig(SAVEPATH+'/Evaluation/error_histogram4'+save_names[0]+save_names[1]+save_names[2]+save_names[3]+end_string+'linear',dpi=300,bbox_inches='tight')
+plt.show()
+
+
+fig, axs = plt.subplots(1, 1, figsize=np.array(fig_size)*[1,1], constrained_layout=True)
+ax = axs
+parameter = 'Frequency'
+# for ax, parameter in zip(axs, ['Frequency']):
+for i in range(30):
+    if parameter == 'Skylocation':
+        ax.hist(np.abs(found_sources_matched_list[i][parameter+'Error']), bins= np.logspace(-2,2, n_bins))
+    elif parameter == 'Frequency':
+        ax.hist(np.abs(found_sources_list[i][parameter]), bins= np.logspace(-4,-1, n_bins), log=False, density=False, histtype='step',linewidth=line_width, color= cmap((i/np.max(weeks))))
+    elif parameter == 'FrequencyDerivative':
+        ax.hist(np.abs(found_sources_matched_list[i][parameter+'Error']), bins=np.logspace(-19,-13, n_bins), density=False, histtype='step',linewidth=line_width, color= cmap((i/np.max(weeks))))
+    elif parameter == 'Amplitude':
+        ax.hist(found_sources_matched_list[i][parameter+'Error'], bins=np.logspace(-4,1,n_bins), density=False, histtype='step',linewidth=line_width, color= cmap((i/np.max(weeks))))
+    elif parameter == 'Inclination':
+        ax.hist(found_sources_matched_list[i][parameter+'Error'], bins=np.logspace(-5,np.log10(np.pi/2), n_bins), density=False, histtype='step',linewidth=line_width, color= cmap((i/np.max(weeks))))
+    elif parameter in ['EclipticLatitude', 'EclipticLongitude']:
+        ax.hist(found_sources_matched_list[i][parameter+'Error'], bins=np.logspace(-5,np.log10(np.pi/2), n_bins), log= False, density=False, histtype='step',linewidth=line_width, color= cmap((i/np.max(weeks))))
+    else:
+        ax.hist(found_sources_matched_list[i][parameter+'Error'], bins=n_bins, density=False, histtype='step',linewidth=line_width, color= cmap((i/np.max(weeks))))
+ax.set_xlabel('$\Delta$'+parameter)
+if parameter == 'Skylocation':
+    ax.set_xlabel('$\Delta$'+labels[parameter]+' (deg)')
+    ax.set_xscale('log')
+if parameter == 'Inclination':
+    ax.set_xlabel('$\Delta$'+labels[parameter])
+    ax.set_xlim(10**-5,np.pi/2)
+    ax.set_xscale('log')
+if parameter == 'Amplitude':
+    ax.set_xlabel(r'$\Delta \mathcal{A} / \mathcal{A}_{true}$')
+    ax.set_xscale('log')
+    ax.set_xlim(10**-4,10)
+if parameter == 'FrequencyDerivative':
+    ax.set_xscale('log')
+    ax.set_xlabel('$\Delta$'+labels[parameter])
+    ax.set_xlim(10**-19,10**-13)
+if parameter == 'Frequency':
+    ax.set_xscale('log')
+    ax.set_xlim(10**-4,10**-1)
+    # ax.ylim(0,10**3)
+    ax.set_xlabel(r'$f$ (Hz)')
+if parameter in [ 'InitialPhase', 'Polarization']:
+    ax.set_xlabel('$\Delta$'+labels[parameter])
+    ax.set_xlim(0,np.pi/2)
+if parameter in ['EclipticLongitude', 'EclipticLatitude']:
+    ax.set_xlabel('$\Delta$'+labels[parameter])
+    ax.set_xlim(10**-5,np.pi/2)
+    ax.set_xscale('log')
+# ax.legend(custom_lines, [label1, label2, label3], loc='best')
+ax.grid(True)
+# ax.legend(loc='upper right')
+
+# fig.subplots_adjust(right=0.9)
+norm = mpl.colors.Normalize(vmin=np.min(weeks),vmax=np.max(weeks))
+sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+sm.set_array([])
+# cbar_ax = fig.add_axes([0.85, 0.1, 0.01, 0.9])
+# cbar= plt.colorbar(sm, ticks=np.arange(np.min(weeks),np.max(weeks),increment), cax=cbar_ax, label='Weeks', boundaries=np.arange(np.min(weeks)-increment/2,np.max(weeks)+increment/2,increment))
+cbar= fig.colorbar(sm, ticks=ticks, label='Observation time (weeks)', boundaries=np.arange(np.min(weeks)-1/2,np.max(weeks+1)+1/2,1))
+# cbar.ax.invert_yaxis()
+# ax.yscale('log')
+# axs[0,1].legend(custom_lines, [label1, label2, label3], loc='best')
+# axs[1,1].legend(custom_lines, [label1, label2, label3], loc='best')
+# axs[0,-1].legend(custom_lines, labels_plot, loc='upper right')
+# axs[1,0].legend(custom_lines, [label1, label2, label3], loc='upper left')
+# axs[0,2].legend(custom_lines, [label1, label2, label3], loc='upper left')
+# axs[1,2].legend(custom_lines, [label1, label2, label3], loc='upper right')
+axs.set_ylabel('Recovered GBs')
+# plt.tight_layout()
 plt.show()
 
 rcParams.update(plot_parameter_big)
@@ -1007,7 +1163,7 @@ plt.tight_layout()
 norm = mpl.colors.Normalize(vmin=np.min(weeks),vmax=np.max(weeks))
 sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
 sm.set_array([])
-cbar= fig.colorbar(sm, ticks=np.arange(np.min(weeks),np.max(weeks),increment)+1, label='Observation time (weeks)', boundaries=np.arange(np.min(weeks)-1/2,np.max(weeks+1)+1/2,1), ax=axs.ravel().tolist())
+cbar= fig.colorbar(sm, ticks=ticks, label='Observation time (weeks)', boundaries=np.arange(np.min(weeks)-1/2,np.max(weeks+1)+1/2,1), ax=axs.ravel().tolist())
 plt.savefig(SAVEPATH+'/Evaluation/CDF_Sangria_weekly',dpi=300,bbox_inches='tight')
 plt.show()
 

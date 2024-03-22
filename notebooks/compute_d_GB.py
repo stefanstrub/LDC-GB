@@ -100,7 +100,7 @@ fid = h5py.File(sangria_fn)
 
 seed = int(sys.argv[2])
 reduction = 12
-weeks = 49
+weeks = 47
 # Tobs = float((weeks)*7*24*3600)
 Tobs = float((weeks+1)*7*24*3600+24*3600)
 # Tobs = float(2628000)

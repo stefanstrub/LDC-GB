@@ -1,6 +1,7 @@
 from re import A
 # from matplotlib.lines import _LineStyle
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 from matplotlib import rcParams
 from matplotlib.colors import LogNorm
 import matplotlib.font_manager
@@ -237,7 +238,7 @@ pGB_injected_matched_df_list = pickle.load(open(SAVEPATH_sangria+'pGB_injected_m
 pGB_injected_not_matched_df_list = pickle.load(open(SAVEPATH_sangria+'pGB_injected_not_matched_df_list', 'rb'))
 
 
-seed = 10
+seed = 1
 counts = found_sources_matched_df_list[seed-1]['Frequency'].value_counts().reset_index(name='counts')
 counts_counts = counts['counts'].value_counts().reset_index(name='counts_counts')
 print(counts_counts.sort_values(by=['index'], ascending=False))
@@ -248,24 +249,41 @@ print(np.array(number_of_sets))
 found_sources_matched_df_no_seed = found_sources_matched_df_list[seed-1].drop(['Seed'], axis=1)
 counts_full = found_sources_matched_df_no_seed.value_counts().reset_index(name='counts')
 
+found_sources_not_matched_df_no_seed = found_sources_not_matched_df_list[seed-1].drop(['Seed'], axis=1)
+found_sources_not_matched_df_no_seed.drop_duplicates(keep=False,inplace=True)
+counts_full_zero = found_sources_not_matched_df_no_seed.value_counts().reset_index(name='counts')
+
 plt.figure()
-plt.hist(counts_full['counts'], bins=100)
+plt.hist(counts_full_zero['counts'], bins=100)
 plt.xlabel('Number of matches')
 plt.ylabel('Number of signals')
 plt.yscale('log')
 # plt.savefig(SAVEPATH_sangria+'number_of_matches_per_signal_seed'+str(seed)+'.pdf', bbox_inches='tight')
 plt.show()
 
+
+cmap = plt.get_cmap("plasma")
+cmapr = plt.get_cmap("plasma_r")
+ticks = np.arange(1,10,1)
 plt.figure()
-for i in range(1,10):
+for i in ticks:
+    if i == 10:
+        pass
     j = 10-i
     index = counts_full['counts'] == j
-    plt.plot(counts_full[index]['Frequency'], counts_full[index]['Amplitude'], '.', label=str(j))
+    plt.plot(counts_full[index]['Frequency'], counts_full[index]['Amplitude'], '.', label=str(j), color= cmapr((j-1)/9))   
+# plt.plot(found_sources_not_matched_df_no_seed['Frequency'], found_sources_not_matched_df_no_seed['Amplitude'], '.', label=str(j), color= cmapr(0))
 plt.xscale('log')
 plt.yscale('log')
-plt.xlabel('Frequency')
-plt.ylabel('Amplitude')
-plt.legend()
+plt.xlabel(r'$f$ $ ($Hz$)$')
+plt.ylabel(r'$\mathcal{A}$')
+norm = mpl.colors.Normalize(vmin=1,vmax=10)
+sm = plt.cm.ScalarMappable(cmap=cmapr, norm=norm)
+sm.set_array([])
+cbar= plt.colorbar(sm, ticks=ticks, label=r'$N$', boundaries=np.arange(np.min(ticks)-1/2,np.max(ticks+1)+1/2,1))
+# cbar.ax.invert_yaxis()
+# plt.legend()
+plt.grid()
 plt.savefig(SAVEPATH_sangria+'number_of_matches_per_signal_seed'+str(seed)+'_frequency_amplitude.png', bbox_inches='tight')
 plt.show()
 

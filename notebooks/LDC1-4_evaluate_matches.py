@@ -2,6 +2,7 @@ from re import A
 # from matplotlib.lines import _LineStyle
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
+import matplotlib as mpl
 from matplotlib.colors import LogNorm
 import matplotlib.font_manager
 import scipy as sp
@@ -75,7 +76,7 @@ path = os.getcwd()
 parent = os.path.dirname(path)
 # grandparent directory
 grandparent = os.path.dirname(parent)
-Radler = False
+Radler = True
 if Radler:
     DATAPATH = grandparent+"/LDC/Radler/data/"
     SAVEPATH = grandparent+"/LDC/pictures/LDC1-4/"
@@ -87,18 +88,17 @@ else:
 SAVEPATH_sangria = grandparent+"/LDC/pictures/Sangria/"
 # save_name2 = 'Sangria_1year_dynamic_noise'
 save_name1 = 'original_Sangria_6m_mbhb_SNR9_seed1'
-# save_name2 = 'Sangria_12m_filled_anticorrelated'
-save_name2 = 'original_Sangria_6m_no_mbhb_SNR9_seed1'
-save_name3 = 'original_Sangria_12m_mbhb_SNR9_seed1'
-save_name4 = 'original_Sangria_12m_no_mbhb_SNR9_seed42'
+save_name2 = 'Sangria_12m_filled_anticorrelated'
+# save_name2 = 'original_Sangria_6m_no_mbhb_SNR9_seed1'
+# save_name3 = 'original_Sangria_12m_mbhb_SNR9_seed1'
+# save_name4 = 'original_Sangria_12m_no_mbhb_SNR9_seed42'
 # save_name3 = 'Sangria_1'
 # save_name3 = 'LDC1-4_2_optimized_second'
 # save_name2 = 'Radler_1_full'
-# save_name2 = 'Rxadler_1_full'
 # save_name0 = 'LDC1-4_half_year'
-# save_name4 = 'Radler_6m'
-# save_name3 = 'Radler_12m'
-# save_name1 = 'Radler_24m_redone'
+save_name4 = 'Radler_6m'
+save_name3 = 'Radler_12m'
+save_name1 = 'Radler_24m_redone'
 # save_name = 'LDC1-4_half_year'
 # save_name = 'Sangria_1_full_cut'
 
@@ -111,7 +111,8 @@ duration = '31457280'
 # save_name1 = 'Montana2022_'+duration
 
 save_names = [save_name1, save_name2, save_name3, save_name4]
-SAVEPATHS = [SAVEPATH_sangria,SAVEPATH_sangria,SAVEPATH_sangria,SAVEPATH_sangria]
+# SAVEPATHS = [SAVEPATH_sangria,SAVEPATH_sangria,SAVEPATH_sangria,SAVEPATH_sangria]
+SAVEPATHS = [SAVEPATH,SAVEPATH_sangria,SAVEPATH,SAVEPATH]
 
 Tobs = int(duration)
 
@@ -723,6 +724,102 @@ axs[0,-1].legend(custom_lines, labels_plot, loc='upper right')
 axs[0,0].set_ylabel('Count')
 axs[1,0].set_ylabel('Count')
 plt.savefig(SAVEPATH+'/Evaluation/error_histogram'+save_names[0]+save_names[1]+save_names[2]+save_names[3]+end_string+'linear',dpi=300,bbox_inches='tight')
+plt.show()
+
+plus = [2.5,2.05,1.85,2.35]
+cross = [2.2,1.9,2.47,2.19,2.46,1.9]
+mid = 2.18
+factor = 0.4/(2.5-2.18)
+
+cmap = plt.get_cmap("seismic")
+for i in range(len(plus)):
+    print(cmap((cross[i]-mid)*factor+0.5))
+
+plt.figure()
+m = plt.plot([0,1],[0,1], color= cmap((plus[2]-mid)*factor+0.5), label = 'ETH 2 yr')
+norm = mpl.colors.Normalize(vmin=0.1,vmax=0.9)
+sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+sm.set_array([])   
+# plt.legend(markerscale=4, loc = 'upper right')
+plt.tight_layout()
+# cbar= plt.colorbar(sm, ticks=weeks_plot, label='Observation time (weeks)', boundaries=np.arange(np.min(weeks_plot)-increment/2,np.max(weeks_plot+1)+increment/2,increment), ax=axs.ravel().tolist())
+cbar= plt.colorbar(sm,  label='Contracted                                          Stretched', orientation='horizontal', ticks=[])
+plt.tight_layout()
+plt.show()
+
+
+parameter_order = [
+    "EclipticLatitude",
+    "EclipticLongitude",
+    "Frequency",
+    "FrequencyDerivative",
+    "Amplitude",
+    "Inclination",
+    "Polarization",
+    "InitialPhase",
+]
+
+n_bins = 30
+fig, axs = plt.subplots(4, 2, figsize=np.array(fig_size)*[1.5,1.5], constrained_layout=True)
+for ax, parameter in zip(axs.flat, parameter_order):
+    for i in range(4):
+        if parameter == 'Skylocation':
+            ax.hist(np.abs(found_sources_matched_list[i][parameter+'Error']), bins= np.logspace(-2,2, n_bins))
+        elif parameter == 'Frequency':
+            ax.hist(np.abs(found_sources_matched_list[i][parameter+'Error']/pGB_injected_matched_list[i][parameter]), bins= np.logspace(-8,-3.5, n_bins), log=False, density=False, histtype='step', linestyle=linestyle[i], color=colors[i], linewidth=line_width)
+        elif parameter == 'FrequencyDerivative':
+            ax.hist(np.abs(found_sources_matched_list[i][parameter+'Error']), bins=np.logspace(-19,-13, n_bins), density=False, histtype='step', linestyle=linestyle[i], color=colors[i], linewidth=line_width)
+        elif parameter == 'Amplitude':
+            ax.hist(found_sources_matched_list[i][parameter+'Error'], bins=np.logspace(-4,1,n_bins), density=False, histtype='step', linestyle=linestyle[i], color=colors[i], linewidth=line_width)
+        elif parameter == 'Inclination':
+            ax.hist(found_sources_matched_list[i][parameter+'Error'], bins=np.logspace(-5,np.log10(np.pi/2), n_bins), density=False, histtype='step', linestyle=linestyle[i], color=colors[i], linewidth=line_width)
+        elif parameter in ['EclipticLatitude', 'EclipticLongitude']:
+            ax.hist(found_sources_matched_list[i][parameter+'Error'], bins=np.logspace(-5,np.log10(np.pi/2), n_bins), log= False, density=False, histtype='step', linestyle=linestyle[i], color=colors[i], linewidth=line_width)
+        else:
+            ax.hist(found_sources_matched_list[i][parameter+'Error'], bins=n_bins, density=False, histtype='step', linestyle=linestyle[i], color=colors[i], linewidth=line_width)
+    ax.set_xlabel('$\Delta$'+parameter)
+    if parameter == 'Skylocation':
+        ax.set_xlabel('$\Delta$'+labels[parameter]+' (deg)')
+        ax.set_xscale('log')
+    if parameter == 'Inclination':
+        ax.set_xlabel('$\Delta$'+labels[parameter])
+        ax.set_xlim(10**-5,np.pi/2)
+        ax.set_xscale('log')
+    if parameter == 'Amplitude':
+        ax.set_xlabel(r'$\Delta \mathcal{A} / \mathcal{A}_{true}$')
+        ax.set_xscale('log')
+        ax.set_xlim(10**-4,10)
+    if parameter == 'FrequencyDerivative':
+        ax.set_xscale('log')
+        ax.set_xlabel('$\Delta$'+labels[parameter])
+        ax.set_xlim(10**-19,10**-13)
+    if parameter == 'Frequency':
+        ax.set_xscale('log')
+        ax.set_xlim(10**-8,10**-4)
+        # ax.ylim(0,10**3)
+        ax.set_xlabel(r'$\Delta f / f_{true}$')
+    if parameter in [ 'InitialPhase', 'Polarization']:
+        ax.set_xlabel('$\Delta$'+labels[parameter])
+        ax.set_xlim(0,np.pi/2)
+    if parameter in ['EclipticLongitude', 'EclipticLatitude']:
+        ax.set_xlabel('$\Delta$'+labels[parameter])
+        ax.set_xlim(10**-5,np.pi/2)
+        ax.set_xscale('log')
+    # ax.legend(custom_lines, [label1, label2, label3], loc='best')
+    ax.grid(True)
+    # ax.legend(loc='upper right')
+# ax.yscale('log')
+# axs[0,1].legend(custom_lines, [label1, label2, label3], loc='best')
+# axs[1,1].legend(custom_lines, [label1, label2, label3], loc='best')
+axs[-1,-1].legend(custom_lines, labels_plot, loc='upper right')
+# axs[1,0].legend(custom_lines, [label1, label2, label3], loc='upper left')
+# axs[0,2].legend(custom_lines, [label1, label2, label3], loc='upper left')
+# axs[1,2].legend(custom_lines, [label1, label2, label3], loc='upper right')
+axs[0,0].set_ylabel('Count')
+axs[1,0].set_ylabel('Count')
+axs[2,0].set_ylabel('Count')
+axs[3,0].set_ylabel('Count')
+plt.savefig(SAVEPATH+'/Evaluation/error_histogram4'+save_names[0]+save_names[1]+save_names[2]+save_names[3]+end_string+'linear',dpi=300,bbox_inches='tight')
 plt.show()
 
 rcParams.update(plot_parameter_big)

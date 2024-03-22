@@ -83,10 +83,10 @@ parent = os.path.dirname(path)
 # grandparent directory
 grandparent = os.path.dirname(parent)
 
-Radler = False
+Radler = True
 version = '2'
 reduction = 1
-weeks = 48
+weeks = 52
 Tobs = float(weeks*7*24*3600)
 
 if Radler:
@@ -112,7 +112,7 @@ if Radler:
     td = np.array(fid["H5LISA/PreProcess/TDIdata"])
     td = np.rec.fromarrays(list(td.T), names=["t", "X", "Y", "Z"])
     dt = float(np.array(fid['H5LISA/GWSources/GalBinaries']['Cadence']))
-    # Tobs = float(int(np.array(fid['H5LISA/GWSources/GalBinaries']['ObservationDuration']))/reduction)
+    Tobs = float(int(np.array(fid['H5LISA/GWSources/GalBinaries']['ObservationDuration']))/reduction)
 else:
     td = fid["obs/tdi"][()]
     td = np.rec.fromarrays(list(td.T), names=["t", "X", "Y", "Z"])
@@ -304,7 +304,7 @@ save_name = 'original_'+save_name_injected+'_mbhb_SNR9_seed1'
 # save_name2 = 'original_'+save_name_injected+'_mbhb_SNR9_seed'+seed2
 # save_name = 'Radler_24m'
 # save_name = 'Radler_24m_filled_anticorrelated'
-# save_name = 'Radler_24m_redone'
+save_name = 'Radler_24m_redone'
 # save_name = 'Radler_half_even_dynamic_noise'
 # save_name = 'LDC1-4_2_optimized_second' ### ETH submission
 # save_name = 'Montana'
@@ -554,7 +554,7 @@ except:
 
     np.save(SAVEPATH+'found_sources_' +save_name+'_flat.pkl', np.asarray(found_sources_in_flat))
 
-sort_found = True
+sort_found = False
 if sort_found:
     found_sources_in_flat_frequency = []
     for i in range(len(found_sources_in_flat)):
@@ -1065,7 +1065,7 @@ def match_function(found_sources_in, pGB_injected_not_matched):
         match_best_list.append(found_sources_in[j])
     return found_sources_in, pGB_injected_not_matched, match_list, pGB_best_list, match_best_list, found_sources_not_matched, pGB_injected_matched, found_sources_matched, match_list2, match_list3
 
-do_match_parallelized = True
+do_match_parallelized = False
 if do_match_parallelized:
     print('match parallelized')
     pGB_injected_matched = []
@@ -1421,11 +1421,11 @@ index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.00360246099898)-2
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.003302)-3
 # index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.002026)-2
-index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.00399)+98
-index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.003508)-2
-index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.005661)-2
+index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.00399)+99
+# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.003508)-2
+# index_of_interest_to_plot = np.searchsorted(np.asarray(frequencies_search)[:,0],  0.005661)-2
 #plot strains
-number_of_windows = 3
+number_of_windows = 6
 for i in range(len(frequencies_search)):
     if i != index_of_interest_to_plot:
         continue
@@ -1436,7 +1436,7 @@ for i in range(len(frequencies_search)):
         vertical_lines.append(frequencies_search[i+j][1])
     found_extended = np.concatenate(match_best_list[i:i+number_of_windows])
     # found_extended = np.concatenate(found_sources_matched[i:i+number_of_windows])
-    found_not_matched_extended = np.concatenate(found_sources_not_matched[i:i+number_of_windows])
+    # found_not_matched_extended = np.concatenate(found_sources_not_matched[i:i+number_of_windows])
 
     # chains = []
     # for j in range(len(found_extended)):
@@ -1455,7 +1455,7 @@ for i in range(len(frequencies_search)):
         pGB_injected_dict_list.append({})
         for parameter in parameters:
             pGB_injected_dict_list[-1][parameter] = pGB_injected_not_matched_flat_df_in_window[parameter].iloc[j]
-        if j > 20:
+        if j > 100:
             break
     for j in range(number_of_windows):
         for k in range(len(pGB_best_list[i+j])):
@@ -1465,8 +1465,9 @@ for i in range(len(frequencies_search)):
                 matched_extended[-1][parameter] = pGB_best_list[i+j][k][parameter]
                 # matched_extended[-1][parameter] = pGB_injected_matched[i+j][k][parameter]
     save_name_path = SAVEPATH+'/strain added Amplitude'+ str(int(np.round(frequencies_search[i][0]*10**8))) +save_name+str(int(len(matched_extended)))+'.png'
+    pGB_injected_dict_list = pGB_injected_dict_list[::2]
     if len(pGB_injected_dict_list) > 20:
-        search1.plotAE(found_sources_in=found_extended, found_sources_not_matched = [], pGB_injected= [],  pGB_injected_matched= matched_extended, vertical_lines= vertical_lines, saving_label =save_name_path) 
+        search1.plotA(found_sources_in=[], found_sources_not_matched = [], pGB_injected= [],  pGB_injected_matched= pGB_injected_dict_list, vertical_lines= vertical_lines, saving_label =save_name_path) 
     else:
         search1.plotAE(found_sources_in=found_extended, found_sources_not_matched = found_not_matched_extended, pGB_injected= pGB_injected_dict_list,  pGB_injected_matched= matched_extended, vertical_lines= vertical_lines, saving_label =save_name_path) 
         # search1.plot(found_sources_in=found_sources_mp_best[i], pGB_injected=pGB_injected[i][:10], pGB_injected_matched= matched_extended, saving_label =SAVEPATH+'/strain added'+ str(int(np.round(frequencies_search[i][0]*10**8))) +save_name+'in.png') 
