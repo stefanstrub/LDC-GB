@@ -115,12 +115,15 @@ save_names = [save_name1, save_name2, save_name3, save_name4]
 SAVEPATHS = [SAVEPATH_sangria,SAVEPATH_sangria,SAVEPATH_sangria,SAVEPATH_sangria]
 
 weeks = np.arange(1, 53, 1)
+weeks = [52]
 
 save_names = []
 SAVEPATHS = []
 for i in weeks:
     save_names.append('original_Sangria_'+str(i)+'w_mbhb_SNR9_seed1')
     SAVEPATHS.append(SAVEPATH_sangria)
+
+# save_names = [save_names[-1]]
 
 Tobs = int(duration)
 
@@ -292,12 +295,17 @@ else:
 Nmodel = get_noise_model(noise_model, f)
 SA = Nmodel.psd(freq=f, option="A")
 
-data_set = 9
+data_set = 0
 # noise_fn = SAVEPATHS[data_set]+'ETH_'+save_names[data_set]+'_noise.csv'
 # psd = pd.read_csv(noise_fn, delimiter=",")  
 # SA = spline(psd['f'], psd['A'])(f)
 
+cat_sorted = np.load(SAVEPATH+'cat_sorted.npy', allow_pickle = True)
+print('cat sorted loaded')
+get_injected_sources = pd.DataFrame(cat_sorted)
+
 #### plot amplitude - frequency
+# for data_set in range(42,len(weeks)):
 markersize = 3
 alpha = 0.6
 save_name = save_names[data_set]
@@ -308,9 +316,41 @@ fig = plt.figure(figsize=fig_size)
 # plt.plot(pGB_injectced_flat_df['Frequency']*10**3,pGB_injected_flat_df[parameter_y], '.', color= colors[0], label = 'Injected', markersize= markersize, alpha = alpha)
 # plt.plot(pGB_injected_matched_flat_df['Frequency']*10**3,pGB_injected_matched_flat_df[parameter_y], '.', color= colors[1], label = 'Injected matched', markersize= markersize, alpha = alpha)
 # plt.plot(pGB_injected_flat_df_high_SNR['Frequency']*10**3,pGB_injected_flat_df_high_SNR[parameter_y],'.', color= colors[1], markersize= markersize, label = 'Injected SNR > 10', alpha = alpha)
-plt.plot(found_sources_matched_list[data_set][parameter_x],found_sources_matched_list[data_set][parameter_y],'.', label = r'$\tilde\theta_{\mathrm{recovered, } \delta < 0.3}$', markersize= markersize, alpha = alpha, zorder = 5)
-# plt.plot(found_sources_not_matched_list[data_set][parameter_x],found_sources_not_matched_list[data_set][parameter_y],'o',  markerfacecolor='None', markersize= markersize, label = r'$\tilde\theta_{\mathrm{recovered, } \delta > 0.3}$', alpha = alpha)
+plt.plot(found_sources_matched_list[data_set][parameter_x],found_sources_matched_list[data_set][parameter_y],'.', label = r'$\tilde\theta_{\mathrm{recovered, matched}}$', markersize= markersize, alpha = alpha, zorder = 5)
+plt.plot(found_sources_not_matched_list[data_set][parameter_x],found_sources_not_matched_list[data_set][parameter_y],'o',  markerfacecolor='None', markersize= markersize, label = r'$\tilde\theta_{\mathrm{recovered, not \, matched} }$', alpha = alpha)
 # plt.plot(pGB_injected_not_matched_list[data_set][parameter_x],pGB_injected_not_matched_list[data_set][parameter_y], '+', label = r'$\tilde\theta_{\mathrm{injected, } \delta > 0.3}$', markersize= markersize, alpha = alpha, zorder = 1)
+plt.plot(get_injected_sources[parameter_x],get_injected_sources[parameter_y], '+', label = r'$\tilde\theta_{\mathrm{injected}}$', markersize= markersize, alpha = alpha, zorder = 1)
+# plt.plot(f,np.sqrt(SA), color = 'black', label = 'Sangria', linewidth=2)
+plt.yscale('log')
+plt.xscale('log')
+plt.xlabel('$f$ (Hz)')
+plt.xlim(0.0003,0.03)
+plt.ylim(3*10**-24,10**-20)
+if parameter_y == 'IntrinsicSNR':
+    plt.ylabel('Intrinsic SNR')
+else:
+    plt.ylabel(labels[parameter_y])  
+plt.ylabel('Amplitude')  
+plt.legend(markerscale=4, loc = 'upper right')
+plt.savefig(SAVEPATH+'/Evaluation/'+parameter_y+save_name+'injected_not_matched_found_matched_found_not_matched'+end_string+str(data_set),dpi=300,bbox_inches='tight')
+# plt.show()
+plt.close()
+
+
+#### plot amplitude - frequency
+markersize = 3
+alpha = 0.6
+save_name = save_names[data_set]
+# parameter_to_plot = 'IntrinsicSNR'
+parameter_x = 'Frequency'
+parameter_y = 'FrequencyDerivative'
+fig = plt.figure(figsize=fig_size)
+# plt.plot(pGB_injectced_flat_df['Frequency']*10**3,pGB_injected_flat_df[parameter_y], '.', color= colors[0], label = 'Injected', markersize= markersize, alpha = alpha)
+# plt.plot(pGB_injected_matched_flat_df['Frequency']*10**3,pGB_injected_matched_flat_df[parameter_y], '.', color= colors[1], label = 'Injected matched', markersize= markersize, alpha = alpha)
+# plt.plot(pGB_injected_flat_df_high_SNR['Frequency']*10**3,pGB_injected_flat_df_high_SNR[parameter_y],'.', color= colors[1], markersize= markersize, label = 'Injected SNR > 10', alpha = alpha)
+plt.plot(found_sources_matched_list[data_set][parameter_x],found_sources_matched_list[data_set][parameter_y],'.', label = r'$\tilde\theta_{\mathrm{recovered, } \delta < 0.3}$', markersize= markersize, alpha = alpha, zorder = 5)
+plt.plot(found_sources_not_matched_list[data_set][parameter_x],found_sources_not_matched_list[data_set][parameter_y],'o',  markerfacecolor='None', markersize= markersize, label = r'$\tilde\theta_{\mathrm{recovered, } \delta > 0.3}$', alpha = alpha)
+plt.plot(pGB_injected_not_matched_list[data_set][parameter_x],pGB_injected_not_matched_list[data_set][parameter_y], '+', label = r'$\tilde\theta_{\mathrm{injected, } \delta > 0.3}$', markersize= markersize, alpha = alpha, zorder = 1)
 # plt.plot(f,np.sqrt(SA), color = 'black', label = 'Sangria', linewidth=2)
 plt.yscale('log')
 plt.xscale('log')
@@ -529,7 +569,7 @@ pGB_injected_list = [None] * len(found_sources_matched_list)
 pGB_injected_high_SNR_list = [None] * len(found_sources_matched_list)
 match_flat_list = [None] * len(found_sources_matched_list)
 for i in range(len(found_sources_matched_list)):
-    found_sources_matched_list[i] = get_errors(pGB_injected_matched_list[i], found_sources_matched_list[i])
+    # found_sources_matched_list[i] = get_errors(pGB_injected_matched_list[i], found_sources_matched_list[i])
     pGB_injected_list[i] = pd.concat([pGB_injected_matched_list[i], pGB_injected_not_matched_list[i]])
     pGB_injected_high_SNR_list[i] = pGB_injected_list[i][pGB_injected_list[i]['IntrinsicSNR'] > 10]
     match_flat_list[i] = np.concatenate(match_list[i])
@@ -542,9 +582,9 @@ for i in range(len(found_sources_list[data_set]['EclipticLongitude'])):
 
 parameter_x = 'EclipticLongitude'
 parameter_y = 'EclipticLatitude'
-fig = plt.figure(figsize=fig_size)
-plt.plot(found_sources_list[data_set][parameter_x],found_sources_list[data_set][parameter_y],'.', markersize= markersize, alpha = alpha, zorder = 5)
-plt.show()
+# fig = plt.figure(figsize=fig_size)
+# plt.plot(found_sources_list[data_set][parameter_x],found_sources_list[data_set][parameter_y],'.', markersize= markersize, alpha = alpha, zorder = 5)
+# plt.show()
 
 # X = found_sources_list[data_set][parameter_x]
 # Y = found_sources_list[data_set][parameter_y]
@@ -1131,19 +1171,21 @@ ax1 = axs[0]
 ax2 = axs[1]
 for i in range(len(match_flat_list)):
     olap = match_flat_list[i]
-    olap_high = olap[np.array(olap)<1]
+    olap_high = olap
+    # olap_high = olap[np.array(olap)<1]
     # olap_high = olap[np.array(olap)>0]
     olap_high.sort()
     olap_high = olap_high[::-1]
     ax1.plot(olap_high, np.arange(len(olap_high))/len(olap_high), linewidth=2, color=cmap((i/np.max(weeks))))
 
     olap = match_flat_list[i]
-    olap_high = olap[np.array(olap)<1]
+    # olap_high = olap[np.array(olap)<1]
     # olap_high = olap[np.array(olap)>0]
     olap_high.sort()
     # olap_high = olap_high[::-1]
     cumsum = np.cumsum(np.ones_like(olap_high))
-    olap_high[np.argmax(olap_high)] = 1
+    # olap_high[np.argmax(olap_high)] = 1
+    # index_1 = np.searchsorted(olap_high, 1)
     ax2.plot(olap_high, cumsum, linewidth=2, color=cmap((i/np.max(weeks))))
     # axs.hist(olap_high, histtype=u'step', density=True)
 ax1.grid(True)
@@ -1157,15 +1199,58 @@ ax2.set_ylabel('total counts < $\delta$')
 # ax2.set_xlabel('$\mathcal{O}$')
 # ax2.set_ylabel('total counts > $\mathcal{O}$')
 ax2.set_xlim(0,1)
-# ax2.set_ylim(0,1)
+ax2.set_ylim(0,9000)
+# ax1.legend()
+plt.tight_layout()
+norm = mpl.colors.Normalize(vmin=np.min(weeks),vmax=np.max(weeks))
+sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+sm.set_array([])
+# cbar= fig.colorbar(sm, ticks=ticks, label='Observation time (weeks)', boundaries=np.arange(np.min(weeks)-1/2,np.max(weeks+1)+1/2,1), ax=axs.ravel().tolist())
+plt.savefig(SAVEPATH+'/Evaluation/CDF_scaled2_Sangria_weekly',dpi=300,bbox_inches='tight')
+plt.show()
+
+fig, axs = plt.subplots(2,1, figsize=np.array(fig_size)*[1,1.5])
+ax1 = axs[0]
+ax2 = axs[1]
+for i in range(len(match_flat_list)):
+    olap = match_flat_list[i]
+    olap_high = olap
+    # olap_high = olap[np.array(olap)<1]
+    # olap_high = olap[np.array(olap)>0]
+    olap_high.sort()
+    # olap_high = olap_high[::-1]
+    ax1.plot(olap_high, np.arange(len(olap_high))/len(olap_high), linewidth=2, color=cmap((i/np.max(weeks))))
+
+    olap = match_flat_list[i]
+    # olap_high = olap[np.array(olap)<1]
+    # olap_high = olap[np.array(olap)>0]
+    olap_high.sort()
+    olap_high = olap_high[::-1]
+    cumsum = np.cumsum(np.ones_like(olap_high))
+    olap_high[np.argmax(olap_high)] = 1
+    ax2.plot(olap_high, cumsum, linewidth=2, color=cmap((i/np.max(weeks))))
+    # axs.hist(olap_high, histtype=u'step', density=True)
+ax1.grid(True)
+# ax1.set_ylabel('fraction of counts > $\delta$')
+ax1.set_ylabel('fraction of counts < $\mathcal{O}$')
+ax1.set_xlim(0,1)
+ax1.set_ylim(0,1)
+ax2.grid(True)
+# ax2.set_xlabel('$\delta$')
+# ax2.set_ylabel('total counts < $\delta$')
+ax2.set_xlabel('$\mathcal{O}$')
+ax2.set_ylabel('total counts > $\mathcal{O}$')
+ax2.set_xlim(0,1)
+ax2.set_ylim(0,9000)
 # ax1.legend()
 plt.tight_layout()
 norm = mpl.colors.Normalize(vmin=np.min(weeks),vmax=np.max(weeks))
 sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
 sm.set_array([])
 cbar= fig.colorbar(sm, ticks=ticks, label='Observation time (weeks)', boundaries=np.arange(np.min(weeks)-1/2,np.max(weeks+1)+1/2,1), ax=axs.ravel().tolist())
-plt.savefig(SAVEPATH+'/Evaluation/CDF_Sangria_weekly',dpi=300,bbox_inches='tight')
+plt.savefig(SAVEPATH+'/Evaluation/CDF_overlapp_Sangria_weekly',dpi=300,bbox_inches='tight')
 plt.show()
+
 
 upper_boundx = 0.5
 upper_boundy = 50
@@ -1368,7 +1453,7 @@ found_sources_matched_positive_fd_list = []
 found_sources_not_matched_positive_fd_list = []
 pGB_injected_matched_positive_fd_list = []
 pGB_injected_positive_fd_high_SNR_list = []
-for i in range(4):
+for i in range(len(weeks)):
     found_sources_matched_list[i] = get_distance_for_dataframe(found_sources_matched_list[i])
     found_sources_not_matched_list[i] = get_distance_for_dataframe(found_sources_not_matched_list[i])
     pGB_injected_matched_list[i] = get_distance_for_dataframe(pGB_injected_matched_list[i])
@@ -1612,6 +1697,42 @@ plt.savefig(SAVEPATH+'/galactocentric_3D_'+save_names[data_set])
 plt.show()
 
 
+##### plot galactocentric coordinates 3d
+for angle in range(360):
+    rcParams['axes.labelpad'] = 10
+    markersize = 5
+    alpha = 0.5
+    fig = plt.figure(figsize=[10,9])
+    ax = plt.axes(projection='3d')
+    # postitive_fd_mask = found_sources_matched_positive_fd_list[data_set]['FrequencyDerivative'] >= 0
+    # ax.scatter(found_sources_matched_positive_fd_list[data_set]['GalactocentricX'],found_sources_matched_positive_fd_list[data_set]['GalactocentricY'],found_sources_matched_positive_fd_list[data_set]['GalactocentricZ'],marker='.')
+    # postitive_fd_mask = found_sources_not_matched_list[data_set]['FrequencyDerivative'] >= 0
+    # ax.plot(found_sources_not_matched_list[data_set]['GalacticLatitude'][postitive_fd_mask],found_sources_not_matched_list[data_set]['Distance'][postitive_fd_mask],'r.', label = 'Injected', markersize= 1, zorder=1)
+    # postitive_fd_mask = pGB_injected_matched_list[data_set]['FrequencyDerivative'] >= 0
+    ax.plot(pGB_injected_matched_positive_fd_list[data_set]['GalactocentricX'],pGB_injected_matched_positive_fd_list[data_set]['GalactocentricY'],pGB_injected_matched_positive_fd_list[data_set]['GalactocentricZ'], '.', markersize=0.5)
+    # postitive_fd_mask = pGB_injected_not_matched_list[data_set]['FrequencyDerivative'] >= 0
+    # ax.plot(pGB_injected_not_matched_list[data_set]['GalacticLatitude'][postitive_fd_mask],pGB_injected_not_matched_list[data_set]['Distance'][postitive_fd_mask],'+', label = 'not matched', color = 'r', markersize=2, zorder= 1)
+    # postitive_fd_mask = pGB_injected_flat_highSNR_df['FrequencyDerivative'] >= 0
+    # ax.plot(pGB_injected_flat_highSNR_df['GalacticLatitude'][postitive_fd_mask],pGB_injected_flat_highSNR_df['Distance'][postitive_fd_mask],'+', label = 'injected SNR>10', color = 'r', markersize=2, zorder= 4)
+    plt.plot(sun['GalactocentricX'],sun['GalactocentricY'],'.',c='red', markersize=6, alpha=1, zorder = 2,  label='Sun')
+    ax.set_xlabel('X [kpc]')
+    ax.set_ylabel('Y [kpc]')
+    ax.set_zlabel('Z [kpc]')
+    # ax.set_zlim(-1,1)
+    # start, end = ax.get_zlim()
+    # ax.zaxis.set_ticks(np.arange(start, end+0.5, 0.5))
+    ax.set_zlim(-15,15)
+    ax.set_xlim(-15,15)
+    ax.set_ylim(-15,15)
+    plt.legend(loc = 'upper right')
+    plt.tight_layout()
+    ax.view_init(30,angle+30, 0)
+    plt.savefig(SAVEPATH+'/galactocentric_3D_'+save_names[data_set]+'angle'+str(angle))
+    plt.close()
+
+plt.show()
+
+
 
 # generate some points of a 3D Gaussian
 # num_signals = 1000
@@ -1628,11 +1749,7 @@ density = np.reshape(kernel(positions).T, x.shape)
 
 # now density is 100x100x100 ndarray
 
-fig = plt.figure(figsize=[9,9])
-# plot points
 point_limit = 15
-ax = plt.subplot(projection='3d')
-# ax.plot(pGB_injected_matched_positive_fd_list[data_set]['GalactocentricX'],pGB_injected_matched_positive_fd_list[data_set]['GalactocentricY'],pGB_injected_matched_positive_fd_list[data_set]['GalactocentricZ'], '.', markersize=0.5)
 maskx = points[0,:] > -point_limit
 points_reduced_part = points[:,points[0,:] > -point_limit]
 points_reduced_part = points_reduced_part[:,points_reduced_part[0,:] < point_limit]
@@ -1641,41 +1758,62 @@ points_reduced_part = points_reduced_part[:,points_reduced_part[1,:] < point_lim
 points_reduced_part = points_reduced_part[:,points_reduced_part[2,:] > -point_limit]
 points_reduced_part = points_reduced_part[:,points_reduced_part[2,:] < point_limit]
 
-ax.plot(points[0], points[1], points[2], '.', markersize=0.5, zorder=10)
-# ax.plot(points_reduced_part[0], points_reduced_part[1], points_reduced_part[2], '.', markersize=0.5, zorder=10)
-plt.plot(sun['GalactocentricX'],sun['GalactocentricY'],'.',c='red', markersize=6, alpha=1, zorder =11,  label='Sun')
-ax.set_xlabel('Galactocentric X [kpc]')
-ax.set_ylabel('Galactocentric Y [kpc]')
-ax.set_zlabel('Galactocentric Z [kpc]')
+for angle in range(330,360):
+    fig = plt.figure(figsize=[10,9])
+    # plot points
+    ax = plt.subplot(projection='3d')
+    # ax.plot(pGB_injected_matched_positive_fd_list[data_set]['GalactocentricX'],pGB_injected_matched_positive_fd_list[data_set]['GalactocentricY'],pGB_injected_matched_positive_fd_list[data_set]['GalactocentricZ'], '.', markersize=0.5)
 
-levels = [0.1,0.3,0.5,0.7,0.9,1]
-# plot projection of density onto x-axis
-plotdat = np.sum(density, axis=0)
-plotdat = plotdat / np.max(plotdat)
-ploty, plotz = np.mgrid[-space_limit:space_limit:100j, -space_limit:space_limit:100j]
-ax.contour(plotdat, ploty, plotz, levels, offset=space_limit, zdir='x')
-# plot projection of density onto y-axis
-plotdat = np.sum(density, axis=1)
-plotdat = plotdat / np.max(plotdat)
-plotx, plotz = np.mgrid[-space_limit:space_limit:100j, -space_limit:space_limit:100j]
-ax.contour(plotx, plotdat, plotz, levels, offset=space_limit, zdir='y')
-# plot projection of density onto z-axis
-plotdat = np.sum(density, axis=2)
-plotdat = plotdat / np.max(plotdat)
-plotx, ploty = np.mgrid[-space_limit:space_limit:100j, -space_limit:space_limit:100j]
-ax.contour(plotx, ploty, plotdat, levels, offset=-space_limit, zdir='z')
 
-ax.set_xlim((-space_limit, space_limit))
-ax.set_ylim((-space_limit, space_limit))
-ax.set_zlim((-space_limit, space_limit))
+    ax.plot(points[0], points[1], points[2], '.', markersize=0.5, zorder=10)
+    # ax.plot(points_reduced_part[0], points_reduced_part[1], points_reduced_part[2], '.', markersize=0.5, zorder=10)
+    plt.plot(sun['GalactocentricX'],sun['GalactocentricY'],'.',c='red', markersize=6, alpha=1, zorder =11,  label='Sun')
+    ax.set_xlabel('X [kpc]')
+    ax.set_ylabel('Y [kpc]')
+    ax.set_zlabel('Z [kpc]')
 
-start, end = ax.get_xlim()
-ax.xaxis.set_ticks(np.arange(start, end+5, 5))
-start, end = ax.get_ylim()
-ax.yaxis.set_ticks(np.arange(start, end+5, 5))
-start, end = ax.get_zlim()
-ax.zaxis.set_ticks(np.arange(start, end+5, 5))
+    levels = [0.1,0.3,0.5,0.7,0.9,1]
+    # plot projection of density onto x-axis
+    plotdat = np.sum(density, axis=0)
+    plotdat = plotdat / np.max(plotdat)
+    ploty, plotz = np.mgrid[-space_limit:space_limit:100j, -space_limit:space_limit:100j]
+    ax.contour(plotdat, ploty, plotz, levels, offset=-space_limit, zdir='x')
+    # plot projection of density onto y-axis
+    plotdat = np.sum(density, axis=1)
+    plotdat = plotdat / np.max(plotdat)
+    plotx, plotz = np.mgrid[-space_limit:space_limit:100j, -space_limit:space_limit:100j]
+    ax.contour(plotx, plotdat, plotz, levels, offset=-space_limit, zdir='y')
+    # plot projection of density onto z-axis
+    plotdat = np.sum(density, axis=2)
+    plotdat = plotdat / np.max(plotdat)
+    plotx, ploty = np.mgrid[-space_limit:space_limit:100j, -space_limit:space_limit:100j]
+    ax.contour(plotx, ploty, plotdat, levels, offset=-space_limit, zdir='z')
 
-plt.tight_layout()
-plt.savefig(SAVEPATH+'/galactocentric_3D_contour_'+save_names[data_set])
-plt.show()
+    ax.set_xlim((-space_limit, space_limit))
+    ax.set_ylim((-space_limit, space_limit))
+    ax.set_zlim((-space_limit, space_limit))
+
+    start, end = ax.get_xlim()
+    ax.xaxis.set_ticks(np.arange(start, end+5, 5))
+    start, end = ax.get_ylim()
+    ax.yaxis.set_ticks(np.arange(start, end+5, 5))
+    start, end = ax.get_zlim()
+    ax.zaxis.set_ticks(np.arange(start, end+5, 5))
+
+    plt.legend(loc = 'upper right')
+    plt.tight_layout()
+    ax.view_init(30,angle+30, 0)
+    plt.savefig(SAVEPATH+'/galactocentric_3D_contour_'+save_names[data_set]+'angle'+str(angle))
+    plt.show()
+    plt.close()
+
+
+Liebe Mirjam,
+
+
+Gerade eben habe ich die korrigierte Version mit Domenico's Unterschrift bei dir im Büro abgegeben. Ich hoffe das ist so gut für dich.
+
+
+Vielen Dank,
+
+Stefan

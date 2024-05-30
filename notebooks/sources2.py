@@ -257,6 +257,7 @@ def moving_average(a, n=3) :
     return ret[n - 1:] / n
 
 class Search():
+
     def __init__(self,tdi_fs,Tobs, lower_frequency, upper_frequency, noise_model =  "SciRDv1", recombination=0.75, dt=None, update_noise=True,
     parameters = [
     "Amplitude",
@@ -430,7 +431,7 @@ class Search():
         # null_pGBs['Amplitude'] = 4*10**-25
         # print('pGB', self.pGB, self.loglikelihood([self.pGB]))
 
-    def update_noise(self, pGB=None):
+    def update_noise(self, pGB=None):    
         if pGB != None:
             freqs = None
             if self.GB.T < 365.26*24*3600/4:
@@ -1086,7 +1087,7 @@ class Search():
         # ax2.set_ylim(10**-23,4*10**-23)
         # ax1.set_xlim((self.lower_frequency)*10**3, (self.upper_frequency)*10**3)
         # ax2.set_xlim((self.lower_frequency)*10**3, (self.upper_frequency)*10**3)
-        ax1.xaxis.set_major_locator(plt.MaxNLocator(4))
+        # ax1.xaxis.set_major_locator(plt.MaxNLocator(4))
         # ax2.xaxis.set_major_locator(plt.MaxNLocator(4))
 
         labels_plot = ['data','true', 'recovered']
@@ -1251,6 +1252,12 @@ class Search():
         return [maxpGB], res.nfev
 
     def optimize(self, pGBmodes, boundaries = None):
+        """
+        This function optimizes the parameters of the pGBs. It uses the scipy.optimize.minimize function with the SLSQP method.
+        pgBmodes: list of dictionaries with the parameters of the pGBs
+        boundaries: dictionary with the boundaries of the parameters
+        return: list of dictionaries with the optimized parameters of the pGBs
+        """
         if boundaries == None:
             boundaries = self.boundaries
         bounds = ()

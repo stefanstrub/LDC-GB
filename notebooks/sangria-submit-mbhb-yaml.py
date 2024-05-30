@@ -5,6 +5,7 @@ import pandas as pd
 import os
 from os import listdir
 from os.path import isfile, join
+import pickle
 
 # get current directory
 path = os.getcwd()
@@ -22,20 +23,23 @@ entry = {'author': 'Stefan Strub',
 
 folderpath_parent = grandparent+"/LDC/MBHB/"
 folderpath_save = grandparent+"/LDC/MBHB/"
-name = 'Sangria_mbhbh_found_signals_12months_seed4'
+name = 'found_signals_Sangria_HM_False_49w_original_seed1_6_8_mbhb'
 save_name = name
 folderpath = folderpath_parent + name
 
 parameters = ['Mass1', 'Mass2', 'Spin1', 'Spin2', 'Distance', 'Phase', 'Inclination', 'EclipticLongitude', 'EclipticLatitude', 'Polarization', 'CoalescenceTime']
 # found_sources_flat = np.load(folderpath+'.npy', allow_pickle = True)
-found_sources = np.load(folderpath+'.pkl', allow_pickle = True)
+
 found_sources_flat = []
-# found_sources_flat = np.concatenate(found_sources)
-# found_sources_flat = found_sources_flat[:100]
-for i in range(len(found_sources)):
+onlyfiles = [f for f in os.listdir(folderpath) if os.path.isfile(os.path.join(folderpath, f))]
+found_sources_mp_even_unsorted = []
+for s_index2 in range(len(onlyfiles)):
+    signal = pickle.load(open(folderpath+'/'+onlyfiles[s_index2], 'rb'))
+    # signal = signal[:-1]
     found_sources_flat.append({})
-    for j, parameter in enumerate(parameters):
-        found_sources_flat[i][parameter] = found_sources[i][j]
+    for i, parameter in enumerate(parameters):
+        found_sources_flat[s_index2][parameter] = float(signal[i])
+
 
 PC_SI = 3.0856775814913674e+16
 for i in range(len(found_sources_flat)):

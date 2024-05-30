@@ -86,7 +86,8 @@ grandparent = os.path.dirname(parent)
 Radler = False
 version = '2'
 reduction = 1
-weeks = 52
+weeks = int(sys.argv[1])
+print('week',weeks)
 Tobs = float(weeks*7*24*3600)
 
 if Radler:
@@ -117,7 +118,7 @@ else:
     td = fid["obs/tdi"][()]
     td = np.rec.fromarrays(list(td.T), names=["t", "X", "Y", "Z"])
     td = td['t']
-    dt = td["t"][1]-td["t"][0]
+    dt = int(td["t"][1]-td["t"][0])
     
     td_mbhb = fid["sky/mbhb/tdi"][()]
     # cat_mbhb = fid["sky/mbhb/cat"]
@@ -126,17 +127,17 @@ else:
     # tdi_ts_mbhb = dict([(k, TimeSeries(td_mbhb[k][:int(len(td_mbhb[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
     # tdi_fs_mbhb = xr.Dataset(dict([(k, tdi_ts_mbhb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 
-    # td_dgb = fid["sky/dgb/tdi"][()]
-    # cat_dgb = fid["sky/dgb/cat"]
-    # td_dgb  = np.rec.fromarrays(list(td_dgb .T), names=["t", "X", "Y", "Z"])
-    # td_dgb  = td_dgb ['t']
+    td_dgb = fid["sky/dgb/tdi"][()]
+    cat_dgb = fid["sky/dgb/cat"]
+    td_dgb  = np.rec.fromarrays(list(td_dgb .T), names=["t", "X", "Y", "Z"])
+    td_dgb  = td_dgb ['t']
     # tdi_ts_dgb = dict([(k, TimeSeries(td_dgb[k][:int(len(td_dgb[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
     # tdi_fs_dgb = xr.Dataset(dict([(k, tdi_ts_dgb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 
-    # td_igb = fid["sky/igb/tdi"][()]
-    # cat_igb = fid["sky/igb/cat"]
-    # td_igb  = np.rec.fromarrays(list(td_igb .T), names=["t", "X", "Y", "Z"])
-    # td_igb  = td_igb ['t']
+    td_igb = fid["sky/igb/tdi"][()]
+    cat_igb = fid["sky/igb/cat"]
+    td_igb  = np.rec.fromarrays(list(td_igb .T), names=["t", "X", "Y", "Z"])
+    td_igb  = td_igb ['t']
     # tdi_ts_igb = dict([(k, TimeSeries(td_igb[k][:int(len(td_igb[k][:])/reduction)], dt=dt)) for k in ["X", "Y", "Z"]])
     # tdi_fs_igb = xr.Dataset(dict([(k, tdi_ts_igb[k].ts.fft(win=window)) for k in ["X", "Y", "Z"]]))
 
@@ -193,6 +194,7 @@ M_chirp_upper_boundary = (chandrasekhar_limit**2)**(3/5)/(2*chandrasekhar_limit)
 
 
 def tdi_subtraction(tdi_fs,found_sources_mp_subtract, frequencies_search):
+    
     #subtract the found sources from original
     tdi_fs_subtracted2 = deepcopy(tdi_fs)
     for i in range(len(found_sources_mp_subtract)):
@@ -304,7 +306,7 @@ save_name = 'original_'+save_name_injected+'_mbhb_SNR9_seed1'
 # save_name2 = 'original_'+save_name_injected+'_mbhb_SNR9_seed'+seed2
 # save_name = 'Radler_24m'
 # save_name = 'Radler_24m_filled_anticorrelated'
-save_name = 'Radler_24m_redone'
+# save_name = 'Radler_24m_redone'
 # save_name = 'Radler_half_even_dynamic_noise'
 # save_name = 'LDC1-4_2_optimized_second' ### ETH submission
 # save_name = 'Montana'
@@ -554,7 +556,7 @@ except:
 
     np.save(SAVEPATH+'found_sources_' +save_name+'_flat.pkl', np.asarray(found_sources_in_flat))
 
-sort_found = True
+sort_found = False
 if sort_found:
     found_sources_in_flat_frequency = []
     for i in range(len(found_sources_in_flat)):
@@ -1034,11 +1036,11 @@ def match_function(found_sources_in, pGB_injected_not_matched):
             for parameter in parameters:
                 pGB_injected_dict[parameter] = pGB_injected_not_matched[k][parameter]
             # correlation = l2_norm_match(pGB_injected_dict,found_dict)
-            # correlation = correlation_match(pGB_injected_dict,found_dict)
-            SNR_scaled = SNR_match_scaled(pGB_injected_dict,found_dict)
+            correlation = correlation_match(pGB_injected_dict,found_dict)
+            # SNR_scaled = SNR_match_scaled(pGB_injected_dict,found_dict)
             # SNR_not_scaled = SNR_match(pGB_injected_dict,found_dict)
             # correlation, amplitude_factor, cross_correlation = SNR_match_amplitude_condsiered(pGB_injected_dict,found_dict)
-            match_list_one_found_signal.append(SNR_scaled)
+            match_list_one_found_signal.append(correlation)
             if k > 39:
                 break
         if 0 == len(match_list_one_found_signal):
@@ -1046,12 +1048,12 @@ def match_function(found_sources_in, pGB_injected_not_matched):
             match_list.append(np.nan)
             continue
         try:
-            # best_index = np.nanargmax(match_list_one_found_signal)
-            best_index = np.nanargmin(match_list_one_found_signal)
+            best_index = np.nanargmax(match_list_one_found_signal)
+            # best_index = np.nanargmin(match_list_one_found_signal)
         except:
             print('all NAN:', match_list_one_found_signal, found_sources_in[0], pGB_injected_not_matched, found_sources_in)
             break
-        if match_list_one_found_signal[best_index] < 0.3:
+        if match_list_one_found_signal[best_index] > 0.9:
             found_match = True
         pGB_best_list.append(pGB_injected_not_matched[best_index])
         if found_match:
@@ -1246,8 +1248,8 @@ if do_match_sequential:
 
 
 # end_string = '_SNR_scaled_03_injected_snr'+str(injected_SNR)+'_comparison_'+seed2
-end_string = '_SNR_scaled_03_injected_snr'+str(injected_SNR)
-# end_string = '_correlation_09_injected_snr'+str(injected_SNR)
+# end_string = '_SNR_scaled_03_injected_snr'+str(injected_SNR)
+end_string = '_correlation_09_injected_snr'+str(injected_SNR)
 # end_string = ''
 
 

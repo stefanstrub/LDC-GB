@@ -168,7 +168,7 @@ fid = h5py.File(data_fn)
 
 reduction = 1
 mbhbs_removed = False
-seed = 4
+seed = 1
 
 # get TDI 
 if dataset == 'Radler':
@@ -204,12 +204,13 @@ elif dataset == 'Sangria':
             # td_injected[k] -= td_injected[k]
     else:
         td_original = deepcopy(td)
-        if reduction == 2:
-            # wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_found_6months.pkl", "rb"))
-            wave = pickle.load(open(MBHBPATH+dataset+'_mbhbh_found_6months_seed'+str(seed)+'.pkl', "rb"))
-            # wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_found_6months.pkl", "rb"))
-        else:
-            wave = pickle.load(open(MBHBPATH+dataset+'_mbhbh_found_12months_seed'+str(seed)+'.pkl', "rb"))
+        # if reduction == 2:
+        #     # wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_found_6months.pkl", "rb"))
+        #     wave = pickle.load(open(MBHBPATH+dataset+'_mbhbh_found_6months_seed'+str(seed)+'.pkl', "rb"))
+        #     # wave = pickle.load(open(MBHBPATH+dataset+"_mbhbh_found_6months.pkl", "rb"))
+        # else:
+        #     wave = pickle.load(open(MBHBPATH+dataset+'_mbhbh_found_12months_seed'+str(seed)+'.pkl', "rb"))
+        wave = pickle.load(open(MBHBPATH+'Sangria_mbhbh_found_49w_seed'+str(seed)+'.pkl', "rb"))
         for i, k in enumerate(["X", "Y", "Z"]):
             # td[k] = td_mbhb[k]
             td[k] -= wave[k] 
@@ -478,6 +479,7 @@ frequencies_odd = frequencies[1::2]
 # save_name = 'not_anticorrelatedLDC1-4_2_optimized_second'
 save_name = 'Sangria_12m_filled_anticorrelated'
 save_name = 'not_anticorrelated_original_Sangria_12m_mbhb_SNR9_seed1'
+save_name = 'not_anticorrelated_original_Sangria_52w_mbhb_SNR9_seed1'
 # save_name = 'Spritz_clean_galaxy'
 # save_name = 'Radler_24m'
 # if add_gaps:
@@ -1422,7 +1424,7 @@ print('GPU memory free', get_gpu_memory())
 # pGB_injected_matched = np.load(SAVEPATH+'/injected_matched_windows' +save_name+'.npy', allow_pickle=True)
 
 # found_sources_in_flat = np.load(SAVEPATH+'/found_sources_'+save_name+'_flat.pkl', allow_pickle=True)
-# found_sources = np.load(SAVEPATH+'/found_sources_in_SNR_'+save_name+'.pkl', allow_pickle=True)
+# found_sources = np.load(SAVEPATH+'/found_sources_'+save_name+'.pkl', allow_pickle=True)
 # found_sources_in_flat = []
 # for i in range(len(found_sources)):
 #     for j in range(len(found_sources[i])):
@@ -1695,9 +1697,9 @@ noise_residual = {'A': psdA_residual, 'E': psdE_residual, 'T': psdT_residual}
 noise_instrument = {'A': SA, 'E': SE, 'T': ST}
 # noise_partial_residual = {'A': psdA_partial_residual, 'E': psdE_partial_residual, 'T': psdT_partial_residual}
 
-# noise_residual['f'] = tdi_fs.f
-# noise_df = pd.DataFrame(noise_residual)
-# noise_df.to_csv(SAVEPATH+'ETH_'+save_name+'_noise.csv')
+noise_residual['f'] = tdi_fs.f
+noise_df = pd.DataFrame(noise_residual)
+noise_df.to_csv(SAVEPATH+'ETH_'+save_name+'_noise.csv')
 
 noise = noise_fit
 # search1 = Search(tdi_fs_residual,Tobs, lower_frequency, upper_frequency, noise=noise)
@@ -1763,7 +1765,7 @@ DAf_original = (dataZ_original - dataX_original)/np.sqrt(2.0)
 
 start_all = time.time()
 for i in range(len(found_sources_in)):
-    if i < 5368:
+    if i < 4000:
         continue
     # if i%10 != 0:
     #     continue
